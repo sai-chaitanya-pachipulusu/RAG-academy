@@ -55,33 +55,33 @@ export function ModuleLearningView({ phaseBlocks = [] }: Props) {
   const nextModule = moduleData.find(m => m.progress < 100);
 
   return (
-    <div className="space-y-8 py-6">
+    <div className="space-y-12">
       {/* Hero */}
       <Reveal>
-        <header className="space-y-4">
-          <div className="max-w-2xl space-y-2">
-            <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl">
+        <header className="space-y-6">
+          <div className="space-y-3">
+            <h1 className="text-4xl font-semibold tracking-[-0.03em] text-zinc-900 lg:text-5xl">
               Curriculum
             </h1>
-            <p className="text-base leading-relaxed text-zinc-500">
+            <p className="text-lg text-zinc-500 max-w-xl">
               Twelve modules from embeddings to scalable production.
             </p>
           </div>
 
           {/* Progress Summary */}
-          <div className="flex flex-col gap-4 rounded-2xl border border-zinc-100 bg-zinc-50/50 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-6 rounded-2xl border border-zinc-200 bg-zinc-50 p-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-6">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-900 text-white">
-                <span className="text-lg font-bold">{overallProgress}%</span>
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-900 text-white">
+                <span className="text-lg font-semibold">{overallProgress}%</span>
               </div>
               <div>
-                <p className="text-xl font-bold text-zinc-900">{totalCompleted}/{totalChallenges}</p>
-                <p className="text-xs text-zinc-500">completed</p>
+                <p className="text-2xl font-semibold text-zinc-900">{totalCompleted}/{totalChallenges}</p>
+                <p className="text-sm text-zinc-500">completed</p>
               </div>
             </div>
             
-            <div className="flex items-center gap-4">
-              <div className="h-2 w-40 overflow-hidden rounded-full bg-zinc-200">
+            <div className="flex items-center gap-5">
+              <div className="h-2.5 w-44 overflow-hidden rounded-full bg-zinc-200">
                 <div 
                   className="h-full rounded-full bg-zinc-900 transition-all duration-700"
                   style={{ width: `${overallProgress}%` }}
@@ -90,7 +90,7 @@ export function ModuleLearningView({ phaseBlocks = [] }: Props) {
               {nextModule && (
                 <button
                   onClick={() => setExpandedModule(nextModule.id)}
-                  className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-zinc-800"
+                  className="rounded-full bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition-all duration-200 hover:bg-zinc-800"
                 >
                   Continue: {nextModule.name}
                 </button>
@@ -101,7 +101,7 @@ export function ModuleLearningView({ phaseBlocks = [] }: Props) {
       </Reveal>
 
       {/* Module List */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         {moduleData.map((mod, i) => {
           const isExpanded = expandedModule === mod.id;
           const resources = MODULE_RESOURCES[mod.id];

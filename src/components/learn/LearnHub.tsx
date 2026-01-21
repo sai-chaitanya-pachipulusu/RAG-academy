@@ -20,16 +20,16 @@ export function LearnHub({ phaseBlocks }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>("modules");
 
   return (
-    <div className="relative space-y-6">
+    <div className="relative space-y-10">
       {/* View Toggle */}
       <div className="flex items-center justify-center">
-        <div className="inline-flex gap-1 rounded-xl bg-zinc-100 p-1">
+        <div className="inline-flex gap-1 rounded-full border border-zinc-200 bg-zinc-50 p-1.5">
           <button
             onClick={() => setViewMode("modules")}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+            className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-200 ${
               viewMode === "modules"
                 ? "bg-white text-zinc-900 shadow-sm"
-                : "text-zinc-500 hover:text-zinc-700"
+                : "text-zinc-500 hover:text-zinc-900"
             }`}
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -39,10 +39,10 @@ export function LearnHub({ phaseBlocks }: Props) {
           </button>
           <button
             onClick={() => setViewMode("path")}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+            className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-200 ${
               viewMode === "path"
                 ? "bg-white text-zinc-900 shadow-sm"
-                : "text-zinc-500 hover:text-zinc-700"
+                : "text-zinc-500 hover:text-zinc-900"
             }`}
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -52,10 +52,10 @@ export function LearnHub({ phaseBlocks }: Props) {
           </button>
           <button
             onClick={() => setViewMode("advisor")}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+            className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-200 ${
               viewMode === "advisor"
                 ? "bg-white text-zinc-900 shadow-sm"
-                : "text-zinc-500 hover:text-zinc-700"
+                : "text-zinc-500 hover:text-zinc-900"
             }`}
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -70,7 +70,7 @@ export function LearnHub({ phaseBlocks }: Props) {
       {viewMode === "modules" && <ModuleLearningView phaseBlocks={phaseBlocks} />}
       {viewMode === "path" && <LearningPath />}
       {viewMode === "advisor" && (
-        <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-8">
           <EnhancedRagAdvisor />
         </div>
       )}

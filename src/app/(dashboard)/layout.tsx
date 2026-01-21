@@ -12,8 +12,8 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="min-h-screen bg-transparent">
-      <main className="mx-auto max-w-screen-xl px-4 py-8 sm:px-6 sm:py-12">
+    <div className="min-h-screen bg-white">
+      <main className="mx-auto max-w-[1400px] px-8 py-12 lg:px-16 lg:py-16">
         {children}
       </main>
       <ChatWidget />

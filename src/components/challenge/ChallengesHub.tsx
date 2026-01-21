@@ -18,50 +18,45 @@ export function ChallengesHub() {
   const [activeTab, setActiveTab] = useState<Tab>("catalog");
 
   return (
-    <div className="space-y-8 py-6">
+    <div className="space-y-12">
       {/* Header */}
       <Reveal>
-        <header>
-          <div className="max-w-2xl space-y-2">
-            <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl">
-              Practice Hub
-            </h1>
-            <p className="text-base leading-relaxed text-zinc-500">
-              Hands-on challenges, portfolio projects, and timed assessments.
-            </p>
-          </div>
+        <header className="space-y-4">
+          <h1 className="text-4xl font-semibold tracking-[-0.03em] text-zinc-900 lg:text-5xl">
+            Practice Hub
+          </h1>
+          <p className="text-lg text-zinc-500 max-w-xl">
+            Hands-on challenges, portfolio projects, and timed assessments.
+          </p>
         </header>
       </Reveal>
 
       {/* Tab Navigation */}
       <Reveal delayMs={100}>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-1 rounded-xl border border-zinc-100 bg-zinc-50/50 p-1">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-zinc-50 p-1.5">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`relative rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
+                className={`relative rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-200 ${
                   activeTab === tab.id
                     ? "bg-white text-zinc-900 shadow-sm"
                     : "text-zinc-500 hover:text-zinc-900"
                 }`}
               >
                 {tab.label}
-                {activeTab === tab.id && (
-                  <span className="absolute -bottom-1 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-zinc-900" />
-                )}
               </button>
             ))}
           </div>
-          <p className="text-xs text-zinc-400">
+          <p className="text-sm text-zinc-400">
             {TABS.find(t => t.id === activeTab)?.description}
           </p>
         </div>
       </Reveal>
 
       {/* Content */}
-      <div className="min-h-[400px]">
+      <div className="min-h-[500px]">
         {activeTab === "catalog" && <CatalogView />}
         {activeTab === "projects" && <ProjectsView />}
         {activeTab === "interview" && <InterviewPrep />}
