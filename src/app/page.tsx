@@ -92,60 +92,60 @@ export default function Home() {
   const { user } = useSupabaseAuth();
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 text-slate-900">
-      {/* Subtle Background */}
+    <div className="relative min-h-screen bg-white text-black">
+      {/* Sophisticated Background */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-50/30 via-transparent to-purple-50/30" />
-        <div className="absolute inset-x-0 top-0 h-96 bg-gradient-to-b from-white via-white/60 to-transparent" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(0,0,0,0.02)_0%,_transparent_50%)]" />
+        <div className="absolute inset-x-0 top-0 h-screen bg-gradient-to-b from-transparent via-white/95 to-white" />
       </div>
 
       {/* Pricing Banner */}
       <PricingBanner />
 
-      <div className="relative mx-auto max-w-7xl px-6 pt-20 lg:pt-32">
+      <div className="relative mx-auto max-w-8xl px-6 pt-24 lg:pt-36">
         {/* Hero Section */}
-        <div className="flex flex-col gap-12 lg:flex-row lg:items-center lg:gap-20">
+        <div className="flex flex-col gap-16 lg:flex-row lg:items-center lg:gap-32">
           {/* Left Column: Text */}
-          <div className="flex-1 space-y-8">
+          <div className="flex-1 space-y-10">
             <Reveal>
-              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 backdrop-blur px-4 py-2 text-xs font-medium text-slate-600 shadow-sm">
+              <div className="inline-flex items-center gap-3 rounded-full border border-black/10 bg-black/5 backdrop-blur px-6 py-3 text-xs font-medium text-black/70">
                 <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-black/40" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-black" />
                 </span>
                 Production-Ready RAG • 2025
               </div>
             </Reveal>
 
             <Reveal delayMs={100}>
-              <h1 className="text-5xl font-bold tracking-tight text-slate-900 sm:text-6xl lg:text-7xl">
+              <h1 className="text-6xl font-bold tracking-tight text-black sm:text-7xl lg:text-8xl">
                 Master RAG
                 <br />
-                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">engineering.</span>
+                <span className="font-light">engineering.</span>
               </h1>
             </Reveal>
 
             <Reveal delayMs={200}>
-              <p className="max-w-lg text-lg leading-relaxed text-slate-600">
+              <p className="max-w-xl text-xl leading-relaxed text-black/60 font-light">
                 From fundamentals to cutting-edge research. Build production-ready 
                 RAG systems with interactive labs and real-world challenges.
               </p>
             </Reveal>
 
             <Reveal delayMs={300}>
-              <div className="flex flex-col items-start gap-4 sm:flex-row">
+              <div className="flex flex-col items-start gap-6 sm:flex-row">
                 <Link
                   href={user ? "/learn" : "/login"}
-                  className="group inline-flex h-14 items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 px-8 text-base font-semibold text-white shadow-xl transition-all hover:shadow-2xl hover:scale-105"
+                  className="group inline-flex h-16 items-center justify-center gap-4 rounded-2xl bg-black px-10 text-lg font-medium text-white transition-all hover:bg-black/90 hover:scale-[1.02]"
                 >
                   {user ? "Continue Learning" : "Get Started Free"}
                   <svg className="h-5 w-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                   </svg>
                 </Link>
                 <Link
                   href="/challenges"
-                  className="inline-flex h-14 items-center justify-center rounded-2xl border border-slate-200 bg-white px-8 text-base font-semibold text-slate-900 shadow-sm transition-all hover:border-slate-300 hover:shadow-md"
+                  className="inline-flex h-16 items-center justify-center rounded-2xl border border-black/10 bg-white px-10 text-lg font-medium text-black transition-all hover:border-black/20 hover:bg-black/5"
                 >
                   Explore Challenges
                 </Link>
@@ -154,11 +154,11 @@ export default function Home() {
 
             {/* Stats */}
             <Reveal delayMs={400}>
-              <div className="flex items-center gap-12 pt-8">
+              <div className="flex items-center gap-16 pt-12">
                 {STATS.map((stat, i) => (
                   <div key={i} className="text-center">
-                    <p className="text-4xl font-bold text-slate-900">{stat.value}</p>
-                    <p className="text-sm font-medium uppercase tracking-wider text-slate-500">{stat.label}</p>
+                    <p className="text-5xl font-bold text-black">{stat.value}</p>
+                    <p className="text-sm font-medium uppercase tracking-wider text-black/40">{stat.label}</p>
                   </div>
                 ))}
               </div>
@@ -168,25 +168,25 @@ export default function Home() {
           {/* Right Column: Visual */}
           <Reveal delayMs={300}>
             <div className="relative flex-1 hidden lg:block">
-              <div className="absolute -inset-12 rounded-[60px] bg-gradient-to-br from-blue-100/30 via-transparent to-purple-100/30 blur-3xl" />
-              <div className="relative aspect-[4/3] max-w-2xl rounded-3xl border border-slate-200/50 bg-white/80 backdrop-blur-xl shadow-2xl p-8">
-                {/* Enhanced RAG Diagram */}
-                <div className="flex h-full flex-col items-center justify-center gap-8">
-                  <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-blue-600 to-purple-600 text-white shadow-2xl">
-                    <svg className="h-12 w-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <div className="absolute -inset-20 rounded-[80px] bg-black/[0.02] blur-3xl" />
+              <div className="relative aspect-square max-w-lg rounded-3xl border border-black/10 bg-white/90 backdrop-blur-xl shadow-2xl p-12">
+                {/* Sophisticated RAG Diagram */}
+                <div className="flex h-full flex-col items-center justify-center gap-12">
+                  <div className="flex h-28 w-28 items-center justify-center rounded-3xl bg-black text-white shadow-2xl">
+                    <svg className="h-14 w-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1}>
                       <path d="M12 2L2 7L12 12L22 7L12 2Z" />
                       <path d="M2 17L12 22L22 17" />
                       <path d="M2 12L12 17L22 12" />
                     </svg>
                   </div>
-                  <div className="space-y-3 text-center">
-                    <p className="text-lg font-bold uppercase tracking-wider text-slate-400">RAG Academy</p>
-                    <p className="text-sm text-slate-500">Learn by building production systems</p>
+                  <div className="space-y-4 text-center">
+                    <p className="text-xl font-light uppercase tracking-wider text-black/40">RAG Academy</p>
+                    <p className="text-base text-black/60 font-light">Learn by building production systems</p>
                   </div>
-                  <div className="grid grid-cols-3 gap-6 w-full">
+                  <div className="grid grid-cols-3 gap-8 w-full">
                     {["Retrieve", "Augment", "Generate"].map((step, i) => (
-                      <div key={i} className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm">
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{step}</p>
+                      <div key={i} className="rounded-2xl border border-black/5 bg-black/[0.02] p-6">
+                        <p className="text-xs font-medium uppercase tracking-wider text-black/50">{step}</p>
                       </div>
                     ))}
                   </div>
@@ -197,61 +197,61 @@ export default function Home() {
         </div>
 
         {/* Feature Cards */}
-        <div className="mt-24 grid gap-6 sm:grid-cols-3">
+        <div className="mt-32 grid gap-8 sm:grid-cols-3">
           {FEATURES.map((feature, i) => (
             <Reveal key={feature.title} delayMs={300 + i * 50}>
-              <div className="group rounded-3xl border border-slate-200/50 bg-white/80 backdrop-blur p-6 transition-all hover:border-slate-300 hover:shadow-xl hover:scale-105">
-                <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100 text-slate-600 transition-all group-hover:from-blue-50 group-hover:to-purple-50 group-hover:text-blue-600">
+              <div className="group rounded-3xl border border-black/10 bg-white p-8 transition-all hover:border-black/20 hover:shadow-2xl hover:scale-[1.02] hover:bg-black/[0.02]">
+                <div className="mb-8 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-black/5 text-black/60 transition-all group-hover:bg-black/10 group-hover:text-black">
                   {feature.icon}
                 </div>
-                <h3 className="mb-3 text-lg font-bold text-slate-900">{feature.title}</h3>
-                <p className="text-sm leading-relaxed text-slate-600">{feature.description}</p>
+                <h3 className="mb-4 text-xl font-medium text-black">{feature.title}</h3>
+                <p className="text-base leading-relaxed text-black/60 font-light">{feature.description}</p>
               </div>
             </Reveal>
           ))}
         </div>
 
         {/* Featured Challenges Section */}
-        <div className="mt-32">
+        <div className="mt-40">
           <Reveal>
-            <div className="flex items-end justify-between mb-12">
+            <div className="flex items-end justify-between mb-16">
               <div>
-                <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+                <h2 className="text-4xl font-bold tracking-tight text-black sm:text-5xl">
                   Popular Challenges
                 </h2>
-                <p className="mt-3 text-lg text-slate-600">
+                <p className="mt-4 text-xl text-black/60 font-light">
                   Start with these community favorites
                 </p>
               </div>
               <Link 
                 href="/challenges" 
-                className="text-base font-medium text-slate-600 hover:text-slate-900 transition-colors hidden sm:block"
+                className="text-lg font-medium text-black/60 hover:text-black transition-colors hidden sm:block"
               >
                 View all →
               </Link>
             </div>
           </Reveal>
           
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
             {FEATURED_CHALLENGES.map((challenge, i) => (
               <Reveal key={challenge.slug} delayMs={i * 50}>
                 <Link 
                   href={`/challenges/${challenge.slug}`}
-                  className="group block rounded-3xl border border-slate-200/50 bg-white/80 backdrop-blur p-6 transition-all hover:border-slate-300 hover:shadow-xl hover:scale-105"
+                  className="group block rounded-3xl border border-black/10 bg-white p-8 transition-all hover:border-black/20 hover:shadow-2xl hover:scale-[1.02] hover:bg-black/[0.02]"
                 >
-                  <div className="flex items-center gap-3 mb-4">
+                  <div className="flex items-center gap-3 mb-6">
                     <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${
                       challenge.difficulty === 'hard' 
-                        ? 'bg-rose-50 text-rose-600' 
-                        : 'bg-amber-50 text-amber-600'
+                        ? 'bg-black/10 text-black/80' 
+                        : 'bg-black/5 text-black/60'
                     }`}>
                       {challenge.difficulty}
                     </span>
                   </div>
-                  <h3 className="text-lg font-semibold text-slate-900 group-hover:text-slate-700 transition-colors mb-2">
+                  <h3 className="text-lg font-medium text-black group-hover:text-black/80 transition-colors mb-3">
                     {challenge.title}
                   </h3>
-                  <p className="text-sm text-slate-500">{challenge.category}</p>
+                  <p className="text-sm text-black/50 font-light">{challenge.category}</p>
                 </Link>
               </Reveal>
             ))}
@@ -259,46 +259,46 @@ export default function Home() {
         </div>
 
         {/* Advanced RAG 2025 Section */}
-        <div className="mt-32">
+        <div className="mt-40">
           <Reveal>
-            <div className="rounded-4xl border border-slate-200/50 bg-gradient-to-br from-slate-50/80 to-white/80 backdrop-blur p-10 sm:p-12 shadow-xl">
-              <div className="flex items-center gap-4 mb-8">
-                <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2 text-xs font-semibold text-white shadow-lg">
+            <div className="rounded-4xl border border-black/10 bg-black/[0.02] p-12 sm:p-16 shadow-2xl">
+              <div className="flex items-center gap-6 mb-12">
+                <span className="inline-flex items-center gap-2 rounded-full bg-black px-4 py-2 text-xs font-semibold text-white">
                   NEW IN 2025
                 </span>
-                <span className="text-sm text-slate-500">Latest research techniques</span>
+                <span className="text-sm text-black/60 font-light">Latest research techniques</span>
               </div>
               
-              <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl mb-4">
+              <h2 className="text-4xl font-bold tracking-tight text-black sm:text-5xl mb-6">
                 Advanced RAG Architectures
               </h2>
-              <p className="text-lg text-slate-600 mb-12 max-w-3xl">
+              <p className="text-xl text-black/60 font-light mb-16 max-w-4xl">
                 Master cutting-edge techniques from the latest research papers including 
                 MiA-RAG, QuCo-RAG, HiFi-RAG, and more.
               </p>
 
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
                 {ADVANCED_2025.map((tech, i) => (
                   <Reveal key={tech.title} delayMs={i * 50}>
-                    <div className="rounded-3xl border border-slate-200/50 bg-white/80 backdrop-blur p-6 hover:shadow-lg transition-all hover:scale-105">
-                      <h3 className="text-lg font-bold text-slate-900 mb-2">{tech.title}</h3>
-                      <p className="text-sm font-medium text-slate-500 mb-3">{tech.subtitle}</p>
-                      <p className="text-sm text-slate-600 leading-relaxed">{tech.description}</p>
+                    <div className="rounded-3xl border border-black/10 bg-white p-8 hover:shadow-2xl transition-all hover:scale-[1.02] hover:bg-black/[0.02]">
+                      <h3 className="text-lg font-medium text-black mb-3">{tech.title}</h3>
+                      <p className="text-sm font-light text-black/50 mb-4">{tech.subtitle}</p>
+                      <p className="text-sm text-black/60 leading-relaxed font-light">{tech.description}</p>
                     </div>
                   </Reveal>
                 ))}
               </div>
 
-              <div className="mt-12 flex items-center gap-6">
+              <div className="mt-16 flex items-center gap-8">
                 <Link
                   href="/challenges?search=rag"
-                  className="inline-flex h-12 items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 text-base font-semibold text-white shadow-lg transition-all hover:shadow-xl hover:scale-105"
+                  className="inline-flex h-14 items-center justify-center rounded-2xl bg-black px-8 text-lg font-medium text-white transition-all hover:bg-black/90 hover:scale-[1.02]"
                 >
                   Explore Advanced Challenges
                 </Link>
                 <Link
                   href="/playbooks"
-                  className="text-base font-medium text-slate-600 hover:text-slate-900 transition-colors"
+                  className="text-lg font-medium text-black/60 hover:text-black transition-colors font-light"
                 >
                   Read Playbooks →
                 </Link>
@@ -419,26 +419,26 @@ export default function Home() {
 
         {/* CTA Section */}
         <Reveal>
-          <div className="mb-24 rounded-4xl bg-gradient-to-br from-slate-900 to-slate-800 p-12 text-center sm:p-16 shadow-2xl">
-            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+          <div className="mb-32 rounded-4xl bg-black p-16 text-center sm:p-20 shadow-2xl">
+            <h2 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
               Ready to build production RAG?
             </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-300">
+            <p className="mx-auto mt-6 max-w-3xl text-xl text-white/70 font-light">
               Join engineers building reliable, scalable RAG systems with the most comprehensive platform available.
             </p>
-            <div className="mt-10 flex items-center justify-center gap-6 flex-wrap">
+            <div className="mt-12 flex items-center justify-center gap-8 flex-wrap">
               <Link
                 href={user ? "/learn" : "/login"}
-                className="inline-flex h-14 items-center justify-center gap-3 rounded-2xl bg-white px-8 text-base font-semibold text-slate-900 shadow-lg transition-all hover:bg-slate-100 hover:shadow-xl hover:scale-105"
+                className="inline-flex h-16 items-center justify-center gap-4 rounded-2xl bg-white px-10 text-lg font-medium text-black transition-all hover:bg-black/10 hover:scale-[1.02]"
               >
                 Start Learning Free
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
               </Link>
               <Link
                 href="/challenges"
-                className="inline-flex h-14 items-center justify-center rounded-2xl border border-slate-600 px-8 text-base font-semibold text-white transition-all hover:bg-slate-800 hover:border-slate-500"
+                className="inline-flex h-16 items-center justify-center rounded-2xl border border-white/20 px-10 text-lg font-medium text-white transition-all hover:border-white/30 hover:bg-white/10"
               >
                 Browse Challenges
               </Link>

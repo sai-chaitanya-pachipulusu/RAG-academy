@@ -51,7 +51,7 @@ const STEPS: Step[] = [
     id: "ground",
     kicker: "Online",
     title: "Ground answers (and refuse safely)",
-    body: "Citations, refusal policies, injection/PII defenses — production hardening isn’t optional.",
+    body: "Citations, refusal policies, injection/PII defenses — production hardening isn't optional.",
     bullets: [
       "Citation validation (no out-of-range cites)",
       "Refuse on insufficient context",
@@ -67,14 +67,14 @@ function Diagram({ active }: { active: number }) {
   const accent = (step: number) => {
     switch (step) {
       case 0:
-        return "rgba(56,189,248,0.55)"; // sky
+        return "rgba(0,0,0,0.15)"; // subtle
       case 1:
-        return "rgba(99,102,241,0.55)"; // indigo
+        return "rgba(0,0,0,0.20)";
       case 2:
-        return "rgba(16,185,129,0.55)"; // emerald
+        return "rgba(0,0,0,0.25)";
       case 3:
       default:
-        return "rgba(244,114,182,0.50)"; // pink
+        return "rgba(0,0,0,0.30)";
     }
   };
 
@@ -82,24 +82,24 @@ function Diagram({ active }: { active: number }) {
     const s = stateFor(step);
     if (s === "active") {
       return {
-        fill: "rgba(248,250,252,0.8)", // slate-100
+        fill: "rgba(248,250,252,0.9)", // slate-50
         stroke: accent(step),
-        text: "rgba(30,41,59,0.9)", // slate-800
+        text: "rgba(0,0,0,0.9)", // black
         glow: true,
       };
     }
     if (s === "done") {
       return {
-        fill: "rgba(248,250,252,0.4)", // slate-100
-        stroke: "rgba(30,41,59,0.1)", // slate-800/10
-        text: "rgba(30,41,59,0.4)", // slate-800/40
+        fill: "rgba(248,250,252,0.6)", // slate-50
+        stroke: "rgba(0,0,0,0.1)", // black/10
+        text: "rgba(0,0,0,0.4)", // black/40
         glow: false,
       };
     }
     return {
       fill: "transparent",
-      stroke: "rgba(30,41,59,0.05)", // slate-800/5
-      text: "rgba(30,41,59,0.2)", // slate-800/20
+      stroke: "rgba(0,0,0,0.05)", // black/5
+      text: "rgba(0,0,0,0.2)", // black/20
       glow: false,
     };
   };
@@ -107,7 +107,7 @@ function Diagram({ active }: { active: number }) {
   const node = (x: number, y: number, w: number, h: number, label: string, hot: boolean) => {
     const st = nodeStyle(hot ? active : -1);
     const fill = hot ? st.fill : "rgba(248,250,252,0.3)";
-    const stroke = hot ? st.stroke : "rgba(30,41,59,0.06)";
+    const stroke = hot ? st.stroke : "rgba(0,0,0,0.06)";
     return (
       <g>
         <rect
@@ -126,7 +126,7 @@ function Diagram({ active }: { active: number }) {
           textAnchor="middle"
           fontSize="15"
           fontWeight="600"
-          fill={hot ? st.text : "rgba(30,41,59,0.3)"}
+          fill={hot ? st.text : "rgba(0,0,0,0.3)"}
           style={{ letterSpacing: "-0.01em" }}
         >
           {label}
@@ -136,7 +136,7 @@ function Diagram({ active }: { active: number }) {
   };
 
   const line = (x1: number, y1: number, x2: number, y2: number, hot: boolean) => {
-    const stroke = hot ? accent(active) : "rgba(9,9,11,0.05)";
+    const stroke = hot ? accent(active) : "rgba(0,0,0,0.05)";
     const cls = hot ? "rag-flow-line" : "";
     return (
       <line
@@ -164,10 +164,10 @@ function Diagram({ active }: { active: number }) {
     <div className="relative">
       <svg viewBox="0 0 800 420" className="h-auto w-full">
       {/* Lane labels */}
-      <text x="60" y="36" fontSize="11" fontWeight="700" fill="rgba(9,9,11,0.2)" className="uppercase tracking-widest">
+      <text x="60" y="36" fontSize="11" fontWeight="700" fill="rgba(0,0,0,0.15)" className="uppercase tracking-widest">
         OFFLINE · ingestion
       </text>
-      <text x="60" y="216" fontSize="11" fontWeight="700" fill="rgba(9,9,11,0.2)" className="uppercase tracking-widest">
+      <text x="60" y="216" fontSize="11" fontWeight="700" fill="rgba(0,0,0,0.15)" className="uppercase tracking-widest">
         ONLINE · query time
       </text>
 
@@ -241,9 +241,9 @@ export function RAGScrollStory() {
 
     function update() {
       const vh = window.innerHeight || 1;
-      const markerY = vh * 0.55; // marker lower in the viewport so the last step can still activate
+      const markerY = vh * 0.55; // marker lower in viewport so last step can still activate
 
-      // Scrollspy style: active step is the last one whose top has crossed the marker.
+      // Scrollspy style: active step is last one whose top has crossed marker.
       let idx = 0;
       for (let i = 0; i < els.length; i++) {
         const rect = els[i]!.getBoundingClientRect();
@@ -274,7 +274,7 @@ export function RAGScrollStory() {
   }, []);
 
   return (
-    <div className="grid gap-8 lg:grid-cols-12">
+    <div className="grid gap-12 lg:grid-cols-12">
       <div className="lg:col-span-5">
         <div className="flex flex-col">
           {STEPS.map((s, idx) => {
@@ -286,32 +286,36 @@ export function RAGScrollStory() {
                   stepRefs.current[idx] = el;
                 }}
                 data-step-index={idx}
-                className="py-14"
+                className="py-20"
               >
                 <Reveal delayMs={idx * 40}>
                   <div
                     className={[
                       // Editorial (less boxed): subtle divider + active left accent
-                      "relative pl-5",
-                      "before:absolute before:left-0 before:top-2 before:bottom-2 before:w-px before:bg-zinc-200 dark:before:bg-white/10",
-                      isActive ? "before:bg-slate-900" : "",
+                      "relative pl-8",
+                      "before:absolute before:left-0 before:top-4 before:bottom-4 before:w-px before:bg-black/10",
+                      isActive ? "before:bg-black before:w-px" : "",
                     ].join(" ")}
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <Badge variant="muted">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-black/[0.02] px-4 py-2 text-xs font-light text-black/60">
                         {String(idx + 1).padStart(2, "0")} · {s.kicker}
-                      </Badge>
-                      {isActive ? <Badge variant="accent">active</Badge> : null}
+                      </div>
+                      {isActive ? (
+                        <div className="inline-flex items-center gap-2 rounded-full bg-black px-3 py-1 text-xs font-medium text-white">
+                          active
+                        </div>
+                      ) : null}
                     </div>
-<h3 className="mt-3 text-xl font-semibold tracking-tight text-slate-900">
+                    <h3 className="mt-6 text-2xl font-light tracking-tight text-black">
                       {s.title}
                     </h3>
-                    <p className="mt-2 text-sm leading-7 text-slate-600">
+                    <p className="mt-4 text-lg leading-relaxed text-black/60 font-light">
                       {s.body}
                     </p>
-                    <ul className="mt-4 list-disc space-y-2 pl-6 text-sm text-slate-600">
+                    <ul className="mt-6 space-y-3 pl-8 text-lg text-black/60 font-light">
                       {s.bullets.map((b) => (
-                        <li key={b} className="leading-7">
+                        <li key={b} className="leading-relaxed">
                           {b}
                         </li>
                       ))}
@@ -325,31 +329,31 @@ export function RAGScrollStory() {
       </div>
 
       <div className="lg:col-span-7">
-        <div className="sticky top-24">
+        <div className="sticky top-32">
           <Reveal>
-            <div className="min-h-[64vh]">
-              <div className="flex items-center justify-between gap-3">
-<p className="text-sm font-medium text-slate-900">
+            <div className="min-h-[70vh]">
+              <div className="flex items-center justify-between gap-6">
+                <p className="text-sm font-light text-black">
                   RAG pipeline (scrollytelling)
                 </p>
-                <Badge variant="muted">
+                <div className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-black/[0.02] px-4 py-2 text-xs font-light text-black/60">
                   step {active + 1} / {STEPS.length}
-                </Badge>
+                </div>
               </div>
 
-              <div className="relative mt-6">
-                {/* Glow backdrop (not a boxed card) */}
+              <div className="relative mt-8">
+                {/* Sophisticated glow backdrop */}
                 <div
                   aria-hidden
-                  className="pointer-events-none absolute -inset-10 rounded-[64px] bg-[radial-gradient(circle_at_35%_25%,rgba(99,102,241,0.08),transparent_55%),radial-gradient(circle_at_75%_35%,rgba(56,189,248,0.06),transparent_55%)] blur-2xl"
+                  className="pointer-events-none absolute -inset-16 rounded-[80px] bg-[radial-gradient(ellipse_at_center,_rgba(0,0,0,0.03)_0%,_transparent_70%)] blur-3xl"
                 />
-                <div className="relative rounded-3xl border border-slate-200/50 bg-slate-50/80 backdrop-blur p-4 shadow-sm">
+                <div className="relative rounded-3xl border border-black/10 bg-white p-8 shadow-2xl">
                   <Diagram active={active} />
                 </div>
               </div>
 
-              <p className="mt-6 max-w-xl text-sm leading-7 text-slate-600">
-                Scroll the left side — the diagram reacts as the pipeline moves
+              <p className="mt-8 max-w-xl text-lg leading-relaxed text-black/60 font-light">
+                Scroll left side — diagram reacts as pipeline moves
                 from ingestion to retrieval, reranking, and safety.
               </p>
             </div>
@@ -359,5 +363,3 @@ export function RAGScrollStory() {
     </div>
   );
 }
-
-

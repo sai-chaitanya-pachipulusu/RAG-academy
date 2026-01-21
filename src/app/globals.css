@@ -106,7 +106,7 @@ body {
 }
 
 .rag-flow-line {
-  stroke: #e4e4e7;
+  stroke: rgba(0, 0, 0, 0.08);
   stroke-dasharray: 10 10;
   animation: rag-dash 2.2s linear infinite;
 }
