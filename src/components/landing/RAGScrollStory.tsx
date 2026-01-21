@@ -82,32 +82,32 @@ function Diagram({ active }: { active: number }) {
     const s = stateFor(step);
     if (s === "active") {
       return {
-        fill: "rgba(244,244,245,0.8)", // zinc-100
+        fill: "rgba(248,250,252,0.8)", // slate-100
         stroke: accent(step),
-        text: "rgba(9,9,11,0.9)", // zinc-950
+        text: "rgba(30,41,59,0.9)", // slate-800
         glow: true,
       };
     }
     if (s === "done") {
       return {
-        fill: "rgba(244,244,245,0.4)", // zinc-100
-        stroke: "rgba(9,9,11,0.1)", // zinc-950/10
-        text: "rgba(9,9,11,0.4)", // zinc-950/40
+        fill: "rgba(248,250,252,0.4)", // slate-100
+        stroke: "rgba(30,41,59,0.1)", // slate-800/10
+        text: "rgba(30,41,59,0.4)", // slate-800/40
         glow: false,
       };
     }
     return {
       fill: "transparent",
-      stroke: "rgba(9,9,11,0.05)", // zinc-950/5
-      text: "rgba(9,9,11,0.2)", // zinc-950/20
+      stroke: "rgba(30,41,59,0.05)", // slate-800/5
+      text: "rgba(30,41,59,0.2)", // slate-800/20
       glow: false,
     };
   };
 
   const node = (x: number, y: number, w: number, h: number, label: string, hot: boolean) => {
     const st = nodeStyle(hot ? active : -1);
-    const fill = hot ? st.fill : "rgba(244,244,245,0.3)";
-    const stroke = hot ? st.stroke : "rgba(9,9,11,0.06)";
+    const fill = hot ? st.fill : "rgba(248,250,252,0.3)";
+    const stroke = hot ? st.stroke : "rgba(30,41,59,0.06)";
     return (
       <g>
         <rect
@@ -126,7 +126,7 @@ function Diagram({ active }: { active: number }) {
           textAnchor="middle"
           fontSize="15"
           fontWeight="600"
-          fill={hot ? st.text : "rgba(9,9,11,0.3)"}
+          fill={hot ? st.text : "rgba(30,41,59,0.3)"}
           style={{ letterSpacing: "-0.01em" }}
         >
           {label}
@@ -294,7 +294,7 @@ export function RAGScrollStory() {
                       // Editorial (less boxed): subtle divider + active left accent
                       "relative pl-5",
                       "before:absolute before:left-0 before:top-2 before:bottom-2 before:w-px before:bg-zinc-200 dark:before:bg-white/10",
-                      isActive ? "before:bg-zinc-900 dark:before:bg-white/35" : "",
+                      isActive ? "before:bg-slate-900" : "",
                     ].join(" ")}
                   >
                     <div className="flex items-center justify-between gap-3">
@@ -303,13 +303,13 @@ export function RAGScrollStory() {
                       </Badge>
                       {isActive ? <Badge variant="accent">active</Badge> : null}
                     </div>
-                    <h3 className="mt-3 text-xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
+<h3 className="mt-3 text-xl font-semibold tracking-tight text-slate-900">
                       {s.title}
                     </h3>
-                    <p className="mt-2 text-sm leading-7 text-zinc-600 dark:text-zinc-300">
+                    <p className="mt-2 text-sm leading-7 text-slate-600">
                       {s.body}
                     </p>
-                    <ul className="mt-4 list-disc space-y-2 pl-6 text-sm text-zinc-700 dark:text-zinc-300">
+                    <ul className="mt-4 list-disc space-y-2 pl-6 text-sm text-slate-600">
                       {s.bullets.map((b) => (
                         <li key={b} className="leading-7">
                           {b}
@@ -329,7 +329,7 @@ export function RAGScrollStory() {
           <Reveal>
             <div className="min-h-[64vh]">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-medium text-zinc-950 dark:text-zinc-50">
+<p className="text-sm font-medium text-slate-900">
                   RAG pipeline (scrollytelling)
                 </p>
                 <Badge variant="muted">
@@ -343,12 +343,12 @@ export function RAGScrollStory() {
                   aria-hidden
                   className="pointer-events-none absolute -inset-10 rounded-[64px] bg-[radial-gradient(circle_at_35%_25%,rgba(99,102,241,0.08),transparent_55%),radial-gradient(circle_at_75%_35%,rgba(56,189,248,0.06),transparent_55%)] blur-2xl"
                 />
-                <div className="relative rounded-3xl border border-zinc-100 bg-zinc-50/50 p-4 shadow-sm">
+                <div className="relative rounded-3xl border border-slate-200/50 bg-slate-50/80 backdrop-blur p-4 shadow-sm">
                   <Diagram active={active} />
                 </div>
               </div>
 
-              <p className="mt-6 max-w-xl text-sm leading-7 text-zinc-600 dark:text-zinc-300">
+              <p className="mt-6 max-w-xl text-sm leading-7 text-slate-600">
                 Scroll the left side — the diagram reacts as the pipeline moves
                 from ingestion to retrieval, reranking, and safety.
               </p>

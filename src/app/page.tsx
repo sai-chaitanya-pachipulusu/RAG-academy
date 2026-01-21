@@ -92,60 +92,60 @@ export default function Home() {
   const { user } = useSupabaseAuth();
 
   return (
-    <div className="relative min-h-screen bg-white text-zinc-900">
+    <div className="relative min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 text-slate-900">
       {/* Subtle Background */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute inset-0 dot-grid opacity-30" />
-        <div className="absolute inset-x-0 top-0 h-96 bg-gradient-to-b from-white via-white/80 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-50/30 via-transparent to-purple-50/30" />
+        <div className="absolute inset-x-0 top-0 h-96 bg-gradient-to-b from-white via-white/60 to-transparent" />
       </div>
 
       {/* Pricing Banner */}
       <PricingBanner />
 
-      <div className="relative mx-auto max-w-screen-xl px-6 pt-16 lg:pt-24">
+      <div className="relative mx-auto max-w-7xl px-6 pt-20 lg:pt-32">
         {/* Hero Section */}
-        <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:gap-16">
+        <div className="flex flex-col gap-12 lg:flex-row lg:items-center lg:gap-20">
           {/* Left Column: Text */}
-          <div className="flex-1 space-y-6">
+          <div className="flex-1 space-y-8">
             <Reveal>
-              <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-[10px] font-semibold text-zinc-600">
+              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 backdrop-blur px-4 py-2 text-xs font-medium text-slate-600 shadow-sm">
                 <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
                 </span>
                 Production-Ready RAG • 2025
               </div>
             </Reveal>
 
             <Reveal delayMs={100}>
-              <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-6xl lg:text-7xl">
+              <h1 className="text-5xl font-bold tracking-tight text-slate-900 sm:text-6xl lg:text-7xl">
                 Master RAG
                 <br />
-                <span className="gradient-text">engineering.</span>
+                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">engineering.</span>
               </h1>
             </Reveal>
 
             <Reveal delayMs={200}>
-              <p className="max-w-md text-base leading-relaxed text-zinc-600">
+              <p className="max-w-lg text-lg leading-relaxed text-slate-600">
                 From fundamentals to cutting-edge research. Build production-ready 
                 RAG systems with interactive labs and real-world challenges.
               </p>
             </Reveal>
 
             <Reveal delayMs={300}>
-              <div className="flex flex-col items-start gap-3 sm:flex-row">
+              <div className="flex flex-col items-start gap-4 sm:flex-row">
                 <Link
                   href={user ? "/learn" : "/login"}
-                  className="shine group inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-zinc-900 px-6 text-sm font-semibold text-white shadow-lg transition-all hover:bg-zinc-800"
+                  className="group inline-flex h-14 items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 px-8 text-base font-semibold text-white shadow-xl transition-all hover:shadow-2xl hover:scale-105"
                 >
                   {user ? "Continue Learning" : "Get Started Free"}
-                  <svg className="h-4 w-4 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-5 w-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                   </svg>
                 </Link>
                 <Link
                   href="/challenges"
-                  className="inline-flex h-12 items-center justify-center rounded-xl border border-zinc-200 bg-white px-6 text-sm font-semibold text-zinc-900 transition-all hover:border-zinc-300 hover:shadow-md"
+                  className="inline-flex h-14 items-center justify-center rounded-2xl border border-slate-200 bg-white px-8 text-base font-semibold text-slate-900 shadow-sm transition-all hover:border-slate-300 hover:shadow-md"
                 >
                   Explore Challenges
                 </Link>
@@ -154,11 +154,11 @@ export default function Home() {
 
             {/* Stats */}
             <Reveal delayMs={400}>
-              <div className="flex items-center gap-8 pt-4">
+              <div className="flex items-center gap-12 pt-8">
                 {STATS.map((stat, i) => (
                   <div key={i} className="text-center">
-                    <p className="text-3xl font-bold text-zinc-900">{stat.value}</p>
-                    <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">{stat.label}</p>
+                    <p className="text-4xl font-bold text-slate-900">{stat.value}</p>
+                    <p className="text-sm font-medium uppercase tracking-wider text-slate-500">{stat.label}</p>
                   </div>
                 ))}
               </div>
@@ -168,25 +168,25 @@ export default function Home() {
           {/* Right Column: Visual */}
           <Reveal delayMs={300}>
             <div className="relative flex-1 hidden lg:block">
-              <div className="absolute -inset-8 rounded-[48px] bg-gradient-to-br from-zinc-100/50 to-transparent blur-2xl" />
-              <div className="relative aspect-square max-w-lg rounded-3xl border border-zinc-100 bg-white/50 p-8 backdrop-blur">
-                {/* Simplified RAG Diagram */}
-                <div className="flex h-full flex-col items-center justify-center gap-6 text-center">
-                  <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-zinc-900 text-white shadow-xl">
-                    <svg className="h-10 w-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <div className="absolute -inset-12 rounded-[60px] bg-gradient-to-br from-blue-100/30 via-transparent to-purple-100/30 blur-3xl" />
+              <div className="relative aspect-[4/3] max-w-2xl rounded-3xl border border-slate-200/50 bg-white/80 backdrop-blur-xl shadow-2xl p-8">
+                {/* Enhanced RAG Diagram */}
+                <div className="flex h-full flex-col items-center justify-center gap-8">
+                  <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-blue-600 to-purple-600 text-white shadow-2xl">
+                    <svg className="h-12 w-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <path d="M12 2L2 7L12 12L22 7L12 2Z" />
                       <path d="M2 17L12 22L22 17" />
                       <path d="M2 12L12 17L22 12" />
                     </svg>
                   </div>
-                  <div className="space-y-2">
-                    <p className="text-sm font-bold uppercase tracking-widest text-zinc-400">RAG Academy</p>
-                    <p className="text-xs text-zinc-500">Learn by building</p>
+                  <div className="space-y-3 text-center">
+                    <p className="text-lg font-bold uppercase tracking-wider text-slate-400">RAG Academy</p>
+                    <p className="text-sm text-slate-500">Learn by building production systems</p>
                   </div>
-                  <div className="grid grid-cols-3 gap-4 mt-4">
+                  <div className="grid grid-cols-3 gap-6 w-full">
                     {["Retrieve", "Augment", "Generate"].map((step, i) => (
-                      <div key={i} className="rounded-xl border border-zinc-100 bg-zinc-50 p-3">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">{step}</p>
+                      <div key={i} className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm">
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{step}</p>
                       </div>
                     ))}
                   </div>
@@ -197,50 +197,50 @@ export default function Home() {
         </div>
 
         {/* Feature Cards */}
-        <div className="mt-20 grid gap-4 sm:grid-cols-3">
+        <div className="mt-24 grid gap-6 sm:grid-cols-3">
           {FEATURES.map((feature, i) => (
             <Reveal key={feature.title} delayMs={300 + i * 50}>
-              <div className="group rounded-2xl border border-zinc-100 bg-white p-5 transition-all hover:border-zinc-200 hover:shadow-lg">
-                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-50 text-zinc-600 transition-colors group-hover:bg-zinc-900 group-hover:text-white">
+              <div className="group rounded-3xl border border-slate-200/50 bg-white/80 backdrop-blur p-6 transition-all hover:border-slate-300 hover:shadow-xl hover:scale-105">
+                <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100 text-slate-600 transition-all group-hover:from-blue-50 group-hover:to-purple-50 group-hover:text-blue-600">
                   {feature.icon}
                 </div>
-                <h3 className="mb-1 text-sm font-bold text-zinc-900">{feature.title}</h3>
-                <p className="text-xs leading-relaxed text-zinc-600">{feature.description}</p>
+                <h3 className="mb-3 text-lg font-bold text-slate-900">{feature.title}</h3>
+                <p className="text-sm leading-relaxed text-slate-600">{feature.description}</p>
               </div>
             </Reveal>
           ))}
         </div>
 
         {/* Featured Challenges Section */}
-        <div className="mt-24">
+        <div className="mt-32">
           <Reveal>
-            <div className="flex items-end justify-between mb-8">
+            <div className="flex items-end justify-between mb-12">
               <div>
-                <h2 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
+                <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
                   Popular Challenges
                 </h2>
-                <p className="mt-1 text-sm text-zinc-600">
+                <p className="mt-3 text-lg text-slate-600">
                   Start with these community favorites
                 </p>
               </div>
               <Link 
                 href="/challenges" 
-                className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors hidden sm:block"
+                className="text-base font-medium text-slate-600 hover:text-slate-900 transition-colors hidden sm:block"
               >
                 View all →
               </Link>
             </div>
           </Reveal>
           
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {FEATURED_CHALLENGES.map((challenge, i) => (
               <Reveal key={challenge.slug} delayMs={i * 50}>
                 <Link 
                   href={`/challenges/${challenge.slug}`}
-                  className="group block rounded-2xl border border-zinc-100 bg-white p-5 transition-all hover:border-zinc-200 hover:shadow-lg"
+                  className="group block rounded-3xl border border-slate-200/50 bg-white/80 backdrop-blur p-6 transition-all hover:border-slate-300 hover:shadow-xl hover:scale-105"
                 >
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide ${
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${
                       challenge.difficulty === 'hard' 
                         ? 'bg-rose-50 text-rose-600' 
                         : 'bg-amber-50 text-amber-600'
@@ -248,10 +248,10 @@ export default function Home() {
                       {challenge.difficulty}
                     </span>
                   </div>
-                  <h3 className="font-semibold text-zinc-900 group-hover:text-zinc-700 transition-colors">
+                  <h3 className="text-lg font-semibold text-slate-900 group-hover:text-slate-700 transition-colors mb-2">
                     {challenge.title}
                   </h3>
-                  <p className="text-xs text-zinc-500 mt-1">{challenge.category}</p>
+                  <p className="text-sm text-slate-500">{challenge.category}</p>
                 </Link>
               </Reveal>
             ))}
@@ -259,46 +259,46 @@ export default function Home() {
         </div>
 
         {/* Advanced RAG 2025 Section */}
-        <div className="mt-24">
+        <div className="mt-32">
           <Reveal>
-            <div className="rounded-3xl border border-zinc-200 bg-gradient-to-br from-zinc-50 to-white p-8 sm:p-10">
-              <div className="flex items-center gap-3 mb-6">
-                <span className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-3 py-1 text-[10px] font-semibold text-white">
+            <div className="rounded-4xl border border-slate-200/50 bg-gradient-to-br from-slate-50/80 to-white/80 backdrop-blur p-10 sm:p-12 shadow-xl">
+              <div className="flex items-center gap-4 mb-8">
+                <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2 text-xs font-semibold text-white shadow-lg">
                   NEW IN 2025
                 </span>
-                <span className="text-xs text-zinc-500">Latest research techniques</span>
+                <span className="text-sm text-slate-500">Latest research techniques</span>
               </div>
               
-              <h2 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl mb-2">
+              <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl mb-4">
                 Advanced RAG Architectures
               </h2>
-              <p className="text-sm text-zinc-600 mb-8 max-w-2xl">
+              <p className="text-lg text-slate-600 mb-12 max-w-3xl">
                 Master cutting-edge techniques from the latest research papers including 
                 MiA-RAG, QuCo-RAG, HiFi-RAG, and more.
               </p>
 
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                 {ADVANCED_2025.map((tech, i) => (
                   <Reveal key={tech.title} delayMs={i * 50}>
-                    <div className="rounded-2xl border border-zinc-200 bg-white p-5 hover:shadow-md transition-all">
-                      <h3 className="font-bold text-zinc-900">{tech.title}</h3>
-                      <p className="text-xs font-medium text-zinc-500 mb-2">{tech.subtitle}</p>
-                      <p className="text-xs text-zinc-600 leading-relaxed">{tech.description}</p>
+                    <div className="rounded-3xl border border-slate-200/50 bg-white/80 backdrop-blur p-6 hover:shadow-lg transition-all hover:scale-105">
+                      <h3 className="text-lg font-bold text-slate-900 mb-2">{tech.title}</h3>
+                      <p className="text-sm font-medium text-slate-500 mb-3">{tech.subtitle}</p>
+                      <p className="text-sm text-slate-600 leading-relaxed">{tech.description}</p>
                     </div>
                   </Reveal>
                 ))}
               </div>
 
-              <div className="mt-8 flex items-center gap-4">
+              <div className="mt-12 flex items-center gap-6">
                 <Link
                   href="/challenges?search=rag"
-                  className="inline-flex h-10 items-center justify-center rounded-xl bg-zinc-900 px-5 text-sm font-semibold text-white transition-all hover:bg-zinc-800"
+                  className="inline-flex h-12 items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 text-base font-semibold text-white shadow-lg transition-all hover:shadow-xl hover:scale-105"
                 >
                   Explore Advanced Challenges
                 </Link>
                 <Link
                   href="/playbooks"
-                  className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors"
+                  className="text-base font-medium text-slate-600 hover:text-slate-900 transition-colors"
                 >
                   Read Playbooks →
                 </Link>
@@ -419,26 +419,26 @@ export default function Home() {
 
         {/* CTA Section */}
         <Reveal>
-          <div className="mb-20 rounded-3xl bg-zinc-900 p-8 text-center sm:p-12">
-            <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+          <div className="mb-24 rounded-4xl bg-gradient-to-br from-slate-900 to-slate-800 p-12 text-center sm:p-16 shadow-2xl">
+            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
               Ready to build production RAG?
             </h2>
-            <p className="mx-auto mt-3 max-w-md text-sm text-zinc-400">
+            <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-300">
               Join engineers building reliable, scalable RAG systems with the most comprehensive platform available.
             </p>
-            <div className="mt-8 flex items-center justify-center gap-4 flex-wrap">
+            <div className="mt-10 flex items-center justify-center gap-6 flex-wrap">
               <Link
                 href={user ? "/learn" : "/login"}
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-white px-8 text-sm font-semibold text-zinc-900 transition-all hover:bg-zinc-100"
+                className="inline-flex h-14 items-center justify-center gap-3 rounded-2xl bg-white px-8 text-base font-semibold text-slate-900 shadow-lg transition-all hover:bg-slate-100 hover:shadow-xl hover:scale-105"
               >
                 Start Learning Free
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
               </Link>
               <Link
                 href="/challenges"
-                className="inline-flex h-12 items-center justify-center rounded-xl border border-zinc-700 px-8 text-sm font-semibold text-white transition-all hover:bg-zinc-800"
+                className="inline-flex h-14 items-center justify-center rounded-2xl border border-slate-600 px-8 text-base font-semibold text-white transition-all hover:bg-slate-800 hover:border-slate-500"
               >
                 Browse Challenges
               </Link>
