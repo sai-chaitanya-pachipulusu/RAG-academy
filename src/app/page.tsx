@@ -102,11 +102,11 @@ export default function Home() {
       {/* Pricing Banner */}
       <PricingBanner />
 
-      <div className="relative mx-auto max-w-8xl px-6 pt-24 lg:pt-36">
+<div className="relative mx-auto max-w-6xl px-6 pt-16 lg:pt-24">
         {/* Hero Section */}
-        <div className="flex flex-col gap-16 lg:flex-row lg:items-center lg:gap-32">
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:gap-16">
           {/* Left Column: Text */}
-          <div className="flex-1 space-y-10">
+          <div className="flex-1 space-y-6">
             <Reveal>
               <div className="inline-flex items-center gap-3 rounded-full border border-black/10 bg-black/5 backdrop-blur px-6 py-3 text-xs font-medium text-black/70">
                 <span className="relative flex h-2 w-2">
@@ -118,7 +118,7 @@ export default function Home() {
             </Reveal>
 
             <Reveal delayMs={100}>
-              <h1 className="text-6xl font-bold tracking-tight text-black sm:text-7xl lg:text-8xl">
+              <h1 className="text-5xl font-bold tracking-tight text-black sm:text-6xl lg:text-7xl">
                 Master RAG
                 <br />
                 <span className="font-light">engineering.</span>
@@ -126,17 +126,17 @@ export default function Home() {
             </Reveal>
 
             <Reveal delayMs={200}>
-              <p className="max-w-xl text-xl leading-relaxed text-black/60 font-light">
+              <p className="max-w-lg text-lg leading-relaxed text-black/60 font-light">
                 From fundamentals to cutting-edge research. Build production-ready 
                 RAG systems with interactive labs and real-world challenges.
               </p>
             </Reveal>
 
             <Reveal delayMs={300}>
-              <div className="flex flex-col items-start gap-6 sm:flex-row">
+              <div className="flex flex-col items-start gap-3 sm:flex-row">
                 <Link
                   href={user ? "/learn" : "/login"}
-                  className="group inline-flex h-16 items-center justify-center gap-4 rounded-2xl bg-black px-10 text-lg font-medium text-white transition-all hover:bg-black/90 hover:scale-[1.02]"
+                  className="group inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-black px-6 text-base font-medium text-white transition-all hover:bg-black/90"
                 >
                   {user ? "Continue Learning" : "Get Started Free"}
                   <svg className="h-5 w-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -145,7 +145,7 @@ export default function Home() {
                 </Link>
                 <Link
                   href="/challenges"
-                  className="inline-flex h-16 items-center justify-center rounded-2xl border border-black/10 bg-white px-10 text-lg font-medium text-black transition-all hover:border-black/20 hover:bg-black/5"
+                  className="inline-flex h-12 items-center justify-center rounded-xl border border-black/10 bg-white px-6 text-base font-medium text-black transition-all hover:border-black/20 hover:bg-black/5"
                 >
                   Explore Challenges
                 </Link>
@@ -154,10 +154,10 @@ export default function Home() {
 
             {/* Stats */}
             <Reveal delayMs={400}>
-              <div className="flex items-center gap-16 pt-12">
+              <div className="flex items-center gap-8 pt-6">
                 {STATS.map((stat, i) => (
                   <div key={i} className="text-center">
-                    <p className="text-5xl font-bold text-black">{stat.value}</p>
+                    <p className="text-3xl font-bold text-black">{stat.value}</p>
                     <p className="text-sm font-medium uppercase tracking-wider text-black/40">{stat.label}</p>
                   </div>
                 ))}
@@ -168,20 +168,20 @@ export default function Home() {
           {/* Right Column: Visual */}
           <Reveal delayMs={300}>
             <div className="relative flex-1 hidden lg:block">
-              <div className="absolute -inset-20 rounded-[80px] bg-black/[0.02] blur-3xl" />
-              <div className="relative aspect-square max-w-lg rounded-3xl border border-black/10 bg-white/90 backdrop-blur-xl shadow-2xl p-12">
+              <div className="absolute -inset-12 rounded-[60px] bg-black/[0.02] blur-2xl" />
+              <div className="relative aspect-[4/3] max-w-md rounded-2xl border border-black/10 bg-white/90 backdrop-blur-xl shadow-xl p-8">
                 {/* Sophisticated RAG Diagram */}
                 <div className="flex h-full flex-col items-center justify-center gap-12">
-                  <div className="flex h-28 w-28 items-center justify-center rounded-3xl bg-black text-white shadow-2xl">
+                  <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-black text-white shadow-lg">
                     <svg className="h-14 w-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1}>
                       <path d="M12 2L2 7L12 12L22 7L12 2Z" />
                       <path d="M2 17L12 22L22 17" />
                       <path d="M2 12L12 17L22 12" />
                     </svg>
                   </div>
-                  <div className="space-y-4 text-center">
-                    <p className="text-xl font-light uppercase tracking-wider text-black/40">RAG Academy</p>
-                    <p className="text-base text-black/60 font-light">Learn by building production systems</p>
+<div className="space-y-2 text-center">
+                    <p className="text-sm font-light uppercase tracking-wider text-black/40">RAG Academy</p>
+                    <p className="text-xs text-black/60 font-light">Learn by building production systems</p>
                   </div>
                   <div className="grid grid-cols-3 gap-8 w-full">
                     {["Retrieve", "Augment", "Generate"].map((step, i) => (
@@ -196,30 +196,30 @@ export default function Home() {
           </Reveal>
         </div>
 
-        {/* Feature Cards */}
-        <div className="mt-32 grid gap-8 sm:grid-cols-3">
+{/* Feature Cards */}
+        <div className="mt-16 grid gap-6 sm:grid-cols-3">
           {FEATURES.map((feature, i) => (
             <Reveal key={feature.title} delayMs={300 + i * 50}>
               <div className="group rounded-3xl border border-black/10 bg-white p-8 transition-all hover:border-black/20 hover:shadow-2xl hover:scale-[1.02] hover:bg-black/[0.02]">
-                <div className="mb-8 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-black/5 text-black/60 transition-all group-hover:bg-black/10 group-hover:text-black">
+                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-black/5 text-black/60 transition-all group-hover:bg-black/10 group-hover:text-black">
                   {feature.icon}
                 </div>
-                <h3 className="mb-4 text-xl font-medium text-black">{feature.title}</h3>
-                <p className="text-base leading-relaxed text-black/60 font-light">{feature.description}</p>
+<h3 className="mb-2 text-lg font-medium text-black">{feature.title}</h3>
+                <p className="text-sm leading-relaxed text-black/60 font-light">{feature.description}</p>
               </div>
             </Reveal>
           ))}
         </div>
 
-        {/* Featured Challenges Section */}
-        <div className="mt-40">
+{/* Featured Challenges Section */}
+        <div className="mt-16">
           <Reveal>
-            <div className="flex items-end justify-between mb-16">
+            <div className="flex items-end justify-between mb-8">
               <div>
-                <h2 className="text-4xl font-bold tracking-tight text-black sm:text-5xl">
+                <h2 className="text-3xl font-bold tracking-tight text-black sm:text-4xl">
                   Popular Challenges
                 </h2>
-                <p className="mt-4 text-xl text-black/60 font-light">
+                <p className="mt-2 text-lg text-black/60 font-light">
                   Start with these community favorites
                 </p>
               </div>
@@ -305,10 +305,110 @@ export default function Home() {
               </div>
             </div>
           </Reveal>
+</div>
+
+        {/* Curriculum Section - Combined Learning Path & Advanced */}
+        <div className="mt-16">
+          <Reveal>
+            <div className="rounded-3xl border border-black/10 bg-black/[0.02] p-8 sm:p-12 shadow-lg">
+              <div className="flex items-center gap-4 mb-8">
+                <span className="inline-flex items-center gap-2 rounded-full bg-black px-3 py-1 text-xs font-semibold text-white">
+                  2025 CURRICULUM
+                </span>
+                <span className="text-sm text-black/60 font-light">Complete learning path</span>
+              </div>
+              
+              <div className="grid gap-12 lg:grid-cols-2">
+                {/* Learning Path */}
+                <div>
+                  <h3 className="text-2xl font-bold tracking-tight text-black mb-6">
+                    Your Learning Journey
+                  </h3>
+                  <p className="text-base text-black/60 font-light mb-8">
+                    Progress through carefully designed stages from fundamentals to production
+                  </p>
+
+                  <div className="flex items-center justify-center gap-2 flex-wrap mb-8">
+                    {LEARNING_PATH.map((stage, i) => (
+                      <div key={stage.name} className="flex items-center">
+                        <div className="rounded-xl border border-black/10 bg-white px-3 py-2 hover:shadow-md transition-all">
+                          <div className="flex items-center gap-2">
+                            <div className={`h-2 w-2 rounded-full ${stage.color}`} />
+                            <div>
+                              <p className="text-sm font-semibold text-black">{stage.name}</p>
+                              <p className="text-[10px] text-black/50">{stage.count} challenges</p>
+                            </div>
+                          </div>
+                        </div>
+                        {i < LEARNING_PATH.length - 1 ? (
+                          <svg className="h-3 w-3 text-black/30 mx-1 hidden sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="text-center">
+                    <Link
+                      href="/learn"
+                      className="text-base font-medium text-black/60 hover:text-black transition-colors font-light"
+                    >
+                      View full curriculum →
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Advanced Techniques */}
+                <div>
+                  <h3 className="text-2xl font-bold tracking-tight text-black mb-6">
+                    Advanced Techniques
+                  </h3>
+                  <p className="text-base text-black/60 font-light mb-8">
+                    Master cutting-edge techniques from latest research
+                  </p>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {ADVANCED_2025.slice(0, 4).map((tech, i) => (
+                      <Reveal key={tech.title} delayMs={i * 50}>
+                        <div className="rounded-2xl border border-black/10 bg-white p-4 hover:shadow-md transition-all hover:bg-black/[0.02]">
+                          <h4 className="text-sm font-medium text-black mb-2">{tech.title}</h4>
+                          <p className="text-xs font-light text-black/50 mb-2">{tech.subtitle}</p>
+                          <p className="text-xs text-black/60 leading-relaxed font-light">{tech.description}</p>
+                        </div>
+                      </Reveal>
+                    ))}
+                  </div>
+
+                  <div className="mt-8 flex items-center gap-4">
+                    <Link
+                      href="/challenges?search=rag"
+                      className="inline-flex h-10 items-center justify-center rounded-xl bg-black px-5 text-sm font-medium text-white transition-all hover:bg-black/90"
+                    >
+                      Explore Advanced
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Reveal>
         </div>
 
-        {/* Learning Path Preview */}
-        <div className="mt-24">
+        {/* Scroll Section */}
+        <div className="my-16">
+          <Reveal>
+            <div className="mb-8 max-w-xl">
+              <h2 className="text-3xl font-bold tracking-tight text-black sm:text-4xl">
+                A production RAG system,
+                <span className="font-light"> step by step.</span>
+              </h2>
+              <p className="mt-2 text-sm text-black/60">
+                Scroll through the pipeline to understand how each component works together.
+              </p>
+            </div>
+          </Reveal>
+          <RAGScrollStory />
+        </div>
           <Reveal>
             <div className="text-center mb-10">
               <h2 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
