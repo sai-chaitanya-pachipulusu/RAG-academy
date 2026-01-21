@@ -548,7 +548,7 @@ export default function Home() {
       </div>
 
       {/* Footer */}
-      <footer className="border-t border-zinc-100 bg-zinc-50">
+      <footer className="border-t border-black/10 bg-white">
         <div className="mx-auto max-w-screen-xl px-6 py-12">
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
             {/* Brand */}
