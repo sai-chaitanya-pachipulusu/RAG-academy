@@ -1,0 +1,29 @@
+﻿---
+title: "LLM-as-a-Reranker"
+description: "Use an LLM to rerank search results for complex queries."
+---
+
+# LLM-as-a-Reranker
+
+Cross-encoders are great for "Is this relevant?" questions, but LLMs can answer complex questions like "Which of these documents **contradicts** the other?"
+
+### When to Use LLM Reranking
+
+- **Complex reasoning**: "Find the document that provides counter-evidence."
+- **Multi-hop queries**: "Find docs about X that also mention Y."
+- **Nuanced relevance**: "Which doc would a lawyer prefer?"
+
+### The Tradeoff
+
+| Approach      | Speed  | Cost      | Quality |
+| ------------- | ------ | --------- | ------- |
+| Bi-Encoder    | Fast   | Cheap     | Good    |
+| Cross-Encoder | Medium | Medium    | Great   |
+| LLM Reranker  | Slow   | Expensive | Best\*  |
+
+\*For complex queries only; overkill for simple lookups.
+
+### Your Task
+
+Use a simulated LLM relevance scorer to rerank a list of documents, returning the top-K most relevant ones.
+

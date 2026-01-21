@@ -1,0 +1,298 @@
+﻿---
+title: "RAG Observability Guide"
+description: "Monitor, debug, and optimize your RAG system in production"
+---
+
+# RAG Observability Guide
+
+Production RAG systems fail silently. This guide shows you how to see everything.
+
+---
+
+## The Three Pillars of RAG Observability
+
+```
+1. METRICS   - What's happening? (latency, throughput, accuracy)
+2. LOGS      - What went wrong? (queries, retrievals, generations)
+3. TRACES    - How did it flow? (end-to-end request path)
+```
+
+---
+
+## Key Metrics to Track
+
+### Performance Metrics
+
+| Metric          | Target   | Alert Threshold |
+| --------------- | -------- | --------------- |
+| P50 Latency     | < 500ms  | > 1000ms        |
+| P99 Latency     | < 2000ms | > 5000ms        |
+| Retrieval Time  | < 50ms   | > 200ms         |
+| Generation Time | < 2000ms | > 5000ms        |
+| Error Rate      | < 0.1%   | > 1%            |
+
+### Quality Metrics
+
+| Metric             | Target  | How to Measure        |
+| ------------------ | ------- | --------------------- |
+| Retrieval Recall@5 | > 90%   | Ground truth labels   |
+| Answer Relevance   | > 4.0/5 | LLM-as-judge          |
+| Groundedness       | > 90%   | Citation verification |
+| User Satisfaction  | > 80%   | Thumbs up/down        |
+
+### Business Metrics
+
+| Metric          | Measures              |
+| --------------- | --------------------- |
+| Query Volume    | System usage          |
+| Resolution Rate | % of queries answered |
+| Escalation Rate | % going to humans     |
+| Cost per Query  | Financial efficiency  |
+
+---
+
+## Logging Best Practices
+
+### What to Log
+
+```python
+def rag_with_logging(query: str):
+    request_id = generate_uuid()
+
+    # 1. Log the incoming query
+    log.info({
+        "event": "query_received",
+        "request_id": request_id,
+        "query": query,
+        "query_length": len(query),
+        "timestamp": datetime.now()
+    })
+
+    # 2. Log retrieval results
+    chunks = retrieve(query)
+    log.info({
+        "event": "retrieval_complete",
+        "request_id": request_id,
+        "num_chunks": len(chunks),
+        "top_score": chunks[0].score if chunks else None,
+        "retrieval_latency_ms": retrieval_time
+    })
+
+    # 3. Log generation
+    response = generate(query, chunks)
+    log.info({
+        "event": "generation_complete",
+        "request_id": request_id,
+        "response_length": len(response),
+        "generation_latency_ms": gen_time,
+        "tokens_used": token_count
+    })
+
+    return response
+```
+
+### Log Schema
+
+```json
+{
+  "request_id": "uuid-123",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "event": "rag_complete",
+  "query": "What is our refund policy?",
+  "retrieval": {
+    "chunks_retrieved": 5,
+    "top_chunk_score": 0.92,
+    "latency_ms": 45
+  },
+  "generation": {
+    "model": "gpt-4o",
+    "tokens_in": 850,
+    "tokens_out": 150,
+    "latency_ms": 1200
+  },
+  "response_length": 523,
+  "total_latency_ms": 1250
+}
+```
+
+---
+
+## Distributed Tracing
+
+### Using OpenTelemetry
+
+```python
+from opentelemetry import trace
+
+tracer = trace.get_tracer(__name__)
+
+def rag_pipeline(query: str):
+    with tracer.start_as_current_span("rag_pipeline") as span:
+        span.set_attribute("query", query)
+
+        # Retrieval span
+        with tracer.start_as_current_span("retrieval"):
+            chunks = retrieve(query)
+            span.set_attribute("num_chunks", len(chunks))
+
+        # Reranking span
+        with tracer.start_as_current_span("reranking"):
+            ranked = rerank(query, chunks)
+
+        # Generation span
+        with tracer.start_as_current_span("generation"):
+            response = generate(query, ranked)
+            span.set_attribute("tokens", count_tokens(response))
+
+        return response
+```
+
+### Trace Visualization
+
+```
+[rag_pipeline] ─────────────────────────── 1250ms
+  ├── [retrieval] ────────── 45ms
+  │     ├── [embed_query] ── 15ms
+  │     └── [vector_search] ── 30ms
+  ├── [reranking] ──────────── 80ms
+  └── [generation] ───────────────────── 1125ms
+```
+
+---
+
+## Alerting Rules
+
+### Critical Alerts
+
+```yaml
+# High error rate
+- alert: RAGHighErrorRate
+  expr: rate(rag_errors_total[5m]) > 0.01
+  for: 5m
+  labels:
+    severity: critical
+  annotations:
+    summary: "RAG error rate > 1%"
+
+# High latency
+- alert: RAGHighLatency
+  expr: histogram_quantile(0.99, rag_latency_seconds) > 5
+  for: 5m
+  labels:
+    severity: warning
+  annotations:
+    summary: "RAG P99 latency > 5s"
+
+# Low retrieval quality
+- alert: RAGLowRetrievalQuality
+  expr: avg(rag_retrieval_score) < 0.5
+  for: 15m
+  labels:
+    severity: warning
+  annotations:
+    summary: "Average retrieval score below threshold"
+```
+
+---
+
+## Dashboard Template
+
+### Essential Panels
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  RAG System Health Dashboard                             │
+├─────────────────┬─────────────────┬─────────────────────┤
+│ Query Volume    │ Error Rate      │ Avg Latency         │
+│ 📈 12.5K/hour   │ ✅ 0.05%        │ 🔶 850ms           │
+├─────────────────┴─────────────────┴─────────────────────┤
+│ Latency Distribution (P50, P95, P99)                     │
+│ ▁▂▃▄▅▆▇█ [Histogram over time]                          │
+├─────────────────────────────────────────────────────────┤
+│ Component Breakdown                                       │
+│ Retrieval: 45ms | Rerank: 80ms | Gen: 1125ms            │
+├─────────────────────────────────────────────────────────┤
+│ Quality Metrics                                          │
+│ Retrieval Score: 0.87 | Groundedness: 94% | CSAT: 4.2   │
+├─────────────────────────────────────────────────────────┤
+│ Cost Tracking                                            │
+│ Today: $45.20 | This Week: $312 | Projected: $1,340     │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🛠️ Debugging Common Issues
+
+### 1. Poor Retrieval Quality
+
+```python
+def debug_retrieval(query, expected_doc):
+    # Check embedding similarity
+    q_emb = embed(query)
+    d_emb = embed(expected_doc)
+    sim = cosine_similarity(q_emb, d_emb)
+    print(f"Query-Doc Similarity: {sim}")
+
+    # Check what was actually retrieved
+    results = retrieve(query, k=20)
+    for i, r in enumerate(results):
+        print(f"{i+1}. Score: {r.score:.3f} - {r.text[:100]}")
+
+    # Check if expected doc is in results
+    if expected_doc not in [r.text for r in results]:
+        print("⚠️ Expected doc NOT in top 20!")
+```
+
+### 2. High Latency
+
+```python
+def profile_rag_pipeline(query):
+    import time
+
+    times = {}
+
+    t0 = time.time()
+    embedding = embed(query)
+    times['embedding'] = time.time() - t0
+
+    t0 = time.time()
+    chunks = vector_search(embedding)
+    times['retrieval'] = time.time() - t0
+
+    t0 = time.time()
+    ranked = rerank(query, chunks)
+    times['reranking'] = time.time() - t0
+
+    t0 = time.time()
+    response = generate(query, ranked)
+    times['generation'] = time.time() - t0
+
+    print("⏱️ Latency Breakdown:")
+    for component, latency in times.items():
+        bar = "█" * int(latency * 10)
+        print(f"  {component:12} {latency*1000:6.0f}ms {bar}")
+```
+
+---
+
+## Tool Integrations
+
+| Tool                 | Purpose             | Integration |
+| -------------------- | ------------------- | ----------- |
+| **LangSmith**        | LangChain tracing   | Native      |
+| **Langfuse**         | Open-source tracing | SDK         |
+| **Arize Phoenix**    | ML observability    | SDK         |
+| **Weights & Biases** | Experiment tracking | SDK         |
+| **Datadog**          | Full observability  | Agent       |
+| **Grafana**          | Dashboards          | Prometheus  |
+
+---
+
+## Related Challenges
+
+- `rag-unit-tests` - Testing RAG systems
+- `retrieval-regression-tests` - Quality monitoring
+- `semantic-caching` - Cache hit tracking
+- `train-only-retrieval-guard` - Data quality
+

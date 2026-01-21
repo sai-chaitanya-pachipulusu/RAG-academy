@@ -1,0 +1,400 @@
+---
+title: "User Profile RAG"
+description: |
+  Build a personalized RAG system that adapts retrieval and generation to individual user preferences.
+difficulty: intermediate
+estimatedMinutes: 35
+topics: ["personalization", "user-context", "multi-tenant", "adaptation"]
+language: python
+prerequisites:
+  - basic-retrieval
+  - metadata-filtering
+xp: 150
+---
+
+# User Profile RAG
+
+Generic RAG treats all users the same. A CEO and an intern asking "What's our sales performance?" should get different responses—executive summary vs. detailed explanation.
+
+**Your task**: Build a RAG system that personalizes both retrieval and generation based on user profiles.
+
+## Dataset
+
+```python
+from dataclasses import dataclass, field
+from typing import List, Dict, Optional
+from enum import Enum
+
+class ExpertiseLevel(Enum):
+    BEGINNER = "beginner"
+    INTERMEDIATE = "intermediate"
+    EXPERT = "expert"
+
+class ResponseStyle(Enum):
+    CONCISE = "concise"
+    DETAILED = "detailed"
+    CONVERSATIONAL = "conversational"
+
+@dataclass
+class UserProfile:
+    user_id: str
+    name: str
+    role: str
+    department: str
+    expertise_level: ExpertiseLevel = ExpertiseLevel.INTERMEDIATE
+    preferred_style: ResponseStyle = ResponseStyle.CONCISE
+    accessible_departments: List[str] = field(default_factory=list)
+    recent_topics: List[str] = field(default_factory=list)
+
+@dataclass
+class Document:
+    id: str
+    content: str
+    metadata: Dict
+
+# Sample documents with department access control
+DOCUMENTS = [
+    Document("sales-q3", "Q3 Sales: $15M revenue, 25% growth. Top performer: APAC region.", 
+             {"department": "Sales", "type": "report", "quarter": "Q3"}),
+    Document("sales-pipeline", "Current pipeline: $50M. Expected close rate: 30%. Key deals: Acme Corp, GlobalTech.",
+             {"department": "Sales", "type": "internal", "sensitivity": "high"}),
+    Document("eng-roadmap", "Q4 Roadmap: AI features (SmartFind), Mobile app, API v2.",
+             {"department": "Engineering", "type": "planning"}),
+    Document("eng-architecture", "System architecture: Microservices, Kubernetes, PostgreSQL. Current tech debt: 15%.",
+             {"department": "Engineering", "type": "technical", "sensitivity": "medium"}),
+    Document("hr-policy", "Remote work: 3 days/week. Equipment allowance: $1,500.",
+             {"department": "HR", "type": "policy", "visibility": "all"}),
+    Document("finance-budget", "2024 Budget: $10M. Allocated: Engineering 40%, Sales 30%, Marketing 20%.",
+             {"department": "Finance", "type": "budget", "sensitivity": "high"}),
+    Document("product-features", "Product features: AI search, real-time sync, 99.9% uptime SLA.",
+             {"department": "Product", "type": "documentation", "visibility": "all"}),
+]
+
+# Sample users with different profiles
+USERS = {
+    "ceo-001": UserProfile(
+        user_id="ceo-001",
+        name="Sarah Chen",
+        role="CEO",
+        department="Executive",
+        expertise_level=ExpertiseLevel.EXPERT,
+        preferred_style=ResponseStyle.CONCISE,
+        accessible_departments=["Sales", "Engineering", "HR", "Finance", "Product"],
+        recent_topics=["revenue", "growth", "roadmap"]
+    ),
+    "intern-001": UserProfile(
+        user_id="intern-001",
+        name="Alex Kim",
+        role="Engineering Intern",
+        department="Engineering",
+        expertise_level=ExpertiseLevel.BEGINNER,
+        preferred_style=ResponseStyle.DETAILED,
+        accessible_departments=["Engineering", "HR"],
+        recent_topics=["onboarding", "codebase"]
+    ),
+    "sales-001": UserProfile(
+        user_id="sales-001",
+        name="Mike Johnson",
+        role="Sales Manager",
+        department="Sales",
+        expertise_level=ExpertiseLevel.INTERMEDIATE,
+        preferred_style=ResponseStyle.CONVERSATIONAL,
+        accessible_departments=["Sales", "Product", "HR"],
+        recent_topics=["pipeline", "deals", "competition"]
+    ),
+}
+```
+
+## Your Task
+
+Implement the `PersonalizedRAG` class:
+
+```python
+class PersonalizedRAG:
+    def __init__(self, documents: List[Document], users: Dict[str, UserProfile]):
+        """
+        Initialize with documents and user profiles.
+        """
+        self.documents = documents
+        self.users = users
+    
+    def get_user_profile(self, user_id: str) -> UserProfile:
+        """
+        Fetch user profile by ID.
+        """
+        return self.users.get(user_id)
+    
+    def filter_accessible_documents(
+        self, 
+        user: UserProfile, 
+        documents: List[Document]
+    ) -> List[Document]:
+        """
+        Filter documents based on user's department access.
+        
+        Rules:
+        - User can access docs from their accessible_departments
+        - Docs with visibility="all" are accessible to everyone
+        
+        Returns:
+            List of accessible documents
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def personalized_retrieve(
+        self, 
+        user_id: str, 
+        query: str, 
+        k: int = 5
+    ) -> List[Document]:
+        """
+        Retrieve documents personalized to user.
+        
+        Steps:
+        1. Filter by access permissions
+        2. Score by relevance
+        3. Boost by user preferences (department, recent topics)
+        
+        Returns:
+            Top-k personalized documents
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def build_system_prompt(self, user: UserProfile) -> str:
+        """
+        Build personalized system prompt.
+        
+        Adapts based on:
+        - expertise_level: Technical depth
+        - preferred_style: Response format
+        - role: Context awareness
+        
+        Returns:
+            System prompt string
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def generate_response(
+        self, 
+        user_id: str, 
+        query: str, 
+        documents: List[Document]
+    ) -> str:
+        """
+        Generate personalized response.
+        
+        Returns:
+            Response adapted to user preferences
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def answer(self, user_id: str, query: str) -> Dict:
+        """
+        Main entry point: personalized RAG answer.
+        
+        Returns:
+            {
+                "answer": str,
+                "documents_used": List[str],
+                "personalization": {
+                    "style": str,
+                    "expertise": str,
+                    "departments_searched": List[str]
+                }
+            }
+        """
+        # YOUR CODE HERE
+        pass
+```
+
+## Requirements
+
+1. **Access control**: Users only see docs from accessible departments
+2. **Style adaptation**: Response format matches user preference
+3. **Expertise adaptation**: Technical depth matches user level
+4. **Relevance boosting**: Prioritize user's department and recent topics
+
+## Test Scenarios
+
+```python
+TEST_SCENARIOS = [
+    {
+        "user_id": "ceo-001",
+        "query": "What's our sales performance?",
+        "expected": {
+            "can_access": ["sales-q3", "sales-pipeline"],
+            "style": "concise",
+            "should_include": ["$15M", "25%", "pipeline"]
+        }
+    },
+    {
+        "user_id": "intern-001",
+        "query": "What's our sales performance?",
+        "expected": {
+            "cannot_access": ["sales-q3", "sales-pipeline", "finance-budget"],
+            "style": "detailed",
+            "should_include": ["explanation", "context"]
+        }
+    },
+    {
+        "user_id": "sales-001",
+        "query": "Tell me about the product",
+        "expected": {
+            "can_access": ["product-features"],
+            "cannot_access": ["eng-architecture"],
+            "style": "conversational"
+        }
+    },
+]
+```
+
+## Hints
+
+<details>
+<summary>Hint 1: Access filtering</summary>
+
+```python
+def filter_accessible_documents(self, user: UserProfile, documents: List[Document]):
+    accessible = []
+    for doc in documents:
+        # Check visibility
+        if doc.metadata.get("visibility") == "all":
+            accessible.append(doc)
+            continue
+        
+        # Check department access
+        doc_dept = doc.metadata.get("department")
+        if doc_dept in user.accessible_departments:
+            accessible.append(doc)
+    
+    return accessible
+```
+
+</details>
+
+<details>
+<summary>Hint 2: Personalized scoring</summary>
+
+```python
+def personalized_retrieve(self, user_id: str, query: str, k: int = 5):
+    user = self.get_user_profile(user_id)
+    
+    # Filter accessible
+    accessible = self.filter_accessible_documents(user, self.documents)
+    
+    # Score documents
+    scored = []
+    for doc in accessible:
+        # Base relevance (keyword match)
+        query_terms = set(query.lower().split())
+        doc_terms = set(doc.content.lower().split())
+        relevance = len(query_terms & doc_terms) / max(len(query_terms), 1)
+        
+        # Boost user's department
+        if doc.metadata.get("department") == user.department:
+            relevance *= 1.5
+        
+        # Boost recent topics
+        for topic in user.recent_topics:
+            if topic.lower() in doc.content.lower():
+                relevance *= 1.2
+                break
+        
+        scored.append((doc, relevance))
+    
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return [doc for doc, score in scored[:k]]
+```
+
+</details>
+
+<details>
+<summary>Hint 3: System prompt building</summary>
+
+```python
+def build_system_prompt(self, user: UserProfile) -> str:
+    # Style instructions
+    style_map = {
+        ResponseStyle.CONCISE: "Be brief. Use bullet points. No fluff.",
+        ResponseStyle.DETAILED: "Provide thorough explanations with examples.",
+        ResponseStyle.CONVERSATIONAL: "Be friendly and approachable."
+    }
+    
+    # Expertise instructions
+    expertise_map = {
+        ExpertiseLevel.BEGINNER: "Explain technical terms. Use simple language.",
+        ExpertiseLevel.INTERMEDIATE: "Assume basic knowledge. Define advanced terms.",
+        ExpertiseLevel.EXPERT: "Use technical language freely. Skip basics."
+    }
+    
+    return f"""You are an assistant for {user.name} ({user.role}).
+
+Style: {style_map[user.preferred_style]}
+Expertise: {expertise_map[user.expertise_level]}
+
+Adapt your response to their role and expertise level."""
+```
+
+</details>
+
+## Test Your Solution
+
+```python
+def test_personalized_rag():
+    rag = PersonalizedRAG(DOCUMENTS, USERS)
+    
+    for scenario in TEST_SCENARIOS:
+        print(f"\n{'='*60}")
+        user = USERS[scenario["user_id"]]
+        print(f"User: {user.name} ({user.role})")
+        print(f"Query: {scenario['query']}")
+        
+        result = rag.answer(scenario["user_id"], scenario["query"])
+        
+        print(f"Answer: {result['answer'][:200]}...")
+        print(f"Docs used: {result['documents_used']}")
+        print(f"Personalization: {result['personalization']}")
+        
+        # Verify access control
+        if "can_access" in scenario["expected"]:
+            for doc_id in scenario["expected"]["can_access"]:
+                # This doc should be findable
+                pass
+        
+        if "cannot_access" in scenario["expected"]:
+            for doc_id in scenario["expected"]["cannot_access"]:
+                assert doc_id not in result["documents_used"], \
+                    f"User should not access {doc_id}"
+        
+        print("✓ Access control verified")
+    
+    print("\n✓ All tests passed!")
+
+test_personalized_rag()
+```
+
+## Bonus: Conversation Memory
+
+Extend to remember user interactions:
+
+```python
+def update_user_context(self, user_id: str, query: str, response: str):
+    """
+    Update user's recent topics based on interaction.
+    """
+    # Extract topics from query
+    topics = extract_topics(query)
+    
+    # Update profile
+    user = self.users[user_id]
+    user.recent_topics = (topics + user.recent_topics)[:10]
+```
+
+## Resources
+
+- [Personalization in AI Systems](https://arxiv.org/abs/2406.00000)
+- [Multi-Tenant RAG Patterns](https://www.pinecone.io/learn/multi-tenant/)

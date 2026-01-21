@@ -1,0 +1,26 @@
+﻿<Callout title="Goal" variant="info">
+  Order context to mitigate “lost in the middle” by placing the best evidence at the beginning and end.
+</Callout>
+
+## Why this matters in production
+
+Even with long-context models, attention isn’t uniform:
+
+- earliest tokens get more attention
+- latest tokens get more attention
+- the middle can be ignored
+
+So if your #2 best chunk is buried in the middle, the model may miss it.
+
+## Where this fits
+
+This is a **post-retrieval context shaping** step:
+
+1. retrieve + (optional) rerank → scored candidates
+2. dedupe / diversify
+3. **order for attention**
+4. pack under token budget
+5. generate with citations
+
+
+

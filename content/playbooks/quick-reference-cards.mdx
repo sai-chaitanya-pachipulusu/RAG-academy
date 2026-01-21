@@ -1,0 +1,211 @@
+﻿---
+title: "Quick Reference Cards"
+description: "Essential RAG patterns and commands at your fingertips"
+---
+
+# Quick Reference Cards
+
+<Callout title="Quick Reference" variant="info">
+  Essential RAG patterns and commands at your fingertips.
+</Callout>
+
+## Chunking Strategies
+
+| Strategy       | Best For       | Chunk Size       |
+| -------------- | -------------- | ---------------- |
+| Fixed-size     | General text   | 512-1024 tokens  |
+| Sentence-based | Articles, docs | 3-5 sentences    |
+| Semantic       | Technical docs | By section/topic |
+| Recursive      | Code, markdown | By structure     |
+
+```python
+# Recommended settings
+CHUNK_SIZE = 512  # tokens
+CHUNK_OVERLAP = 50  # 10% overlap
+```
+
+---
+
+## Embedding Models
+
+| Model                         | Dimensions | Speed  | Quality   |
+| ----------------------------- | ---------- | ------ | --------- |
+| OpenAI text-embedding-3-small | 1536       | Fast   | Good      |
+| OpenAI text-embedding-3-large | 3072       | Medium | Excellent |
+| Cohere embed-v3               | 1024       | Fast   | Very Good |
+| BGE-large                     | 1024       | Medium | Very Good |
+| Voyage-2                      | 1024       | Fast   | Excellent |
+
+```python
+# OpenAI example
+from openai import OpenAI
+client = OpenAI()
+
+response = client.embeddings.create(
+    model="text-embedding-3-small",
+    input="Your text here"
+)
+embedding = response.data[0].embedding
+```
+
+---
+
+## Similarity Metrics
+
+| Metric      | Formula              | When to Use            |
+| ----------- | -------------------- | ---------------------- |
+| Cosine      | dot(a,b) / (‖a‖·‖b‖) | Normalized embeddings  |
+| Dot Product | Σ(aᵢ·bᵢ)             | Pre-normalized vectors |
+| Euclidean   | √Σ(aᵢ-bᵢ)²           | Clustering, spatial    |
+
+```python
+# Cosine similarity
+def cosine_similarity(a, b):
+    dot = sum(x*y for x,y in zip(a,b))
+    norm_a = sum(x*x for x in a) ** 0.5
+    norm_b = sum(x*x for x in b) ** 0.5
+    return dot / (norm_a * norm_b)
+```
+
+---
+
+## 🗄️ Vector Database Comparison
+
+| DB       | Hosted | Open Source | Best For               |
+| -------- | ------ | ----------- | ---------------------- |
+| Pinecone | ✅     | ❌          | Production, enterprise |
+| Weaviate | ✅     | ✅          | Hybrid search          |
+| Qdrant   | ✅     | ✅          | Filtering, payloads    |
+| Milvus   | ✅     | ✅          | Large scale            |
+| ChromaDB | ❌     | ✅          | Prototyping            |
+| pgvector | ❌     | ✅          | Postgres users         |
+
+---
+
+## Retrieval Patterns
+
+### Basic Retrieval
+
+```python
+docs = retriever.search(query, k=5)
+```
+
+### Hybrid (Dense + Sparse)
+
+```python
+dense_results = dense_retriever.search(query, k=10)
+sparse_results = bm25.search(query, k=10)
+merged = reciprocal_rank_fusion(dense_results, sparse_results)
+```
+
+### Multi-Query
+
+```python
+queries = [original, rephrased_1, rephrased_2]
+all_docs = []
+for q in queries:
+    all_docs.extend(retriever.search(q, k=3))
+unique_docs = deduplicate(all_docs)
+```
+
+---
+
+## Prompt Templates
+
+### Basic RAG
+
+```
+Answer the question based on the context below.
+
+Context:
+{context}
+
+Question: {question}
+
+Answer:
+```
+
+### RAG with Citations
+
+```
+Answer using ONLY the numbered sources below. Cite sources as [1], [2], etc.
+
+Sources:
+{numbered_sources}
+
+Question: {question}
+
+Answer (with citations):
+```
+
+### Refusing Unknown
+
+```
+Answer the question based on the context. If the answer is not in the context, say "I don't have information about that."
+
+Context:
+{context}
+
+Question: {question}
+
+Answer:
+```
+
+---
+
+## Key Metrics
+
+| Metric            | What it Measures               | Target |
+| ----------------- | ------------------------------ | ------ |
+| Recall@k          | % of relevant docs in top-k    | >80%   |
+| MRR               | Rank of first relevant doc     | >0.7   |
+| Faithfulness      | Response grounded in context   | >90%   |
+| Context Precision | Relevant docs / Retrieved docs | >70%   |
+| Latency (P95)     | Response time                  | <2s    |
+
+---
+
+## Performance Tips
+
+```python
+# 1. Batch embeddings
+vectors = embed_batch(texts)  # Not one-by-one
+
+# 2. Async retrieval
+results = await asyncio.gather(
+    retriever.search(query1),
+    retriever.search(query2),
+)
+
+# 3. Cache frequent queries
+@lru_cache(maxsize=1000)
+def cached_search(query_hash):
+    return retriever.search(query)
+
+# 4. Pre-filter before vector search
+docs = retriever.search(
+    query,
+    filter={"category": "support"}
+)
+```
+
+---
+
+## Common Errors
+
+| Error          | Cause          | Fix                       |
+| -------------- | -------------- | ------------------------- |
+| Empty results  | Bad embeddings | Check embedding model     |
+| Wrong answers  | Poor chunking  | Adjust chunk size/overlap |
+| Hallucinations | Weak prompt    | Add "only use context"    |
+| Slow queries   | No index       | Add ANN index             |
+| High cost      | No caching     | Add semantic cache        |
+
+---
+
+## Useful Links
+
+- [OpenAI Embeddings](https://platform.openai.com/docs/guides/embeddings)
+- [LangChain RAG Guide](https://python.langchain.com/docs/use_cases/question_answering/)
+- [Pinecone Best Practices](https://docs.pinecone.io/guides/get-started/overview)
+- [RAGAS Evaluation](https://docs.ragas.io/)

@@ -1,0 +1,24 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Implement cosine similarity — the standard metric for comparing embedding vectors.
+</Callout>
+
+## Why this matters in production
+
+Cosine similarity is the default metric in most vector databases because it's scale-invariant. A short document and a long document can be fairly compared because we only measure the angle between vectors, not their magnitude.
+
+## What you're implementing
+
+- Compute dot product of two vectors.
+- Compute magnitude (L2 norm) of each vector.
+- Return `dot(a, b) / (||a|| * ||b||)`.
+- Handle zero-magnitude vectors (throw Error).
+
+## Common pitfalls
+
+- Division by zero when a vector has all zeros.
+- Forgetting to take the square root for magnitude.
+
+## After you pass
+
+Try **Top-K Search (TypeScript)** to use cosine similarity for retrieval.
+

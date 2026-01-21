@@ -1,0 +1,364 @@
+---
+title: "RAG Observability"
+description: "Monitor, debug, and understand your RAG system in production."
+order: 1
+estimatedMinutes: 30
+stage: production-ops
+prereqs:
+  - phase: phase-5
+    slug: mcp-integration
+next:
+  phase: phase-6
+  slug: evaluation-in-production
+outcomes:
+  - "Instrument RAG pipelines for full observability."
+  - "Build dashboards for retrieval and generation quality."
+  - "Debug production issues with traces and logs."
+tags: ["observability", "monitoring", "tracing", "debugging"]
+sources:
+  - title: "Arize Phoenix: LLM Observability"
+    url: "https://phoenix.arize.com/"
+    type: "docs"
+  - title: "LangSmith: Tracing"
+    url: "https://docs.smith.langchain.com/"
+    type: "docs"
+  - title: "OpenTelemetry for LLMs"
+    url: "https://opentelemetry.io/"
+    type: "docs"
+---
+
+## Goals
+
+- Understand what to monitor in RAG systems.
+- Implement tracing across the full pipeline.
+- Build actionable alerts and dashboards.
+
+## Prereqs
+
+- Complete Phases 1-5 (have a working RAG system).
+
+## Core idea
+
+### Why observability matters
+
+RAG systems fail in subtle ways:
+- Retrieval returns wrong documents (not obvious until you look)
+- LLM hallucinates despite good context (not caught by basic metrics)
+- Latency creeps up (users complain before you notice)
+
+### What to observe
+
+```
+┌─────────────────────────────────────────────────────┐
+│                 RAG OBSERVABILITY                    │
+├─────────────────────────────────────────────────────┤
+│ RETRIEVAL                                           │
+│ • Queries per second                                │
+│ • Top-k results (what was retrieved)               │
+│ • Relevance scores                                  │
+│ • Empty results rate                                │
+├─────────────────────────────────────────────────────┤
+│ GENERATION                                          │
+│ • Input/output tokens                               │
+│ • Latency (TTFT, total)                            │
+│ • Model used                                        │
+│ • Temperature/params                                │
+├─────────────────────────────────────────────────────┤
+│ QUALITY                                             │
+│ • Groundedness scores                               │
+│ • User feedback (thumbs up/down)                   │
+│ • Answer length                                     │
+│ • Citation accuracy                                 │
+├─────────────────────────────────────────────────────┤
+│ SYSTEM                                              │
+│ • Error rates                                       │
+│ • Costs ($)                                         │
+│ • Cache hit rates                                   │
+│ • Queue depths                                      │
+└─────────────────────────────────────────────────────┘
+```
+
+### Implementing tracing
+
+```python
+import time
+from dataclasses import dataclass, field
+from typing import List, Dict, Any
+from uuid import uuid4
+
+@dataclass
+class Span:
+    name: str
+    trace_id: str
+    span_id: str = field(default_factory=lambda: str(uuid4())[:8])
+    parent_id: str = None
+    start_time: float = field(default_factory=time.time)
+    end_time: float = None
+    attributes: Dict[str, Any] = field(default_factory=dict)
+    events: List[Dict] = field(default_factory=list)
+    status: str = "OK"
+    
+    def end(self):
+        self.end_time = time.time()
+    
+    @property
+    def duration_ms(self) -> float:
+        if self.end_time:
+            return (self.end_time - self.start_time) * 1000
+        return None
+
+
+class RAGTracer:
+    def __init__(self, exporter=None):
+        self.exporter = exporter
+        self.spans: Dict[str, List[Span]] = {}
+    
+    def start_trace(self) -> str:
+        trace_id = str(uuid4())[:16]
+        self.spans[trace_id] = []
+        return trace_id
+    
+    def start_span(
+        self,
+        trace_id: str,
+        name: str,
+        parent_id: str = None,
+        attributes: Dict = None,
+    ) -> Span:
+        span = Span(
+            name=name,
+            trace_id=trace_id,
+            parent_id=parent_id,
+            attributes=attributes or {},
+        )
+        self.spans[trace_id].append(span)
+        return span
+    
+    def end_trace(self, trace_id: str):
+        spans = self.spans.get(trace_id, [])
+        for span in spans:
+            if span.end_time is None:
+                span.end()
+        
+        if self.exporter:
+            self.exporter.export(spans)
+    
+    def get_trace(self, trace_id: str) -> List[Span]:
+        return self.spans.get(trace_id, [])
+
+
+# Usage in RAG pipeline
+class InstrumentedRAG:
+    def __init__(self, retriever, generator, tracer: RAGTracer):
+        self.retriever = retriever
+        self.generator = generator
+        self.tracer = tracer
+    
+    def answer(self, query: str) -> Dict:
+        trace_id = self.tracer.start_trace()
+        
+        try:
+            # Root span
+            root = self.tracer.start_span(
+                trace_id, "rag.answer",
+                attributes={"query": query}
+            )
+            
+            # Retrieval span
+            ret_span = self.tracer.start_span(
+                trace_id, "rag.retrieve",
+                parent_id=root.span_id,
+                attributes={"k": 10}
+            )
+            docs = self.retriever.retrieve(query, k=10)
+            ret_span.attributes["num_results"] = len(docs)
+            ret_span.attributes["top_score"] = docs[0]["score"] if docs else 0
+            ret_span.end()
+            
+            # Generation span
+            gen_span = self.tracer.start_span(
+                trace_id, "rag.generate",
+                parent_id=root.span_id,
+                attributes={"model": "gpt-4o"}
+            )
+            answer = self.generator.generate(query, docs)
+            gen_span.attributes["input_tokens"] = answer["usage"]["input"]
+            gen_span.attributes["output_tokens"] = answer["usage"]["output"]
+            gen_span.end()
+            
+            root.end()
+            
+            return {
+                "answer": answer["text"],
+                "trace_id": trace_id,
+            }
+        
+        except Exception as e:
+            root.status = "ERROR"
+            root.attributes["error"] = str(e)
+            raise
+        
+        finally:
+            self.tracer.end_trace(trace_id)
+```
+
+### Key metrics dashboard
+
+```python
+class RAGMetrics:
+    def __init__(self):
+        self.metrics = {
+            # Latency
+            "retrieval_latency_ms": [],
+            "generation_latency_ms": [],
+            "total_latency_ms": [],
+            
+            # Quality
+            "retrieval_scores": [],
+            "empty_retrieval_rate": 0,
+            "groundedness_scores": [],
+            
+            # Cost
+            "input_tokens": [],
+            "output_tokens": [],
+            "estimated_cost_usd": [],
+            
+            # Errors
+            "error_count": 0,
+            "error_types": {},
+        }
+    
+    def record_request(self, trace: List[Span]):
+        """Extract metrics from a trace."""
+        for span in trace:
+            if span.name == "rag.retrieve":
+                self.metrics["retrieval_latency_ms"].append(span.duration_ms)
+                if span.attributes.get("num_results", 0) == 0:
+                    self.metrics["empty_retrieval_rate"] += 1
+                self.metrics["retrieval_scores"].append(
+                    span.attributes.get("top_score", 0)
+                )
+            
+            elif span.name == "rag.generate":
+                self.metrics["generation_latency_ms"].append(span.duration_ms)
+                self.metrics["input_tokens"].append(
+                    span.attributes.get("input_tokens", 0)
+                )
+                self.metrics["output_tokens"].append(
+                    span.attributes.get("output_tokens", 0)
+                )
+            
+            elif span.name == "rag.answer":
+                self.metrics["total_latency_ms"].append(span.duration_ms)
+                
+                if span.status == "ERROR":
+                    self.metrics["error_count"] += 1
+                    error_type = span.attributes.get("error_type", "unknown")
+                    self.metrics["error_types"][error_type] = \
+                        self.metrics["error_types"].get(error_type, 0) + 1
+    
+    def get_summary(self) -> Dict:
+        """Get summary statistics."""
+        import numpy as np
+        
+        def percentiles(data):
+            if not data:
+                return {}
+            return {
+                "p50": np.percentile(data, 50),
+                "p95": np.percentile(data, 95),
+                "p99": np.percentile(data, 99),
+            }
+        
+        return {
+            "latency": {
+                "retrieval": percentiles(self.metrics["retrieval_latency_ms"]),
+                "generation": percentiles(self.metrics["generation_latency_ms"]),
+                "total": percentiles(self.metrics["total_latency_ms"]),
+            },
+            "quality": {
+                "avg_retrieval_score": np.mean(self.metrics["retrieval_scores"]) if self.metrics["retrieval_scores"] else 0,
+                "empty_retrieval_rate": self.metrics["empty_retrieval_rate"] / max(len(self.metrics["retrieval_latency_ms"]), 1),
+            },
+            "cost": {
+                "total_input_tokens": sum(self.metrics["input_tokens"]),
+                "total_output_tokens": sum(self.metrics["output_tokens"]),
+            },
+            "errors": {
+                "total": self.metrics["error_count"],
+                "by_type": self.metrics["error_types"],
+            },
+        }
+```
+
+### Alerting
+
+```python
+class RAGAlerter:
+    def __init__(self, metrics: RAGMetrics, notifier):
+        self.metrics = metrics
+        self.notifier = notifier
+        
+        self.thresholds = {
+            "latency_p95_ms": 2000,
+            "error_rate": 0.05,
+            "empty_retrieval_rate": 0.1,
+            "cost_per_hour_usd": 10,
+        }
+    
+    def check_alerts(self):
+        """Check metrics against thresholds."""
+        summary = self.metrics.get_summary()
+        alerts = []
+        
+        # Latency alert
+        if summary["latency"]["total"].get("p95", 0) > self.thresholds["latency_p95_ms"]:
+            alerts.append({
+                "type": "latency",
+                "message": f"P95 latency {summary['latency']['total']['p95']:.0f}ms > threshold",
+                "severity": "warning",
+            })
+        
+        # Error rate alert
+        total_requests = len(self.metrics.metrics["total_latency_ms"])
+        if total_requests > 0:
+            error_rate = self.metrics.metrics["error_count"] / total_requests
+            if error_rate > self.thresholds["error_rate"]:
+                alerts.append({
+                    "type": "errors",
+                    "message": f"Error rate {error_rate:.1%} > threshold",
+                    "severity": "critical",
+                })
+        
+        # Empty retrieval alert
+        if summary["quality"]["empty_retrieval_rate"] > self.thresholds["empty_retrieval_rate"]:
+            alerts.append({
+                "type": "retrieval",
+                "message": f"Empty retrieval rate {summary['quality']['empty_retrieval_rate']:.1%} > threshold",
+                "severity": "warning",
+            })
+        
+        # Send alerts
+        for alert in alerts:
+            self.notifier.send(alert)
+        
+        return alerts
+```
+
+## Failure modes
+
+1. **Over-instrumentation**: Too much logging slows system.
+2. **Missing context**: Traces without query/response are useless.
+3. **Alert fatigue**: Too many alerts, team ignores them.
+4. **Sampling bias**: Only sampling successful requests.
+
+## Production defaults
+
+- **Sample rate**: 100% for errors, 10-20% for success.
+- **Retention**: 7 days detailed, 30 days aggregated.
+- **Key alerts**: Error rate, P95 latency, empty retrieval rate.
+- **Dashboard refresh**: Every 1-5 minutes.
+
+## Do next
+
+<ChallengeLinks slugs={["rag-tracer", "metrics-dashboard", "alert-system"]} />

@@ -1,0 +1,32 @@
+---
+title: "Hypergraph Memory RAG"
+description: "Implement a hypergraph-based memory system for complex RAG"
+---
+
+# Hypergraph Memory RAG
+
+Implement a hypergraph-based memory system where edges can connect multiple nodes, enabling richer semantic relationships.
+
+## Requirements
+
+1. Build hypergraph structure from documents
+2. Implement hyperedge traversal
+3. Query using hypergraph patterns
+4. Aggregate context from connected hyperedges
+
+## Starter Code
+
+```python
+class HypergraphMemory:
+    def __init__(self):
+        self.nodes = {}  # entity -> embedding
+        self.hyperedges = []  # [(node_ids, relation, metadata)]
+    
+    def add_document(self, doc: str):
+        """Extract entities and hyperedges from document."""
+        pass
+    
+    def query(self, query: str, max_hops: int = 2) -> list[dict]:
+        """Find relevant hypergraph patterns for the query."""
+        pass
+```

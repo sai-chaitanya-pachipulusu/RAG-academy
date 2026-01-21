@@ -1,0 +1,332 @@
+---
+title: "RAG Capstone Projects"
+description: "End-to-end projects to prove your RAG engineering skills."
+order: 25
+tags: ["projects", "capstone", "portfolio", "hands-on"]
+---
+
+# RAG Capstone Projects
+
+Complete these projects to demonstrate production-ready RAG skills. Each project integrates multiple concepts from the curriculum.
+
+---
+
+## 🎯 Project Selection Guide
+
+| Level | Project | Time | Skills Demonstrated |
+|-------|---------|------|---------------------|
+| **Beginner** | Personal Knowledge Base | 8-12 hours | Chunking, embedding, basic retrieval |
+| **Intermediate** | Customer Support Bot | 15-20 hours | Hybrid search, reranking, evaluation |
+| **Advanced** | Multi-Tenant RAG Platform | 25-35 hours | Production systems, security, scale |
+| **Expert** | Agentic Research Assistant | 30-40 hours | Agents, multi-hop, tool use |
+
+---
+
+## Project 1: Personal Knowledge Base (Beginner)
+
+### Overview
+
+Build a RAG system over your own notes, documents, and bookmarks.
+
+### Requirements
+
+- **Input**: 50+ documents (markdown, PDF, or text)
+- **Features**:
+  - [x] Upload and process documents
+  - [x] Semantic search with similarity scores
+  - [x] Question answering with citations
+  - [x] Basic web UI
+
+### Technical Spec
+
+```
+Architecture:
+├── Document Ingestion
+│   ├── Parse: markdown, PDF, text
+│   ├── Chunk: 512 tokens with 50 token overlap
+│   └── Embed: text-embedding-3-small (or open-source)
+├── Vector Store
+│   └── ChromaDB (local) or Pinecone (cloud)
+├── Retrieval
+│   ├── Dense retrieval (k=10)
+│   └── Similarity threshold: 0.7
+├── Generation
+│   ├── Model: GPT-4o-mini or Claude Haiku
+│   └── Prompt: Grounded with citations
+└── UI
+    └── Streamlit or Next.js
+```
+
+### Evaluation Criteria
+
+| Criterion | Points |
+|-----------|--------|
+| Documents properly chunked | 20 |
+| Search returns relevant results | 25 |
+| Answers cite sources correctly | 25 |
+| Clean, functional UI | 15 |
+| Code quality and documentation | 15 |
+
+### Deliverables
+
+1. GitHub repository with README
+2. Working demo (local or deployed)
+3. 10 example queries with expected answers
+4. Brief write-up on design decisions
+
+---
+
+## Project 2: Customer Support Bot (Intermediate)
+
+### Overview
+
+Build a production-quality support bot for a fictional SaaS company.
+
+### Requirements
+
+- **Input**: Support documentation, FAQ, knowledge base (~200 articles)
+- **Features**:
+  - [x] Hybrid search (BM25 + dense)
+  - [x] Reranking with cross-encoder
+  - [x] Conversation memory (multi-turn)
+  - [x] Fallback to human handoff
+  - [x] Evaluation dashboard
+
+### Technical Spec
+
+```
+Architecture:
+├── Data Pipeline
+│   ├── Parse: HTML/Markdown from docs site
+│   ├── Chunk: Semantic chunking by section
+│   ├── Metadata: category, product, last_updated
+│   └── Embed: text-embedding-3-small
+├── Retrieval
+│   ├── Hybrid: BM25 + dense with RRF
+│   ├── Rerank: Cohere rerank-v3 or cross-encoder
+│   └── Top-k: 20 → rerank → 5
+├── Generation
+│   ├── Model: GPT-4o-mini
+│   ├── System prompt with persona
+│   ├── Conversation history (last 5 turns)
+│   └── Fallback detection
+├── Evaluation
+│   ├── Golden set: 50 Q&A pairs
+│   ├── Metrics: Recall@5, Faithfulness, Latency
+│   └── Dashboard: Streamlit or Grafana
+└── Production
+    ├── Rate limiting
+    ├── Error handling
+    └── Logging
+```
+
+### Evaluation Criteria
+
+| Criterion | Points |
+|-----------|--------|
+| Hybrid retrieval implementation | 20 |
+| Reranking improves results | 15 |
+| Multi-turn conversation works | 15 |
+| Evaluation metrics tracked | 20 |
+| Production-ready (error handling, logging) | 15 |
+| Documentation and tests | 15 |
+
+### Deliverables
+
+1. GitHub repository with CI/CD
+2. Deployed demo (Vercel/Railway)
+3. Golden set with evaluation results
+4. Architecture diagram
+5. Performance benchmarks
+
+---
+
+## Project 3: Multi-Tenant RAG Platform (Advanced)
+
+### Overview
+
+Build a RAG platform that serves multiple organizations with data isolation.
+
+### Requirements
+
+- **Input**: Multiple tenants, each with their own documents
+- **Features**:
+  - [x] Tenant isolation (no data leaks)
+  - [x] Per-tenant configuration (chunk size, model)
+  - [x] User authentication and RBAC
+  - [x] Usage metering and billing hooks
+  - [x] Admin dashboard
+
+### Technical Spec
+
+```
+Architecture:
+├── Authentication
+│   ├── Supabase Auth or Auth0
+│   ├── Tenant ID in JWT claims
+│   └── Row-level security
+├── Data Isolation
+│   ├── Option A: Namespace per tenant
+│   ├── Option B: Metadata filter on tenant_id
+│   └── Strict query-time enforcement
+├── Document Processing
+│   ├── Async job queue (Redis/BullMQ)
+│   ├── Tenant-specific settings
+│   └── Progress webhooks
+├── Retrieval
+│   ├── Tenant filter on all queries
+│   ├── Per-tenant reranking config
+│   └── Audit logging
+├── Generation
+│   ├── Tenant-specific system prompts
+│   ├── Model routing (by tier)
+│   └── Usage tracking
+├── Admin
+│   ├── Tenant management
+│   ├── Usage analytics
+│   └── Cost allocation
+└── API
+    ├── REST or GraphQL
+    ├── API key per tenant
+    └── Rate limiting per tenant
+```
+
+### Evaluation Criteria
+
+| Criterion | Points |
+|-----------|--------|
+| Data isolation (security audit) | 25 |
+| Multi-tenant architecture | 20 |
+| Authentication and RBAC | 15 |
+| Usage metering | 15 |
+| API design and documentation | 15 |
+| Scalability considerations | 10 |
+
+### Deliverables
+
+1. GitHub repository with infrastructure-as-code
+2. Security documentation (threat model)
+3. API documentation (OpenAPI spec)
+4. Demo with 3 sample tenants
+5. Load testing results
+
+---
+
+## Project 4: Agentic Research Assistant (Expert)
+
+### Overview
+
+Build an AI research assistant that can search, analyze, and synthesize information from multiple sources.
+
+### Requirements
+
+- **Input**: Web search, academic papers, internal docs
+- **Features**:
+  - [x] Multi-source retrieval (docs, web, APIs)
+  - [x] Agentic workflow (plan → execute → reflect)
+  - [x] Citation with verification
+  - [x] Report generation
+  - [x] Human-in-the-loop for high-stakes queries
+
+### Technical Spec
+
+```
+Architecture:
+├── Agent Core
+│   ├── Framework: LangGraph or custom
+│   ├── State: Query → Plan → Research → Synthesize
+│   └── Memory: Short-term (session) + Long-term (user history)
+├── Tools
+│   ├── Internal RAG (your docs)
+│   ├── Web search (Tavily or Serp API)
+│   ├── Academic search (Semantic Scholar API)
+│   ├── Calculator/Code interpreter
+│   └── Citation verifier
+├── Retrieval Pipeline (per source)
+│   ├── Internal: Hybrid + rerank
+│   ├── Web: Search → scrape → chunk → rank
+│   └── Academic: API → parse → embed
+├── Synthesis
+│   ├── Multi-document summarization
+│   ├── Cross-source fact checking
+│   └── Structured report generation
+├── Verification
+│   ├── Claim extraction
+│   ├── Source matching
+│   └── Confidence scoring
+└── UI
+    ├── Chat interface
+    ├── Research progress visualization
+    ├── Source panel with citations
+    └── Report export (PDF/Markdown)
+```
+
+### Evaluation Criteria
+
+| Criterion | Points |
+|-----------|--------|
+| Agent reasoning quality | 25 |
+| Multi-source integration | 20 |
+| Citation accuracy | 20 |
+| Synthesis quality | 15 |
+| User experience | 10 |
+| Error handling and recovery | 10 |
+
+### Deliverables
+
+1. GitHub repository with agent code
+2. Demo video showing complex research query
+3. Evaluation on 20 research questions
+4. Agent trace visualization
+5. Comparison: agent vs baseline RAG
+
+---
+
+## 📜 Certificate Requirements
+
+To earn an official **RAG Academy Certificate**, complete:
+
+### Bronze Certificate (Beginner)
+- [x] Complete Phase 0-1 lessons
+- [x] 50+ challenges completed
+- [x] Project 1 (Personal Knowledge Base)
+
+### Silver Certificate (Practitioner)
+- [x] Complete Phase 0-3 lessons
+- [x] 100+ challenges completed
+- [x] Project 2 (Customer Support Bot)
+- [x] Pass intermediate assessment (>80%)
+
+### Gold Certificate (Production Engineer)
+- [x] Complete Phase 0-6 lessons
+- [x] 175+ challenges completed
+- [x] Project 3 (Multi-Tenant Platform)
+- [x] Contribute 1 challenge or playbook
+
+### Platinum Certificate (Expert)
+- [x] Complete all lessons
+- [x] 220+ challenges completed
+- [x] Project 4 (Agentic Research Assistant)
+- [x] Published case study or open-source contribution
+
+---
+
+## 🏆 Showcase Your Work
+
+Submit your capstone project for review:
+
+1. **GitHub repo** with clean code and documentation
+2. **Live demo** or video walkthrough
+3. **Write-up** explaining design decisions
+4. **Metrics** showing performance
+
+Top projects will be featured on RAG Academy!
+
+---
+
+## Resources
+
+- [Project Starter Templates](/resources#templates)
+- [Dataset Downloads](/resources#datasets)
+- [RAG Architecture Diagrams](/compare/frameworks)
+- [Discord: #capstone-help](https://discord.gg/ragacademy)

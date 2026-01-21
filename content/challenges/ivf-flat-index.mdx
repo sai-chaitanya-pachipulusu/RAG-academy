@@ -1,0 +1,14 @@
+﻿<Callout title="Goal" variant="info">
+  Implement Inverted File (IVF) indexing to speed up search.
+</Callout>
+
+## Why this matters
+
+Flat search is O(N). IVF reduces search space by clustering vectors and searching only relevant variable lists (O(N/C)).
+
+## Task
+
+1. Train K-Means centroids.
+2. Assign vectors to centroids (inverted lists).
+3. Search: Find nearest centroid, scan its list.
+

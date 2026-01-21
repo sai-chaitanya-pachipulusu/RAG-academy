@@ -1,0 +1,261 @@
+---
+title: "Compound AI Systems"
+description: "Building systems that combine multiple AI components for better results than any single model."
+order: 3
+estimatedMinutes: 25
+stage: frontier
+prereqs:
+  - phase: phase-7
+    slug: long-context-vs-rag
+  - phase: phase-5
+    slug: multi-agent-systems
+next:
+  phase: phase-7
+  slug: rag-evaluation-frontier
+outcomes:
+  - "Understand the compound AI systems paradigm."
+  - "Design systems with multiple specialized components."
+  - "Implement routing, composition, and orchestration."
+tags: ["frontier", "systems", "architecture"]
+sources:
+  - title: "The Shift from Models to Compound AI Systems"
+    url: "https://bair.berkeley.edu/blog/2024/02/18/compound-ai-systems/"
+    type: "blog"
+  - title: "DSPy: Compiling Declarative Language Model Calls into Self-Improving Pipelines"
+    url: "https://arxiv.org/abs/2310.03714"
+    type: "paper"
+---
+
+## Goals
+
+- Understand the compound AI systems paradigm.
+- Design systems with multiple specialized components.
+- Implement routing, composition, and orchestration patterns.
+
+## Prereqs
+
+- Read: **Long Context vs RAG** (previous lesson).
+- Familiarity with multi-agent systems from Phase 5.
+
+## Core idea
+
+The next generation of AI applications won't be single model calls—they'll be **compound systems** that combine multiple models, retrievers, tools, and logic into orchestrated pipelines. This shift is driven by the realization that **system-level optimization beats model-level optimization**.
+
+## Why compound systems?
+
+### The limits of single-model approaches
+
+```python
+# Simple approach: one model does everything
+def simple_rag(query, corpus):
+    context = retrieve(query, corpus)
+    return gpt4(f"Context: {context}\n\nAnswer: {query}")
+```
+
+**Problems:**
+- GPT-4 is expensive for simple queries
+- No quality verification
+- No specialization for different query types
+- Single point of failure
+
+### Compound approach
+
+```python
+# Compound system: specialized components
+def compound_rag(query, corpus):
+    # 1. Classify query complexity
+    complexity = classifier(query)  # fast, cheap model
+    
+    # 2. Route to appropriate retriever
+    if complexity == "simple":
+        context = bm25_search(query, corpus)
+        model = "gpt-3.5-turbo"
+    else:
+        context = hybrid_search(query, corpus)
+        context = rerank(context, query)
+        model = "gpt-4"
+    
+    # 3. Generate with appropriate model
+    answer = generate(model, context, query)
+    
+    # 4. Verify groundedness
+    if not verify_grounded(answer, context):
+        answer = regenerate_with_citations(model, context, query)
+    
+    return answer
+```
+
+**Benefits:**
+- 5-10x cost reduction via routing
+- Higher quality via verification
+- Better debuggability
+- Independent component improvement
+
+## Failure modes
+
+- **Over-engineering**: Adding components without measuring improvement
+- **Cascade failures**: One component failure breaks the entire pipeline
+- **Optimization difficulty**: Hard to optimize end-to-end with many components
+- **Latency accumulation**: Sequential components add latency
+
+## Production defaults
+
+### Essential components
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    COMPOUND RAG SYSTEM                       │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────┐   ┌──────────┐   ┌────────┐   ┌─────────────┐ │
+│  │ Router  │ → │ Retriever│ → │Reranker│ → │  Generator  │ │
+│  └─────────┘   └──────────┘   └────────┘   └─────────────┘ │
+│       ↓              ↓             ↓              ↓         │
+│  ┌─────────┐   ┌──────────┐   ┌────────┐   ┌─────────────┐ │
+│  │  Cache  │   │  Index   │   │ Model  │   │  Verifier   │ │
+│  └─────────┘   └──────────┘   └────────┘   └─────────────┘ │
+├─────────────────────────────────────────────────────────────┤
+│                    ORCHESTRATION LAYER                       │
+│  • Logging & Tracing  • Error handling  • Fallbacks        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Implementation with DSPy
+
+DSPy provides a framework for building and optimizing compound systems:
+
+```python
+import dspy
+
+# Define signatures (what each component does)
+class GenerateAnswer(dspy.Signature):
+    """Answer questions based on context."""
+    context = dspy.InputField()
+    question = dspy.InputField()
+    answer = dspy.OutputField()
+
+class VerifyAnswer(dspy.Signature):
+    """Verify if answer is grounded in context."""
+    context = dspy.InputField()
+    answer = dspy.InputField()
+    is_grounded = dspy.OutputField()
+
+# Compose into a module
+class VerifiedRAG(dspy.Module):
+    def __init__(self):
+        self.retriever = dspy.Retrieve(k=5)
+        self.generator = dspy.ChainOfThought(GenerateAnswer)
+        self.verifier = dspy.Predict(VerifyAnswer)
+    
+    def forward(self, question):
+        # Retrieve
+        context = self.retriever(question).passages
+        
+        # Generate
+        answer = self.generator(context=context, question=question)
+        
+        # Verify and regenerate if needed
+        verification = self.verifier(context=context, answer=answer.answer)
+        if not verification.is_grounded:
+            answer = self.generator(
+                context=context, 
+                question=f"Only using the context, answer: {question}"
+            )
+        
+        return answer
+
+# Optimize the entire system
+optimizer = dspy.BootstrapFewShotWithRandomSearch(metric=answer_quality)
+optimized_rag = optimizer.compile(VerifiedRAG(), trainset=examples)
+```
+
+### Model routing
+
+Route queries to appropriate models based on complexity:
+
+```python
+class ModelRouter:
+    def __init__(self):
+        self.classifier = load_model("query-complexity-classifier")
+        self.models = {
+            "simple": "gpt-3.5-turbo",   # $0.002/1K
+            "medium": "gpt-4-turbo",     # $0.01/1K
+            "complex": "gpt-4",          # $0.03/1K
+        }
+    
+    def route(self, query):
+        complexity = self.classifier(query)
+        return self.models[complexity]
+    
+    def generate(self, query, context):
+        model = self.route(query)
+        return call_model(model, query, context)
+```
+
+**Cost impact**: 60-80% cost reduction with <5% quality loss.
+
+### Retrieval cascades
+
+Progressive refinement for better results:
+
+```python
+class RetrievalCascade:
+    def retrieve(self, query, corpus):
+        # Stage 1: Fast BM25 (1ms)
+        candidates = bm25_search(query, corpus, k=100)
+        
+        # Stage 2: Dense retrieval on candidates (10ms)
+        refined = dense_search(query, candidates, k=20)
+        
+        # Stage 3: Cross-encoder rerank (100ms)
+        final = cross_encoder_rerank(query, refined, k=5)
+        
+        return final
+```
+
+## Orchestration patterns
+
+### Sequential pipeline
+
+```python
+result = (
+    query
+    | route_query
+    | retrieve_context
+    | rerank_results
+    | generate_answer
+    | verify_groundedness
+    | format_response
+)
+```
+
+### Parallel ensemble
+
+```python
+async def ensemble_retrieve(query):
+    results = await asyncio.gather(
+        bm25_retrieve(query),
+        dense_retrieve(query),
+        hybrid_retrieve(query),
+    )
+    return reciprocal_rank_fusion(results)
+```
+
+### Fallback chain
+
+```python
+def robust_generate(query, context):
+    try:
+        return gpt4_generate(query, context)
+    except RateLimitError:
+        return gpt35_generate(query, context)
+    except Exception:
+        return cached_response(query) or "I couldn't process that request."
+```
+
+## Do next
+
+1. **Start simple**: Build a working RAG, then add components
+2. **Measure everything**: Each component should have clear metrics
+3. **Optimize end-to-end**: DSPy or similar for system-level optimization
+4. **Continue to**: [RAG Evaluation at the Frontier](/learn/phase-7/rag-evaluation-frontier)
+

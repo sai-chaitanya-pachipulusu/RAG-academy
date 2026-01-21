@@ -1,0 +1,22 @@
+﻿<Callout title="Goal" variant="info">
+  Implement **SimHash near-dedup** to remove “same content, different formatting” duplicates that cause context rot.
+</Callout>
+
+## Why this matters
+
+Exact dedup removes byte-identical duplicates.
+But in real corpora you often see near-duplicates:
+
+- punctuation changes
+- whitespace differences
+- the same policy copied into multiple docs
+
+Near-duplicates waste token budget and make answers repetitive.
+
+## Practical approach
+
+SimHash gives you a fast fingerprint where similar token sets tend to hash similarly.
+Then you can drop any chunk “too close” (by Hamming distance) to a chunk you already kept.
+
+
+

@@ -1,0 +1,38 @@
+﻿<Callout title="Goal" variant="info">
+  Route queries to **fast / standard / slow** retrieval paths to control cost while preserving quality on hard queries.
+</Callout>
+
+## Why this matters in production
+
+Not all queries deserve the same compute:
+
+- Easy queries (70%) can be answered with a cheap pipeline.
+- Hard queries (5–10%) need expensive transforms (HyDE, multi-query, rerank).
+
+If you run the “slow path” on every query, you’ll get:
+
+- higher latency
+- higher cost
+- more failure surface area
+
+## Online pipeline (query time)
+
+1. Classify query difficulty / intent
+2. Allocate budgets (candidate pool size, rerank count, transforms)
+3. Execute chosen path
+
+## What this lab teaches
+
+A deterministic routing policy based on simple signals:
+
+- query length
+- ID-like tokens (digits/underscores)
+
+## Production extensions (optional)
+
+- Use a learned classifier (small model) instead of heuristics.
+- Track per-path metrics (p95 latency, Recall@K, cost/query).
+- Add guardrails: max tool calls, max token budget, max rerank pairs.
+
+
+

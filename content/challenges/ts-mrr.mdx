@@ -1,0 +1,23 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Implement Mean Reciprocal Rank — measure how high the first relevant result ranks.
+</Callout>
+
+## Why this matters in production
+
+MRR is critical when users only look at the first result. For single-answer retrieval (like RAG Q&A), it measures whether you put the right answer at the top.
+
+## What you're implementing
+
+- For each query, find rank of first relevant document.
+- Reciprocal rank = 1/rank (or 0 if not found).
+- Average across all queries.
+
+## Common pitfalls
+
+- Using 0-based index instead of 1-based rank.
+- Not handling queries with no relevant results.
+
+## After you pass
+
+Complete the evaluation trio with **nDCG (TypeScript)**.
+

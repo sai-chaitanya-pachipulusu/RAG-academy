@@ -1,0 +1,412 @@
+﻿<Callout title="Goal" variant="info">
+  Build a comprehensive RAG evaluation suite — systematically measure and
+  improve retrieval and generation quality.
+</Callout>
+
+## The Evaluation Challenge
+
+RAG systems fail in subtle ways:
+
+- Retrieval can miss relevant docs
+- Context can be noisy
+- Generation can hallucinate
+- End-to-end quality is hard to measure
+
+## Evaluation Framework
+
+### Three-Level Evaluation
+
+```
+┌─────────────────────────────────────────┐
+│      Level 3: End-to-End Quality        │
+│   (Answer quality, user satisfaction)    │
+├─────────────────────────────────────────┤
+│       Level 2: Generation Quality        │
+│   (Faithfulness, relevance, coherence)   │
+├─────────────────────────────────────────┤
+│       Level 1: Retrieval Quality         │
+│     (Recall, precision, relevance)       │
+└─────────────────────────────────────────┘
+```
+
+## Level 1: Retrieval Metrics
+
+### Core Metrics
+
+```python
+import numpy as np
+
+def recall_at_k(retrieved: list[str], relevant: list[str], k: int) -> float:
+    """What fraction of relevant docs were retrieved?"""
+    retrieved_set = set(retrieved[:k])
+    relevant_set = set(relevant)
+
+    if not relevant_set:
+        return 1.0
+
+    return len(retrieved_set & relevant_set) / len(relevant_set)
+
+def precision_at_k(retrieved: list[str], relevant: list[str], k: int) -> float:
+    """What fraction of retrieved docs are relevant?"""
+    retrieved_set = set(retrieved[:k])
+    relevant_set = set(relevant)
+
+    if not retrieved_set:
+        return 0.0
+
+    return len(retrieved_set & relevant_set) / len(retrieved_set)
+
+def mrr(retrieved: list[str], relevant: list[str]) -> float:
+    """Mean Reciprocal Rank - where does first relevant doc appear?"""
+    for i, doc_id in enumerate(retrieved):
+        if doc_id in relevant:
+            return 1 / (i + 1)
+    return 0.0
+
+def ndcg_at_k(retrieved: list[str], relevant: dict[str, float], k: int) -> float:
+    """Normalized Discounted Cumulative Gain."""
+    def dcg(scores):
+        return sum(score / np.log2(i + 2) for i, score in enumerate(scores))
+
+    # Actual DCG
+    actual_scores = [relevant.get(doc_id, 0) for doc_id in retrieved[:k]]
+    actual_dcg = dcg(actual_scores)
+
+    # Ideal DCG
+    ideal_scores = sorted(relevant.values(), reverse=True)[:k]
+    ideal_dcg = dcg(ideal_scores)
+
+    return actual_dcg / ideal_dcg if ideal_dcg > 0 else 0
+```
+
+### Context Relevance
+
+```python
+def context_relevance(query: str, contexts: list[str]) -> float:
+    """Score how relevant each context is to the query."""
+    prompt = f"""Rate the relevance of each context to the query on a scale of 0-10.
+
+Query: {query}
+
+Contexts:
+{format_numbered_contexts(contexts)}
+
+For each context, output: context_number: score
+"""
+
+    response = llm.generate(prompt)
+    scores = parse_scores(response)
+
+    return sum(scores) / len(scores) if scores else 0
+
+def context_precision(query: str, contexts: list[str], ground_truth: str) -> float:
+    """How much of the context is actually useful?"""
+    useful_count = 0
+
+    for ctx in contexts:
+        if is_useful_for_answer(ctx, ground_truth):
+            useful_count += 1
+
+    return useful_count / len(contexts) if contexts else 0
+```
+
+## Level 2: Generation Metrics
+
+### Faithfulness (Grounding)
+
+```python
+def faithfulness_score(response: str, contexts: list[str]) -> dict:
+    """Is the response grounded in the provided context?"""
+    # Extract claims from response
+    claims = extract_claims(response)
+
+    supported = 0
+    unsupported = []
+
+    for claim in claims:
+        if is_supported_by_context(claim, contexts):
+            supported += 1
+        else:
+            unsupported.append(claim)
+
+    return {
+        "score": supported / len(claims) if claims else 1.0,
+        "total_claims": len(claims),
+        "supported_claims": supported,
+        "unsupported_claims": unsupported
+    }
+
+def extract_claims(response: str) -> list[str]:
+    """Extract factual claims from response."""
+    prompt = f"""Extract all factual claims from this response.
+Each claim should be atomic and verifiable.
+
+Response: {response}
+
+Claims (one per line):"""
+
+    result = llm.generate(prompt)
+    return [c.strip() for c in result.split("\n") if c.strip()]
+
+def is_supported_by_context(claim: str, contexts: list[str]) -> bool:
+    """Check if claim is supported by any context."""
+    combined_context = "\n".join(contexts)
+
+    prompt = f"""Is this claim supported by the context?
+
+Claim: {claim}
+
+Context: {combined_context}
+
+Answer SUPPORTED or NOT_SUPPORTED:"""
+
+    return "SUPPORTED" in llm.generate(prompt)
+```
+
+### Answer Relevance
+
+```python
+def answer_relevance(query: str, response: str) -> float:
+    """Does the response actually answer the query?"""
+    prompt = f"""Rate how well this response answers the query.
+
+Query: {query}
+
+Response: {response}
+
+Score (0-10, where 10 = perfectly answers the question):"""
+
+    result = llm.generate(prompt)
+    return float(result.strip()) / 10
+
+def answer_completeness(query: str, response: str, expected_points: list[str]) -> float:
+    """Are all expected points covered?"""
+    covered = 0
+
+    for point in expected_points:
+        if point_covered_in_response(point, response):
+            covered += 1
+
+    return covered / len(expected_points) if expected_points else 1.0
+```
+
+## Level 3: End-to-End Metrics
+
+### RAGAS-style Metrics
+
+```python
+class RAGASEvaluator:
+    """Implement RAGAS-style evaluation."""
+
+    def evaluate(self, query: str, response: str, contexts: list[str],
+                 ground_truth: str = None) -> dict:
+        results = {}
+
+        # Context metrics
+        results["context_precision"] = self.context_precision(query, contexts)
+        results["context_recall"] = self.context_recall(query, contexts, ground_truth)
+        results["context_relevancy"] = self.context_relevancy(query, contexts)
+
+        # Generation metrics
+        results["faithfulness"] = self.faithfulness(response, contexts)
+        results["answer_relevancy"] = self.answer_relevancy(query, response)
+
+        if ground_truth:
+            results["answer_correctness"] = self.answer_correctness(response, ground_truth)
+
+        return results
+
+    def context_precision(self, query: str, contexts: list[str]) -> float:
+        """Precision of retrieved contexts."""
+        # Implementation...
+        pass
+
+    def faithfulness(self, response: str, contexts: list[str]) -> float:
+        """All claims in response are from context."""
+        # Implementation...
+        pass
+```
+
+### LLM-as-Judge
+
+```python
+def llm_judge(query: str, response: str, reference: str = None) -> dict:
+    """Use LLM to judge response quality."""
+
+    prompt = f"""You are an expert judge evaluating a RAG system response.
+
+Query: {query}
+
+Response being evaluated:
+{response}
+
+{"Reference answer: " + reference if reference else ""}
+
+Rate the response on these dimensions (0-10):
+1. Relevance: Does it answer the question?
+2. Accuracy: Is the information correct?
+3. Completeness: Are all aspects covered?
+4. Clarity: Is it well-written and clear?
+
+Provide scores and brief justification for each."""
+
+    result = llm.generate(prompt)
+    return parse_judge_scores(result)
+```
+
+## Evaluation Datasets
+
+### Creating Test Sets
+
+```python
+@dataclass
+class EvalExample:
+    query: str
+    expected_docs: list[str]
+    expected_answer: str
+    metadata: dict = None
+
+def create_eval_set_from_logs(logs: list[dict]) -> list[EvalExample]:
+    """Create evaluation set from production logs."""
+    examples = []
+
+    for log in logs:
+        if log.get("user_rating", 0) >= 4:  # Positive examples
+            examples.append(EvalExample(
+                query=log["query"],
+                expected_docs=log["retrieved_doc_ids"],
+                expected_answer=log["response"],
+                metadata={"source": "positive_logs"}
+            ))
+
+    return examples
+
+def create_synthetic_eval_set(documents: list[str], n: int = 100) -> list[EvalExample]:
+    """Generate synthetic questions from documents."""
+    examples = []
+
+    for doc in random.sample(documents, min(n, len(documents))):
+        # Generate question
+        question = generate_question(doc)
+        # Generate expected answer
+        answer = generate_answer(question, doc)
+
+        examples.append(EvalExample(
+            query=question,
+            expected_docs=[doc.id],
+            expected_answer=answer,
+            metadata={"source": "synthetic"}
+        ))
+
+    return examples
+```
+
+## Running Evaluations
+
+### Batch Evaluation
+
+```python
+class RAGEvaluationRunner:
+    def __init__(self, rag_pipeline, evaluator):
+        self.pipeline = rag_pipeline
+        self.evaluator = evaluator
+
+    def evaluate_batch(self, eval_set: list[EvalExample]) -> dict:
+        results = []
+
+        for example in tqdm(eval_set):
+            # Run RAG pipeline
+            rag_result = self.pipeline.query(example.query)
+
+            # Evaluate
+            eval_result = self.evaluator.evaluate(
+                query=example.query,
+                response=rag_result["response"],
+                contexts=rag_result["contexts"],
+                ground_truth=example.expected_answer
+            )
+
+            # Add retrieval metrics
+            eval_result["recall@10"] = recall_at_k(
+                rag_result["doc_ids"],
+                example.expected_docs,
+                10
+            )
+
+            results.append(eval_result)
+
+        return self.aggregate_results(results)
+
+    def aggregate_results(self, results: list[dict]) -> dict:
+        """Compute aggregate metrics."""
+        metrics = {}
+
+        for key in results[0].keys():
+            values = [r[key] for r in results if isinstance(r.get(key), (int, float))]
+            if values:
+                metrics[key] = {
+                    "mean": np.mean(values),
+                    "std": np.std(values),
+                    "min": np.min(values),
+                    "max": np.max(values),
+                }
+
+        return metrics
+```
+
+### Continuous Evaluation
+
+```python
+class ContinuousEvaluator:
+    """Run periodic evaluations and track trends."""
+
+    def __init__(self, runner, eval_set, schedule="daily"):
+        self.runner = runner
+        self.eval_set = eval_set
+        self.schedule = schedule
+        self.history = []
+
+    def run_and_store(self):
+        results = self.runner.evaluate_batch(self.eval_set)
+
+        self.history.append({
+            "timestamp": datetime.utcnow(),
+            "results": results
+        })
+
+        # Check for regression
+        if len(self.history) >= 2:
+            self.check_regression()
+
+        return results
+
+    def check_regression(self, threshold: float = 0.1):
+        """Alert if quality drops."""
+        current = self.history[-1]["results"]
+        previous = self.history[-2]["results"]
+
+        for metric in ["faithfulness", "recall@10", "answer_relevancy"]:
+            if current[metric]["mean"] < previous[metric]["mean"] * (1 - threshold):
+                alert(f"Regression in {metric}: {previous[metric]['mean']:.2f} → {current[metric]['mean']:.2f}")
+```
+
+## Metrics Dashboard
+
+| Metric           | Formula                           | Good  | Warning | Bad   |
+| ---------------- | --------------------------------- | ----- | ------- | ----- |
+| Recall@10        | relevant_retrieved / all_relevant | >80%  | 60-80%  | <60%  |
+| Precision@10     | relevant_retrieved / retrieved    | >70%  | 50-70%  | <50%  |
+| Faithfulness     | supported_claims / total_claims   | >90%  | 70-90%  | <70%  |
+| Answer Relevance | LLM score                         | >8/10 | 6-8/10  | <6/10 |
+
+## Production Checklist
+
+- [ ] Define evaluation metrics for your use case
+- [ ] Create ground truth evaluation set
+- [ ] Implement retrieval metrics (recall, precision, MRR)
+- [ ] Implement generation metrics (faithfulness, relevance)
+- [ ] Set up batch evaluation pipeline
+- [ ] Schedule continuous evaluation
+- [ ] Alert on quality regression
+- [ ] Track trends over time
+

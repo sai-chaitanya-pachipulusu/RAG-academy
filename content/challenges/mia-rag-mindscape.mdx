@@ -1,0 +1,33 @@
+---
+title: "MIA-RAG Mindscape"
+description: "Implement multi-hop inference with knowledge graph augmentation"
+---
+
+# MIA-RAG Mindscape
+
+Implement a multi-hop inference RAG system that uses knowledge graph traversal to answer complex questions requiring reasoning across multiple documents.
+
+## Requirements
+
+1. Build a knowledge graph from document entities
+2. Implement multi-hop graph traversal
+3. Aggregate evidence from multiple hops
+4. Generate answers that cite the reasoning path
+
+## Starter Code
+
+```python
+def mia_rag_query(query: str, knowledge_graph, documents: list[str]) -> dict:
+    """
+    Multi-hop inference-augmented RAG.
+    
+    Returns:
+        {
+            "answer": str,
+            "reasoning_path": list[str],  # entities/relations traversed
+            "sources": list[str]
+        }
+    """
+    # Your implementation here
+    pass
+```

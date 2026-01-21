@@ -1,0 +1,159 @@
+---
+title: "Hybrid Retrieval Deep Dive"
+description: "Master BM25 + Dense fusion for production-grade recall."
+order: 1
+estimatedMinutes: 30
+stage: retrieval
+prereqs:
+  - phase: phase-1
+    slug: query-transforms
+next:
+  phase: phase-2
+  slug: reranking-strategies
+outcomes:
+  - "Explain when sparse beats dense and vice versa."
+  - "Implement RRF fusion with proper k parameter tuning."
+  - "Debug retrieval failures using hybrid diagnostics."
+tags: ["hybrid", "retrieval", "bm25", "rrf", "fusion"]
+sources:
+  - title: "Reciprocal Rank Fusion (Cormack et al., 2009)"
+    url: "https://plg.uwaterloo.ca/~gvcormac/cormacksigir09-rrf.pdf"
+    type: "paper"
+    year: 2009
+  - title: "Dense Passage Retrieval (Karpukhin et al., 2020)"
+    url: "https://arxiv.org/abs/2004.04906"
+    type: "paper"
+    year: 2020
+  - title: "Pinecone: Hybrid Search"
+    url: "https://docs.pinecone.io/guides/data/understanding-hybrid-search"
+    type: "docs"
+---
+
+## Goals
+
+- Understand WHY hybrid retrieval beats single-mode in most production systems.
+- Master the RRF formula and its k parameter.
+- Know when to weight sparse vs dense differently.
+
+## Prereqs
+
+- Read: **Query Transforms** (you should have basic retrieval working).
+- Challenge: `bm25-from-scratch` (implement BM25 scoring).
+
+## Core idea
+
+### The fundamental tradeoff
+
+| Query Type | BM25 Wins | Dense Wins |
+|------------|-----------|------------|
+| "AWS error code E-3847" | ✓ Exact match | ✗ Semantic noise |
+| "how to make api faster" | ✗ Vocabulary mismatch | ✓ Semantic similarity |
+| "python timeout exception" | Tie | Tie |
+
+**Key insight**: Production queries are a MIX. You need BOTH.
+
+### Why not just use one?
+
+**Dense-only problems:**
+- Misses exact matches (IDs, codes, proper nouns)
+- Embeddings can cluster unrelated terms
+- "AWS-3847" might retrieve "GCP-1234" because they're both cloud errors
+
+**BM25-only problems:**
+- Misses paraphrases ("renew secrets" vs "rotate API keys")
+- No semantic understanding
+- Vocabulary mismatch kills recall
+
+### Reciprocal Rank Fusion (RRF)
+
+The industry-standard fusion algorithm from [Cormack et al., 2009](https://plg.uwaterloo.ca/~gvcormac/cormacksigir09-rrf.pdf):
+
+```python
+def rrf_score(rank: int, k: int = 60) -> float:
+    """
+    RRF score for a document at given rank.
+    k=60 is the original paper's recommendation.
+    """
+    return 1.0 / (k + rank)
+
+def rrf_fusion(ranked_lists: List[List[str]], k: int = 60) -> List[str]:
+    """
+    Fuse multiple ranked lists using RRF.
+    """
+    scores = defaultdict(float)
+    for ranked_list in ranked_lists:
+        for rank, doc_id in enumerate(ranked_list, start=1):
+            scores[doc_id] += rrf_score(rank, k)
+    
+    return sorted(scores.keys(), key=lambda d: scores[d], reverse=True)
+```
+
+### Why k=60?
+
+From the original paper:
+- **k=60** was empirically found to be robust across datasets
+- **Lower k (e.g., 10)**: Top ranks dominate heavily
+- **Higher k (e.g., 100)**: Flatter distribution, more "averaging"
+
+<Callout title="Production tip" variant="info">
+  k=60 is a solid default. Only tune if you have labeled data showing different k improves your specific retrieval task.
+</Callout>
+
+### When to weight sparse vs dense differently
+
+| Corpus Type | Recommended Weighting |
+|-------------|----------------------|
+| Technical docs (IDs, codes) | BM25 weight: 1.5x |
+| Conversational content | Dense weight: 1.5x |
+| Mixed/unknown | Equal (RRF default) |
+
+```python
+def weighted_rrf(bm25_results, dense_results, bm25_weight=1.0, dense_weight=1.0, k=60):
+    scores = defaultdict(float)
+    
+    for rank, doc_id in enumerate(bm25_results, 1):
+        scores[doc_id] += bm25_weight * rrf_score(rank, k)
+    
+    for rank, doc_id in enumerate(dense_results, 1):
+        scores[doc_id] += dense_weight * rrf_score(rank, k)
+    
+    return sorted(scores.keys(), key=lambda d: scores[d], reverse=True)
+```
+
+## Failure modes
+
+1. **Dense-only blindness**: Miss exact matches for IDs, codes, proper nouns.
+2. **BM25-only blindness**: Miss paraphrases, synonyms, semantic matches.
+3. **Wrong k value**: Rarely matters, but can hurt on extreme datasets.
+4. **Not normalizing BM25 scores**: If using score-based fusion (not rank-based), BM25 scores vary wildly by query.
+5. **Misaligned indexes**: BM25 index and vector index must cover the same documents.
+
+## Production defaults
+
+- **Use RRF** (rank-based) over score-based fusion—more robust.
+- **k=60** unless you have data showing otherwise.
+- **Retrieve 50-100 from each source**, fuse, then rerank top-20/50.
+- **Log both sources**: Know which retriever contributed winning docs.
+
+```python
+# Production pattern
+bm25_results = bm25_search(query, k=100)
+dense_results = dense_search(embed(query), k=100)
+fused = rrf_fusion([bm25_results, dense_results], k=60)
+reranked = rerank(query, fused[:50])
+final = reranked[:10]
+```
+
+## Do next
+
+<ChallengeLinks slugs={["rrf-fusion", "weighted-rrf-fusion", "hybrid-search-tuning"]} />
+
+<Card className="mt-4 p-4">
+  <p className="text-sm font-medium">Deep dive into reranking:</p>
+  <Link
+    href="/learn/phase-2/reranking-strategies"
+    className="mt-2 inline-flex text-xs font-medium text-blue-700 hover:text-blue-500 dark:text-blue-400"
+  >
+    Next: Reranking Strategies →
+  </Link>
+</Card>

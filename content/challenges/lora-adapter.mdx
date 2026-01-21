@@ -1,0 +1,43 @@
+﻿---
+title: "LoRA Adapter Architecture"
+description: "Implement the core LoRA computation for efficient fine-tuning."
+---
+
+# LoRA Adapter Architecture
+
+Full fine-tuning requires updating billions of parameters. **LoRA** (Low-Rank Adaptation) updates <1% while achieving 95%+ of the benefit.
+
+### The Key Insight
+
+Instead of updating the full weight matrix W, add a low-rank decomposition:
+
+```
+W' = W + α * B @ A
+```
+
+Where:
+
+- **W**: Frozen original weights.
+- **A**: Down-projection (dim → rank).
+- **B**: Up-projection (rank → dim).
+- **α**: Scaling factor.
+
+### Parameter Savings
+
+| Model | Full FT Params | LoRA Params | Savings |
+| ----- | -------------- | ----------- | ------- |
+| 7B    | 7B             | 10M         | 99.9%   |
+| 70B   | 70B            | 100M        | 99.9%   |
+
+### Your Task
+
+Implement the LoRA forward pass:
+
+1. Compute original output: W @ x.
+2. Compute LoRA delta: B @ A @ x.
+3. Return: original + α \* delta.
+
+### Why It's Revolutionary
+
+LoRA enables fine-tuning on consumer GPUs and makes multi-tenant model serving practical.
+

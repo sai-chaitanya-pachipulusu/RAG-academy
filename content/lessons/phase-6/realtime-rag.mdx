@@ -1,0 +1,367 @@
+---
+title: "Real-Time RAG"
+description: "Build RAG systems that update knowledge in real-time as documents change."
+order: 6
+estimatedMinutes: 30
+stage: production-ops
+prereqs:
+  - phase: phase-6
+    slug: scaling-rag
+  - phase: phase-3
+    slug: modular-rag-architecture
+next:
+  phase: phase-6
+  slug: security-hardening
+outcomes:
+  - "Implement streaming document ingestion."
+  - "Handle incremental index updates."
+  - "Design for sub-second knowledge freshness."
+tags: ["real-time", "streaming", "production", "2025"]
+sources:
+  - title: "Building Real-time RAG Systems"
+    url: "https://www.pinecone.io/learn/real-time-rag/"
+    type: "blog"
+  - title: "Kafka for ML Pipelines"
+    url: "https://kafka.apache.org/documentation/"
+    type: "docs"
+---
+
+## Goals
+
+- Understand when real-time RAG is needed.
+- Implement streaming document updates.
+- Handle consistency between source and index.
+
+## Prereqs
+
+- Read: **Scaling RAG** (Phase 6) for infrastructure patterns.
+- Read: **Modular RAG Architecture** (Phase 3) for pipeline design.
+
+## Core idea
+
+Traditional RAG has **stale knowledge**:
+
+```
+Document updated: 2:00 PM
+Batch re-index: 3:00 AM (next day)
+Knowledge lag: up to 13+ hours
+```
+
+**Real-Time RAG** keeps knowledge fresh:
+
+```
+Document updated: 2:00 PM
+Index updated: 2:00:00.5 PM
+Knowledge lag: ~500ms
+```
+
+## When You Need Real-Time RAG
+
+| Use Case | Knowledge Freshness Needed | Real-Time? |
+|----------|---------------------------|------------|
+| Customer support tickets | Seconds | ✅ Yes |
+| News/social monitoring | Minutes | ✅ Yes |
+| Internal wiki | Hours | 🟡 Maybe |
+| Product documentation | Daily | ❌ Batch OK |
+| Legal contracts | Weekly | ❌ Batch OK |
+| Historical archives | Never changes | ❌ Batch OK |
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      Document Sources                            │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────────────────┐ │
+│  │ CRM     │  │ Tickets │  │ Wiki    │  │ Slack/Teams         │ │
+│  └────┬────┘  └────┬────┘  └────┬────┘  └──────────┬──────────┘ │
+└───────┼────────────┼────────────┼──────────────────┼────────────┘
+        │            │            │                  │
+        ▼            ▼            ▼                  ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Event Stream (Kafka/Redis)                    │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │ {type: "doc_created", id: "123", content: "...", ts: ...}│   │
+│  │ {type: "doc_updated", id: "456", content: "...", ts: ...}│   │
+│  │ {type: "doc_deleted", id: "789", ts: ...}                │   │
+│  └──────────────────────────────────────────────────────────┘   │
+└─────────────────────────────┬───────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Stream Processor                              │
+│                                                                  │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐  │
+│  │  Parse   │ →  │  Chunk   │ →  │  Embed   │ →  │  Upsert  │  │
+│  └──────────┘    └──────────┘    └──────────┘    └──────────┘  │
+│                                                                  │
+└─────────────────────────────┬───────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Vector Database                               │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │ Documents indexed and searchable within milliseconds      │   │
+│  └──────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Implementation
+
+### Event-Driven Document Updates
+
+```python
+import asyncio
+from dataclasses import dataclass
+from typing import Literal
+from datetime import datetime
+
+@dataclass
+class DocumentEvent:
+    type: Literal["created", "updated", "deleted"]
+    doc_id: str
+    content: str | None
+    metadata: dict
+    timestamp: datetime
+
+class RealTimeRAG:
+    def __init__(self, vector_store, embedder, chunker):
+        self.vector_store = vector_store
+        self.embedder = embedder
+        self.chunker = chunker
+        self.event_queue = asyncio.Queue()
+    
+    async def process_event(self, event: DocumentEvent):
+        """Process a single document event."""
+        
+        if event.type == "deleted":
+            # Delete all chunks for this document
+            await self.vector_store.delete(
+                filter={"doc_id": event.doc_id}
+            )
+            return
+        
+        if event.type == "updated":
+            # Delete old chunks first
+            await self.vector_store.delete(
+                filter={"doc_id": event.doc_id}
+            )
+        
+        # Chunk the document
+        chunks = self.chunker.chunk(
+            event.content,
+            metadata={"doc_id": event.doc_id, **event.metadata}
+        )
+        
+        # Embed chunks
+        embeddings = await self.embedder.embed_batch(
+            [c.text for c in chunks]
+        )
+        
+        # Upsert to vector store
+        vectors = [
+            {
+                "id": f"{event.doc_id}_{i}",
+                "values": emb,
+                "metadata": {
+                    "doc_id": event.doc_id,
+                    "chunk_index": i,
+                    "text": chunk.text,
+                    **event.metadata
+                }
+            }
+            for i, (chunk, emb) in enumerate(zip(chunks, embeddings))
+        ]
+        
+        await self.vector_store.upsert(vectors)
+    
+    async def start_consumer(self, kafka_consumer):
+        """Consume events from Kafka."""
+        
+        async for message in kafka_consumer:
+            event = DocumentEvent(**message.value)
+            await self.event_queue.put(event)
+    
+    async def start_processor(self, num_workers: int = 4):
+        """Process events with multiple workers."""
+        
+        async def worker():
+            while True:
+                event = await self.event_queue.get()
+                try:
+                    await self.process_event(event)
+                except Exception as e:
+                    print(f"Error processing {event.doc_id}: {e}")
+                    # Send to dead letter queue
+                finally:
+                    self.event_queue.task_done()
+        
+        workers = [asyncio.create_task(worker()) for _ in range(num_workers)]
+        await asyncio.gather(*workers)
+```
+
+### Webhook Receiver (Next.js API Route)
+
+```typescript
+// app/api/webhooks/documents/route.ts
+import { NextRequest, NextResponse } from "next/server";
+
+interface DocumentWebhook {
+  type: "created" | "updated" | "deleted";
+  doc_id: string;
+  content?: string;
+  metadata?: Record<string, string>;
+}
+
+export async function POST(request: NextRequest) {
+  const event: DocumentWebhook = await request.json();
+  
+  // Validate webhook signature
+  const signature = request.headers.get("X-Webhook-Signature");
+  if (!verifySignature(signature, event)) {
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  }
+  
+  // Send to processing queue (Redis, SQS, etc.)
+  await publishToQueue("document-events", event);
+  
+  return NextResponse.json({ status: "queued" });
+}
+```
+
+### Incremental Updates with Pinecone
+
+```python
+from pinecone import Pinecone, ServerlessSpec
+
+pc = Pinecone(api_key="YOUR_API_KEY")
+
+# Create serverless index (auto-scales)
+index = pc.Index("realtime-docs")
+
+async def incremental_update(doc_id: str, content: str, metadata: dict):
+    """Update a single document in real-time."""
+    
+    # Delete existing chunks
+    index.delete(filter={"doc_id": doc_id})
+    
+    # Chunk and embed
+    chunks = chunk_document(content)
+    embeddings = embed_texts([c.text for c in chunks])
+    
+    # Upsert new chunks
+    index.upsert(
+        vectors=[
+            {
+                "id": f"{doc_id}_{i}",
+                "values": emb,
+                "metadata": {
+                    "doc_id": doc_id,
+                    "text": chunk.text,
+                    "updated_at": datetime.utcnow().isoformat(),
+                    **metadata
+                }
+            }
+            for i, (chunk, emb) in enumerate(zip(chunks, embeddings))
+        ],
+        namespace="production"
+    )
+
+async def batch_updates(events: list[DocumentEvent]):
+    """Process multiple updates efficiently."""
+    
+    # Group by operation type
+    deletes = [e for e in events if e.type == "deleted"]
+    upserts = [e for e in events if e.type in ["created", "updated"]]
+    
+    # Batch delete
+    if deletes:
+        index.delete(
+            filter={"doc_id": {"$in": [e.doc_id for e in deletes]}}
+        )
+    
+    # Batch upsert
+    if upserts:
+        all_vectors = []
+        for event in upserts:
+            chunks = chunk_document(event.content)
+            embeddings = embed_texts([c.text for c in chunks])
+            
+            all_vectors.extend([
+                {
+                    "id": f"{event.doc_id}_{i}",
+                    "values": emb,
+                    "metadata": {"doc_id": event.doc_id, "text": chunk.text}
+                }
+                for i, (chunk, emb) in enumerate(zip(chunks, embeddings))
+            ])
+        
+        # Batch upsert (max 100 at a time)
+        for batch in chunks_of(all_vectors, 100):
+            index.upsert(vectors=batch)
+```
+
+## Consistency Patterns
+
+### Eventual Consistency (Default)
+
+```
+Write → Queue → Process → Index
+         ↓
+      May take 100ms-5s to be searchable
+```
+
+Good for most use cases.
+
+### Read-Your-Writes Consistency
+
+```python
+class ConsistentRealTimeRAG:
+    def __init__(self):
+        self.pending_updates = {}  # doc_id → content
+    
+    async def update_document(self, doc_id: str, content: str):
+        # Store in pending
+        self.pending_updates[doc_id] = content
+        
+        # Send to async processing
+        await self.queue.put(DocumentEvent("updated", doc_id, content))
+    
+    async def query(self, user_id: str, query: str):
+        # Get results from vector store
+        results = await self.vector_store.query(query, k=10)
+        
+        # Check if any results have pending updates
+        for result in results:
+            if result.doc_id in self.pending_updates:
+                # Use fresher version from pending
+                result.content = self.pending_updates[result.doc_id]
+        
+        return results
+```
+
+## Failure modes
+
+- **Embedding service downtime**: Queue backs up
+- **Vector store rate limits**: Batch and retry
+- **Out-of-order events**: Use timestamps, process latest only
+- **Duplicate events**: Idempotent upserts (same ID = overwrite)
+
+## Production defaults
+
+```python
+# Configuration for production real-time RAG
+REAL_TIME_CONFIG = {
+    "batch_size": 50,              # Process in batches
+    "batch_timeout_ms": 500,       # Max wait before processing
+    "retry_attempts": 3,           # Retry failed updates
+    "retry_delay_ms": 1000,        # Delay between retries
+    "dead_letter_queue": True,     # Store failed events
+    "max_queue_size": 10000,       # Backpressure limit
+}
+```
+
+## Do next
+
+1. **Challenge**: [Real-Time Document Sync](/challenges/realtime-document-sync)
+2. **Challenge**: [Streaming RAG Updates](/challenges/streaming-rag-updates)
+3. **Continue to**: [Security Hardening](/learn/phase-6/security-hardening)

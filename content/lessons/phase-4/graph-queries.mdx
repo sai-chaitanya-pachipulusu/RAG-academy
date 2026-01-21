@@ -1,0 +1,277 @@
+---
+title: "Graph Query Languages"
+description: "Query knowledge graphs with Cypher, SPARQL, and natural language."
+order: 3
+estimatedMinutes: 25
+stage: graph-rag
+prereqs:
+  - phase: phase-4
+    slug: graphrag-implementation
+next:
+  phase: phase-4
+  slug: multimodal-rag
+outcomes:
+  - "Write basic Cypher queries for Neo4j."
+  - "Understand SPARQL for RDF knowledge graphs."
+  - "Build natural language to graph query translation."
+tags: ["cypher", "sparql", "graph-queries", "text2cypher"]
+sources:
+  - title: "Neo4j Cypher Manual"
+    url: "https://neo4j.com/docs/cypher-manual/current/"
+    type: "docs"
+  - title: "W3C SPARQL Specification"
+    url: "https://www.w3.org/TR/sparql11-query/"
+    type: "docs"
+  - title: "LangChain: Graph Cypher QA"
+    url: "https://python.langchain.com/docs/how_to/graph_cypher_qa/"
+    type: "docs"
+---
+
+## Goals
+
+- Learn basic Cypher query syntax for Neo4j.
+- Understand when to use SPARQL vs Cypher.
+- Build natural language to graph query translation.
+
+## Prereqs
+
+- Read: **GraphRAG Implementation** (understand graph structure).
+
+## Core idea
+
+### Why graph query languages?
+
+Natural language is ambiguous. Graph queries are precise:
+
+| Natural Language | Graph Query |
+|------------------|-------------|
+| "Who works at Acme?" | `MATCH (p:Person)-[:WORKS_AT]->(c:Company {name: "Acme"}) RETURN p` |
+| "What products does Acme make?" | `MATCH (c:Company {name: "Acme"})-[:MANUFACTURES]->(p:Product) RETURN p` |
+
+### Cypher basics (Neo4j)
+
+```cypher
+-- Find all people
+MATCH (p:Person) RETURN p
+
+-- Find person by name
+MATCH (p:Person {name: "John Smith"}) RETURN p
+
+-- Find relationships
+MATCH (p:Person)-[r:WORKS_AT]->(c:Company)
+RETURN p.name, r.role, c.name
+
+-- Multi-hop traversal
+MATCH (p:Person)-[:WORKS_AT]->(c:Company)-[:SUBSIDIARY_OF]->(parent:Company)
+RETURN p.name, c.name, parent.name
+
+-- Aggregation
+MATCH (c:Company)<-[:WORKS_AT]-(p:Person)
+RETURN c.name, count(p) as employee_count
+ORDER BY employee_count DESC
+
+-- Pattern matching with conditions
+MATCH (p:Person)-[r:WORKS_AT]->(c:Company)
+WHERE r.since > "2020-01-01"
+RETURN p.name, c.name, r.since
+```
+
+### Common Cypher patterns for RAG
+
+```python
+# Pattern library for common queries
+CYPHER_PATTERNS = {
+    "entity_info": """
+        MATCH (e:{entity_type} {{name: $name}})
+        OPTIONAL MATCH (e)-[r]-(related)
+        RETURN e, collect(distinct {{
+            type: type(r),
+            direction: CASE WHEN startNode(r) = e THEN 'outgoing' ELSE 'incoming' END,
+            related: related
+        }}) as relationships
+    """,
+    
+    "relationship_path": """
+        MATCH path = shortestPath(
+            (start:{start_type} {{name: $start_name}})-[*1..3]-(end:{end_type} {{name: $end_name}})
+        )
+        RETURN path
+    """,
+    
+    "entity_neighborhood": """
+        MATCH (e:{entity_type} {{name: $name}})
+        CALL apoc.path.subgraphNodes(e, {{
+            maxLevel: $depth,
+            relationshipFilter: $rel_filter
+        }})
+        YIELD node
+        RETURN node
+    """,
+    
+    "community_members": """
+        MATCH (e)-[:BELONGS_TO_COMMUNITY]->(c:Community {{id: $community_id}})
+        RETURN e
+    """,
+}
+```
+
+### Natural language to Cypher
+
+```python
+class Text2Cypher:
+    def __init__(self, llm, schema: Dict):
+        self.llm = llm
+        self.schema = schema
+    
+    def translate(self, query: str) -> str:
+        """
+        Translate natural language to Cypher query.
+        """
+        prompt = f"""Convert this natural language query to a Cypher query.
+
+Graph Schema:
+{self.format_schema()}
+
+Natural language query: {query}
+
+Important rules:
+1. Use only the node labels and relationship types defined in the schema
+2. Always use parameterized queries with $param syntax
+3. Return relevant properties, not just nodes
+4. Use OPTIONAL MATCH for potentially missing relationships
+
+Cypher query:"""
+        
+        cypher = self.llm.generate(prompt, max_tokens=300)
+        
+        # Validate query
+        validated = self.validate_cypher(cypher)
+        
+        return validated
+    
+    def format_schema(self) -> str:
+        """
+        Format schema for the prompt.
+        """
+        lines = ["Node Labels:"]
+        for label, props in self.schema["nodes"].items():
+            lines.append(f"  - {label}: {props}")
+        
+        lines.append("\nRelationship Types:")
+        for rel, info in self.schema["relationships"].items():
+            lines.append(f"  - {rel}: {info['source']} -> {info['target']}")
+        
+        return "\n".join(lines)
+    
+    def validate_cypher(self, cypher: str) -> str:
+        """
+        Basic validation of generated Cypher.
+        """
+        # Check for injection risks
+        dangerous_keywords = ["DELETE", "REMOVE", "SET", "CREATE", "MERGE", "DROP"]
+        for keyword in dangerous_keywords:
+            if keyword in cypher.upper():
+                raise ValueError(f"Dangerous operation detected: {keyword}")
+        
+        # Ensure it's a read query
+        if not cypher.strip().upper().startswith("MATCH"):
+            raise ValueError("Query must start with MATCH")
+        
+        return cypher
+
+
+# Usage
+text2cypher = Text2Cypher(llm, graph_schema)
+cypher = text2cypher.translate("Who are the engineers at Acme Corp?")
+# Output: MATCH (p:Person)-[:WORKS_AT]->(c:Company {name: $company_name})
+#         WHERE p.title CONTAINS 'Engineer'
+#         RETURN p.name, p.title
+```
+
+### Hybrid: Vector + Graph queries
+
+```python
+class HybridGraphRetriever:
+    def __init__(self, graph_store, vector_store, text2cypher):
+        self.graph_store = graph_store
+        self.vector_store = vector_store
+        self.text2cypher = text2cypher
+    
+    def retrieve(self, query: str) -> Dict:
+        """
+        Hybrid retrieval combining graph and vector search.
+        """
+        # Classify query type
+        query_type = self.classify_query(query)
+        
+        if query_type == "entity_specific":
+            # Use graph query
+            cypher = self.text2cypher.translate(query)
+            graph_results = self.graph_store.execute(cypher)
+            return {"type": "graph", "results": graph_results}
+        
+        elif query_type == "relationship":
+            # Graph traversal
+            cypher = self.text2cypher.translate(query)
+            graph_results = self.graph_store.execute(cypher)
+            return {"type": "graph", "results": graph_results}
+        
+        elif query_type == "semantic":
+            # Vector search
+            vector_results = self.vector_store.search(query, k=10)
+            return {"type": "vector", "results": vector_results}
+        
+        else:
+            # Hybrid: both
+            cypher = self.text2cypher.translate(query)
+            graph_results = self.graph_store.execute(cypher)
+            vector_results = self.vector_store.search(query, k=5)
+            
+            return {
+                "type": "hybrid",
+                "graph_results": graph_results,
+                "vector_results": vector_results,
+            }
+    
+    def classify_query(self, query: str) -> str:
+        """
+        Classify query to determine retrieval strategy.
+        """
+        # Entity-specific indicators
+        if any(pattern in query.lower() for pattern in [
+            "who is", "what is", "where is", "list all", "how many"
+        ]):
+            return "entity_specific"
+        
+        # Relationship indicators
+        if any(pattern in query.lower() for pattern in [
+            "related to", "connected", "works at", "reports to", "manages"
+        ]):
+            return "relationship"
+        
+        # Semantic/conceptual
+        if any(pattern in query.lower() for pattern in [
+            "explain", "describe", "what does", "how does", "why"
+        ]):
+            return "semantic"
+        
+        return "hybrid"
+```
+
+## Failure modes
+
+1. **Bad translation**: LLM generates invalid Cypher.
+2. **Injection**: User input causes harmful queries.
+3. **Schema mismatch**: Query references non-existent labels.
+4. **Performance**: Complex traversals can be slow.
+
+## Production defaults
+
+- **Validate all generated queries** before execution.
+- **Use parameterized queries** to prevent injection.
+- **Set query timeouts** to prevent runaway queries.
+- **Cache frequent query patterns**.
+
+## Do next
+
+<ChallengeLinks slugs={["text2cypher", "cypher-patterns", "hybrid-graph-vector"]} />

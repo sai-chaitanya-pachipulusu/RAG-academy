@@ -1,0 +1,32 @@
+﻿<Callout title="Goal" variant="info">
+  Build the simplest query rewrite: normalize → remove stopwords → dedupe tokens.
+</Callout>
+
+## Why this matters in production
+
+Real user queries are messy:
+
+- inconsistent casing (`API Key` vs `api_key`)
+- filler words (“how do I…”, “can you…”, “please…”)
+- repeated terms
+
+Normalization improves **retrieval stability** and reduces unnecessary variance in logs, caches, and evals.
+
+## Offline vs online
+
+- **Online (query time)**: normalize the user query before any retrieval step.
+- **Offline**: not needed (but you may normalize document fields similarly during ingestion).
+
+## Common pitfalls
+
+- Removing too much (stopwords list that deletes important domain terms).
+- Reordering tokens (you usually want to preserve order for debuggability).
+
+## Production extensions (optional)
+
+- Lemmatization/stemming (careful: can hurt technical terms).
+- Preserve special tokens like `api_key`, `S3`, `RFC2616`.
+- Normalization per language (multilingual tokenization).
+
+
+

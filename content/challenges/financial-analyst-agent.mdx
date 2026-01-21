@@ -1,0 +1,47 @@
+---
+title: "Financial Analyst Agent"
+description: "Build an agent that analyzes financial data"
+---
+
+# Financial Analyst Agent
+
+Build an agentic RAG system that can analyze financial data, retrieve market information, and generate investment insights.
+
+## Requirements
+
+1. Parse financial documents (10-K, earnings reports)
+2. Retrieve relevant market data
+3. Calculate financial metrics
+4. Generate analysis with citations
+
+## Starter Code
+
+```python
+class FinancialAnalyst:
+    def __init__(self, document_store, market_api):
+        self.docs = document_store
+        self.market = market_api
+        self.tools = self._setup_tools()
+    
+    def _setup_tools(self):
+        """Setup analysis tools."""
+        return {
+            "retrieve_filings": self._retrieve_filings,
+            "get_market_data": self._get_market_data,
+            "calculate_ratios": self._calculate_ratios,
+        }
+    
+    def analyze(self, query: str) -> dict:
+        """
+        Analyze financial query using tools.
+        
+        Returns:
+            {
+                "analysis": str,
+                "metrics": dict,
+                "sources": list[str],
+                "confidence": float
+            }
+        """
+        pass
+```

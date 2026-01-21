@@ -1,0 +1,31 @@
+﻿---
+title: "Metadata Bitmap Indexing"
+description: "Implement a bitmap index for ultra-fast boolean filtering on document metadata."
+---
+
+# Metadata Bitmap Indexing
+
+When you have millions of documents, filtering them by metadata (e.g., `department='HR'`) using standard loops is too slow. **Bitmap Indexing** provides a way to perform these filters using bitwise operations, which are extremely fast and CPU-efficient.
+
+### How it Works
+
+Imagine you have 4 documents and a "Department" field:
+
+- Doc 0: HR
+- Doc 1: Engineering
+- Doc 2: HR
+- Doc 3: Sales
+
+A bitmap for `department='HR'` would be `1010` (1 at indices 0 and 2).
+
+To find documents that are in `HR` **AND** are `Public`, you just perform a bitwise `AND` between the two bitmaps.
+
+### Your Task
+
+1.  **Create Bitmap**: Write a function that takes a list of metadata values and a target value, and returns an integer representing the bitmap.
+2.  **Filter**: Write a function that uses this bitmap to filter a list of document indices.
+
+### Why this matters
+
+Bitmap indexing is the secret sauce behind ultra-fast filtering in databases like **Clickhouse** and **Elasticsearch**. In RAG, it's used to handle high-scale multi-tenancy and complex metadata predicates.
+

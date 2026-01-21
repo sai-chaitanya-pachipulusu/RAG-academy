@@ -1,0 +1,37 @@
+﻿<Callout title="Goal" variant="info">
+  Implement overlap chunking — the simplest way to reduce boundary loss in RAG.
+</Callout>
+
+## Why this matters in production
+
+If you chunk a document, you’ll frequently cut through:
+
+- definitions
+- enumerations
+- code blocks
+
+Overlap is a cheap mitigation. It increases index size, but often improves recall.
+
+## What you’re implementing
+
+Given `chunk_size` and `overlap`:
+
+- step size = `chunk_size - overlap`
+- chunk starts: 0, step, 2*step, …
+
+Rules:
+
+- `chunk_size > 0`
+- `0 <= overlap < chunk_size`
+
+## Common pitfalls
+
+- Allowing `overlap == chunk_size` (infinite loop).
+- Using `overlap` as the step size instead of `chunk_size - overlap`.
+
+## After you pass
+
+Move to **metadata tagging** and **stable chunk IDs** (traceability).
+
+
+

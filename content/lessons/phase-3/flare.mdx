@@ -1,0 +1,292 @@
+---
+title: "FLARE: Active Retrieval"
+description: "Retrieve dynamically during generation based on model confidence."
+order: 6
+estimatedMinutes: 20
+stage: retrieval
+prereqs:
+  - phase: phase-3
+    slug: speculative-rag
+next:
+  phase: phase-4
+  slug: knowledge-graphs-intro
+outcomes:
+  - "Understand FLARE's confidence-based retrieval triggers."
+  - "Implement active retrieval during generation."
+  - "Know when active retrieval improves vs complicates."
+tags: ["flare", "active-retrieval", "iterative-rag", "confidence"]
+sources:
+  - title: "FLARE: Active Retrieval (Jiang et al., 2023)"
+    url: "https://arxiv.org/abs/2305.06983"
+    type: "paper"
+    year: 2023
+  - title: "Interleaving Retrieval with Generation (Trivedi et al., 2022)"
+    url: "https://arxiv.org/abs/2212.10509"
+    type: "paper"
+    year: 2022
+---
+
+## Goals
+
+- Understand FLARE's approach to active retrieval.
+- Implement confidence-based retrieval triggers.
+- Build generation loops that retrieve on demand.
+
+## Prereqs
+
+- Read: **Speculative RAG** (understand parallel approaches).
+
+## Core idea
+
+### What is FLARE?
+
+From [Jiang et al., 2023](https://arxiv.org/abs/2305.06983): FLARE (Forward-Looking Active REtrieval) interleaves generation with retrieval:
+
+1. Generate a sentence
+2. Check confidence in generated tokens
+3. If low confidence → retrieve relevant information
+4. Continue generation with new context
+
+```
+Traditional RAG:
+  [Retrieve all] → [Generate all] → Answer
+
+FLARE:
+  [Generate] → Low confidence? → [Retrieve] → [Continue generating] → ...
+      ↑                              │
+      └──────────────────────────────┘
+```
+
+### Why active retrieval helps
+
+| Scenario | Traditional RAG | FLARE |
+|----------|-----------------|-------|
+| Multi-hop question | May miss later hops | Retrieves as needed |
+| Long generation | Early context may be stale | Fresh retrieval |
+| Uncertain facts | Hallucinates | Retrieves to verify |
+
+### Implementation
+
+```python
+class FLARE:
+    def __init__(
+        self,
+        retriever,
+        generator,
+        confidence_threshold: float = 0.5,
+        max_iterations: int = 5,
+    ):
+        self.retriever = retriever
+        self.generator = generator
+        self.confidence_threshold = confidence_threshold
+        self.max_iterations = max_iterations
+    
+    def generate(self, query: str, initial_context: str = "") -> str:
+        """
+        FLARE: Generate with active retrieval.
+        """
+        context = initial_context
+        generated = ""
+        iteration = 0
+        
+        while iteration < self.max_iterations:
+            # Generate next sentence with confidence
+            result = self.generate_with_confidence(
+                query, context, generated
+            )
+            
+            sentence = result["sentence"]
+            confidence = result["confidence"]
+            
+            if confidence < self.confidence_threshold:
+                # Low confidence: retrieve more information
+                retrieval_query = self.formulate_query(
+                    query, generated, sentence
+                )
+                new_docs = self.retriever.retrieve(retrieval_query, k=3)
+                context = self.update_context(context, new_docs)
+                
+                # Re-generate with new context
+                result = self.generate_with_confidence(
+                    query, context, generated
+                )
+                sentence = result["sentence"]
+            
+            generated += sentence + " "
+            
+            # Check for completion
+            if self.is_complete(generated):
+                break
+            
+            iteration += 1
+        
+        return generated.strip()
+    
+    def generate_with_confidence(
+        self,
+        query: str,
+        context: str,
+        generated_so_far: str,
+    ) -> Dict:
+        """
+        Generate next sentence and estimate confidence.
+        """
+        prompt = f"""Context: {context}
+
+Question: {query}
+
+Answer so far: {generated_so_far}
+
+Continue the answer with one sentence:"""
+        
+        # Generate with logprobs to estimate confidence
+        response = self.generator.generate(
+            prompt,
+            max_tokens=50,
+            logprobs=True,
+            stop=["."],
+        )
+        
+        sentence = response["text"].strip()
+        
+        # Estimate confidence from token probabilities
+        if "logprobs" in response:
+            avg_logprob = sum(response["logprobs"]) / len(response["logprobs"])
+            confidence = math.exp(avg_logprob)  # Convert to probability
+        else:
+            confidence = self.estimate_confidence_heuristic(sentence)
+        
+        return {
+            "sentence": sentence,
+            "confidence": confidence,
+        }
+    
+    def formulate_query(
+        self,
+        original_query: str,
+        generated: str,
+        low_confidence_sentence: str,
+    ) -> str:
+        """
+        Formulate a retrieval query based on uncertain content.
+        """
+        # Option 1: Use the low-confidence sentence as query
+        # Option 2: Ask LLM to formulate a query
+        
+        prompt = f"""The model is uncertain about this sentence:
+"{low_confidence_sentence}"
+
+Original question: {original_query}
+Generated so far: {generated}
+
+What information should we retrieve to verify or complete this sentence?
+Retrieval query:"""
+        
+        return self.generator.generate(prompt, max_tokens=50).strip()
+    
+    def estimate_confidence_heuristic(self, sentence: str) -> float:
+        """
+        Heuristic confidence estimation without logprobs.
+        """
+        # Low confidence indicators
+        hedging_words = ["might", "maybe", "possibly", "I think", "probably", "perhaps"]
+        
+        score = 1.0
+        for word in hedging_words:
+            if word in sentence.lower():
+                score -= 0.15
+        
+        return max(0.0, score)
+    
+    def update_context(self, current_context: str, new_docs: List[Dict]) -> str:
+        """
+        Update context with newly retrieved documents.
+        """
+        new_content = "\n\n".join(doc["text"] for doc in new_docs)
+        
+        # Append new context (or replace if too long)
+        if len(current_context) + len(new_content) > 6000:
+            # Summarize old context
+            return f"{self.summarize(current_context)}\n\n{new_content}"
+        
+        return f"{current_context}\n\n{new_content}"
+```
+
+### Simplified FLARE (sentence-level)
+
+```python
+class SimpleFLARE:
+    """
+    Simplified FLARE that retrieves before uncertain spans.
+    """
+    def generate(self, query: str) -> str:
+        context = ""
+        generated = ""
+        
+        # Initial retrieval
+        docs = self.retriever.retrieve(query, k=5)
+        context = self.build_context(docs)
+        
+        # Generate sentence by sentence
+        for _ in range(10):  # Max sentences
+            # Generate next sentence
+            sentence, confidence = self.generate_sentence(
+                query, context, generated
+            )
+            
+            # If uncertain, retrieve and retry
+            if confidence < 0.6:
+                # Use uncertain sentence as retrieval query
+                new_docs = self.retriever.retrieve(sentence, k=3)
+                context += "\n\n" + self.build_context(new_docs)
+                
+                # Regenerate
+                sentence, _ = self.generate_sentence(
+                    query, context, generated
+                )
+            
+            generated += sentence + " "
+            
+            if self.is_complete(sentence):
+                break
+        
+        return generated.strip()
+```
+
+### When to use FLARE
+
+| Use Case | FLARE Appropriate? |
+|----------|-------------------|
+| Multi-hop reasoning | ✓ Yes |
+| Evolving topics | ✓ Yes |
+| Long-form generation | ✓ Yes |
+| Simple Q&A | ✗ No (overkill) |
+| Streaming required | ~ Complex |
+
+## Failure modes
+
+1. **Retrieval loops**: Low confidence → bad retrieval → still low confidence.
+2. **Slow generation**: Multiple retrievals add latency.
+3. **Context bloat**: Accumulated context exceeds window.
+4. **Over-retrieval**: Retrieving when not needed.
+
+## Production defaults
+
+- **Confidence threshold**: 0.5-0.7 (tune on your data).
+- **Max iterations**: 5-10 sentences.
+- **Context management**: Summarize or truncate old context.
+- **Use for**: Complex queries, not simple lookups.
+
+## Do next
+
+<ChallengeLinks slugs={["flare-confidence", "active-retrieval", "iterative-rag"]} />
+
+<Card className="mt-4 p-4">
+  <p className="text-sm font-medium">Next phase: Graph RAG</p>
+  <Link
+    href="/learn/phase-4/knowledge-graphs-intro"
+    className="mt-2 inline-flex text-xs font-medium text-blue-700 hover:text-blue-500 dark:text-blue-400"
+  >
+    Phase 4: Knowledge Graphs →
+  </Link>
+</Card>

@@ -1,0 +1,30 @@
+﻿<Callout title="Goal" variant="info">
+  Compress a chunk by extracting only the most relevant sentences (safe token savings).
+</Callout>
+
+## Why this matters in production
+
+Long chunks cost tokens and can reduce answer quality.
+Extractive compression is safer than abstractive summarization because it:
+
+- doesn’t invent new facts
+- keeps original wording (good for citations)
+
+## Where this fits
+
+Post-retrieval context shaping:
+
+1. retrieve candidates
+2. rerank
+3. **compress** long chunks (optional)
+4. pack + order under token budget
+5. generate with citations
+
+## Production extensions (optional)
+
+- compress only when total context > threshold
+- use a cross-encoder sentence scorer
+- preserve provenance (sentence offsets) for quote-attribution
+
+
+

@@ -1,0 +1,31 @@
+﻿<Callout title="Goal" variant="warning">
+  Treat retrieved text as **untrusted input** and filter obvious prompt-injection patterns.
+</Callout>
+
+## Why this matters in production
+
+Attackers can place malicious instructions inside documents:
+
+- “ignore previous instructions”
+- “reveal secrets”
+- “do not cite sources”
+
+If you pass that through to the LLM, you’ve effectively allowed documents to control the model.
+
+## Where this fits
+
+This is a **guardrail between retrieval and generation**:
+
+1. retrieve candidates
+2. rerank / select
+3. **sanitize** (drop or neutralize malicious chunks)
+4. generate grounded answer with citations
+
+## Production extensions (optional)
+
+- classify chunks with a dedicated safety model
+- strip only the malicious lines instead of dropping whole chunks
+- keep audit logs when you drop suspicious content
+
+
+

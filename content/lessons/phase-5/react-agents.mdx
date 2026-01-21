@@ -1,0 +1,314 @@
+---
+title: "ReAct Agents"
+description: "Build reasoning + acting agents that think through problems."
+order: 2
+estimatedMinutes: 25
+stage: agentic-rag
+prereqs:
+  - phase: phase-5
+    slug: agentic-rag-intro
+next:
+  phase: phase-5
+  slug: plan-and-execute
+outcomes:
+  - "Implement the ReAct pattern from the original paper."
+  - "Design effective tool descriptions for agents."
+  - "Handle agent errors and loops gracefully."
+tags: ["react", "agents", "reasoning", "tool-use"]
+sources:
+  - title: "ReAct: Synergizing Reasoning and Acting (Yao et al., 2022)"
+    url: "https://arxiv.org/abs/2210.03629"
+    type: "paper"
+    year: 2022
+  - title: "LangChain: ReAct Agent"
+    url: "https://python.langchain.com/docs/how_to/agent_executor/"
+    type: "docs"
+---
+
+## Goals
+
+- Implement the ReAct pattern faithfully.
+- Write tool descriptions that help agents succeed.
+- Handle common failure modes gracefully.
+
+## Prereqs
+
+- Read: **Introduction to Agentic RAG** (understand the basics).
+
+## Core idea
+
+### The ReAct pattern
+
+From [Yao et al., 2022](https://arxiv.org/abs/2210.03629):
+
+**Re**asoning + **Act**ing = ReAct
+
+The key insight: interleaving reasoning traces with actions improves both:
+- Reasoning helps choose better actions
+- Actions ground reasoning in real observations
+
+```
+Thought 1: I need to find information about X.
+Action 1: search_docs("X overview")
+Observation 1: X is a framework for...
+
+Thought 2: Now I need to understand how X relates to Y.
+Action 2: search_docs("X Y comparison")
+Observation 2: X differs from Y in that...
+
+Thought 3: I have enough information to answer.
+Action 3: final_answer("X is... compared to Y, X...")
+```
+
+### Full ReAct implementation
+
+```python
+class ReActAgent:
+    def __init__(
+        self,
+        llm,
+        tools: Dict[str, Tool],
+        max_iterations: int = 10,
+        verbose: bool = False,
+    ):
+        self.llm = llm
+        self.tools = tools
+        self.max_iterations = max_iterations
+        self.verbose = verbose
+    
+    def run(self, query: str) -> AgentResult:
+        """
+        Execute ReAct loop.
+        """
+        trajectory = []
+        
+        for i in range(self.max_iterations):
+            # Generate next step
+            step = self.generate_step(query, trajectory)
+            
+            if self.verbose:
+                print(f"Thought: {step.thought}")
+                print(f"Action: {step.action} ({step.action_input})")
+            
+            # Check for final answer
+            if step.action == "final_answer":
+                return AgentResult(
+                    answer=step.action_input,
+                    trajectory=trajectory,
+                    success=True,
+                )
+            
+            # Execute action
+            observation = self.execute_action(step.action, step.action_input)
+            
+            if self.verbose:
+                print(f"Observation: {observation[:200]}...")
+            
+            # Record step
+            trajectory.append({
+                "thought": step.thought,
+                "action": step.action,
+                "action_input": step.action_input,
+                "observation": observation,
+            })
+            
+            # Check for repetition (common failure mode)
+            if self.is_stuck(trajectory):
+                return self.handle_stuck(query, trajectory)
+        
+        # Max iterations reached
+        return self.synthesize_from_trajectory(query, trajectory)
+    
+    def generate_step(self, query: str, trajectory: List[Dict]) -> AgentStep:
+        """
+        Generate the next thought-action pair.
+        """
+        prompt = self.build_prompt(query, trajectory)
+        response = self.llm.generate(prompt, stop=["Observation:"])
+        return self.parse_step(response)
+    
+    def build_prompt(self, query: str, trajectory: List[Dict]) -> str:
+        """
+        Build the ReAct prompt.
+        """
+        tools_desc = "\n".join([
+            f"- {name}: {tool.description}"
+            for name, tool in self.tools.items()
+        ])
+        
+        history = ""
+        for step in trajectory:
+            history += f"Thought: {step['thought']}\n"
+            history += f"Action: {step['action']}\n"
+            history += f"Action Input: {step['action_input']}\n"
+            history += f"Observation: {step['observation']}\n\n"
+        
+        return f"""Answer the following question by reasoning step-by-step and using tools.
+
+Available tools:
+{tools_desc}
+- final_answer: Return the final answer to the user
+
+Question: {query}
+
+{history}Thought:"""
+    
+    def parse_step(self, response: str) -> AgentStep:
+        """
+        Parse LLM response into thought and action.
+        """
+        lines = response.strip().split("\n")
+        
+        thought = ""
+        action = ""
+        action_input = ""
+        
+        for line in lines:
+            if line.startswith("Thought:"):
+                thought = line.replace("Thought:", "").strip()
+            elif line.startswith("Action:"):
+                action = line.replace("Action:", "").strip()
+            elif line.startswith("Action Input:"):
+                action_input = line.replace("Action Input:", "").strip()
+        
+        return AgentStep(
+            thought=thought or response,
+            action=action or "final_answer",
+            action_input=action_input or "",
+        )
+    
+    def execute_action(self, action: str, action_input: str) -> str:
+        """
+        Execute the selected tool.
+        """
+        if action not in self.tools:
+            return f"Error: Tool '{action}' not found. Available: {list(self.tools.keys())}"
+        
+        try:
+            tool = self.tools[action]
+            result = tool.execute(action_input)
+            
+            # Truncate long results
+            if len(result) > 2000:
+                result = result[:2000] + "... [truncated]"
+            
+            return result
+        except Exception as e:
+            return f"Error executing {action}: {str(e)}"
+    
+    def is_stuck(self, trajectory: List[Dict]) -> bool:
+        """
+        Detect if agent is repeating actions.
+        """
+        if len(trajectory) < 3:
+            return False
+        
+        # Check last 3 actions
+        recent_actions = [
+            (t["action"], t["action_input"])
+            for t in trajectory[-3:]
+        ]
+        
+        # If same action repeated, we're stuck
+        return len(set(recent_actions)) == 1
+    
+    def handle_stuck(self, query: str, trajectory: List[Dict]) -> AgentResult:
+        """
+        Handle when agent gets stuck.
+        """
+        # Try to synthesize from what we have
+        return self.synthesize_from_trajectory(query, trajectory)
+```
+
+### Writing effective tool descriptions
+
+Tool descriptions are crucial for agent success:
+
+```python
+# BAD: Vague description
+Tool(
+    name="search",
+    description="Search for information",  # Too vague!
+)
+
+# GOOD: Clear, specific description
+Tool(
+    name="search_knowledge_base",
+    description="""Search the internal knowledge base for relevant information.
+    
+Use this when you need to find:
+- Documentation about our products
+- Technical specifications
+- Policy information
+- How-to guides
+
+Input: A natural language search query
+Output: Relevant passages from the knowledge base
+
+Example: search_knowledge_base("how to reset API keys")""",
+)
+
+# GOOD: With constraints
+Tool(
+    name="calculate",
+    description="""Evaluate a mathematical expression.
+
+Use this for:
+- Arithmetic (addition, subtraction, multiplication, division)
+- Percentages
+- Basic statistics
+
+Input: A valid Python mathematical expression
+Output: The numerical result
+
+Example: calculate("(100 * 0.15) + 50")
+
+Note: Only use for math. Don't try to run arbitrary code.""",
+)
+```
+
+### Common ReAct failures and fixes
+
+| Failure | Symptom | Fix |
+|---------|---------|-----|
+| Looping | Same action repeated | Detect and break loop |
+| Tool hallucination | Uses non-existent tool | List tools in prompt, validate |
+| Over-thinking | Too many thought steps | Limit iterations |
+| Under-thinking | Jumps to answer | Require minimum observations |
+| Input errors | Wrong format for tools | Validate and retry |
+
+```python
+def execute_with_retry(self, action: str, action_input: str, max_retries: int = 2) -> str:
+    """
+    Execute action with retry on error.
+    """
+    for attempt in range(max_retries):
+        result = self.execute_action(action, action_input)
+        
+        if not result.startswith("Error"):
+            return result
+        
+        # On error, ask LLM to fix the input
+        fixed_input = self.fix_action_input(action, action_input, result)
+        action_input = fixed_input
+    
+    return result  # Return error if all retries fail
+```
+
+## Failure modes
+
+1. **Infinite loops**: Agent keeps calling same tool.
+2. **Action-observation mismatch**: Agent misinterprets results.
+3. **Thought drift**: Reasoning goes off-topic.
+4. **Context overflow**: Too many steps exceed context limit.
+
+## Production defaults
+
+- **Max iterations**: 5-10 (tune for your use case).
+- **Tool validation**: Always validate action/input before execution.
+- **Loop detection**: Break after 2-3 repeated actions.
+- **Observation truncation**: Limit observation length.
+
+## Do next
+
+<ChallengeLinks slugs={["react-agent", "tool-descriptions", "agent-loop-handling"]} />

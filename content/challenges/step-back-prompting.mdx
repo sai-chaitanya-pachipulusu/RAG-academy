@@ -1,0 +1,20 @@
+﻿<Callout title="Goal" variant="info">
+  Use Step-Back Prompting to generate broader search queries and improve
+  semantic coverage.
+</Callout>
+
+## The "Specific Query" Problem
+
+Users often ask highly specific questions: _"What was the exact revenue of the cloud division in Q3 2024?"_
+Sometimes, a vector match for this exact string fails.
+
+**Step-Back Prompting** (introduced by Google DeepMind) involves "stepping back" to ask a more general question first: _"What are the financial results for the cloud division in 2024?"_
+
+## Why it works
+
+Specific queries search for specific "needles". Step-back queries search for the "haystack" that likely contains the needle. By retrieving both, you significantly increase the chances of catching the right context.
+
+## Implementation
+
+In this lab, you'll implement a query transformation step that simulates the "Step-Back" logic by extracting abstract concepts from specific user queries.
+

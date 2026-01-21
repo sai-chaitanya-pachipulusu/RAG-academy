@@ -1,0 +1,38 @@
+﻿<Callout title="Goal" variant="info">
+  Build an end-to-end “toy” dense retrieval loop without any external embedding APIs.
+</Callout>
+
+## Why this matters in production
+
+You shouldn’t start learning RAG by wiring 6 vendors together.
+
+This lab forces you to understand the mechanics:
+
+- embed docs
+- embed query
+- score
+- return Top‑K
+
+In production you’ll swap toy embeddings for a real model — the retrieval logic stays.
+
+## What you’re implementing
+
+- a deterministic “toy embedding” function (hashing into buckets)
+- cosine scoring
+- a `search()` function returning top‑k doc indices + scores
+
+## Common pitfalls
+
+- Using Python’s built-in `hash()` (not stable across runs).
+- Not normalizing/scoring consistently.
+
+## After you pass
+
+Upgrade retrieval quality:
+
+- BM25 baseline
+- hybrid fusion (RRF)
+- reranking
+
+
+

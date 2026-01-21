@@ -1,0 +1,128 @@
+---
+title: "Evaluation Basics"
+description: "Measure retrieval and generation quality systematically."
+order: 4
+estimatedMinutes: 30
+stage: evaluation-ops
+prereqs:
+  - phase: phase-1
+    slug: grounding-safety
+next:
+  phase: phase-1
+  slug: query-transforms
+outcomes:
+  - "Explain the difference between retrieval and generation metrics."
+  - "Build a golden set and run basic evaluation."
+  - "Know which metrics matter for your use case."
+tags: ["evaluation", "metrics", "testing", "quality"]
+sources:
+  - title: "Ragas documentation"
+    url: "https://docs.ragas.io/"
+    type: "docs"
+  - title: "BEIR benchmark"
+    url: "https://github.com/beir-cellar/beir"
+    type: "repo"
+  - title: "MTEB leaderboard"
+    url: "https://huggingface.co/spaces/mteb/leaderboard"
+    type: "docs"
+---
+
+## Goals
+
+- Understand the two-part evaluation problem: retrieval + generation.
+- Learn to build and use a golden set.
+- Know which metrics to track and when.
+
+## Prereqs
+
+- Read: **Grounding & Safety** (you should have a working, safe pipeline).
+- Complete at least one challenge in the Evaluation track.
+
+## Core idea
+
+### Why evaluate?
+
+Without measurement, you're guessing:
+- "I think it got better" → confirmation bias.
+- "Users seem happy" → survivorship bias.
+- "It works on my examples" → overfitting.
+
+Evaluation turns intuition into evidence.
+
+### Two evaluation layers
+
+**1. Retrieval Evaluation**
+
+Does the system find the right chunks?
+
+| Metric | What it measures |
+|--------|------------------|
+| Recall@k | Did we find all relevant chunks in top-k? |
+| Precision@k | What fraction of top-k is relevant? |
+| MRR | How early does the first relevant chunk appear? |
+| nDCG | Weighted score considering position |
+
+**2. Generation Evaluation**
+
+Does the LLM use context correctly?
+
+| Metric | What it measures |
+|--------|------------------|
+| Faithfulness | Are claims supported by context? |
+| Answer Relevance | Does the answer address the question? |
+| Context Recall | Is the answer derivable from context? |
+
+### Building a golden set
+
+A golden set is a collection of (query, expected_sources) pairs:
+
+```json
+[
+  {
+    "query": "What is chunking?",
+    "expected_sources": ["chunking-101.md"],
+    "expected_answer_contains": ["split", "document", "token"]
+  }
+]
+```
+
+Start with 25-50 queries covering:
+- Common questions (high traffic).
+- Edge cases (where you've seen failures).
+- Diverse topics (coverage).
+
+### The evaluation workflow
+
+```
+1. Build golden set (25-50 queries)
+2. Run retrieval eval → Recall@k, MRR
+3. Run generation eval → Faithfulness, Relevance
+4. Record baselines
+5. Make a change
+6. Re-run evals
+7. Compare: did metrics improve without regression?
+```
+
+## Failure modes
+
+- **Teaching to the test**: optimizing for golden set, missing real queries.
+- **Metric gaming**: improving one metric at the expense of others.
+- **Stale golden sets**: queries that no longer reflect real usage.
+- **LLM judge inconsistency**: different runs give different scores.
+
+## Production defaults
+
+- Build golden set from real user queries (logs).
+- Track retrieval metrics first (garbage in → garbage out).
+- Use multiple runs for LLM-based metrics (variance is high).
+- Refresh golden set quarterly as usage evolves.
+- Set regression alerts: notify if metrics drop > 5%.
+
+Canonical reference:
+
+- [Compare: Evaluation](/compare/evaluation)
+- [RAG Techniques Encyclopedia](/playbooks/rag-techniques-encyclopedia)
+
+## Do next
+
+<ChallengeLinks slugs={["evaluator-recall-at-k", "evaluator-mrr", "faithfulness-judge"]} />

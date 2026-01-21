@@ -1,0 +1,22 @@
+﻿<Callout title="Goal" variant="info">
+  Retrieve small chunks for precision, but feed the 'parent' window to the LLM
+  for context.
+</Callout>
+
+## The Context vs Precision Trade-off
+
+- **Small chunks (128 tokens)**: Great for retrieval precision. The vector is focused.
+- **Large chunks (1024 tokens)**: Great for LLM comprehension. The model sees the surrounding context.
+
+**Parent Document Retrieval** gives you the best of both worlds.
+
+1.  Chunk your documents into small pieces (child chunks).
+2.  Link each child to its parent (or a larger window around it).
+3.  Index the **children**.
+4.  When a child is hit, retrieve and send the **parent**.
+
+## Implementation details
+
+In this challenge, you simulate this by "expanding the window" around a hit index.
+In production (LangChain/LlamaIndex), this is often called `ParentDocumentRetriever`.
+

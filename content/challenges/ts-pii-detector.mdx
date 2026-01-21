@@ -1,0 +1,23 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Build a PII detector for data privacy compliance.
+</Callout>
+
+## Why this matters in production
+
+PII detection is required for GDPR, HIPAA, and other compliance frameworks. Every production RAG system that handles user data needs this.
+
+## What you're implementing
+
+- Detect: email, phone, SSN, credit card, IP address.
+- Track match positions for highlighting.
+- Redact by replacing with type labels like [EMAIL].
+
+## Common pitfalls
+
+- Regex too loose (false positives).
+- Regex too strict (missed PII).
+
+## After you pass
+
+Combine with **Prompt Injection Detector** for comprehensive input safety.
+

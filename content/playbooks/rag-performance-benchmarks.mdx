@@ -1,0 +1,217 @@
+﻿---
+title: "RAG Performance Benchmarks"
+description: "Real-world performance data and benchmarks for RAG systems"
+---
+
+# RAG Performance Benchmarks
+
+Real numbers from real systems. Use these to set expectations and identify bottlenecks.
+
+---
+
+## End-to-End Latency Benchmarks
+
+### Typical RAG Pipeline Breakdown
+
+| Component     | P50       | P95        | P99        | % of Total |
+| ------------- | --------- | ---------- | ---------- | ---------- |
+| Embedding     | 15ms      | 30ms       | 50ms       | 2%         |
+| Vector Search | 20ms      | 50ms       | 100ms      | 3%         |
+| Reranking     | 50ms      | 100ms      | 200ms      | 8%         |
+| Generation    | 800ms     | 2000ms     | 4000ms     | 85%        |
+| **Total**     | **900ms** | **2200ms** | **4500ms** | 100%       |
+
+### By LLM Model
+
+| Model           | P50    | P95    | Tokens/sec |
+| --------------- | ------ | ------ | ---------- |
+| GPT-3.5-turbo   | 600ms  | 1500ms | 100        |
+| GPT-4-turbo     | 1200ms | 3000ms | 50         |
+| GPT-4o          | 800ms  | 2000ms | 80         |
+| Claude-3-Haiku  | 500ms  | 1200ms | 120        |
+| Claude-3-Sonnet | 900ms  | 2200ms | 60         |
+| Llama-3-70B     | 1500ms | 4000ms | 40         |
+
+---
+
+## Retrieval Benchmarks
+
+### Vector Database Performance
+
+| Database | 1M vectors | 10M vectors | 100M vectors |
+| -------- | ---------- | ----------- | ------------ |
+| Pinecone | 8ms        | 15ms        | 40ms         |
+| Qdrant   | 5ms        | 12ms        | 35ms         |
+| Weaviate | 10ms       | 20ms        | 50ms         |
+| Milvus   | 6ms        | 14ms        | 38ms         |
+| pgvector | 15ms       | 80ms        | 400ms        |
+| Chroma   | 8ms        | 40ms        | N/A          |
+
+_P50 latency for top-10 retrieval, 1536 dimensions_
+
+### Search Quality (MTEB Retrieval)
+
+| Embedding Model        | NDCG@10 | Recall@100 |
+| ---------------------- | ------- | ---------- |
+| text-embedding-3-large | 59.1%   | 84.2%      |
+| text-embedding-3-small | 51.7%   | 78.3%      |
+| voyage-2               | 55.4%   | 81.0%      |
+| bge-large-en-v1.5      | 54.3%   | 80.1%      |
+| e5-large-v2            | 50.6%   | 77.8%      |
+
+---
+
+## Quality Benchmarks
+
+### RAG vs. Base Model
+
+| Benchmark          | Base GPT-4 | RAG + GPT-4 | Improvement    |
+| ------------------ | ---------- | ----------- | -------------- |
+| Factual QA         | 72%        | 89%         | +17%           |
+| Domain-specific    | 45%        | 85%         | +40%           |
+| Hallucination Rate | 23%        | 8%          | -65%           |
+| Citation Accuracy  | N/A        | 91%         | New capability |
+
+### Reranking Impact
+
+| Configuration   | Recall@5 | MRR  |
+| --------------- | -------- | ---- |
+| No reranker     | 78%      | 0.65 |
+| + BM25 rerank   | 82%      | 0.71 |
+| + Cross-encoder | 89%      | 0.82 |
+| + Cohere rerank | 91%      | 0.84 |
+
+---
+
+## Storage Benchmarks
+
+### Vector Storage
+
+| Vectors | Dimensions | Raw Size | With Index | Quantized (INT8) |
+| ------- | ---------- | -------- | ---------- | ---------------- |
+| 100K    | 1536       | 614 MB   | 800 MB     | 154 MB           |
+| 1M      | 1536       | 6.1 GB   | 8 GB       | 1.5 GB           |
+| 10M     | 1536       | 61 GB    | 80 GB      | 15 GB            |
+| 100M    | 1536       | 614 GB   | 800 GB     | 154 GB           |
+
+### Indexing Throughput
+
+| Database | Vectors/sec | Time for 1M vectors |
+| -------- | ----------- | ------------------- |
+| Pinecone | 200         | 83 min              |
+| Qdrant   | 5,000       | 3.3 min             |
+| Weaviate | 3,000       | 5.5 min             |
+| Milvus   | 10,000      | 1.7 min             |
+
+---
+
+## Optimization Benchmarks
+
+### Context Compression
+
+| Technique          | Tokens Saved | Quality Preserved | Latency Impact |
+| ------------------ | ------------ | ----------------- | -------------- |
+| LLMLingua          | 50-70%       | 95%               | +100ms         |
+| Extractive         | 40-60%       | 90%               | +20ms          |
+| Reranker cutoff    | 30-50%       | 98%               | +50ms          |
+| Prompt compression | 20-30%       | 99%               | 0ms            |
+
+### Caching Impact
+
+| Cache Type      | Hit Rate | Latency Saved | Cost Saved |
+| --------------- | -------- | ------------- | ---------- |
+| Query cache     | 15-25%   | 100%          | 100%       |
+| Embedding cache | 40-60%   | 15ms          | ~$0.02/hit |
+| Semantic cache  | 25-35%   | 90%+          | 90%+       |
+
+---
+
+## Scaling Benchmarks
+
+### Queries per Second
+
+| Setup           | QPS (P50 < 1s) | QPS (P50 < 2s) |
+| --------------- | -------------- | -------------- |
+| Single instance | 5-10           | 15-20          |
+| 4x instances    | 20-40          | 60-80          |
+| 16x instances   | 80-150         | 200-300        |
+
+### Concurrent Users
+
+| Users | Avg Latency | P99 Latency | Error Rate |
+| ----- | ----------- | ----------- | ---------- |
+| 10    | 900ms       | 2000ms      | 0%         |
+| 50    | 1100ms      | 3000ms      | 0.1%       |
+| 100   | 1500ms      | 5000ms      | 0.5%       |
+| 500   | 3000ms      | 10000ms     | 2%         |
+
+---
+
+## Target Benchmarks by Use Case
+
+### Customer Support Bot
+
+| Metric          | Target  | Typical |
+| --------------- | ------- | ------- |
+| First Response  | < 1s    | 800ms   |
+| Resolution Rate | > 80%   | 75%     |
+| CSAT            | > 4.0/5 | 4.2     |
+| Escalation Rate | < 20%   | 18%     |
+
+### Documentation Search
+
+| Metric         | Target | Typical |
+| -------------- | ------ | ------- |
+| Time to Answer | < 2s   | 1.5s    |
+| Recall@5       | > 90%  | 88%     |
+| Zero Results   | < 5%   | 7%      |
+
+### Enterprise Knowledge Base
+
+| Metric             | Target | Typical |
+| ------------------ | ------ | ------- |
+| Query Latency      | < 3s   | 2.5s    |
+| Accuracy           | > 95%  | 92%     |
+| Source Attribution | 100%   | 100%    |
+
+---
+
+## Benchmark Your System
+
+```python
+import time
+import statistics
+
+def benchmark_rag(rag_fn, queries: list, runs: int = 3):
+    """Run comprehensive RAG benchmark."""
+
+    latencies = []
+
+    for query in queries:
+        query_latencies = []
+        for _ in range(runs):
+            start = time.time()
+            result = rag_fn(query)
+            elapsed = (time.time() - start) * 1000
+            query_latencies.append(elapsed)
+
+        latencies.append(statistics.mean(query_latencies))
+
+    return {
+        "p50": statistics.median(latencies),
+        "p95": sorted(latencies)[int(len(latencies) * 0.95)],
+        "p99": sorted(latencies)[int(len(latencies) * 0.99)],
+        "mean": statistics.mean(latencies),
+        "std": statistics.stdev(latencies)
+    }
+```
+
+---
+
+## Related Challenges
+
+- `retrieval-metrics` - Measure retrieval quality
+- `evaluator-recall-at-k` - Recall benchmarks
+- `evaluator-mrr` - MRR benchmarks
+- `semantic-caching` - Improve throughput
+

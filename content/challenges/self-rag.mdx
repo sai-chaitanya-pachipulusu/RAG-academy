@@ -1,0 +1,299 @@
+﻿<Callout title="Goal" variant="info">
+  Implement Self-RAG — a self-reflective retrieval pattern where the LLM decides
+  when to retrieve and evaluates its own outputs.
+</Callout>
+
+## The Problem with Naive RAG
+
+Naive RAG retrieves for **every** query, even when:
+
+- The LLM already knows the answer (parametric knowledge)
+- Retrieved documents are irrelevant
+- The response needs no grounding
+
+**Self-RAG** makes the retrieval process **adaptive and self-critiquing**.
+
+## Self-RAG Architecture
+
+```
+Query
+    |
+    v
+[1. Retrieve Decision] ─→ "Do I need external knowledge?"
+    |
+    ├── No → Generate from parametric knowledge
+    |
+    └── Yes
+         |
+         v
+    [2. Retrieve] → Get candidate documents
+         |
+         v
+    [3. Relevance Check] ─→ "Is this document relevant?"
+         |
+         ├── No → Try other documents or generate anyway
+         |
+         └── Yes
+              |
+              v
+         [4. Generate] → Create response
+              |
+              v
+         [5. Self-Critique] ─→ "Is this response grounded? Is it useful?"
+              |
+              ├── Poor → Retry with different docs or approach
+              |
+              └── Good → Return response
+```
+
+## The Four Reflection Tokens
+
+Self-RAG uses special "reflection tokens" during generation:
+
+| Token        | Purpose                | Values                 |
+| ------------ | ---------------------- | ---------------------- |
+| `[Retrieve]` | Should I retrieve?     | yes, no, continue      |
+| `[IsRel]`    | Is document relevant?  | relevant, irrelevant   |
+| `[IsSup]`    | Is response supported? | fully, partially, none |
+| `[IsUse]`    | Is response useful?    | 5, 4, 3, 2, 1          |
+
+## Implementation
+
+### 1. Retrieve Decision
+
+```python
+RETRIEVE_DECISION_PROMPT = """Given this query, decide if external knowledge retrieval is needed.
+
+Query: {query}
+
+Consider:
+- Is this factual knowledge that might be outdated or specific?
+- Is this common knowledge any LLM would know?
+- Does this require current/real-time information?
+
+Respond with exactly one of: RETRIEVE, NO_RETRIEVE, UNCERTAIN
+
+Decision:"""
+
+def should_retrieve(query: str) -> str:
+    response = llm.generate(RETRIEVE_DECISION_PROMPT.format(query=query))
+    decision = response.strip().upper()
+
+    if "NO" in decision:
+        return "no_retrieve"
+    elif "UNCERTAIN" in decision:
+        return "retrieve"  # Default to retrieving when uncertain
+    else:
+        return "retrieve"
+```
+
+### 2. Relevance Grading
+
+```python
+RELEVANCE_PROMPT = """Grade the relevance of this document to the query.
+
+Query: {query}
+
+Document: {document}
+
+Is this document relevant to answering the query?
+Respond with exactly one of: RELEVANT, IRRELEVANT, PARTIALLY_RELEVANT
+
+Grade:"""
+
+def grade_relevance(query: str, document: str) -> str:
+    response = llm.generate(RELEVANCE_PROMPT.format(query=query, document=document))
+    grade = response.strip().upper()
+
+    if "IRRELEVANT" in grade and "PARTIALLY" not in grade:
+        return "irrelevant"
+    elif "PARTIALLY" in grade:
+        return "partial"
+    else:
+        return "relevant"
+```
+
+### 3. Response Generation with Support Check
+
+```python
+GENERATE_WITH_CRITIQUE_PROMPT = """Answer the query using the provided context.
+
+Query: {query}
+
+Context:
+{context}
+
+Generate an answer, then critique your own response.
+
+Answer:
+[Your answer here]
+
+Self-Critique:
+- Is the answer fully supported by the context? (fully/partially/none)
+- Is the answer useful and complete? (1-5 scale)
+- What could be improved?"""
+
+def generate_with_critique(query: str, context: str) -> dict:
+    response = llm.generate(GENERATE_WITH_CRITIQUE_PROMPT.format(
+        query=query, context=context
+    ))
+
+    # Parse response and critique
+    answer, critique = parse_response_and_critique(response)
+
+    return {
+        "answer": answer,
+        "supported": parse_support_level(critique),
+        "usefulness": parse_usefulness_score(critique),
+        "raw_critique": critique
+    }
+```
+
+### 4. Full Self-RAG Pipeline
+
+```python
+def self_rag(query: str, retriever, max_retries: int = 2) -> dict:
+    """Full Self-RAG pipeline with adaptive retrieval and self-critique."""
+
+    # Step 1: Decide whether to retrieve
+    retrieve_decision = should_retrieve(query)
+
+    if retrieve_decision == "no_retrieve":
+        # Generate from parametric knowledge
+        response = llm.generate(f"Answer: {query}")
+        return {"answer": response, "retrieved": False, "docs": []}
+
+    # Step 2: Retrieve documents
+    docs = retriever.search(query, k=5)
+
+    # Step 3: Grade relevance of each document
+    relevant_docs = []
+    for doc in docs:
+        grade = grade_relevance(query, doc)
+        if grade in ["relevant", "partial"]:
+            relevant_docs.append(doc)
+
+    if not relevant_docs:
+        # No relevant docs found - try generating anyway or search again
+        relevant_docs = docs[:2]  # Fallback to top-2
+
+    # Step 4: Generate with self-critique
+    context = "\n\n".join(relevant_docs)
+    result = generate_with_critique(query, context)
+
+    # Step 5: Check quality and retry if needed
+    if result["supported"] == "none" and max_retries > 0:
+        # Try with different documents
+        docs = retriever.search(f"detailed information about {query}", k=5)
+        context = "\n\n".join(docs[:3])
+        result = generate_with_critique(query, context)
+        result["retried"] = True
+
+    result["retrieved"] = True
+    result["docs"] = relevant_docs
+
+    return result
+```
+
+## CRAG: Corrective RAG (Related Pattern)
+
+CRAG is similar but focuses on **correcting** retrieval:
+
+```python
+def corrective_rag(query: str, retriever) -> str:
+    """CRAG: Retrieves, evaluates, and corrects if needed."""
+
+    # Retrieve
+    docs = retriever.search(query, k=5)
+
+    # Grade all documents
+    grades = [grade_relevance(query, doc) for doc in docs]
+
+    # Count relevance
+    relevant_count = sum(1 for g in grades if g == "relevant")
+
+    if relevant_count == 0:
+        # CORRECT: All irrelevant - try web search or reformulate
+        reformulated = reformulate_query(query)
+        docs = retriever.search(reformulated, k=5)
+        # Or: docs = web_search(query)
+    elif relevant_count < 3:
+        # AMBIGUOUS: Mix of relevant/irrelevant - filter and supplement
+        docs = [d for d, g in zip(docs, grades) if g != "irrelevant"]
+        # Maybe add web search results
+    # else: CORRECT - keep all docs
+
+    # Generate
+    context = "\n\n".join(docs)
+    return llm.generate(f"Context: {context}\n\nQuestion: {query}\n\nAnswer:")
+```
+
+## Benchmarks
+
+| Method           | TriviaQA | PopQA | Biography |
+| ---------------- | -------- | ----- | --------- |
+| GPT-3.5 (no RAG) | 57.5     | 45.2  | 62.3      |
+| Naive RAG        | 68.3     | 52.1  | 71.5      |
+| **Self-RAG**     | 72.8     | 58.4  | 78.2      |
+| **CRAG**         | 71.5     | 56.9  | 76.8      |
+
+_Accuracy scores from respective papers_
+
+## Cost Considerations
+
+Self-RAG requires **more LLM calls** per query:
+
+| Step                       | LLM Calls | Extra Cost       |
+| -------------------------- | --------- | ---------------- |
+| Retrieve decision          | 1         | +$0.001          |
+| Relevance grading (5 docs) | 5         | +$0.005          |
+| Generate + critique        | 1         | +$0.002          |
+| Retry (if needed)          | 1-2       | +$0.002          |
+| **Total extra**            | **8-9**   | **+$0.01/query** |
+
+**Recommendation**: Use Self-RAG for high-value queries where quality matters.
+
+## When to Use Self-RAG
+
+✅ **Use Self-RAG when:**
+
+- Answer quality is critical (medical, legal, financial)
+- You want to reduce hallucinations
+- Some queries don't need retrieval (save tokens)
+- You need explainable retrieval decisions
+
+❌ **Don't use Self-RAG when:**
+
+- Latency is critical (<500ms constraint)
+- Every query definitely needs retrieval
+- Cost is a major concern
+- Simple Q&A is sufficient
+
+## Production Simplification
+
+For production, you can simplify Self-RAG:
+
+```python
+def simple_self_rag(query: str, retriever) -> str:
+    # Skip retrieve decision - always retrieve
+    docs = retriever.search(query, k=10)
+
+    # Use reranker instead of LLM relevance grading
+    relevant = rerank(query, docs, top_k=5)
+
+    # Generate with implicit self-check in prompt
+    prompt = f"""Answer based on the context. If unsure, say so.
+
+Context: {relevant}
+Question: {query}
+Answer:"""
+
+    return llm.generate(prompt)
+```
+
+## Further Reading
+
+- [Self-RAG Paper (Asai et al., 2023)](https://arxiv.org/abs/2310.11511)
+- [CRAG Paper (Yan et al., 2024)](https://arxiv.org/abs/2401.15884)
+- [LangGraph Self-RAG Tutorial](https://python.langchain.com/docs/tutorials/rag/)
+

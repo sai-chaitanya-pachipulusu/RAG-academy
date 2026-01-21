@@ -1,0 +1,336 @@
+﻿---
+title: "Interview Prep Questions"
+description: "Top RAG interview questions with detailed answers for ML/AI engineering roles"
+---
+
+# Interview Prep Questions
+
+<Callout title="Interview Prep" variant="info">
+  Top RAG interview questions with detailed answers for ML/AI engineering roles.
+</Callout>
+
+## Fundamentals
+
+### Q1: What is RAG and why is it useful?
+
+**Answer:**
+RAG (Retrieval-Augmented Generation) combines retrieval systems with LLMs:
+
+1. **Retrieve** relevant documents from a knowledge base
+2. **Augment** the LLM prompt with retrieved context
+3. **Generate** a response grounded in the context
+
+**Why it's useful:**
+
+- Reduces hallucinations by grounding responses in facts
+- Enables access to private/current data not in LLM training
+- More cost-effective than fine-tuning for knowledge updates
+- Provides citations and traceability
+
+---
+
+### Q2: Explain the difference between dense and sparse retrieval.
+
+**Answer:**
+
+| Aspect         | Dense Retrieval                 | Sparse Retrieval                |
+| -------------- | ------------------------------- | ------------------------------- |
+| Representation | Neural embeddings               | Term frequencies (TF-IDF, BM25) |
+| Matching       | Semantic similarity             | Keyword matching                |
+| Strengths      | Finds paraphrases, synonyms     | Exact matches, rare terms       |
+| Weaknesses     | May miss exact terms            | Misses semantic meaning         |
+| Example        | "ML" matches "machine learning" | "ML" only matches "ML"          |
+
+**Best practice:** Use hybrid retrieval combining both approaches.
+
+---
+
+### Q3: How do you choose chunk size for RAG?
+
+**Answer:**
+Key considerations:
+
+1. **Too small** (< 100 tokens):
+
+   - Loses context
+   - More retrieval noise
+
+2. **Too large** (> 1000 tokens):
+
+   - Wastes context window
+   - May include irrelevant content
+
+3. **Optimal** (256-512 tokens):
+   - Maintains semantic coherence
+   - Fits multiple chunks in context
+
+**Factors:**
+
+- Document type (code needs function boundaries, prose needs paragraphs)
+- Embedding model max tokens (usually 512)
+- LLM context window size
+- Query specificity
+
+---
+
+## Architecture & Design
+
+### Q4: Design a RAG system for a 1M document knowledge base.
+
+**Answer:**
+
+```
+Architecture:
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Ingest    │────▶│   Vector    │────▶│   Query     │
+│   Pipeline  │     │   Store     │     │   Pipeline  │
+└─────────────┘     └─────────────┘     └─────────────┘
+
+Components:
+1. Ingestion: Document parser → Chunker → Embedder → Index
+2. Storage: Pinecone/Milvus with metadata filtering
+3. Retrieval: Hybrid (dense + BM25) with reranking
+4. Generation: GPT-4/Claude with structured prompts
+```
+
+**Key decisions:**
+
+- Batched embedding (32-64 docs per call)
+- Async ingestion pipeline
+- ANN index (HNSW) for <10ms queries
+- Tiered caching (Redis for hot queries)
+
+---
+
+### Q5: How would you handle multi-tenant RAG?
+
+**Answer:**
+
+**Option 1: Namespace isolation**
+
+```python
+# Separate namespaces per tenant
+index.upsert(vectors, namespace=tenant_id)
+index.query(query_vec, namespace=tenant_id)
+```
+
+**Option 2: Metadata filtering**
+
+```python
+index.query(
+    query_vec,
+    filter={"tenant_id": user_tenant}
+)
+```
+
+**Security requirements:**
+
+- Enforce tenant filtering at API layer
+- Audit access logs
+- Encrypt tenant-specific data
+- Regular penetration testing
+
+---
+
+### Q6: Explain reranking and when to use it.
+
+**Answer:**
+
+**What:** Second-stage ranking using a more powerful model (cross-encoder).
+
+**How:**
+
+```python
+# Stage 1: Fast retrieval (bi-encoder)
+candidates = retriever.search(query, k=100)
+
+# Stage 2: Precise reranking (cross-encoder)
+reranked = reranker.rerank(query, candidates, top_k=5)
+```
+
+**When to use:**
+
+- High-stakes applications (legal, medical)
+- Complex queries requiring deep understanding
+- When latency budget allows extra 100-200ms
+
+**Popular rerankers:**
+
+- Cohere Rerank
+- Jina Reranker
+- ColBERT
+- BGE Reranker
+
+---
+
+## Evaluation
+
+### Q7: How do you evaluate RAG system quality?
+
+**Answer:**
+
+**RAG Triad (from RAGAS):**
+
+1. **Faithfulness**: Is response grounded in context?
+
+   - LLM-as-judge: "Does the response only use facts from context?"
+
+2. **Context Relevance**: Are retrieved docs relevant?
+
+   - Precision: relevant_docs / total_retrieved
+
+3. **Answer Relevance**: Does it answer the question?
+   - Semantic similarity between query and response
+
+**Additional metrics:**
+
+- **Recall@k**: % of relevant docs in top-k
+- **MRR**: Mean reciprocal rank of first relevant doc
+- **Latency**: P50, P95, P99 response times
+
+---
+
+### Q8: How do you handle hallucinations in RAG?
+
+**Answer:**
+
+**Prevention:**
+
+1. Strong prompts: "Only use the provided context"
+2. Lower temperature (0.0-0.3)
+3. Better retrieval (more relevant docs)
+4. Smaller chunks (more focused context)
+
+**Detection:**
+
+1. Claim extraction + verification against sources
+2. LLM-as-judge: "Is this claim in the context?"
+3. Named entity checking
+
+**Response:**
+
+1. Show confidence scores
+2. Add "I don't know" for low confidence
+3. Cite sources explicitly
+
+---
+
+## Production
+
+### Q9: How do you optimize RAG latency?
+
+**Answer:**
+
+**Target: < 2 seconds end-to-end**
+
+| Stage      | Optimization              | Impact            |
+| ---------- | ------------------------- | ----------------- |
+| Embedding  | Cache frequent queries    | 50-100ms saved    |
+| Retrieval  | HNSW index, pre-filtering | 10-50ms           |
+| Reranking  | GPU inference, batching   | 100-200ms         |
+| Generation | Streaming, smaller model  | Perceived latency |
+
+**Architecture patterns:**
+
+```python
+# Parallel retrieval
+results = await asyncio.gather(
+    retriever1.search(query),
+    retriever2.search(query),
+)
+
+# Streaming response
+for token in llm.stream(prompt):
+    yield token
+```
+
+---
+
+### Q10: How do you handle document updates in RAG?
+
+**Answer:**
+
+**Strategies:**
+
+1. **Full re-index** (simple, slow)
+
+   - Suitable for small corpora or infrequent updates
+
+2. **Incremental update** (complex, fast)
+
+   ```python
+   # Delete old chunks
+   index.delete(filter={"doc_id": updated_doc_id})
+   # Add new chunks
+   index.upsert(new_chunks)
+   ```
+
+3. **Versioned indices** (for critical systems)
+   - Maintain v1, v2 indices
+   - Atomic cutover after validation
+
+**Best practices:**
+
+- Track document→chunk mapping
+- Use deterministic chunk IDs
+- Test after updates
+
+---
+
+## Security
+
+### Q11: What are the main security risks in RAG?
+
+**Answer:**
+
+1. **Prompt Injection**
+
+   - Malicious content in documents
+   - Defense: Sandwich prompts, input validation
+
+2. **Data Leakage**
+
+   - Exposing wrong tenant's data
+   - Defense: Strict ACLs, namespace isolation
+
+3. **PII Exposure**
+
+   - Returning sensitive data in responses
+   - Defense: PII detection and redaction
+
+4. **Context Overflow Attacks**
+   - Injecting large documents to push out legit context
+   - Defense: Chunk limits, relevance filtering
+
+---
+
+## System Design Questions
+
+### Q12: Design RAG for a customer support chatbot.
+
+**Key components:**
+
+1. **Knowledge base**: FAQs, product docs, past tickets
+2. **Intent classification**: Route to RAG vs. live agent
+3. **Conversation history**: Context carryover
+4. **Escalation**: Handoff when confidence low
+5. **Feedback loop**: Track resolution rates
+
+### Q13: Design RAG for code search (like GitHub Copilot).
+
+**Key considerations:**
+
+1. **Chunking**: By function/class boundaries
+2. **Embeddings**: Code-specific (CodeBERT, StarEncoder)
+3. **Context**: Include imports, docstrings
+4. **Ranking**: Favor same-file, recent usage
+
+---
+
+## Behavioral Tips
+
+- Start with clarifying questions
+- Draw architecture diagrams
+- Discuss tradeoffs explicitly
+- Mention production concerns (monitoring, scaling)
+- Reference real systems when possible

@@ -1,0 +1,39 @@
+﻿<Callout title="Goal" variant="info">
+  Implement Top‑K retrieval: score candidates and return the best k.
+</Callout>
+
+## Why this matters in production
+
+Every retrieval system (BM25, dense, hybrid) eventually produces:
+
+- a ranked list of candidates
+
+If you can’t implement Top‑K correctly, you can’t trust your evaluation or debug ranking issues.
+
+## What you’re implementing
+
+Given:
+
+- `vectors: List[List[float]]` (document vectors)
+- `query: List[float]`
+
+Return:
+
+- `[(doc_index, score), ...]` sorted by score descending
+
+Rules:
+
+- validate `k > 0`
+- if `k > len(vectors)` return all
+
+## Common pitfalls
+
+- Sorting ascending instead of descending.
+- Returning scores without indices (you need traceability).
+
+## After you pass
+
+Do toy **Embed & Search**, then move to BM25 + hybrid fusion.
+
+
+

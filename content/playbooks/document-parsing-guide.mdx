@@ -1,0 +1,180 @@
+﻿---
+title: "Document Parsing Guide"
+description: "Comprehensive guide to parsing different document formats for RAG"
+---
+
+# Document Parsing Guide
+
+Master the art of extracting clean, structured content from complex documents.
+
+---
+
+## Document Format Matrix
+
+| Format           | Library             | Complexity  | Notes                      |
+| ---------------- | ------------------- | ----------- | -------------------------- |
+| **PDF**          | PyMuPDF, pdfplumber | Medium-High | Tables, images, OCR needed |
+| **Word (.docx)** | python-docx         | Low         | Clean extraction           |
+| **HTML**         | BeautifulSoup       | Medium      | Handle nested tags         |
+| **Markdown**     | markdown-it         | Low         | Preserve hierarchy         |
+| **Excel**        | openpyxl, pandas    | Medium      | Sheet/table structure      |
+| **PowerPoint**   | python-pptx         | Medium      | Slides, speaker notes      |
+| **Images**       | Tesseract, DocTR    | High        | OCR quality varies         |
+
+---
+
+## PDF Parsing Strategies
+
+### Strategy 1: Text-based PDFs
+
+```python
+import pymupdf  # PyMuPDF
+
+def extract_text_pdf(path: str) -> str:
+    doc = pymupdf.open(path)
+    text = ""
+    for page in doc:
+        text += page.get_text()
+    return text
+```
+
+### Strategy 2: Scanned PDFs (OCR)
+
+```python
+import pytesseract
+from pdf2image import convert_from_path
+
+def ocr_pdf(path: str) -> str:
+    images = convert_from_path(path)
+    text = ""
+    for img in images:
+        text += pytesseract.image_to_string(img)
+    return text
+```
+
+### Strategy 3: Table Extraction
+
+```python
+import pdfplumber
+
+def extract_tables(path: str):
+    with pdfplumber.open(path) as pdf:
+        tables = []
+        for page in pdf.pages:
+            for table in page.extract_tables():
+                tables.append(table)
+    return tables
+```
+
+---
+
+## Table Extraction Best Practices
+
+### Decision Tree
+
+```
+Is the PDF text-based?
+├── YES → Use pdfplumber or camelot
+└── NO (scanned)
+    └── Use Document AI or unstructured
+
+Is the table simple (no merged cells)?
+├── YES → Row-based chunking works
+└── NO → Flatten to JSON or markdown
+```
+
+### Chunking Strategies for Tables
+
+| Strategy       | When to Use            | Example                               |
+| -------------- | ---------------------- | ------------------------------------- |
+| **Row-based**  | Simple data tables     | Each row → chunk with headers         |
+| **Cell-based** | Wide tables            | "Revenue Q1: $1M" as individual facts |
+| **Full table** | Small reference tables | Keep table intact as one chunk        |
+| **JSON**       | Structured queries     | Convert to searchable objects         |
+
+---
+
+## Hierarchy Detection
+
+### Markdown Headers
+
+```python
+import re
+
+def extract_hierarchy(md_text: str):
+    sections = []
+    current_h1 = None
+    current_h2 = None
+
+    for line in md_text.split('\n'):
+        if line.startswith('# '):
+            current_h1 = line[2:]
+            current_h2 = None
+        elif line.startswith('## '):
+            current_h2 = line[3:]
+
+        # Track breadcrumb for each content line
+
+    return sections
+```
+
+### Best Practices
+
+1. **Preserve context**: Chunks should know their parent section
+2. **Include breadcrumbs**: "User Guide > Installation > Requirements"
+3. **Respect boundaries**: Don't split mid-section
+
+---
+
+## Production Tips
+
+### Quality Checklist
+
+- [ ] Test with real documents (not just samples)
+- [ ] Handle encoding issues (UTF-8, Latin-1)
+- [ ] Check for password-protected files
+- [ ] Validate table extraction accuracy
+- [ ] Monitor OCR confidence scores
+
+### Common Pitfalls
+
+| Issue           | Solution                            |
+| --------------- | ----------------------------------- |
+| Garbled text    | Try different PDF libraries         |
+| Missing tables  | Use vision-based extraction         |
+| Bad OCR         | Increase DPI, preprocess images     |
+| Lost formatting | Extract to HTML first, then convert |
+
+---
+
+## 🛠️ Recommended Tools
+
+### Open Source
+
+- **PyMuPDF**: Fast, reliable PDF extraction
+- **pdfplumber**: Excellent table extraction
+- **Unstructured**: All-in-one parsing
+- **LangChain loaders**: Pre-built integrations
+
+### Commercial
+
+- **LlamaParse**: Best-in-class quality
+- **AWS Textract**: Tables, forms, handwriting
+- **Google Document AI**: Enterprise-grade
+- **Azure Form Recognizer**: Strong for forms
+
+---
+
+## Evaluation Metrics
+
+| Metric              | Description           | Target        |
+| ------------------- | --------------------- | ------------- |
+| **Extraction Rate** | % of text recovered   | > 95%         |
+| **Table Accuracy**  | Cell matching         | > 90%         |
+| **OCR Confidence**  | Average confidence    | > 0.85        |
+| **Chunk Coherence** | Semantic completeness | Manual review |
+
+---
+
+_Document parsing is 50% of RAG quality. Garbage in, garbage out!_
+

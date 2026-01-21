@@ -1,0 +1,172 @@
+﻿---
+title: "Section-Based Chunking: Document Structure"
+description: "Leverage explicit document structure (headers) for intelligent chunking"
+difficulty: "hard"
+timeEstimate: "35-45 min"
+xpReward: 100
+prerequisites: ["recursive-chunking"]
+---
+
+# Section-Based Chunking: Respecting Document Structure
+
+## The Metadata Opportunity
+
+Technical documents, papers, and manuals have **explicit structure**:
+
+- `# Main Title`
+- `## Chapter`
+- `### Section`
+- `#### Subsection`
+
+These headers DESCRIBE their content. That's invaluable metadata!
+
+---
+
+## The Insight
+
+A chunk's section header tells you what it's about before you even read it:
+
+```
+Chunk from "## Error Handling" → Likely about errors
+Chunk from "## Getting Started" → Likely introductory
+```
+
+This metadata improves both retrieval and reranking.
+
+---
+
+## The Algorithm
+
+```python
+def section_chunk(markdown):
+    chunks = []
+    header_stack = []  # Track nested headers
+    current_content = []
+
+    for line in markdown.split('\n'):
+        if line.startswith('#'):
+            # Flush previous section
+            if current_content:
+                chunks.append({
+                    'text': '\n'.join(current_content),
+                    'header': header_stack[-1] if header_stack else 'Document',
+                    'breadcrumb': ' > '.join(header_stack)
+                })
+
+            # Update header tracking
+            level = len(line) - len(line.lstrip('#'))
+            title = line.lstrip('# ').strip()
+
+            # Pop headers of same or higher level
+            while header_stack and get_level(header_stack[-1]) >= level:
+                header_stack.pop()
+            header_stack.append(title)
+
+            current_content = [line]
+        else:
+            current_content.append(line)
+
+    return chunks
+```
+
+---
+
+## The Breadcrumb Pattern
+
+For a deeply nested section:
+
+```markdown
+# User Guide
+
+## Installation
+
+### Prerequisites
+
+This section covers what you need before installing.
+```
+
+The chunk would have:
+
+```python
+{
+    'text': '### Prerequisites\nThis section covers...',
+    'header': 'Prerequisites',
+    'breadcrumb': 'User Guide > Installation > Prerequisites'
+}
+```
+
+---
+
+## Enhanced Retrieval
+
+With section metadata, you can:
+
+1. **Filter by section**: Only search in "API Reference"
+2. **Boost by section**: Weight "FAQ" higher for questions
+3. **Generate citations**: "From: User Guide > Installation"
+
+---
+
+## ⚖️ Tradeoffs
+
+### Pros
+
+- ✅ Rich semantic metadata
+- ✅ Natural content boundaries
+- ✅ Enables section-level filtering
+- ✅ Better citations
+
+### Cons
+
+- ❌ Only works for structured documents
+- ❌ Requires consistent header usage
+- ❌ Some sections may be too long/short
+
+---
+
+## Real-World Usage
+
+**Perfect for**:
+
+- Documentation sites (GitBook, ReadTheDocs)
+- Technical manuals
+- API references
+- Research papers
+- Legal documents with numbered sections
+
+**Companies**:
+
+- Stripe (API docs)
+- GitHub (documentation)
+- Notion (knowledge base)
+
+---
+
+## Handling HTML
+
+Same concept applies to HTML:
+
+```python
+html_selectors = ['h1', 'h2', 'h3', 'article', 'section']
+```
+
+Or structured formats like DOCX, PDF chapters, etc.
+
+---
+
+## Key Insight
+
+Section chunking teaches us:
+
+> "When structure exists, USE IT. Don't flatten documents."
+
+The document author already organized content logically.
+
+---
+
+## Related Challenges
+
+- `hierarchical-chunking` - Create parent-child relationships
+- `metadata-aware-chunking` - Add more metadata dimensions
+- `recursive-chunking` - Fallback for unstructured parts
+

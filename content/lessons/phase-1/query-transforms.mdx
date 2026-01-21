@@ -1,0 +1,99 @@
+---
+title: "Query Transforms"
+description: "Turn vague user queries into precise retrieval instructions."
+order: 1
+estimatedMinutes: 30
+stage: pre-retrieval
+prereqs:
+  - phase: phase-0
+    slug: your-first-rag
+next:
+  phase: phase-1
+  slug: context-shaping
+outcomes:
+  - "Explain why raw user queries often fail to retrieve the right chunks."
+  - "Implement three query transformation techniques: rewriting, expansion, and HyDE."
+  - "Know when query transforms help vs. when they add latency without benefit."
+tags: ["retrieval", "query-transforms", "hyde", "rewriting"]
+sources:
+  - title: "HyDE Paper (arXiv)"
+    url: "https://arxiv.org/abs/2212.10496"
+    type: "paper"
+  - title: "LangChain: Query transformations"
+    url: "https://python.langchain.com/docs/concepts/rag/"
+    type: "docs"
+  - title: "RAG-Fusion blog"
+    url: "https://towardsdatascience.com/forget-rag-the-future-is-rag-fusion-1147298d8ad1"
+    type: "blog"
+---
+
+## Goals
+
+- Understand the "query-document mismatch" problem.
+- Learn three techniques to bridge this gap.
+- Know when to skip query transforms (simplicity vs. latency tradeoff).
+
+## Prereqs
+
+- Read: **Your First RAG** (you need a working retrieval pipeline first).
+- Challenge: **Basic Retrieval** (to see the problem firsthand).
+
+## Core idea
+
+### The mismatch problem
+
+Users ask questions in natural language:
+> "How do I make my RAG faster?"
+
+But documents are written in technical prose:
+> "Optimize retrieval latency by implementing semantic caching..."
+
+The embedding of the question and the embedding of the answer may not be close enough in vector space. This is the **query-document mismatch**.
+
+### Three transformation techniques
+
+**1. Query Rewriting**
+Use an LLM to rephrase the query into search-optimized form:
+- "make RAG faster" → "RAG latency optimization techniques"
+- Removes filler words, expands acronyms, adds synonyms
+
+**2. Query Expansion (Multi-Query)**
+Generate multiple query variants and union the results:
+- Original + 2-3 rewrites → retrieve from all → dedupe + rerank
+
+**3. HyDE (Hypothetical Document Embedding)**
+Generate a hypothetical answer, then search for chunks similar to it:
+- Query: "What is chunking?"
+- Hypothetical answer: "Chunking is the process of splitting documents..."
+- Embed the answer, retrieve chunks similar to it
+
+### When to use each
+
+| Technique | Latency | When it helps |
+|-----------|---------|---------------|
+| Rewrite | +100-300ms | Vague queries, typos, colloquial language |
+| Multi-Query | +200-500ms | Recall is more important than latency |
+| HyDE | +300-800ms | Technical domains where query ≠ doc style |
+
+## Failure modes
+
+- **Over-transformation**: LLM rewrites change the meaning of the query.
+- **Latency explosion**: chaining transforms adds 1-2s before retrieval.
+- **Hallucination in HyDE**: hypothetical answer leads to wrong retrievals.
+- **Unnecessary complexity**: simple keyword queries may work just as well.
+
+## Production defaults
+
+- Start without transforms. Measure retrieval quality first.
+- Add rewriting only if you see user queries consistently failing.
+- Use HyDE for technical/scientific domains where it's proven to help.
+- Always A/B test: transforms can hurt as much as help.
+
+Canonical reference:
+
+- [RAG Techniques Encyclopedia](/playbooks/rag-techniques-encyclopedia)
+- [Compare: Retrieval](/compare/retrieval)
+
+## Do next
+
+<ChallengeLinks slugs={["hyde-search", "multi-query-fusion", "conversational-query-rewrite"]} />

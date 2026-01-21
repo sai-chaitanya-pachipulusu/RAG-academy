@@ -1,0 +1,13 @@
+﻿<Callout title="Goal" variant="info">
+  Integrate an embedding model into your pipeline to convert text into
+  searchable vectors.
+</Callout>
+
+## Stage 2: The Embedder
+
+Now that you have chunks, you need to turn them into numbers. A production pipeline typically caches these embeddings or uses a consistent API.
+
+## Task
+
+Extend your `Pipeline` class with an `embed` method. This method will take your chunks and generate high-dimensional vectors that capture their semantic meaning.
+

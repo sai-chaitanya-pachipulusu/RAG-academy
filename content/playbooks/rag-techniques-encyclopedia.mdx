@@ -1,0 +1,265 @@
+﻿---
+title: "RAG Techniques Encyclopedia (2025)"
+description: "A stage-by-stage technique menu: what each technique fixes, when to use it, and the tradeoffs."
+order: 1
+tags: ["rag", "techniques", "retrieval", "reranking", "evaluation", "security", "caching"]
+sources:
+  - title: "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks (Lewis et al., 2020)"
+    url: "https://arxiv.org/abs/2005.11401"
+    type: "paper"
+    year: 2020
+  - title: "DPR: Dense Passage Retrieval for Open-Domain QA (Karpukhin et al., 2020)"
+    url: "https://arxiv.org/abs/2004.04906"
+    type: "paper"
+    year: 2020
+  - title: "Lost in the Middle: How LMs Use Long Contexts (Liu et al., 2023)"
+    url: "https://arxiv.org/abs/2307.03172"
+    type: "paper"
+    year: 2023
+  - title: "HyDE: Precise Zero-Shot Dense Retrieval (Gao et al., 2022)"
+    url: "https://arxiv.org/abs/2212.10496"
+    type: "paper"
+    year: 2022
+  - title: "RAGAS docs (RAG evaluation metrics)"
+    url: "https://docs.ragas.io/en/stable/"
+    type: "docs"
+  - title: "OWASP Top 10 for LLM Applications"
+    url: "https://owasp.org/www-project-top-10-for-large-language-model-applications/"
+    type: "docs"
+---
+
+<Callout title="How to use this encyclopedia" variant="info">
+  This is a **technique menu**, organized by **where the technique lives in the pipeline**.
+  Don’t “collect techniques.” Start with the baseline, then add the lightest technique that fixes your observed failure mode.
+</Callout>
+
+## The baseline architecture (ship this first)
+
+### Two phases (offline vs online)
+
+```
+📦 OFFLINE (Preprocessing)          🔍 ONLINE (Query Time)
+─────────────────────────           ─────────────────────
+1. Load documents                   1. User sends query
+2. Chunk into pieces                2. Embed query → vector
+3. Embed chunks → vectors           3. Find similar chunks (top-k)
+4. Store in vector database         4. (Optional) Rerank results
+                                    5. Send chunks + query to LLM
+                                    6. Generate answer with citations
+```
+
+### Technique categories (mental model)
+
+```
+🔵 PRE‑RETRIEVAL (offline): parse → chunk → metadata → embed → store
+🟢 RETRIEVAL (online): analyze/transform → search → candidates
+🟠 POST‑RETRIEVAL (online): rerank → filter → compress → reorder
+🔴 GENERATION (online): prompt → generate → verify → cite/refuse
+🟣 AGENTIC (optional): plan → tool use → iterate → synthesize
+```
+
+<Callout title="Production default baseline" variant="success">
+  Hybrid retrieval (BM25 + dense) → RRF fusion → rerank top‑20/50 → keep 5–10 → grounded prompt with citations → refusal policy → evaluation + logging.
+</Callout>
+
+## Decision guide (when to use which strategy)
+
+### Use this decision lens
+
+- **If the right evidence is missing** → fix **ingestion** (parsing/chunking/metadata) or **retrieval** (hybrid/rerank/query transforms).
+- **If evidence is present but answer is wrong** → fix **context shaping** (dedupe/order/budget) and **verification** (citations/grounding checks).
+- **If it’s too slow/expensive** → fix **caching**, **routing**, and **budgets** (fast path vs slow path).
+
+### Pre‑retrieval (offline) technique menu
+
+#### Parse / extract (data quality)
+
+- **Layout-aware parsing**: preserve headings/columns/lists (common PDF failure mode).
+- **Table extraction**: keep tables as structured rows/JSON (not mangled prose).
+- **OCR for scans**: extract text from images; track confidence + page coords.
+- **Boilerplate removal**: strip headers/footers/nav noise; normalize whitespace.
+- **Language normalization**: UTF‑8 normalization, de-hyphenation, unicode cleanup.
+- **Exact + near dedup**: doc_hash + SimHash/MinHash to prevent “index bloat”.
+- **PII/secrets detection**: redact or quarantine at ingestion (don’t “fix later”).
+
+#### Chunk (representation engineering)
+
+- **Recursive/token-aware chunking** (baseline): 300–600 tokens with 10–20% overlap.
+- **Structure-aware chunking**: split by Markdown headers / HTML sections / document outline.
+- **Code-aware chunking**: split by function/class blocks (AST/tree-sitter).
+- **Table-aware chunking**: keep tables intact; store schema/headers separately.
+- **Sentence-window**: retrieve small units but expand to neighbors at render time.
+- **Parent/child retrieval**: embed child chunks, return parent sections for generation.
+- **Contextual retrieval**: prepend doc/section titles/summaries to chunks before embedding.
+- **Proposition chunking**: atomic claims for legal/scientific precision (expensive).
+- **RAPTOR/hierarchical**: multi-level summaries for long documents/multi-hop queries.
+- **Late chunking**: embed larger spans first, then chunk (reduces fragmentation in some corpora).
+
+#### Metadata (the “free recall” lever)
+
+- **Stable IDs**: `doc_id`, deterministic `chunk_id`, offsets (traceability).
+- **Structural metadata**: section path, page number, chunk_index/total_chunks.
+- **Temporal metadata**: `effective_date`, `updated_at`, TTL/freshness.
+- **ACL / tenant metadata**: enforce permissions **before retrieval** (hard rule).
+- **Quality signals**: OCR confidence, language, doc_type, parse warnings.
+
+#### Embed (vectorization choices)
+
+- **Single embedding model for query+docs** (baseline).
+- **Instruction-tuned embeddings** (e.g., “Represent this query for retrieval…”).
+- **Multi-field embeddings**: separate title/body/code/table vectors; fuse at query time.
+- **Domain embeddings**: code/legal/scientific models when vocab is specialized.
+- **Matryoshka/variable dims**: fast coarse search → precise rerank.
+
+#### Store / index (infra choices)
+
+- **HNSW**: default ANN for most corpora (high recall, more memory).
+- **IVF / IVF‑PQ**: large scale or memory constrained (lower recall, faster/cheaper).
+- **Hybrid indexes**: sparse (BM25/learned sparse) + dense vectors (production default).
+- **Upserts + versioning**: safe reindexing; delete old chunk versions deterministically.
+
+### Retrieval (online) technique menu
+
+#### Query analysis (routing the hot path)
+
+- **Query classification**: factual vs “how-to” vs comparison vs troubleshooting.
+- **Difficulty routing**: easy (fast path) vs hard (slow path with rerank/multi-query).
+- **Entity/date extraction**: power metadata filters (“2024 policy”, “EU region”).
+- **Self-query filters**: LLM produces structured filters from natural language.
+
+#### Query transforms (recall boosters)
+
+- **Rewrite/normalize**: remove fluff; add domain keywords; fix typos.
+- **Conversation condense**: turn follow-ups into standalone queries.
+- **Query expansion**: synonyms/acronyms; domain glossary injection.
+- **PRF/RM3**: pseudo-relevance feedback using BM25 top docs.
+- **HyDE**: generate hypothetical answer → embed that for retrieval (short/vague queries).
+- **Multi-query**: generate variations; retrieve per variant.
+- **RAG‑Fusion**: multi-query retrieval + RRF fusion before rerank.
+- **Step‑back prompting**: broad query + specific query → retrieve for both.
+- **Decomposition**: split multi-hop/comparison into sub-queries; retrieve per subtask.
+- **doc2query (offline)**: generate pseudo-queries for docs to improve lexical match.
+
+#### Search + retrieve (candidate generation)
+
+- **Dense retrieval**: semantic similarity for paraphrases.
+- **BM25 / sparse**: acronyms, IDs, exact terms.
+- **Learned sparse** (SPLADE/ELSER): “semantic sparse” with inverted-index speed.
+- **Hybrid fusion**: RRF (robust) or weighted fusion (tune carefully).
+- **Metadata filtering first**: reduce search space before ANN.
+- **Time-decay**: boost recent docs for time-sensitive domains.
+- **Multi-index routing**: different indexes for code vs policies vs tickets.
+
+### Post‑retrieval (online) technique menu
+
+#### Rerank (precision boosters)
+
+- **Cross‑encoder rerank** (default): rerank top‑20/50 → keep 5–10.
+- **Reranker cascade**: cheap shortlist → expensive rerank (latency control).
+- **ColBERT**: late interaction for speed+quality (bigger index footprint).
+- **LLM rerank (listwise)**: for nuanced relevance, but slow/expensive.
+- **LTR (learning-to-rank)**: when you have labeled data and want deterministic ranking.
+
+#### Filter + diversity (reduce context rot)
+
+- **Relevance thresholds**: drop low-score items.
+- **Deduplicate near-duplicates**: avoid repeating the same paragraph 5 times.
+- **MMR**: trade a bit of relevance for diversity (great for “tell me about …”).
+- **Corrective grading (CRAG-like)**: grade candidates; trigger fallback when all are weak.
+
+#### Compression (token cost + focus)
+
+- **Extractive compression**: keep only sentences relevant to the query (safer).
+- **Abstractive summaries**: summarize long chunks (riskier; validate).
+- **Selective quotes**: extract minimal quotes + citations for high-stakes answers.
+- **Prompt compression** (LLMLingua-style): compress context under a budget.
+
+#### Reorder (lost-in-the-middle mitigation)
+
+- **Pin best evidence first + last** (simple, high impact).
+- **Interleave sources**: avoid single-doc dominance.
+- **Chronological ordering**: for time-based narratives.
+
+### Generation (online) technique menu
+
+#### Prompting (grounding + structure)
+
+- **Strict grounding instruction**: “Answer ONLY using provided context.”
+- **Citation schema**: enforce `[1]` style cites, with source ids and spans.
+- **Refusal policy**: “insufficient context” fallback (must be explicit).
+- **Structured output**: JSON schema for citations/claims.
+- **Few-shot formatting**: show an example with citations/refusal.
+
+#### Verification (reduce hallucinations)
+
+- **Citation validation**: cites must reference an existing chunk id/span.
+- **Grounding check**: verify each claim is supported by cited text.
+- **Chain-of-Verification (CoVe)**: generate → verify questions → revise.
+- **Self-refine / critique loop**: route to slow path for hard queries.
+- **Consistency checks**: contradictions between sources reported explicitly.
+
+#### Safety & injection resistance
+
+- **Prompt injection sanitization**: treat retrieved text as untrusted.
+- **Tool-call allowlists**: constrain actions/URLs; never execute arbitrary code.
+- **PII redaction**: before LLM; store audit logs.
+- **Cross-tenant isolation**: enforce ACL filters at retrieval (non-negotiable).
+
+### Agentic (optional) technique menu
+
+- **Router agent**: choose between RAG vs SQL vs web vs tools.
+- **ReAct**: reason → act → observe loop with tools.
+- **Plan-and-execute**: planner generates steps; executor runs them.
+- **Reflection agent**: critic checks quality; triggers re-retrieval.
+- **Loop detection + budgets**: max steps/tool calls, timeouts, fallback to simple RAG.
+
+## Production defaults (recommended starting values)
+
+- **Chunk size**: 300–600 tokens; **overlap**: 10–20%.
+- **Candidates**: 20–50 retrieved; **keep**: 5–10 after rerank.
+- **RRF k**: 60 (robust default).
+- **Similarity thresholds**: start loose; tighten after you have evals.
+- **Latency budgets**: set per-stage p95 budgets (retrieval, rerank, generate).
+- **Always log**: query, filters, retrieved ids + scores, reranked ids, final citations.
+
+## Evaluation (what “good” looks like)
+
+### Retrieval (evidence quality)
+
+- **Recall@k / Hit@k**: “did the right chunk appear in top‑k?”
+- **MRR / nDCG**: ranking quality (especially when you have labeled relevance).
+- **Filter correctness**: were ACL/metadata constraints applied correctly?
+
+### Generation (answer quality)
+
+- **Groundedness/faithfulness**: are claims supported by evidence?
+- **Answer relevance**: does it answer the question?
+- **Citation coverage**: what % of claims have valid citations?
+
+<Callout title="Minimum viable eval" variant="info">
+  Create a 25–50 question golden set, log top‑k chunks, compute Recall@k, and manually audit failures. This gets you farther than “prompt tweaking” ever will.
+</Callout>
+
+## Safety & security (non-negotiable)
+
+- **Treat retrieved text as untrusted input** (it can contain instructions).
+- **Enforce ACL at retrieval** (don’t rely on “the model won’t leak”).
+- **Redact PII/secrets** pre-LLM; log redaction events.
+- **Guard tool calls** with allowlists + budgets + timeouts.
+- **Store audit logs** (query + filters + retrieved ids + citations).
+
+## Caching (what to cache and when)
+
+### Cheap + safe caches (do early)
+
+- **Embedding cache**: key by (model, text_hash).
+- **Query embedding cache**: key by (model, normalized_query).
+- **Retrieval results cache**: key by (normalized_query + filter + index_version).
+
+### Higher-risk caches (do with versioning + invalidation)
+
+- **Semantic answer cache**: only when you have stable index versions and safe invalidation.
+- **Prompt/context caching**: cache large shared contexts (provider-specific features).
+
+
+

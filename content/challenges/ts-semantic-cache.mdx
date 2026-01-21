@@ -1,0 +1,24 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Implement a semantic cache — return cached results for similar queries.
+</Callout>
+
+## Why this matters in production
+
+Semantic caching can reduce RAG costs by 50%+ for repetitive queries. Unlike exact-match caches, it returns results for semantically similar (not identical) queries.
+
+## What you're implementing
+
+- Store query embeddings with their responses.
+- On new query, find the most similar cached query.
+- Return cached response if similarity exceeds threshold.
+- Handle cache expiration.
+
+## Common pitfalls
+
+- Setting threshold too low (wrong answers).
+- Not pruning old entries (memory bloat).
+
+## After you pass
+
+Add TTL-based expiration and LRU eviction for production readiness.
+

@@ -1,0 +1,15 @@
+﻿<Callout title="Goal" variant="info">
+  Complete the Saga by synthesizing an answer using the retrieved context.
+</Callout>
+
+## Stage 4: The Generator
+
+The final step of the RAG (Retrieval-Augmented Generation) loop is the **Generation**. This is where you feed the retrieved chunks and the user query into an LLM to get a human-readable answer.
+
+## Task
+
+Implement the `generate` and the final `run` methods. The `run` method should coordinate the entire flow:
+`Input Text -> Chunk -> Embed -> (Query) -> Retrieve -> Context -> Generate`.
+
+You have now built a complete, end-to-end RAG system from scratch!
+

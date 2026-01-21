@@ -1,0 +1,157 @@
+﻿---
+title: "Table-Aware Chunking: Preserving Structured Data"
+description: "Keep tables intact during chunking to preserve header-data relationships"
+difficulty: "hard"
+timeEstimate: "35-45 min"
+xpReward: 125
+prerequisites: ["section-based-chunking"]
+---
+
+# Table-Aware Chunking: Preserving Structured Data
+
+## Tables are Information-Dense
+
+A table communicates with STRUCTURE:
+
+```
+| Employee | Salary | Department |
+|----------|--------|------------|
+| Alice    | 100K   | Engineering|
+| Bob      | 80K    | Marketing  |
+```
+
+If headers are in chunk 1 and data in chunk 2:
+
+- Chunk 1: "| Employee | Salary | Department |" → Meaningless
+- Chunk 2: "| Alice | 100K | Engineering |" → Who is this? What are these numbers?
+
+**Both chunks become useless.**
+
+---
+
+## The Insight: Keep Tables Whole
+
+Tables must be chunked as **atomic units**. A chunk should either:
+
+1. Contain the COMPLETE table, or
+2. Contain table rows WITH headers repeated
+
+---
+
+## The Algorithm
+
+```python
+def table_aware_chunk(document):
+    chunks = []
+    current_text = []
+    in_table = False
+    table_lines = []
+
+    for line in document.split('\n'):
+        is_table_row = line.strip().startswith('|')
+
+        if is_table_row:
+            if current_text:
+                chunks.append({'text': '\n'.join(current_text), 'type': 'text'})
+                current_text = []
+            table_lines.append(line)
+            in_table = True
+        else:
+            if in_table:
+                chunks.append({
+                    'text': '\n'.join(table_lines),
+                    'type': 'table',
+                    'headers': extract_headers(table_lines[0])
+                })
+                table_lines = []
+                in_table = False
+            current_text.append(line)
+
+    return chunks
+```
+
+---
+
+## Large Table Strategy
+
+For tables exceeding chunk limits, include headers with each group:
+
+```
+Chunk 1:
+| Name  | Salary |
+|-------|--------|
+| Alice | 100K   |
+| Bob   | 80K    |
+
+Chunk 2:
+| Name  | Salary |   ← Headers repeated!
+|-------|--------|
+| Carol | 95K    |
+| David | 90K    |
+```
+
+---
+
+## ⚖️ Tradeoffs
+
+### Pros
+
+- ✅ Preserves table meaning
+- ✅ Headers explain data
+- ✅ Enables structured queries
+
+### Cons
+
+- ❌ Large tables may exceed limits
+- ❌ Multi-page tables are complex
+- ❌ Nested tables are tricky
+
+---
+
+## Real-World Usage
+
+**Critical for**:
+
+- Financial reports (balance sheets, P&L)
+- Research papers (results tables)
+- Technical specs (parameter tables)
+- Data analysis documents
+
+**Tools**:
+
+- Unstructured.io (table detection)
+- LlamaParse (PDF tables)
+- Camelot (Python table extraction)
+- Tabula (PDF tables)
+
+---
+
+## Detection Patterns
+
+```python
+# Markdown tables
+is_markdown_table = lambda line: line.strip().startswith('|')
+
+# HTML tables
+is_html_table = lambda line: '<table' in line or '<tr' in line
+
+# ASCII tables
+is_ascii_table = lambda line: '+-' in line and '-+' in line
+```
+
+---
+
+## Key Insight
+
+Table-aware chunking teaches us:
+
+> "Structured data needs structural awareness. Don't flatten what should stay structured."
+
+---
+
+## Related Challenges
+
+- `code-aware-chunking` - Another structure-specific approach
+- `metadata-aware-chunking` - Track table as metadata type
+- `pdf-table-extraction` - Extract tables from PDFs
+

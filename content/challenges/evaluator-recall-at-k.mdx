@@ -1,0 +1,43 @@
+﻿<Callout title="Goal" variant="info">
+  Implement Recall@K to measure how often the correct document appears in your
+  top search results.
+</Callout>
+
+## Why Evaluation Matters
+
+You can't improve what you don't measure. In production RAG, you need to know if changing your embedding model or chunk size actually helped.
+
+The **Evaluator Saga** focuses on quantitative metrics for retrieval quality.
+
+## Recall@K (the formula)
+
+Recall@K measures whether **any** of the relevant documents appear in the top K results:
+
+```
+Recall@K = |{relevant docs in top-K}| / |{all relevant docs}|
+```
+
+For single-ground-truth scenarios (most common in RAG):
+
+- **1.0** if the relevant document is anywhere in top-K
+- **0.0** if it's not found
+
+## Common variants
+
+- **Recall@1**: Strictest — must be the top result (same as Precision@1)
+- **Recall@10**: Standard for reranker pipelines (retrieve 20-50, rerank to 10)
+- **Recall@100**: Used for initial retrieval stage before reranking
+
+## When to use which?
+
+| Metric       | Use case                                 |
+| ------------ | ---------------------------------------- |
+| Recall@1     | When only one result is shown (chatbots) |
+| Recall@5     | After reranking for RAG context          |
+| Recall@10-20 | Retrieval stage evaluation               |
+| Recall@100+  | ANN index quality check                  |
+
+## Production tip
+
+Always compute Recall@K **before and after** reranking to isolate retrieval failures from reranking failures.
+

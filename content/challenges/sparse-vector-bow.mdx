@@ -1,0 +1,23 @@
+﻿---
+title: "Sparse Vector (Bag of Words)"
+description: "Create a sparse Bag-of-Words representation for hybrid search."
+---
+
+# Sparse Vector (Bag of Words)
+
+While dense embeddings capture semantic meaning, **sparse vectors** represent text as a dictionary of word frequencies. This is the foundation of BM25 and hybrid search.
+
+### Dense vs. Sparse
+
+- **Dense**: `[0.12, -0.05, 0.88, ...]` (every dimension has a value)
+- **Sparse**: `{"apple": 2, "banana": 1}` (only present words have values)
+
+### Why Sparse Matters
+
+A query for "Error 504" will semantically match "HTTP issues" in dense space, but might miss the exact document that says "Error 504". Sparse search guarantees exact keyword matches.
+
+### Your Task
+
+1. Implement `to_bow()`: Convert text to a token frequency dictionary.
+2. Implement `sparse_dot_product()`: Compute similarity between two BOW vectors.
+

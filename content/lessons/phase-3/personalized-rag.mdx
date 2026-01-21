@@ -1,0 +1,377 @@
+---
+title: "Personalized RAG"
+description: "Adapt retrieval and generation to individual user preferences and context."
+order: 9
+estimatedMinutes: 20
+stage: advanced-retrieval
+prereqs:
+  - phase: phase-3
+    slug: reasoning-rag
+  - phase: phase-2
+    slug: metadata-filtering
+next:
+  phase: phase-4
+  slug: knowledge-graphs-intro
+outcomes:
+  - "Implement user-aware retrieval."
+  - "Adapt generation style to user preferences."
+  - "Handle multi-tenant personalization."
+tags: ["personalization", "user-context", "2025", "multi-tenant"]
+sources:
+  - title: "Personalized RAG Systems"
+    url: "https://arxiv.org/abs/2406.00000"
+    type: "paper"
+---
+
+## Goals
+
+- Understand why generic RAG underperforms for individual users.
+- Learn to personalize retrieval and generation.
+- Implement user preference tracking.
+
+## Prereqs
+
+- Read: **Reasoning RAG** (Phase 3) for advanced patterns.
+- Read: **Metadata Filtering** (Phase 2) for filter-based retrieval.
+
+## Core idea
+
+Generic RAG treats all users the same:
+
+```
+User A (CEO): "What's our sales performance?"
+User B (Intern): "What's our sales performance?"
+
+Generic RAG: Returns same documents, same response style
+```
+
+**Personalized RAG** adapts to each user:
+
+```
+User A (CEO): Executive summary, strategic metrics, board-ready language
+User B (Intern): Detailed explanations, learning-focused, definitions included
+```
+
+## Personalization Dimensions
+
+| Dimension | What to Personalize | Example |
+|-----------|-------------------|---------|
+| **Content access** | Which docs user can see | Sales can see deals, HR cannot |
+| **Relevance** | What's most relevant to user | Recent vs historical |
+| **Style** | How to present information | Technical vs simplified |
+| **History** | Previous interactions | "As we discussed last week..." |
+| **Preferences** | User-stated preferences | "I prefer bullet points" |
+
+## Implementation
+
+### User Profile Schema
+
+```python
+from pydantic import BaseModel
+from typing import List, Optional
+from enum import Enum
+
+class ExpertiseLevel(Enum):
+    BEGINNER = "beginner"
+    INTERMEDIATE = "intermediate"
+    EXPERT = "expert"
+
+class ResponseStyle(Enum):
+    CONCISE = "concise"
+    DETAILED = "detailed"
+    CONVERSATIONAL = "conversational"
+    FORMAL = "formal"
+
+class UserProfile(BaseModel):
+    user_id: str
+    name: str
+    role: str
+    department: str
+    expertise_level: ExpertiseLevel = ExpertiseLevel.INTERMEDIATE
+    preferred_style: ResponseStyle = ResponseStyle.CONCISE
+    
+    # Access control
+    accessible_departments: List[str] = []
+    accessible_projects: List[str] = []
+    
+    # Preferences
+    prefer_bullet_points: bool = True
+    include_sources: bool = True
+    language: str = "en"
+    
+    # Context
+    recent_topics: List[str] = []
+    trusted_authors: List[str] = []
+
+def get_user_profile(user_id: str) -> UserProfile:
+    """Fetch user profile from database."""
+    # In production: fetch from DB
+    return UserProfile(
+        user_id=user_id,
+        name="Alice Chen",
+        role="Senior Engineer",
+        department="Engineering",
+        expertise_level=ExpertiseLevel.EXPERT,
+        preferred_style=ResponseStyle.CONCISE,
+        accessible_departments=["Engineering", "Product"],
+        recent_topics=["RAG", "Vector Databases"],
+        trusted_authors=["senior-architect", "tech-lead"]
+    )
+```
+
+### Personalized Retrieval
+
+```python
+class PersonalizedRAG:
+    def __init__(self, retriever, llm, user_store):
+        self.retriever = retriever
+        self.llm = llm
+        self.user_store = user_store
+    
+    def retrieve(self, user_id: str, query: str, k: int = 10) -> List[Document]:
+        """Retrieve documents personalized to user."""
+        
+        profile = self.user_store.get_profile(user_id)
+        
+        # Build personalized filters
+        filters = self._build_access_filters(profile)
+        
+        # Build boosting rules
+        boosts = self._build_boost_rules(profile)
+        
+        # Retrieve with personalization
+        docs = self.retriever.retrieve(
+            query=query,
+            k=k * 2,  # Over-retrieve, then filter
+            filters=filters,
+            boosts=boosts
+        )
+        
+        # Rerank based on user preferences
+        docs = self._personalized_rerank(docs, profile)
+        
+        return docs[:k]
+    
+    def _build_access_filters(self, profile: UserProfile) -> dict:
+        """Build filters based on user access permissions."""
+        
+        return {
+            "$or": [
+                {"department": {"$in": profile.accessible_departments}},
+                {"project": {"$in": profile.accessible_projects}},
+                {"visibility": "public"}
+            ]
+        }
+    
+    def _build_boost_rules(self, profile: UserProfile) -> dict:
+        """Build boosting rules for user preferences."""
+        
+        boosts = {}
+        
+        # Boost content from trusted authors
+        if profile.trusted_authors:
+            boosts["author"] = {
+                "$in": profile.trusted_authors,
+                "boost": 1.5
+            }
+        
+        # Boost recent topics
+        if profile.recent_topics:
+            boosts["topic"] = {
+                "$in": profile.recent_topics,
+                "boost": 1.2
+            }
+        
+        # Boost user's department content
+        boosts["department"] = {
+            "$eq": profile.department,
+            "boost": 1.3
+        }
+        
+        return boosts
+    
+    def _personalized_rerank(
+        self, 
+        docs: List[Document], 
+        profile: UserProfile
+    ) -> List[Document]:
+        """Rerank documents based on user preferences."""
+        
+        for doc in docs:
+            score = doc.score
+            
+            # Boost if authored by trusted author
+            if doc.metadata.get("author") in profile.trusted_authors:
+                score *= 1.3
+            
+            # Boost recent content for users who prefer fresh info
+            if doc.metadata.get("created_at"):
+                age_days = (datetime.now() - doc.metadata["created_at"]).days
+                if age_days < 7:
+                    score *= 1.2
+            
+            doc.personalized_score = score
+        
+        return sorted(docs, key=lambda d: d.personalized_score, reverse=True)
+```
+
+### Personalized Generation
+
+```python
+def generate_personalized_response(
+    self, 
+    user_id: str, 
+    query: str, 
+    docs: List[Document]
+) -> str:
+    """Generate response adapted to user preferences."""
+    
+    profile = self.user_store.get_profile(user_id)
+    
+    # Build personalized system prompt
+    system_prompt = self._build_system_prompt(profile)
+    
+    # Build personalized user prompt
+    user_prompt = self._build_user_prompt(query, docs, profile)
+    
+    return self.llm.generate(
+        system=system_prompt,
+        user=user_prompt
+    )
+
+def _build_system_prompt(self, profile: UserProfile) -> str:
+    """Build system prompt based on user profile."""
+    
+    style_instructions = {
+        ResponseStyle.CONCISE: "Be brief and to the point. Use bullet points.",
+        ResponseStyle.DETAILED: "Provide comprehensive explanations with examples.",
+        ResponseStyle.CONVERSATIONAL: "Be friendly and approachable in your tone.",
+        ResponseStyle.FORMAL: "Use formal, professional language."
+    }
+    
+    expertise_instructions = {
+        ExpertiseLevel.BEGINNER: "Explain technical terms. Avoid jargon.",
+        ExpertiseLevel.INTERMEDIATE: "Assume familiarity with basic concepts.",
+        ExpertiseLevel.EXPERT: "Use technical language freely. Skip basics."
+    }
+    
+    prompt = f"""You are a helpful assistant for {profile.name} ({profile.role}).
+
+Style: {style_instructions[profile.preferred_style]}
+Expertise: {expertise_instructions[profile.expertise_level]}
+
+Additional instructions:
+- {"Use bullet points where possible." if profile.prefer_bullet_points else "Use prose format."}
+- {"Always cite sources." if profile.include_sources else ""}
+- Respond in {profile.language}.
+"""
+    
+    return prompt
+
+def _build_user_prompt(
+    self, 
+    query: str, 
+    docs: List[Document], 
+    profile: UserProfile
+) -> str:
+    """Build user prompt with context."""
+    
+    context = "\n\n".join([
+        f"[Source: {doc.metadata.get('title', 'Unknown')}]\n{doc.text}"
+        for doc in docs
+    ])
+    
+    # Add conversation history context
+    history_context = ""
+    if profile.recent_topics:
+        history_context = f"\nRecent topics you've discussed: {', '.join(profile.recent_topics)}"
+    
+    return f"""Context:
+{context}
+{history_context}
+
+Question: {query}"""
+```
+
+### Full Personalized RAG Pipeline
+
+```python
+class FullPersonalizedRAG:
+    def answer(self, user_id: str, query: str) -> str:
+        # Get user profile
+        profile = self.user_store.get_profile(user_id)
+        
+        # Personalized retrieval
+        docs = self.retrieve(user_id, query)
+        
+        # Personalized generation
+        response = self.generate_personalized_response(user_id, query, docs)
+        
+        # Update user history
+        self._update_user_history(user_id, query, response)
+        
+        return response
+    
+    def _update_user_history(self, user_id: str, query: str, response: str):
+        """Update user's recent topics for future personalization."""
+        
+        # Extract topics from query
+        topics = self.extract_topics(query)
+        
+        # Update profile
+        self.user_store.add_recent_topics(user_id, topics)
+```
+
+## Multi-Tenant Personalization
+
+For SaaS applications with multiple organizations:
+
+```python
+class MultiTenantPersonalizedRAG:
+    def retrieve(self, tenant_id: str, user_id: str, query: str):
+        """Retrieve with tenant isolation + user personalization."""
+        
+        # Tenant-level filter (strict isolation)
+        tenant_filter = {"tenant_id": tenant_id}
+        
+        # User-level personalization
+        profile = self.get_profile(tenant_id, user_id)
+        user_filter = self._build_access_filters(profile)
+        
+        # Combine filters
+        combined_filter = {
+            "$and": [tenant_filter, user_filter]
+        }
+        
+        return self.retriever.retrieve(
+            query=query,
+            filters=combined_filter
+        )
+```
+
+## Failure modes
+
+- **Cold start**: New users have no preferences → use role-based defaults
+- **Stale preferences**: User preferences change → periodic refresh
+- **Filter too strict**: No results returned → fall back to broader filters
+- **Privacy concerns**: Tracking user behavior → anonymize and consent
+
+## Production defaults
+
+```python
+PERSONALIZATION_CONFIG = {
+    "default_expertise": ExpertiseLevel.INTERMEDIATE,
+    "default_style": ResponseStyle.CONCISE,
+    "history_window_days": 30,  # How far back to look
+    "max_recent_topics": 10,    # Topics to remember
+    "boost_trusted_authors": 1.5,
+    "boost_recent_content": 1.2,
+    "fallback_to_generic": True,  # If personalization fails
+}
+```
+
+## Do next
+
+1. **Challenge**: [User Profile RAG](/challenges/user-profile-rag)
+2. **Challenge**: [Multi-Tenant Personalization](/challenges/multi-tenant-personalization)
+3. **Continue to**: [Knowledge Graphs Introduction](/learn/phase-4/knowledge-graphs-intro)

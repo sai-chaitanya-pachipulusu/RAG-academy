@@ -1,0 +1,261 @@
+﻿---
+title: "Production Deployment Checklist"
+description: "Complete this checklist before deploying your RAG system to production"
+---
+
+# Production Deployment Checklist
+
+<Callout title="Production Checklist" variant="warning">
+  Complete this checklist before deploying your RAG system to production.
+</Callout>
+
+## Pre-Deployment Checklist
+
+### 1. Data Pipeline
+
+- [ ] **Document Ingestion**
+
+  - [ ] Parser handles all document formats (PDF, DOCX, HTML, MD)
+  - [ ] Failed parses logged and alerted
+  - [ ] Duplicate detection implemented
+  - [ ] Incremental updates working
+
+- [ ] **Chunking**
+
+  - [ ] Chunk size optimized (tested 256, 512, 1024)
+  - [ ] Overlap configured (10-20% recommended)
+  - [ ] Metadata preserved (source, page, section)
+  - [ ] Large documents handled gracefully
+
+- [ ] **Embedding**
+  - [ ] Batch processing for efficiency
+  - [ ] Rate limiting respected
+  - [ ] Error handling and retries
+  - [ ] Embedding model version pinned
+
+---
+
+### 2. Vector Storage
+
+- [ ] **Index Configuration**
+
+  - [ ] Appropriate index type (HNSW for <10M vectors)
+  - [ ] Dimension matches embedding model
+  - [ ] Metadata schema defined
+  - [ ] Namespace/collection strategy decided
+
+- [ ] **Scaling**
+
+  - [ ] Sharding strategy for large scale
+  - [ ] Replication for availability
+  - [ ] Backup and restore tested
+  - [ ] Disaster recovery plan documented
+
+- [ ] **Performance**
+  - [ ] Query latency < 100ms P99
+  - [ ] Tested with production-like load
+  - [ ] Index warmup procedure defined
+
+---
+
+### 3. Retrieval Quality
+
+- [ ] **Retrieval Pipeline**
+
+  - [ ] k value optimized (tested 5, 10, 20)
+  - [ ] Hybrid retrieval if needed (dense + sparse)
+  - [ ] Reranking evaluated for quality boost
+  - [ ] Filtering by metadata working
+
+- [ ] **Evaluation**
+  - [ ] Evaluation dataset created (100+ query-answer pairs)
+  - [ ] Recall@k measured (target: >80%)
+  - [ ] MRR measured (target: >0.7)
+  - [ ] Baseline metrics established
+
+---
+
+### 4. LLM Integration
+
+- [ ] **Prompt Engineering**
+
+  - [ ] System prompt tested and optimized
+  - [ ] Context formatting clear
+  - [ ] "I don't know" behavior defined
+  - [ ] Output format specified (JSON, markdown, etc.)
+
+- [ ] **Model Configuration**
+
+  - [ ] Temperature set appropriately (0.1-0.3 for facts)
+  - [ ] Max tokens capped
+  - [ ] Timeout configured
+  - [ ] Fallback model defined
+
+- [ ] **Cost Control**
+  - [ ] Token usage estimated per query
+  - [ ] Monthly cost projected
+  - [ ] Rate limiting implemented
+  - [ ] Usage alerts configured
+
+---
+
+### 5. Security
+
+- [ ] **Input Validation**
+
+  - [ ] Prompt injection detection
+  - [ ] Input length limits
+  - [ ] Query sanitization
+
+- [ ] **Output Safety**
+
+  - [ ] PII redaction in responses
+  - [ ] Harmful content filtering
+  - [ ] Blocklist for sensitive topics
+
+- [ ] **Access Control**
+
+  - [ ] Authentication required
+  - [ ] Document-level permissions
+  - [ ] Multi-tenant isolation (if applicable)
+  - [ ] API key rotation policy
+
+- [ ] **Audit**
+  - [ ] All queries logged
+  - [ ] Document access tracked
+  - [ ] Retention policy defined
+  - [ ] GDPR/CCPA compliance verified
+
+---
+
+### 6. Monitoring & Observability
+
+- [ ] **Metrics**
+
+  - [ ] Query latency (P50, P95, P99)
+  - [ ] Retrieval success rate
+  - [ ] LLM error rate
+  - [ ] Token usage
+
+- [ ] **Logging**
+
+  - [ ] Query logs with trace IDs
+  - [ ] Retrieved document IDs logged
+  - [ ] LLM inputs/outputs logged (optional, privacy-aware)
+  - [ ] Error stack traces captured
+
+- [ ] **Alerting**
+  - [ ] Latency SLA alerts
+  - [ ] Error rate threshold alerts
+  - [ ] Cost anomaly alerts
+  - [ ] On-call rotation defined
+
+---
+
+### 7. Reliability
+
+- [ ] **Error Handling**
+
+  - [ ] Graceful degradation if retrieval fails
+  - [ ] Fallback responses for LLM failures
+  - [ ] Retry logic with exponential backoff
+  - [ ] Circuit breakers for external services
+
+- [ ] **High Availability**
+
+  - [ ] No single points of failure
+  - [ ] Health checks configured
+  - [ ] Auto-scaling policies defined
+  - [ ] Load balancing implemented
+
+- [ ] **Testing**
+  - [ ] Unit tests for all components
+  - [ ] Integration tests for full pipeline
+  - [ ] Load testing completed
+  - [ ] Chaos testing considered
+
+---
+
+### 8. Documentation
+
+- [ ] **Technical Docs**
+
+  - [ ] Architecture diagram
+  - [ ] API documentation
+  - [ ] Runbook for common issues
+  - [ ] On-call playbook
+
+- [ ] **Operational Docs**
+  - [ ] Deployment procedure
+  - [ ] Rollback procedure
+  - [ ] Scaling procedure
+  - [ ] Incident response plan
+
+---
+
+## Deployment Day
+
+### Pre-Deploy
+
+- [ ] Final evaluation metrics recorded
+- [ ] Stakeholders notified
+- [ ] Rollback plan confirmed
+- [ ] Monitoring dashboards open
+
+### Deploy
+
+- [ ] Staged rollout (canary → 10% → 50% → 100%)
+- [ ] Monitor metrics at each stage
+- [ ] Validate sample queries at each stage
+- [ ] Ready to rollback if issues
+
+### Post-Deploy
+
+- [ ] Verify all metrics within bounds
+- [ ] Run evaluation suite
+- [ ] Confirm no error spikes
+- [ ] Document any issues encountered
+
+---
+
+## Ongoing Operations
+
+### Daily
+
+- [ ] Check error dashboards
+- [ ] Review any alerts triggered
+
+### Weekly
+
+- [ ] Run evaluation suite
+- [ ] Review cost trends
+- [ ] Audit sample of queries
+
+### Monthly
+
+- [ ] Full evaluation report
+- [ ] Cost optimization review
+- [ ] Security audit
+- [ ] Document update check
+
+---
+
+## Key Thresholds
+
+| Metric          | Warning         | Critical        |
+| --------------- | --------------- | --------------- |
+| P95 Latency     | > 2s            | > 5s            |
+| Error Rate      | > 1%            | > 5%            |
+| Retrieval Empty | > 5%            | > 15%           |
+| Daily Cost      | > 120% baseline | > 200% baseline |
+
+---
+
+## Sign-Off
+
+| Role             | Name | Date | Signature |
+| ---------------- | ---- | ---- | --------- |
+| Engineering Lead |      |      |           |
+| Security Review  |      |      |           |
+| Product Owner    |      |      |           |
+| On-Call Engineer |      |      |           |

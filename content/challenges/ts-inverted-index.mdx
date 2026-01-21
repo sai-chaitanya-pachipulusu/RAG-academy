@@ -1,0 +1,23 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Build an inverted index — the data structure that powers keyword search.
+</Callout>
+
+## Why this matters in production
+
+Inverted indexes power Elasticsearch, Lucene, and every text search engine. Understanding this is foundational for hybrid RAG where you combine keyword and semantic search.
+
+## What you're implementing
+
+- Build: map terms → list of (docId, positions).
+- Track document lengths for BM25 scoring.
+- Search: find documents containing all query terms.
+
+## Common pitfalls
+
+- Not handling case sensitivity.
+- Forgetting to track term positions for phrase queries.
+
+## After you pass
+
+Use your inverted index with **BM25 Scoring** for full-text search.
+

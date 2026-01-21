@@ -1,0 +1,122 @@
+﻿---
+title: "Overlapping Chunking: Preserving Context"
+description: "Learn how overlap prevents losing context at chunk boundaries"
+difficulty: "easy"
+timeEstimate: "15-20 min"
+xpReward: 35
+prerequisites: ["fixed-size-chunking-fundamentals"]
+---
+
+# Overlapping Chunking: Preserving Context
+
+## The Problem with Fixed-Size
+
+Fixed-size chunking creates **boundary blindness**:
+
+```
+Query: "machine learning"
+
+Chunk 1: "...studied machin"
+Chunk 2: "e learning is..."
+
+Neither chunk matches the query!
+```
+
+---
+
+## The Insight
+
+By **overlapping** content between chunks, the same information appears in multiple views. At least ONE chunk will contain the complete phrase.
+
+---
+
+## The Algorithm
+
+```python
+def overlap_chunk(text: str, chunk_size: int, overlap: int) -> List[str]:
+    step = chunk_size - overlap
+    chunks = []
+    i = 0
+    while i < len(text):
+        chunks.append(text[i:i + chunk_size])
+        i += step
+    return chunks
+```
+
+**Visual** (chunk_size=10, overlap=3):
+
+```
+Text:    [0123456789][ABCDEFGHIJ]
+Chunk 1: [0123456789]
+Chunk 2:        [789ABCDEFG]   ← "789" appears in BOTH chunks
+Chunk 3:              [DEFGHIJ...]
+```
+
+---
+
+## The Improvement
+
+Research shows:
+
+- **15-25% better recall** on queries that span chunk boundaries
+- Overlap of 10-20% is the sweet spot
+- Higher overlap = more chunks = higher cost
+
+---
+
+## ⚖️ Tradeoffs
+
+### Pros
+
+- ✅ Preserves context at boundaries
+- ✅ Better retrieval for boundary-crossing queries
+- ✅ Simple to implement
+
+### Cons
+
+- ❌ More chunks = more storage
+- ❌ More chunks = more embedding cost
+- ❌ Still cuts mid-sentence
+
+---
+
+## Industry Standard
+
+This is the **default in production**:
+
+| Framework     | Default Settings   |
+| ------------- | ------------------ |
+| LangChain     | 200-char overlap   |
+| LlamaIndex    | 20% overlap        |
+| Pinecone Docs | 10-20% recommended |
+
+---
+
+## Cost Calculation
+
+For 10,000 chars with chunk_size=500:
+
+- **No overlap**: 20 chunks
+- **10% overlap (50 chars)**: ~22 chunks (+10%)
+- **20% overlap (100 chars)**: ~25 chunks (+25%)
+
+The marginal cost is usually worth the retrieval improvement.
+
+---
+
+## Key Insight
+
+Overlap is the first example of a RAG tradeoff:
+
+> "Better retrieval quality costs more storage/compute"
+
+You'll see this pattern throughout RAG optimization.
+
+---
+
+## Related Challenges
+
+- `fixed-size-chunking-fundamentals` - The baseline
+- `sentence-based-chunking` - Better than overlap for linguistic content
+- `sliding-window-chunking` - Maximum overlap for critical documents
+

@@ -1,0 +1,88 @@
+---
+title: "Welcome to RAG Academy"
+description: "How this platform works: learn → build → compare → specialize."
+order: 0
+estimatedMinutes: 10
+stage: foundations
+prereqs: []
+next:
+  phase: phase-0
+  slug: why-rag-exists
+outcomes:
+  - "Understand the learning loop (Learn → Challenge → Compare → Ship)."
+  - "Know where to start and how to avoid getting overwhelmed."
+  - "Use challenges as the primary way to learn (not passive reading)."
+tags: ["foundations", "meta", "learning"]
+sources:
+  - title: "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks (Lewis et al., 2020)"
+    url: "https://arxiv.org/abs/2005.11401"
+    type: "paper"
+    authors: "Patrick Lewis et al."
+    year: 2020
+  - title: "RAG Triad (Context Relevance, Groundedness, Answer Relevance) — concept popularized by evaluation tooling"
+    url: "https://docs.ragas.io/en/stable/concepts/metrics/"
+    type: "docs"
+    note: "Evaluation mindset"
+  - title: "OpenAI cookbook: RAG / retrieval patterns"
+    url: "https://cookbook.openai.com/"
+    type: "docs"
+    note: "Search for retrieval / RAG patterns"
+---
+
+<Callout title="How to use this course" variant="info">
+  Read the lesson, then immediately do the linked coding challenge(s). You’ll learn RAG fastest by implementing the primitives yourself.
+</Callout>
+
+## Goals
+
+- Learn how to navigate the platform without getting lost.
+- Internalize the “build order”: fundamentals → retrieval → rerank → safety → eval → harden.
+- Treat challenges as the primary learning unit.
+
+## Prereqs
+
+None.
+
+## Core idea
+
+We optimize for **production competence**, not passive watching:
+
+- **Code-first**: every concept has a challenge.
+- **Failure-mode driven**: you’ll learn why systems break, not just the “happy path”.
+- **From scratch → production**: implement the core algorithm, then learn the real-world constraints.
+
+The learning loop:
+
+1. **Learn** the concept (short lesson)
+2. **Build** the primitive (challenge)
+3. **Measure** (tests + later: retrieval metrics + groundedness checks)
+4. **Iterate** (hints + debugging tools)
+
+## Failure modes
+
+- **Reading without building**: you will *feel* like you understand but won’t be able to debug real systems.
+- **Random technique hopping**: you’ll collect methods without knowing when to use them.
+- **Skipping measurement**: you’ll “improve” the system without knowing if it got better.
+
+## Production defaults
+
+- Follow the Study Plan for the default sequence: baseline retrieval → hybrid → rerank → context shaping → safety → eval.
+- Use Compare pages when you’re stuck choosing between tools/techniques.
+
+## Do next
+
+In this phase you’ll learn the minimal pieces that every RAG system needs:
+
+- vectors + similarity
+- chunking
+- basic retrieval
+- prompting patterns
+
+<ChallengeLinks
+  title="Start here (Phase 0)"
+  slugs={["dot-product", "cosine-similarity", "euclidean-distance"]}
+/>
+
+Then read: **Why RAG Exists** → `/learn/phase-0/why-rag-exists`.
+
+

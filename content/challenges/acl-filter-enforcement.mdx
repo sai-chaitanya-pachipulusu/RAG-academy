@@ -1,0 +1,22 @@
+﻿<Callout title="Goal" variant="info">
+  Enforce **ACL/role filters at retrieval time** (deny-by-default) so the model never sees unauthorized chunks.
+</Callout>
+
+## Why this matters (non-negotiable)
+
+In production, you cannot rely on prompts like “don’t leak data.”
+
+If unauthorized content is in the retrieved context window, the system can leak it.
+
+So the rule is:
+
+> **ACL first. Retrieval second.**
+
+## What you’ll implement
+
+- Allow if user roles intersect chunk allowed roles
+- Deny by default if ACL metadata is missing
+- Admin override
+
+
+

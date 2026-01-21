@@ -1,0 +1,127 @@
+---
+title: "Context Shaping"
+description: "Turn retrieved chunks into an effective prompt context."
+order: 2
+estimatedMinutes: 25
+stage: post-retrieval
+prereqs:
+  - phase: phase-1
+    slug: query-transforms
+next:
+  phase: phase-1
+  slug: grounding-safety
+outcomes:
+  - "Explain why chunk order and formatting affect answer quality."
+  - "Implement lost-in-the-middle mitigation and context compression."
+  - "Know when to truncate vs. when to rerank more aggressively."
+tags: ["post-retrieval", "context-shaping", "compression", "ordering"]
+sources:
+  - title: "Lost in the Middle paper (arXiv)"
+    url: "https://arxiv.org/abs/2307.03172"
+    type: "paper"
+  - title: "LLMLingua: Prompt compression"
+    url: "https://github.com/microsoft/LLMLingua"
+    type: "repo"
+  - title: "LangChain: Contextual compression"
+    url: "https://python.langchain.com/docs/integrations/retrievers/contextual_compression/"
+    type: "docs"
+---
+
+## Goals
+
+- Understand why retrieval is not enough—how you present context matters.
+- Learn three context shaping techniques: ordering, compression, formatting.
+- Know your token budget and how to stay within it.
+
+## Prereqs
+
+- Read: **Query Transforms** (you should have good retrievals first).
+- Read: **Tokenizers & Context Windows** (token budgets are central here).
+
+## Core idea
+
+### The context problem
+
+You've retrieved 10 relevant chunks. Now what?
+
+Simply concatenating them causes issues:
+- **Lost in the middle**: LLMs attend poorly to middle content.
+- **Token overflow**: exceeding context window truncates important info.
+- **Irrelevant noise**: low-relevance chunks dilute good evidence.
+
+### Three shaping techniques
+
+**1. Ordering (Lost-in-the-Middle Mitigation)**
+
+Place the most relevant chunks at the **start** and **end** of context:
+```
+[Best chunk 1]
+[Best chunk 2]
+[Less relevant...]
+[Less relevant...]
+[Best chunk 3]
+[Best chunk 4]
+```
+
+Research shows LLMs attend better to the edges of their context.
+
+**2. Compression**
+
+Reduce token count while preserving meaning:
+- **Extractive**: keep only relevant sentences from each chunk
+- **Abstractive**: summarize each chunk into key points
+- **LLMLingua-style**: use a small model to remove filler tokens
+
+Compression can reduce context by 50-70% with minimal quality loss.
+
+**3. Formatting**
+
+Structure context for the LLM:
+```
+Source [1]: {title}
+---
+{chunk text}
+---
+
+Source [2]: {title}
+...
+```
+
+Clear formatting helps the LLM cite correctly and reduces hallucination.
+
+### Token budget math
+
+```
+Total context = system_prompt + user_query + retrieved_chunks + response_buffer
+
+Example (GPT-4o-mini, 128k context):
+- System prompt: ~500 tokens
+- User query: ~100 tokens
+- Response buffer: ~2000 tokens
+- Available for chunks: ~125,000 tokens
+
+But effective attention is much smaller (~16k-32k for best quality).
+```
+
+## Failure modes
+
+- **Over-compression**: removing content that was actually needed.
+- **Wrong ordering**: burying the best evidence in the middle.
+- **Format confusion**: inconsistent formatting leads to citation errors.
+- **Token underutilization**: being too conservative, missing evidence.
+
+## Production defaults
+
+- Rerank to top-5/top-10 before shaping (garbage in → garbage out).
+- Apply lost-in-the-middle ordering: best at start and end.
+- Keep total context under 8k-16k tokens even if model supports more.
+- Add clear source markers for citation grounding.
+
+Canonical reference:
+
+- [RAG Techniques Encyclopedia](/playbooks/rag-techniques-encyclopedia)
+- [Compare: Reranking](/compare/reranking)
+
+## Do next
+
+<ChallengeLinks slugs={["lost-in-the-middle-ordering", "extractive-compression", "token-budget-packing"]} />

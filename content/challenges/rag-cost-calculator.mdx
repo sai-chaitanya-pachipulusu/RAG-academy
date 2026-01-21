@@ -1,0 +1,215 @@
+﻿<Callout title="Goal" variant="info">
+  Build a RAG cost estimator — because "it's just an API call" can become "we
+  spent $50K this month."
+</Callout>
+
+## Why Cost Modeling Matters
+
+A typical RAG query involves:
+
+1. **Embedding the query** (~$0.00002)
+2. **Vector search** (infra cost)
+3. **Reranking** (~$0.002-0.01)
+4. **LLM generation** (~$0.01-0.50)
+
+At 100K queries/day, that's **$1K-$50K/month** just for the LLM.
+
+## Cost Components Breakdown
+
+### 1. Embedding Costs
+
+| Stage                    | Per 1K tokens   | Notes          |
+| ------------------------ | --------------- | -------------- |
+| Query embedding          | $0.00002        | ~20 tokens avg |
+| Doc embedding (indexing) | $0.02/1M tokens | One-time cost  |
+| Re-embedding (updates)   | $0.02/1M tokens | Ongoing        |
+
+### 2. LLM Generation Costs (Dec 2024 pricing)
+
+| Model                | Input/1K tokens | Output/1K tokens | Typical Query Cost |
+| -------------------- | --------------- | ---------------- | ------------------ |
+| GPT-4o               | $2.50           | $10.00           | $0.05-0.15         |
+| GPT-4o-mini          | $0.15           | $0.60            | $0.003-0.01        |
+| Claude 3.5 Sonnet    | $3.00           | $15.00           | $0.06-0.20         |
+| Claude 3.5 Haiku     | $0.25           | $1.25            | $0.005-0.02        |
+| Gemini 1.5 Pro       | $1.25           | $5.00            | $0.03-0.08         |
+| Gemini 1.5 Flash     | $0.075          | $0.30            | $0.002-0.005       |
+| Llama 3.1 70B (Groq) | $0.59           | $0.79            | $0.01-0.02         |
+| Llama 3.1 8B (Groq)  | $0.05           | $0.08            | $0.001-0.003       |
+
+### 3. Reranker Costs
+
+| Provider    | Model         | Cost per 1K docs |
+| ----------- | ------------- | ---------------- |
+| Cohere      | rerank-v3     | $2.00            |
+| Voyage      | rerank-2      | $0.05            |
+| Self-hosted | cross-encoder | GPU cost only    |
+
+### 4. Vector DB Costs (monthly)
+
+| Provider       | Tier       | Vectors   | Monthly      |
+| -------------- | ---------- | --------- | ------------ |
+| Pinecone       | Starter    | 100K      | Free         |
+| Pinecone       | Standard   | 1M        | $70          |
+| Pinecone       | Enterprise | 10M+      | $700+        |
+| Qdrant Cloud   | Free       | 1M        | Free         |
+| Qdrant Cloud   | Pro        | 10M       | $160         |
+| Weaviate Cloud | Sandbox    | 100K      | Free         |
+| Weaviate Cloud | Standard   | 5M        | $135         |
+| Self-hosted    | -          | Unlimited | Compute cost |
+
+## Cost Calculator Implementation
+
+```python
+from dataclasses import dataclass
+from typing import Optional
+
+@dataclass
+class RAGCostConfig:
+    # Embedding costs (per 1M tokens)
+    embedding_cost_per_1m: float = 0.02  # text-embedding-3-small
+
+    # LLM costs (per 1K tokens)
+    llm_input_cost_per_1k: float = 0.15  # GPT-4o-mini
+    llm_output_cost_per_1k: float = 0.60
+
+    # Reranker costs (per 1K docs)
+    reranker_cost_per_1k: float = 0.05  # Voyage rerank
+
+    # Average query/response sizes (tokens)
+    avg_query_tokens: int = 25
+    avg_context_tokens: int = 2000  # 4-5 chunks
+    avg_response_tokens: int = 250
+
+    # Retrieval config
+    retrieve_k: int = 20
+    rerank_enabled: bool = True
+
+
+def estimate_query_cost(config: RAGCostConfig) -> float:
+    """Estimate cost per RAG query."""
+
+    # 1. Query embedding
+    embedding_cost = (config.avg_query_tokens / 1_000_000) * config.embedding_cost_per_1m
+
+    # 2. Reranking (if enabled)
+    rerank_cost = 0
+    if config.rerank_enabled:
+        rerank_cost = (config.retrieve_k / 1000) * config.reranker_cost_per_1k
+
+    # 3. LLM generation
+    total_input_tokens = config.avg_query_tokens + config.avg_context_tokens
+    llm_input_cost = (total_input_tokens / 1000) * config.llm_input_cost_per_1k
+    llm_output_cost = (config.avg_response_tokens / 1000) * config.llm_output_cost_per_1k
+
+    total = embedding_cost + rerank_cost + llm_input_cost + llm_output_cost
+    return total
+
+
+def estimate_monthly_cost(
+    queries_per_day: int,
+    config: RAGCostConfig
+) -> dict:
+    """Estimate monthly RAG costs."""
+
+    per_query = estimate_query_cost(config)
+    monthly_queries = queries_per_day * 30
+
+    return {
+        "per_query": per_query,
+        "daily": per_query * queries_per_day,
+        "monthly": per_query * monthly_queries,
+        "yearly": per_query * monthly_queries * 12,
+    }
+
+
+# Example usage
+config = RAGCostConfig(
+    embedding_cost_per_1m=0.02,  # text-embedding-3-small
+    llm_input_cost_per_1k=0.15,  # GPT-4o-mini
+    llm_output_cost_per_1k=0.60,
+    reranker_cost_per_1k=0.05,  # Voyage
+)
+
+costs = estimate_monthly_cost(10_000, config)  # 10K queries/day
+print(f"Per query: ${costs['per_query']:.4f}")
+print(f"Monthly: ${costs['monthly']:.2f}")
+```
+
+## Cost Optimization Strategies
+
+### 1. Model Tiering (Route by Complexity)
+
+```python
+def route_query(query: str, retrieved_confidence: float) -> str:
+    """Route to cheap or expensive model based on confidence."""
+    if retrieved_confidence > 0.9 and len(query) < 50:
+        return "gpt-4o-mini"  # Fast path: simple query, high confidence
+    elif retrieved_confidence < 0.5:
+        return "gpt-4o"  # Slow path: need reasoning
+    else:
+        return "gpt-4o-mini"  # Default: cheap model
+```
+
+### 2. Caching (Huge Savings)
+
+| Cache Type             | Hit Rate | Savings             |
+| ---------------------- | -------- | ------------------- |
+| Embedding cache        | 90%+     | 90% embedding costs |
+| Semantic query cache   | 20-50%   | 20-50% LLM costs    |
+| Response cache (exact) | 5-15%    | 5-15% total costs   |
+
+### 3. Context Compression
+
+| Technique            | Token Reduction | Quality Impact |
+| -------------------- | --------------- | -------------- |
+| Extractive summary   | 40-60%          | Low            |
+| LLMLingua-2          | 50-70%          | Low-Medium     |
+| Fewer chunks (5 → 3) | 40%             | Medium         |
+| Shorter chunks       | 20-30%          | Low            |
+
+### 4. Batch Processing
+
+- Batch embeddings (save on API overhead)
+- Batch reranking (Cohere supports batches)
+- Async processing for non-urgent queries
+
+## Example: 10K Queries/Day Cost Comparison
+
+| Configuration                                            | Per Query | Monthly |
+| -------------------------------------------------------- | --------- | ------- |
+| **Expensive**: GPT-4o + Cohere rerank + voyage-3         | $0.18     | $54,000 |
+| **Balanced**: GPT-4o-mini + Voyage rerank + text-3-small | $0.012    | $3,600  |
+| **Budget**: Llama 3.1 8B + no rerank + open-source embed | $0.002    | $600    |
+| **Hybrid routing** (80% cheap, 20% expensive)            | $0.04     | $12,000 |
+
+## Edge Cases to Handle
+
+1. **Token counting precision**: Use tiktoken for exact counts, not estimates
+2. **Retry costs**: Failed requests still cost money (input tokens)
+3. **Streaming overhead**: Streaming may have different pricing
+4. **Hidden costs**: Logging, monitoring, egress fees
+5. **Rate limit delays**: Time is money — factor in SLA costs
+
+## Production Monitoring
+
+Track these metrics:
+
+```python
+RAG_COST_METRICS = {
+    "embedding_tokens_total": Counter(),
+    "llm_input_tokens_total": Counter(),
+    "llm_output_tokens_total": Counter(),
+    "rerank_docs_total": Counter(),
+    "cache_hits": Counter(),
+    "cache_misses": Counter(),
+    "model_usage": Counter(labels=["model"]),
+}
+```
+
+Set alerts for:
+
+- Daily spend > 120% of budget
+- Average query cost > threshold
+- Cache hit rate < expected
+

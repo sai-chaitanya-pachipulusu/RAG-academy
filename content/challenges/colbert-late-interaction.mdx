@@ -1,0 +1,265 @@
+﻿<Callout title="Goal" variant="info">
+  Understand ColBERT and late interaction models — token-level embeddings for
+  superior retrieval quality.
+</Callout>
+
+## The Problem with Single-Vector Representations
+
+Standard embeddings compress an entire document into one vector:
+
+```
+"The quick brown fox jumps over the lazy dog"
+     ↓
+[0.12, -0.34, 0.56, ...]  ← 768 dimensions
+```
+
+This forces the model to compress ALL information into a fixed representation.
+
+**Result**: Fine-grained matching is lost.
+
+## ColBERT's Approach: Late Interaction
+
+ColBERT (Contextualized Late Interaction over BERT) keeps one vector **per token**:
+
+```
+Query:    "quick brown fox"
+           ↓
+          [v_quick, v_brown, v_fox]  ← 3 vectors
+
+Document: "The quick brown fox jumps over the lazy dog"
+           ↓
+          [v_The, v_quick, v_brown, v_fox, v_jumps, ...]  ← 9 vectors
+```
+
+Then computes similarity using **MaxSim**:
+
+```
+Score = Σ max(q_i · d_j for all j)
+        for all query tokens i
+```
+
+For each query token, find the maximum similarity with ANY document token, then sum.
+
+## Why MaxSim Works
+
+| Query Token | Best Match in Doc | Score    |
+| ----------- | ----------------- | -------- |
+| "quick"     | "quick"           | 0.95     |
+| "brown"     | "brown"           | 0.92     |
+| "fox"       | "fox"             | 0.98     |
+| **Total**   |                   | **2.85** |
+
+Even partial matches score well:
+
+| Query Token | Best Match        | Score    |
+| ----------- | ----------------- | -------- |
+| "fast"      | "quick" (synonym) | 0.75     |
+| "brown"     | "brown"           | 0.92     |
+| "fox"       | "fox"             | 0.98     |
+| **Total**   |                   | **2.65** |
+
+## Implementation
+
+### Basic ColBERT Scoring
+
+```python
+import torch
+import torch.nn.functional as F
+
+def colbert_score(query_embeddings: torch.Tensor, doc_embeddings: torch.Tensor) -> float:
+    """
+    Compute ColBERT MaxSim score.
+
+    query_embeddings: (num_query_tokens, dim)
+    doc_embeddings: (num_doc_tokens, dim)
+    """
+    # Compute all pairwise similarities
+    # (num_query_tokens, num_doc_tokens)
+    similarities = query_embeddings @ doc_embeddings.T
+
+    # Max over document tokens for each query token
+    max_per_query_token = similarities.max(dim=1).values
+
+    # Sum over query tokens
+    return max_per_query_token.sum().item()
+```
+
+### Using ColBERT v2
+
+```python
+from colbert import Searcher
+from colbert.infra import ColBERTConfig
+
+# Setup
+config = ColBERTConfig(
+    doc_maxlen=300,
+    query_maxlen=32,
+    checkpoint="colbert-ir/colbertv2.0"
+)
+
+# Index documents (offline)
+indexer = Indexer(checkpoint="colbert-ir/colbertv2.0", config=config)
+indexer.index(name="my_index", collection=documents)
+
+# Search (online)
+searcher = Searcher(index="my_index", config=config)
+results = searcher.search("what is machine learning", k=10)
+```
+
+### Using RAGatouille (Simpler API)
+
+```python
+from ragatouille import RAGPretrainedModel
+
+# Load model
+rag = RAGPretrainedModel.from_pretrained("colbert-ir/colbertv2.0")
+
+# Index documents
+rag.index(
+    collection=documents,
+    index_name="my_index",
+    max_document_length=300
+)
+
+# Search
+results = rag.search("what is machine learning", k=10)
+```
+
+## ColBERT vs Single-Vector vs Cross-Encoder
+
+| Aspect          | Single-Vector | ColBERT       | Cross-Encoder     |
+| --------------- | ------------- | ------------- | ----------------- |
+| Quality         | Good          | Excellent     | Best              |
+| Speed           | Fast (1ms)    | Medium (10ms) | Slow (100ms)      |
+| Storage         | 3KB/doc       | 30KB/doc      | N/A               |
+| Offline compute | Embed only    | Embed + store | None              |
+| Online compute  | Dot product   | MaxSim        | Full forward pass |
+
+## PLAID: Making ColBERT Faster
+
+ColBERT's token-level storage is expensive. PLAID (2022) speeds it up:
+
+1. **Centroids**: Cluster document token embeddings
+2. **Candidate generation**: Find docs with matching centroids
+3. **Decompression**: Only decompress promising candidates
+4. **MaxSim**: Compute on decompressed candidates only
+
+```python
+# PLAID-style two-stage search
+def plaid_search(query_embeddings, index, k=10):
+    # Stage 1: Find candidate documents via centroid matching
+    query_centroids = find_nearest_centroids(query_embeddings)
+    candidate_doc_ids = index.get_docs_by_centroids(query_centroids)
+
+    # Stage 2: Compute MaxSim only on candidates
+    scores = []
+    for doc_id in candidate_doc_ids[:1000]:
+        doc_embeddings = index.decompress(doc_id)
+        score = colbert_score(query_embeddings, doc_embeddings)
+        scores.append((score, doc_id))
+
+    return sorted(scores, reverse=True)[:k]
+```
+
+## ColBERT Variants
+
+| Model      | Year | Key Innovation                |
+| ---------- | ---- | ----------------------------- |
+| ColBERT    | 2020 | Original MaxSim               |
+| ColBERT v2 | 2021 | Better training, distillation |
+| ColBERTer  | 2022 | Entity-centric retrieval      |
+| PLAID      | 2022 | Efficient indexing            |
+| ColPali    | 2024 | Vision (image pages)          |
+
+## ColPali: ColBERT for Images
+
+ColPali applies late interaction to document images:
+
+```python
+from colpali import ColPali
+from pdf2image import convert_from_path
+
+# Load model
+model = ColPali.from_pretrained("vidore/colpali")
+
+# Index PDF pages as images
+pages = convert_from_path("document.pdf")
+page_embeddings = [model.encode_image(page) for page in pages]
+
+# Search with text query
+query_embedding = model.encode_text("revenue growth chart")
+scores = [colbert_score(query_embedding, page_emb) for page_emb in page_embeddings]
+```
+
+No OCR needed! The model "sees" the page layout directly.
+
+## Benchmarks
+
+| Model          | MS MARCO MRR@10 | BEIR Average |
+| -------------- | --------------- | ------------ |
+| BM25           | 18.4            | 44.2         |
+| DPR            | 31.1            | 41.1         |
+| Contriever     | 33.8            | 45.9         |
+| **ColBERT v2** | **39.7**        | **50.2**     |
+| Cross-Encoder  | 43.5            | 52.1         |
+
+ColBERT v2 closes 60% of the gap between dense retrieval and cross-encoders.
+
+## Storage Considerations
+
+| 1M Documents     | Single-Vector | ColBERT |
+| ---------------- | ------------- | ------- |
+| Avg tokens/doc   | N/A           | 150     |
+| Storage (768d)   | 3 GB          | 450 GB  |
+| Storage (128d)   | 0.5 GB        | 75 GB   |
+| With compression | 0.2 GB        | 15 GB   |
+
+ColBERT uses 10-50x more storage but provides significantly better quality.
+
+## When to Use ColBERT
+
+**Use ColBERT when:**
+
+- Quality is critical (legal, medical, research)
+- You have storage budget
+- Queries benefit from fine-grained matching
+- Cross-encoder latency is too high
+
+**Stick with single-vector when:**
+
+- Scale is massive (>100M docs) without compression budget
+- Latency must be <5ms
+- Simple semantic matching is sufficient
+- Storage is limited
+
+## Hybrid: ColBERT as Reranker
+
+Use ColBERT as a middle ground between retriever and cross-encoder:
+
+```python
+def hybrid_with_colbert(query: str, k: int = 10):
+    # Stage 1: Fast retrieval (BM25 + dense)
+    candidates = hybrid_retrieve(query, k=100)
+
+    # Stage 2: ColBERT rerank
+    query_emb = colbert.encode_query(query)
+    scores = []
+    for doc_id in candidates:
+        doc_emb = colbert.get_doc_embedding(doc_id)
+        score = colbert_score(query_emb, doc_emb)
+        scores.append((score, doc_id))
+
+    return sorted(scores, reverse=True)[:k]
+```
+
+This gets most of ColBERT's quality without full index storage.
+
+## Production Checklist
+
+- [ ] Benchmark on your domain
+- [ ] Calculate storage requirements
+- [ ] Consider compression (reduced dims, quantization)
+- [ ] Implement PLAID-style candidate filtering
+- [ ] Test as reranker before full index
+- [ ] Monitor latency at scale
+

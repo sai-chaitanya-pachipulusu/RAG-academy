@@ -1,0 +1,30 @@
+﻿<Callout title="Goal" variant="info">
+  Parse the "Thought/Action/Observation" loop output from an LLM.
+</Callout>
+
+## The ReAct Pattern
+
+**ReAct** (Reason + Act) is the prompting pattern that enabled modern agents.
+Instead of just asking for an answer, we ask the model to "think out loud."
+
+Format:
+
+```text
+Thought: I need to check the stock price.
+Action: stock_api
+Action Input: AAPL
+Observation: 150.00
+Thought: The price is 150. I can answer now.
+Answer: The price of Apple is $150.
+```
+
+## Why parsing matters
+
+LLMs output text. To make them "do" things, you need a reliable parser that can extract the `Action` and `Input` so your code can execute the function.
+If the parser fails, the agent crashes.
+
+## Implementation details
+
+- You typically use **RegEx** or strict **JSON mode** to enforce this structure.
+- The `Thought` trace is crucial for debugging—it shows you _why_ the agent chose a tool.
+

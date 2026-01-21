@@ -1,0 +1,25 @@
+﻿---
+title: "Answer Relevance Evaluator"
+description: "Grade how well an answer directly addresses the user's question."
+---
+
+# Answer Relevance Evaluator
+
+A RAG system is only as good as the value it provides to the user. Even if an answer is 100% factually correct (Faithful), it's useless if it doesn't actually answer the user's specific question.
+
+### The Problem: Answer Drift
+
+Sometimes an LLM gets distracted by interesting but irrelevant facts in the retrieved context. It might provide a great summary of a document that has nothing to do with the original prompt.
+
+### Your Task
+
+Implement a basic **Relevance Scorer**:
+
+- Compare the `query` and the `answer`.
+- Use a heuristic (like keyword overlap or cosine similarity) to determine if the answer is on-topic.
+- Return a score between 0.0 and 1.0.
+
+### Real-World Evaluation
+
+In production, we use **LLM-as-a-Judge** (like RAGAS or Arize Phoenix) where a stronger model (e.g., GPT-4) is prompted to grade the relevance of a smaller model's output. This creates a feedback loop for continuous prompt and retrieval optimization.
+

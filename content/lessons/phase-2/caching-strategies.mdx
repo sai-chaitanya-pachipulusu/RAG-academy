@@ -1,0 +1,257 @@
+---
+title: "Caching Strategies"
+description: "Reduce latency and cost with smart caching at every layer."
+order: 7
+estimatedMinutes: 25
+stage: production-ops
+prereqs:
+  - phase: phase-2
+    slug: metadata-filtering
+next:
+  phase: phase-2
+  slug: cost-optimization
+outcomes:
+  - "Implement embedding, retrieval, and semantic caches."
+  - "Design cache invalidation strategies."
+  - "Know when caching helps vs hurts."
+tags: ["caching", "performance", "latency", "cost"]
+sources:
+  - title: "Anthropic: Prompt Caching"
+    url: "https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching"
+    type: "docs"
+  - title: "GPTCache: Semantic Caching"
+    url: "https://github.com/zilliztech/GPTCache"
+    type: "repo"
+  - title: "Redis: Caching Patterns"
+    url: "https://redis.io/docs/manual/patterns/"
+    type: "docs"
+---
+
+## Goals
+
+- Understand caching opportunities in RAG pipelines.
+- Implement safe caching with proper invalidation.
+- Balance cache hit rate vs freshness.
+
+## Prereqs
+
+- Read: **Metadata Filtering** (understand retrieval flow).
+
+## Core idea
+
+### Where to cache in RAG
+
+```
+User Query
+    ↓
+[1] Query Embedding Cache  ← Cache embeddings
+    ↓
+[2] Retrieval Results Cache  ← Cache search results
+    ↓
+[3] Reranking Cache  ← Cache rerank scores
+    ↓
+[4] Semantic Response Cache  ← Cache full answers
+    ↓
+Response
+```
+
+### Cache types and their tradeoffs
+
+| Cache Type | Hit Rate | Invalidation | Risk |
+|------------|----------|--------------|------|
+| **Embedding** | High | Never (deterministic) | None |
+| **Retrieval** | Medium | On index update | Stale results |
+| **Semantic** | Low-Medium | Complex | Wrong answers |
+
+### 1. Embedding cache (SAFE)
+
+Embeddings are deterministic—same input always produces same output:
+
+```python
+class EmbeddingCache:
+    def __init__(self, redis_client):
+        self.redis = redis_client
+        self.model_version = "text-embedding-3-small-v1"
+    
+    def _cache_key(self, text: str) -> str:
+        """Deterministic cache key."""
+        text_hash = hashlib.sha256(text.encode()).hexdigest()[:16]
+        return f"emb:{self.model_version}:{text_hash}"
+    
+    def get_embedding(self, text: str) -> List[float]:
+        """Get embedding, using cache if available."""
+        key = self._cache_key(text)
+        
+        # Try cache
+        cached = self.redis.get(key)
+        if cached:
+            return json.loads(cached)
+        
+        # Compute and cache
+        embedding = self.embedding_model.embed(text)
+        self.redis.set(key, json.dumps(embedding), ex=86400 * 30)  # 30 days
+        
+        return embedding
+```
+
+<Callout title="Key insight" variant="success">
+  Embedding caching is free performance. Always do it. No invalidation needed unless you change models.
+</Callout>
+
+### 2. Retrieval results cache (CAREFUL)
+
+Cache search results, but invalidate on index updates:
+
+```python
+class RetrievalCache:
+    def __init__(self, redis_client):
+        self.redis = redis_client
+        self.index_version = "v1.2.3"  # Update on index changes
+    
+    def _cache_key(self, query: str, filters: Dict) -> str:
+        """Cache key includes index version."""
+        query_hash = hashlib.sha256(query.encode()).hexdigest()[:16]
+        filter_hash = hashlib.sha256(
+            json.dumps(filters, sort_keys=True).encode()
+        ).hexdigest()[:8]
+        return f"ret:{self.index_version}:{query_hash}:{filter_hash}"
+    
+    def get_results(
+        self, 
+        query: str, 
+        filters: Dict,
+        retriever: Callable
+    ) -> List[str]:
+        """Get retrieval results with caching."""
+        key = self._cache_key(query, filters)
+        
+        cached = self.redis.get(key)
+        if cached:
+            return json.loads(cached)
+        
+        results = retriever(query, filters)
+        self.redis.set(key, json.dumps(results), ex=3600)  # 1 hour
+        
+        return results
+    
+    def invalidate_all(self):
+        """Call this when index is updated."""
+        self.index_version = f"v{int(time.time())}"
+```
+
+### 3. Semantic response cache (RISKY)
+
+Cache full answers for repeated questions:
+
+```python
+class SemanticCache:
+    def __init__(self, vector_db, threshold: float = 0.95):
+        self.vector_db = vector_db
+        self.threshold = threshold
+        self.embedding_model = get_embedding_model()
+    
+    def get_cached_response(self, query: str) -> Optional[str]:
+        """
+        Find semantically similar cached query.
+        """
+        query_embedding = self.embedding_model.embed(query)
+        
+        results = self.vector_db.query(
+            vector=query_embedding,
+            top_k=1,
+            include_metadata=True
+        )
+        
+        if results and results[0].score >= self.threshold:
+            return results[0].metadata["response"]
+        
+        return None
+    
+    def cache_response(self, query: str, response: str):
+        """Cache a query-response pair."""
+        query_embedding = self.embedding_model.embed(query)
+        
+        self.vector_db.upsert([{
+            "id": hashlib.sha256(query.encode()).hexdigest()[:16],
+            "values": query_embedding,
+            "metadata": {
+                "query": query,
+                "response": response,
+                "cached_at": datetime.now().isoformat(),
+            }
+        }])
+```
+
+<Callout title="Warning" variant="warning">
+  Semantic caching can return stale or wrong answers. Use high thresholds (0.95+) and short TTLs.
+</Callout>
+
+### 4. LLM prompt caching (PROVIDER-SPECIFIC)
+
+Some providers cache large prompts server-side:
+
+```python
+# Anthropic prompt caching
+response = client.messages.create(
+    model="claude-3-5-sonnet-20241022",
+    max_tokens=1024,
+    system=[
+        {
+            "type": "text",
+            "text": LARGE_SYSTEM_PROMPT,  # Will be cached
+            "cache_control": {"type": "ephemeral"}
+        }
+    ],
+    messages=[{"role": "user", "content": user_query}]
+)
+
+# Check cache usage
+print(f"Cache read tokens: {response.usage.cache_read_input_tokens}")
+print(f"Cache write tokens: {response.usage.cache_creation_input_tokens}")
+```
+
+### Cache invalidation strategies
+
+| Strategy | When to Use | Complexity |
+|----------|-------------|------------|
+| **TTL-based** | Time-insensitive data | Low |
+| **Version-based** | Index updates | Medium |
+| **Event-driven** | Document changes | High |
+| **Hybrid** | Production systems | High |
+
+```python
+class CacheInvalidator:
+    def on_document_update(self, doc_id: str):
+        """Invalidate caches when a document changes."""
+        # 1. Invalidate retrieval cache for this doc
+        self.retrieval_cache.invalidate_by_doc(doc_id)
+        
+        # 2. Invalidate semantic cache entries that used this doc
+        self.semantic_cache.invalidate_by_source(doc_id)
+        
+        # 3. Bump index version
+        self.retrieval_cache.bump_version()
+    
+    def on_index_rebuild(self):
+        """Full cache invalidation on index rebuild."""
+        self.retrieval_cache.invalidate_all()
+        # Keep embedding cache (still valid)
+```
+
+## Failure modes
+
+1. **No invalidation**: Serving stale results forever.
+2. **Over-caching**: Semantic cache with low threshold → wrong answers.
+3. **Cache stampede**: Many requests hit expired cache simultaneously.
+4. **Memory bloat**: Unbounded cache growth.
+
+## Production defaults
+
+- **Embedding cache**: Always enable, 30-day TTL.
+- **Retrieval cache**: Enable with version-based invalidation, 1-hour TTL.
+- **Semantic cache**: Disable by default; enable only for stable, high-volume queries.
+- **Prompt caching**: Enable if provider supports it.
+
+## Do next
+
+<ChallengeLinks slugs={["embedding-cache", "semantic-caching", "retrieval-cache-key"]} />

@@ -1,0 +1,21 @@
+﻿<Callout title="Goal" variant="info">
+  Implement **weighted Reciprocal Rank Fusion (RRF)** to bias hybrid fusion toward the retriever you trust more.
+</Callout>
+
+## Why this matters
+
+Plain RRF is a great default because it’s hard to break.
+
+But sometimes you have evidence that one retriever should dominate:
+
+- Keyword-heavy corpora (IDs, error codes) → sparse/BM25 should weigh more.
+- Paraphrase-heavy queries → dense should weigh more.
+
+Weighted RRF is a simple step toward “tunable hybrid” without dealing with score normalization.
+
+## Warning (production reality)
+
+Weights are easy to **overfit**. Only tune them against a labeled set (Recall@k / nDCG), not intuition.
+
+
+

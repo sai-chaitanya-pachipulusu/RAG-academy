@@ -1,0 +1,126 @@
+﻿<Callout title="Goal" variant="info">
+  Build BM25 from scratch to understand why hybrid retrieval wins in production.
+</Callout>
+
+## Why this matters in production
+
+Dense embeddings are great for semantics, but they routinely miss:
+
+- acronyms and abbreviations (API, SDK, RAG)
+- IDs (`api_key`, SKU numbers, invoice IDs, UUIDs)
+- exact phrases and proper nouns
+- rare domain terminology
+
+BM25 (sparse retrieval) is the "boring baseline" that keeps production systems honest.
+
+## Algorithm Overview
+
+### Offline (Indexing)
+
+1. **Tokenize** all documents
+2. Compute **df(t)** — document frequency for each token (how many docs contain it)
+3. Compute **avgdl** — average document length across corpus
+4. Store the inverted index: token → list of (doc_id, tf)
+
+### Online (Query Time)
+
+1. **Tokenize** the query
+2. For each doc, compute BM25 score using the formula below
+3. Return top-k candidates
+
+## The BM25 Formula
+
+### IDF (Inverse Document Frequency)
+
+This version is the **Robertson-Sparck Jones IDF** with +0.5 smoothing (stable, commonly used):
+
+$$
+\text{idf}(t) = \ln\left(1 + \frac{N - \text{df}(t) + 0.5}{\text{df}(t) + 0.5}\right)
+$$
+
+Where:
+
+- `N` = total number of documents
+- `df(t)` = number of documents containing term `t`
+
+### Term Frequency + Length Normalization
+
+$$
+\text{BM25}(q, d) = \sum_{t \in q} \text{idf}(t) \cdot \frac{\text{tf} \cdot (k_1 + 1)}{\text{tf} + k_1 \cdot \left(1 - b + b \cdot \frac{|d|}{\text{avgdl}}\right)}
+$$
+
+Where:
+
+- `tf` = frequency of term t in document d
+- `|d|` = document length (token count)
+- `avgdl` = average document length
+- `k1` = term frequency saturation (default: 1.2-2.0)
+- `b` = length normalization (default: 0.75)
+
+## Parameter Tuning Guide
+
+| Parameter | Range   | Effect                                   |
+| --------- | ------- | ---------------------------------------- |
+| **k1**    | 1.2-2.0 | Higher = more weight to repeated terms   |
+| **b**     | 0.0-1.0 | Higher = more penalty for long documents |
+
+**Defaults**: `k1=1.5, b=0.75` work well for most corpora.
+
+## Edge Cases (Critical)
+
+| Scenario                 | Handling                                            |
+| ------------------------ | --------------------------------------------------- |
+| Query term not in corpus | Contributes 0 to score (IDF undefined → treat as 0) |
+| Empty document           | Score = 0 (no terms to match)                       |
+| Empty query              | Return empty results                                |
+| All docs same length     | Length normalization has no effect (b irrelevant)   |
+| Single-word docs         | Can have inflated scores (tune b lower)             |
+| Very rare terms          | High IDF, but not infinite (smoothing handles it)   |
+| Stop words               | Often removed, but BM25 handles them gracefully     |
+
+## IDF Variants (Know the Difference)
+
+| Variant            | Formula                      | Notes                            |
+| ------------------ | ---------------------------- | -------------------------------- |
+| **Classic TF-IDF** | log(N/df)                    | Can be negative for common terms |
+| **Smooth IDF**     | log(1 + N/df)                | Always positive                  |
+| **BM25 IDF**       | log(1 + (N-df+0.5)/(df+0.5)) | Penalizes common terms more      |
+| **Lucene**         | log(1 + (N-df+0.5)/(df+0.5)) | Same as BM25                     |
+
+## Common Implementation Mistakes
+
+1. **df vs tf confusion**: `df` counts DOCUMENTS, `tf` counts OCCURRENCES in one doc
+2. **Forgetting length normalization**: Raw tf favors long documents
+3. **Integer division**: Use float division everywhere
+4. **Zero df handling**: Terms not in corpus should contribute 0, not crash
+5. **Case sensitivity**: Usually you want case-insensitive matching
+
+## BM25 vs Dense Retrieval
+
+| Aspect      | BM25                       | Dense                 |
+| ----------- | -------------------------- | --------------------- |
+| Exact terms | Excellent                  | Poor                  |
+| Semantic    | Poor                       | Excellent             |
+| OOV terms   | Zero match                 | Subword partial match |
+| Speed       | Very fast (inverted index) | Fast (ANN)            |
+| Memory      | Low                        | High (vectors)        |
+| Updates     | Instant                    | Re-embed required     |
+
+## Production Best Practice: Hybrid Search
+
+```python
+# Retrieve from both
+bm25_results = bm25_search(query, k=50)
+dense_results = dense_search(embed(query), k=50)
+
+# Fuse with RRF
+hybrid = rrf_fusion(bm25_results, dense_results, k=60)
+
+# Rerank top candidates
+final = rerank(query, hybrid[:20])[:5]
+```
+
+## After you pass
+
+Next step: do dense retrieval too, then fuse BM25 + dense using **RRF**.
+

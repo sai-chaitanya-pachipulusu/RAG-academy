@@ -1,0 +1,301 @@
+﻿<Callout title="Goal" variant="info">
+  Implement RAPTOR — recursive abstractive processing for tree-organized
+  retrieval that handles both detailed and high-level queries.
+</Callout>
+
+## The Problem with Flat Retrieval
+
+Standard RAG retrieves at one granularity:
+
+```
+Query: "What was Acme Corp's Q3 revenue?"
+→ Finds: Specific chunk with "Q3 revenue: $10M"
+
+Query: "Summarize Acme Corp's financial performance"
+→ Problem: No chunk contains the full summary
+```
+
+## RAPTOR's Solution: Hierarchical Summaries
+
+RAPTOR builds a tree of summaries:
+
+```
+                    [Full Document Summary]
+                           Level 3
+                    /                 \
+           [Section A]            [Section B]
+            Summary                 Summary
+            Level 2                 Level 2
+           /    \                  /    \
+        [Chunk] [Chunk]        [Chunk] [Chunk]
+        Level 1 (Leaves)
+```
+
+**Key insight**: Index ALL levels. Query retrieves from appropriate level.
+
+## RAPTOR Algorithm
+
+### Step 1: Cluster Leaf Chunks
+
+```python
+from sklearn.cluster import KMeans
+import numpy as np
+
+def cluster_chunks(chunks: list[str], embeddings: np.ndarray, k: int = 10) -> dict:
+    """Cluster similar chunks together."""
+    kmeans = KMeans(n_clusters=k, random_state=42)
+    labels = kmeans.fit_predict(embeddings)
+
+    clusters = {}
+    for i, label in enumerate(labels):
+        if label not in clusters:
+            clusters[label] = []
+        clusters[label].append(chunks[i])
+
+    return clusters
+```
+
+### Step 2: Summarize Each Cluster
+
+```python
+def summarize_cluster(chunks: list[str]) -> str:
+    """Create a summary from a cluster of related chunks."""
+    combined = "\n\n".join(chunks)
+
+    prompt = f"""Summarize the key information from these related text chunks.
+Be comprehensive but concise.
+
+Chunks:
+{combined}
+
+Summary:"""
+
+    return llm.generate(prompt)
+```
+
+### Step 3: Build Tree Recursively
+
+```python
+def build_raptor_tree(chunks: list[str], max_levels: int = 3) -> dict:
+    """Build hierarchical summary tree."""
+    tree = {"level_0": chunks}  # Leaves
+
+    current_level = chunks
+    current_embeddings = embed(current_level)
+
+    for level in range(1, max_levels + 1):
+        if len(current_level) <= 5:
+            break  # Too few to cluster further
+
+        # Cluster
+        n_clusters = max(2, len(current_level) // 5)
+        clusters = cluster_chunks(current_level, current_embeddings, n_clusters)
+
+        # Summarize each cluster
+        summaries = []
+        for cluster_chunks in clusters.values():
+            summary = summarize_cluster(cluster_chunks)
+            summaries.append(summary)
+
+        tree[f"level_{level}"] = summaries
+
+        # Prepare for next level
+        current_level = summaries
+        current_embeddings = embed(current_level)
+
+    return tree
+```
+
+### Step 4: Index All Levels
+
+```python
+def build_raptor_index(tree: dict) -> VectorIndex:
+    """Index all levels of the tree."""
+    all_nodes = []
+
+    for level_name, nodes in tree.items():
+        for node in nodes:
+            all_nodes.append({
+                "text": node,
+                "level": level_name,
+                "embedding": embed(node)
+            })
+
+    return create_index(all_nodes)
+```
+
+### Step 5: Query Across Levels
+
+```python
+def raptor_retrieve(query: str, index: VectorIndex, k: int = 5) -> list[str]:
+    """Retrieve from any level of the tree."""
+    query_embedding = embed(query)
+
+    # Search across all levels
+    results = index.search(query_embedding, k=k * 2)
+
+    # Optionally: prefer certain levels based on query type
+    if is_high_level_query(query):
+        # Boost summary nodes
+        for r in results:
+            if "level_2" in r["level"] or "level_3" in r["level"]:
+                r["score"] *= 1.2
+
+    # Resort and return top k
+    results.sort(key=lambda x: x["score"], reverse=True)
+    return [r["text"] for r in results[:k]]
+```
+
+## Full RAPTOR Pipeline
+
+```python
+class RAPTORRetriever:
+    def __init__(self, llm, embedder, max_levels: int = 3, cluster_size: int = 5):
+        self.llm = llm
+        self.embedder = embedder
+        self.max_levels = max_levels
+        self.cluster_size = cluster_size
+        self.tree = None
+        self.index = None
+
+    def index_documents(self, documents: list[str]):
+        """Build RAPTOR tree and index."""
+        # Chunk documents
+        chunks = []
+        for doc in documents:
+            chunks.extend(chunk_text(doc, size=500, overlap=50))
+
+        # Build tree
+        self.tree = self._build_tree(chunks)
+
+        # Index all levels
+        self._build_index()
+
+    def _build_tree(self, chunks: list[str]) -> dict:
+        tree = {"level_0": chunks}
+        current = chunks
+
+        for level in range(1, self.max_levels + 1):
+            if len(current) <= self.cluster_size:
+                break
+
+            embeddings = self.embedder.encode(current)
+            n_clusters = max(2, len(current) // self.cluster_size)
+
+            kmeans = KMeans(n_clusters=n_clusters)
+            labels = kmeans.fit_predict(embeddings)
+
+            # Group by cluster
+            clusters = {}
+            for i, label in enumerate(labels):
+                clusters.setdefault(label, []).append(current[i])
+
+            # Summarize
+            summaries = []
+            for cluster_chunks in clusters.values():
+                summary = self._summarize(cluster_chunks)
+                summaries.append(summary)
+
+            tree[f"level_{level}"] = summaries
+            current = summaries
+
+        return tree
+
+    def _summarize(self, texts: list[str]) -> str:
+        combined = "\n---\n".join(texts)
+        return self.llm.generate(
+            f"Summarize these related passages:\n\n{combined}\n\nSummary:"
+        )
+
+    def _build_index(self):
+        all_docs = []
+        for level, texts in self.tree.items():
+            for text in texts:
+                all_docs.append({"text": text, "level": level})
+
+        embeddings = self.embedder.encode([d["text"] for d in all_docs])
+        self.index = create_vector_index(all_docs, embeddings)
+
+    def retrieve(self, query: str, k: int = 5) -> list[str]:
+        query_emb = self.embedder.encode([query])
+        results = self.index.search(query_emb, k=k)
+        return [r["text"] for r in results]
+```
+
+## RAPTOR vs Other Hierarchical Approaches
+
+| Approach     | Summary Strategy  | When Created  | Flexibility     |
+| ------------ | ----------------- | ------------- | --------------- |
+| RAPTOR       | Cluster + LLM     | Indexing time | Fixed tree      |
+| Parent-Child | None (use parent) | Indexing time | Fixed hierarchy |
+| Map-Reduce   | LLM summary       | Query time    | Flexible        |
+| GraphRAG     | Community summary | Indexing time | Graph structure |
+
+## Cost Analysis
+
+RAPTOR requires LLM calls at indexing time:
+
+| Corpus      | Chunks  | ~Clusters      | ~Summaries | Cost  |
+| ----------- | ------- | -------------- | ---------- | ----- |
+| 1K chunks   | 1,000   | 200 + 40 + 8   | 248        | ~$5   |
+| 10K chunks  | 10,000  | 2K + 400 + 80  | 2,480      | ~$50  |
+| 100K chunks | 100,000 | 20K + 4K + 800 | 24,800     | ~$500 |
+
+**Trade-off**: High upfront cost, but enables high-level queries at no extra per-query cost.
+
+## Benefits
+
+1. **Handles multi-scale queries**: Detail and summary in same index
+2. **Reduces "lost in the middle"**: Summaries capture key info
+3. **Improves global questions**: "What are the main themes?"
+4. **Pre-computed summaries**: No query-time summarization needed
+
+## Limitations
+
+1. **Indexing cost**: LLM calls for summaries
+2. **Static tree**: Doesn't update easily
+3. **Quality depends on**: Clustering and summarization quality
+4. **Storage**: More nodes to store
+
+## When to Use RAPTOR
+
+**Use RAPTOR when:**
+
+- You need to answer both detail and high-level questions
+- Corpus is relatively static
+- You can afford indexing-time LLM costs
+- GraphRAG is overkill (no need for entity extraction)
+
+**Skip RAPTOR when:**
+
+- All queries are detail-focused
+- Corpus updates frequently
+- Budget is very limited
+- Simple parent-child retrieval suffices
+
+## Integration with Hybrid Retrieval
+
+```python
+def raptor_hybrid_retrieve(query: str, k: int = 10):
+    # RAPTOR for semantic matching across levels
+    raptor_results = raptor_retriever.retrieve(query, k=k)
+
+    # BM25 for lexical matching (leaves only)
+    bm25_results = bm25_search(query, corpus=tree["level_0"], k=k)
+
+    # Combine with RRF
+    combined = rrf_fusion([raptor_results, bm25_results])
+
+    # Rerank
+    return rerank(query, combined, top_k=k)
+```
+
+## Production Checklist
+
+- [ ] Tune cluster size for your domain
+- [ ] Test different summarization prompts
+- [ ] Benchmark query latency
+- [ ] Monitor summary quality
+- [ ] Plan for corpus updates (rebuild strategy)
+- [ ] Consider hybrid with BM25
+

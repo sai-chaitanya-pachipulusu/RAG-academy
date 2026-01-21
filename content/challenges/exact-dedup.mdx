@@ -1,0 +1,31 @@
+﻿<Callout title="Goal" variant="info">
+  Remove exact duplicate chunks safely using content hashes.
+</Callout>
+
+## Why this matters in production
+
+Duplicates are everywhere:
+
+- repeated headers/footers in PDFs
+- the same policy repeated across versions
+- ingestion bugs causing re-indexing of identical content
+
+If you don’t dedupe, you get:
+
+- worse retrieval diversity
+- redundant context (token waste)
+- inflated index size and costs
+
+## Offline vs online
+
+- **Offline (ingestion)**: dedupe chunks before embedding/upserting.
+- **Online (context shaping)**: dedupe retrieved candidates before reranking/packing.
+
+## Production extension ideas
+
+- near-duplicate dedup (SimHash/MinHash)
+- store `content_sha1` in metadata
+- track `doc_id` + `chunk_id` provenance for debugging
+
+
+

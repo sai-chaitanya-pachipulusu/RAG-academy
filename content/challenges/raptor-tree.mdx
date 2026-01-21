@@ -1,0 +1,34 @@
+﻿---
+title: "RAPTOR: Recursive Summarization Tree"
+description: "Build a hierarchical tree for multi-level retrieval."
+---
+
+# RAPTOR: Recursive Abstractive Processing for Tree-Organized Retrieval
+
+RAPTOR (from UC Berkeley) solves a fundamental problem: How do you answer both specific and broad queries from the same corpus?
+
+### The Insight
+
+Build a tree:
+
+- **Leaves**: Original text chunks.
+- **Intermediate nodes**: Summaries of their children.
+- **Root**: Summary of the entire document.
+
+### Search Strategy
+
+1. Start at the root.
+2. Score children against the query.
+3. Expand high-scoring branches.
+4. Return leaves from promising branches.
+
+### Your Task
+
+1. Build a RAPTOR tree from chunks using a summarization function.
+2. Implement top-down search with branch pruning.
+
+### Why It Matters
+
+- Specific query: "What's the revenue in Q3?" → Finds the specific leaf.
+- Broad query: "Summarize the financial status" → Uses intermediate summaries.
+

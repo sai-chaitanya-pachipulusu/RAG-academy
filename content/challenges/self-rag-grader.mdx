@@ -1,0 +1,32 @@
+﻿---
+title: "Self-RAG: Retrieval Necessity Predictor"
+description: "Decide whether to retrieve, generate from knowledge, or refuse."
+---
+
+# Self-RAG: Retrieval Necessity Predictor
+
+Not every question needs retrieval. "What is 2+2?" doesn't require searching your vector database.
+
+### The Self-RAG Framework
+
+Before retrieving, ask: **"Do I need external knowledge?"**
+
+| Query Type                          | Decision                    |
+| ----------------------------------- | --------------------------- |
+| "What is the capital of France?"    | Generate (common knowledge) |
+| "What was Apple's Q3 2024 revenue?" | Retrieve (specific data)    |
+| "What does our refund policy say?"  | Retrieve (private data)     |
+| "Tell me a joke"                    | Generate (no facts needed)  |
+
+### Your Task
+
+Implement a classifier that routes queries to:
+
+- **"retrieve"**: Need external/specific data.
+- **"generate"**: Common knowledge, no RAG needed.
+- **"refuse"**: Off-topic or harmful.
+
+### Efficiency Gain
+
+Not running retrieval for 40% of queries = 40% cost savings with no quality loss.
+

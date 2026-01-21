@@ -1,0 +1,217 @@
+﻿---
+title: "Tool Comparison Matrix"
+description: "Compare RAG tools, vector databases, embedding models, and LLMs side-by-side"
+---
+
+# Tool Comparison Matrix
+
+<Callout title="Tool Comparison" variant="info">
+  Compare RAG tools, vector databases, embedding models, and LLMs side-by-side.
+</Callout>
+
+## Vector Databases
+
+### Feature Comparison
+
+| Feature | Pinecone | Weaviate | Qdrant | Milvus | ChromaDB | pgvector |
+| ------- | -------- | -------- | ------ | ------ | -------- | -------- |
+
+| **Deployment** | Managed | Both | Both | Both | Local | DB Extension |
+| **Max Vectors** | 1B+ | 100M+ | 100M+ | 1B+ | 1M | 10M |
+| **Hybrid Search** | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| **Filtering** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Namespaces** | ✅ | Collections | Collections | Collections | Collections | Tables |
+| **Scalability** | Excellent | Good | Good | Excellent | Limited | Limited |
+| **Free Tier** | Limited | ✅ | ✅ | ✅ | ✅ (local) | ✅ |
+
+### Pricing (Estimated)
+
+| Provider       | Free Tier             | Production | Enterprise |
+| -------------- | --------------------- | ---------- | ---------- |
+| Pinecone       | 1 index, 100K vectors | $70+/mo    | Custom     |
+| Weaviate Cloud | Dev tier free         | $25+/mo    | Custom     |
+| Qdrant Cloud   | 1GB free              | $25+/mo    | Custom     |
+| Milvus/Zilliz  | 2 clusters free       | $65+/mo    | Custom     |
+
+### When to Use
+
+| Use Case              | Recommended        |
+| --------------------- | ------------------ |
+| Quick prototyping     | ChromaDB, Qdrant   |
+| Existing Postgres     | pgvector           |
+| Enterprise production | Pinecone, Weaviate |
+| Large scale (1B+)     | Milvus, Pinecone   |
+| Hybrid search         | Weaviate, Qdrant   |
+| Open source only      | Qdrant, Milvus     |
+
+---
+
+## Embedding Models
+
+### Performance Comparison
+
+| Model                  | Provider  | Dim  | MTEB Score | Speed   | Price            |
+| ---------------------- | --------- | ---- | ---------- | ------- | ---------------- |
+| text-embedding-3-large | OpenAI    | 3072 | 64.6       | Fast    | $0.13/1M         |
+| text-embedding-3-small | OpenAI    | 1536 | 62.3       | Fastest | $0.02/1M         |
+| embed-v3               | Cohere    | 1024 | 64.5       | Fast    | $0.10/1M         |
+| voyage-2               | Voyage    | 1024 | 66.5       | Fast    | $0.10/1M         |
+| BGE-large-en-v1.5      | BAAI      | 1024 | 63.5       | Medium  | Free (self-host) |
+| E5-large-v2            | Microsoft | 1024 | 62.0       | Medium  | Free (self-host) |
+| jina-embeddings-v2     | Jina      | 1024 | 61.5       | Fast    | $0.018/1M        |
+
+### When to Use
+
+| Scenario        | Recommended                      |
+| --------------- | -------------------------------- |
+| Best quality    | voyage-2, text-embedding-3-large |
+| Budget-friendly | text-embedding-3-small, jina-v2  |
+| Self-hosted     | BGE-large, E5-large              |
+| Multilingual    | Cohere embed-v3, jina-v2         |
+| Code            | CodeBERT, StarEncoder            |
+
+---
+
+## Reranking Models
+
+| Model              | Provider | Quality   | Latency | Price            |
+| ------------------ | -------- | --------- | ------- | ---------------- |
+| rerank-v3          | Cohere   | Excellent | ~200ms  | $1/1000 queries  |
+| jina-reranker-v1   | Jina     | Very Good | ~100ms  | $0.10/1000       |
+| bge-reranker-large | BAAI     | Good      | ~150ms  | Free (self-host) |
+| ColBERT v2         | Stanford | Excellent | ~50ms   | Free (self-host) |
+
+### When to Rerank
+
+- ✅ High-stakes applications (legal, medical)
+- ✅ Complex queries requiring deep understanding
+- ✅ When you have latency budget (100-300ms)
+- ✅ When base retrieval recall is high but precision is low
+- ❌ Simple keyword queries
+- ❌ Latency-critical applications (<500ms total)
+
+---
+
+## LLMs for Generation
+
+### Model Comparison
+
+| Model             | Context | Quality   | Speed   | Price (1M tokens)     |
+| ----------------- | ------- | --------- | ------- | --------------------- |
+| GPT-4o            | 128K    | Excellent | Fast    | $5 in / $15 out       |
+| GPT-4o-mini       | 128K    | Very Good | Fastest | $0.15 in / $0.60 out  |
+| Claude 3.5 Sonnet | 200K    | Excellent | Fast    | $3 in / $15 out       |
+| Claude 3 Haiku    | 200K    | Good      | Fastest | $0.25 in / $1.25 out  |
+| Gemini 1.5 Pro    | 1M      | Excellent | Medium  | $1.25 in / $5 out     |
+| Gemini 1.5 Flash  | 1M      | Very Good | Fastest | $0.075 in / $0.30 out |
+| Llama 3.1 70B     | 128K    | Good      | Medium  | Free (self-host)      |
+
+### When to Use
+
+| Scenario          | Recommended                             |
+| ----------------- | --------------------------------------- |
+| Highest quality   | GPT-4o, Claude 3.5 Sonnet               |
+| Budget production | GPT-4o-mini, Claude Haiku, Gemini Flash |
+| Massive context   | Gemini 1.5 Pro (1M tokens)              |
+| Self-hosted       | Llama 3.1 70B, Mixtral                  |
+| China market      | Qwen, GLM                               |
+
+---
+
+## RAG Frameworks
+
+| Framework       | Language  | Strengths                   | Weaknesses               |
+| --------------- | --------- | --------------------------- | ------------------------ |
+| LangChain       | Python/JS | Most features, integrations | Complexity, abstractions |
+| LlamaIndex      | Python    | Document handling, indices  | Steeper learning curve   |
+| Haystack        | Python    | Production-ready, pipelines | Less flexible            |
+| Semantic Kernel | C#/Python | Microsoft ecosystem         | Fewer integrations       |
+| RAGFlow         | Python    | End-to-end, UI included     | Newer, less mature       |
+
+### When to Use
+
+| Scenario             | Recommended           |
+| -------------------- | --------------------- |
+| Rapid prototyping    | LangChain, LlamaIndex |
+| Document-heavy RAG   | LlamaIndex            |
+| Production pipelines | Haystack              |
+| Microsoft stack      | Semantic Kernel       |
+| Simple use cases     | Build custom          |
+
+---
+
+## Evaluation Tools
+
+| Tool             | Open Source | Features             | Best For              |
+| ---------------- | ----------- | -------------------- | --------------------- |
+| RAGAS            | ✅          | RAG-specific metrics | Standard evaluation   |
+| TruLens          | ✅          | Tracing, feedback    | Debugging             |
+| Arize Phoenix    | ✅          | Observability, evals | Production monitoring |
+| LangSmith        | ❌          | Full tracing         | LangChain users       |
+| Weights & Biases | ❌          | Experiment tracking  | ML teams              |
+| Braintrust       | ❌          | LLM evaluations      | Quality focus         |
+
+---
+
+## 🏗️ Infrastructure
+
+### Compute Options
+
+| Provider      | GPU | Serverless | Best For        |
+| ------------- | --- | ---------- | --------------- |
+| AWS Bedrock   | ❌  | ✅         | Enterprise      |
+| Azure OpenAI  | ❌  | ✅         | Microsoft shops |
+| GCP Vertex AI | ✅  | ✅         | Google Cloud    |
+| Replicate     | ✅  | ✅         | Quick deploy    |
+| Modal         | ✅  | ✅         | Custom models   |
+| Together AI   | ✅  | ✅         | Open models     |
+
+### Caching
+
+| Tool      | Type      | Best For           |
+| --------- | --------- | ------------------ |
+| Redis     | In-memory | Hot data, sessions |
+| GPTCache  | Semantic  | LLM response cache |
+| DiskCache | Disk      | Large datasets     |
+
+---
+
+## Quick Decision Tree
+
+```
+START
+  │
+  ├─ Need managed service? ──▶ YES ──▶ Pinecone or Weaviate Cloud
+  │                           │
+  │                           NO
+  │                           │
+  ├─ Have existing Postgres? ─▶ YES ──▶ pgvector
+  │                           │
+  │                           NO
+  │                           │
+  ├─ Need hybrid search? ─────▶ YES ──▶ Qdrant or Weaviate
+  │                           │
+  │                           NO
+  │                           │
+  ├─ Scale > 100M vectors? ───▶ YES ──▶ Milvus
+  │                           │
+  │                           NO
+  │                           │
+  └─ Just prototyping? ───────▶ YES ──▶ ChromaDB
+```
+
+---
+
+## Cost Calculator
+
+### Monthly Estimate (10K queries/day)
+
+| Component | Low Cost  | Mid      | High      |
+| --------- | --------- | -------- | --------- |
+| Embedding | $20       | $60      | $400      |
+| Vector DB | $0 (self) | $50      | $200      |
+| LLM       | $150      | $450     | $1500     |
+| Reranking | $0        | $100     | $300      |
+| **Total** | **$170**  | **$660** | **$2400** |
+
+_Assumptions: 512 tokens/query, 4 docs/query, 500 tokens/response_

@@ -1,0 +1,54 @@
+"use client";
+
+import { useMemo, useSyncExternalStore } from "react";
+
+import { TOPICS, type Topic } from "@/lib/preferences/topics";
+import { preferencesStore } from "@/lib/preferences/store";
+
+export function PreferencesPanel() {
+  const prefs = useSyncExternalStore(
+    preferencesStore.subscribe,
+    preferencesStore.getSnapshot,
+    preferencesStore.getServerSnapshot
+  );
+
+  const selected = useMemo(() => new Set<Topic>(prefs.topics), [prefs.topics]);
+
+  return (
+    <div className="rounded-2xl border border-zinc-200 p-5 dark:border-zinc-800">
+      <h2 className="text-lg font-semibold tracking-tight">Interests</h2>
+      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+        Used to personalize the Research feed and (next) recommend lessons/challenges.
+      </p>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {TOPICS.map((t) => {
+          const on = selected.has(t);
+          return (
+            <button
+              key={t}
+              type="button"
+              onClick={() => {
+                const next = new Set(selected);
+                if (on) next.delete(t);
+                else next.add(t);
+                const arr = Array.from(next);
+                preferencesStore.setTopics(arr.length ? arr : ["rag"]);
+              }}
+              className={[
+                "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                on
+                  ? "border-zinc-950 bg-zinc-950 text-white dark:border-white dark:bg-white dark:text-black"
+                  : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900",
+              ].join(" ")}
+            >
+              {t}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+

@@ -1,0 +1,262 @@
+﻿<Callout title="Goal" variant="info">
+  Understand GraphRAG — Microsoft's technique for multi-hop reasoning by
+  building knowledge graphs from documents.
+</Callout>
+
+## When Standard RAG Fails
+
+Standard RAG retrieves **similar chunks**. But some questions require **connected reasoning**:
+
+| Query                                               | Standard RAG Problem       | GraphRAG Solution                |
+| --------------------------------------------------- | -------------------------- | -------------------------------- |
+| "What are all the products Company X acquired?"     | Scattered across many docs | Follow relationship edges        |
+| "Which authors have co-authored with both A and B?" | No single chunk has this   | Graph traversal query            |
+| "Summarize themes across 1000 documents"            | Can't fit in context       | Hierarchical community summaries |
+
+## GraphRAG Architecture
+
+```
+Documents
+    |
+    v
+[Entity Extraction] ─→ "Person: John Smith", "Company: Acme Corp"
+    |
+    v
+[Relationship Extraction] ─→ "John Smith WORKS_AT Acme Corp"
+    |
+    v
+[Graph Construction] ─→ Knowledge Graph (nodes + edges)
+    |
+    v
+[Community Detection] ─→ Group related entities
+    |
+    v
+[Community Summarization] ─→ Pre-compute summaries per community
+    |
+    v
+Query Time: Local Search (entities) OR Global Search (communities)
+```
+
+## Local Search vs Global Search
+
+### Local Search (Entity-Centric)
+
+```
+Query: "What is John Smith's role at Acme Corp?"
+1. Identify entities: "John Smith", "Acme Corp"
+2. Find subgraph around these entities
+3. Retrieve connected chunks + relationships
+4. Generate answer from subgraph context
+```
+
+**Best for**: Specific questions about entities
+
+### Global Search (Community-Based)
+
+```
+Query: "What are the main themes in this dataset?"
+1. Retrieve pre-computed community summaries
+2. Use map-reduce: summarize each community, then combine
+3. Generate high-level thematic answer
+```
+
+**Best for**: Broad questions requiring synthesis
+
+## Entity & Relationship Extraction
+
+### Using LLM (Recommended for Quality)
+
+```python
+EXTRACTION_PROMPT = """Extract entities and relationships from this text.
+
+Output format (JSON):
+{
+  "entities": [
+    {"name": "...", "type": "PERSON|ORG|PRODUCT|CONCEPT|LOCATION", "description": "..."}
+  ],
+  "relationships": [
+    {"source": "...", "target": "...", "type": "WORKS_AT|OWNS|RELATED_TO|...", "description": "..."}
+  ]
+}
+
+Text: {text}
+
+JSON:"""
+
+def extract_graph_elements(text: str) -> dict:
+    response = llm.generate(EXTRACTION_PROMPT.format(text=text))
+    return json.loads(response)
+```
+
+### Using NER + Coreference (Faster, Less Accurate)
+
+```python
+import spacy
+nlp = spacy.load("en_core_web_trf")
+
+def extract_entities_spacy(text: str) -> list[dict]:
+    doc = nlp(text)
+    entities = []
+    for ent in doc.ents:
+        entities.append({
+            "name": ent.text,
+            "type": ent.label_,
+            "start": ent.start_char,
+            "end": ent.end_char
+        })
+    return entities
+```
+
+## Graph Storage Options
+
+| Storage            | Best For                    | Query Language  |
+| ------------------ | --------------------------- | --------------- |
+| **Neo4j**          | Production, complex queries | Cypher          |
+| **NetworkX**       | Prototyping, small graphs   | Python API      |
+| **Nebula Graph**   | Very large scale            | nGQL            |
+| **Amazon Neptune** | AWS ecosystem               | Gremlin, SPARQL |
+| **Kuzu**           | Embedded, fast prototyping  | Cypher          |
+
+### Neo4j Example
+
+```python
+from neo4j import GraphDatabase
+
+driver = GraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", "password"))
+
+def add_entity(tx, entity: dict):
+    tx.run("""
+        MERGE (e:Entity {name: $name})
+        SET e.type = $type, e.description = $description
+    """, **entity)
+
+def add_relationship(tx, rel: dict):
+    tx.run("""
+        MATCH (a:Entity {name: $source})
+        MATCH (b:Entity {name: $target})
+        MERGE (a)-[r:RELATED {type: $type}]->(b)
+        SET r.description = $description
+    """, **rel)
+
+def query_subgraph(tx, entity_name: str, hops: int = 2):
+    result = tx.run("""
+        MATCH path = (e:Entity {name: $name})-[*1..$hops]-(related)
+        RETURN path
+    """, name=entity_name, hops=hops)
+    return [record["path"] for record in result]
+```
+
+## Community Detection
+
+Find clusters of related entities:
+
+```python
+import networkx as nx
+from networkx.algorithms import community
+
+def detect_communities(graph: nx.Graph) -> list[set]:
+    """Use Louvain algorithm for community detection."""
+    communities = community.louvain_communities(graph)
+    return communities
+
+def summarize_community(entities: list[str], chunks: list[str]) -> str:
+    """Generate a summary for a community."""
+    context = "\n".join(chunks[:5])  # Top 5 chunks from community
+
+    prompt = f"""Summarize the key themes and relationships among these entities:
+
+Entities: {', '.join(entities)}
+
+Context:
+{context}
+
+Summary:"""
+
+    return llm.generate(prompt)
+```
+
+## Hybrid: GraphRAG + Vector Search
+
+The best systems combine both:
+
+```python
+def hybrid_graph_retrieval(query: str, k: int = 10) -> list[str]:
+    # 1. Extract entities from query
+    query_entities = extract_entities(query)
+
+    # 2. Graph traversal for connected context
+    graph_chunks = []
+    for entity in query_entities:
+        subgraph = get_subgraph(entity, hops=2)
+        graph_chunks.extend(get_chunks_for_entities(subgraph))
+
+    # 3. Vector search for semantic similarity
+    vector_chunks = vector_search(query, k=k)
+
+    # 4. Combine and deduplicate
+    all_chunks = list(set(graph_chunks + vector_chunks))
+
+    # 5. Rerank by relevance
+    return rerank(query, all_chunks, top_k=k)
+```
+
+## Benchmarks (Microsoft's Results)
+
+| Method              | Comprehensiveness | Diversity | Empowerment |
+| ------------------- | ----------------- | --------- | ----------- |
+| Naive RAG           | 32%               | 15%       | 21%         |
+| Vector + Summarize  | 45%               | 28%       | 35%         |
+| **GraphRAG Local**  | 58%               | 41%       | 52%         |
+| **GraphRAG Global** | 72%               | 68%       | 66%         |
+
+_Metrics from human evaluation on comprehensiveness of answers_
+
+## Cost Analysis
+
+GraphRAG has significant upfront costs:
+
+| Phase                   | Cost (1M token corpus) |
+| ----------------------- | ---------------------- |
+| Entity extraction (LLM) | $50-100                |
+| Relationship extraction | $50-100                |
+| Community summarization | $20-50                 |
+| **Total indexing**      | **$120-250**           |
+| Query (local)           | ~$0.05/query           |
+| Query (global)          | ~$0.20/query           |
+
+**Recommendation**: Use GraphRAG for stable corpora where quality justifies cost.
+
+## When to Use GraphRAG
+
+✅ **Use GraphRAG when:**
+
+- Questions require multi-hop reasoning
+- You need to synthesize across many documents
+- Entity relationships are critical (legal, medical, research)
+- Corpus is relatively stable (not frequently updated)
+
+❌ **Don't use GraphRAG when:**
+
+- Simple QA is sufficient
+- Corpus changes frequently (graph rebuild is expensive)
+- Budget is constrained
+- Latency is critical (<100ms)
+
+## Implementation Checklist
+
+- [ ] Set up graph database (Neo4j recommended)
+- [ ] Implement entity extraction pipeline
+- [ ] Implement relationship extraction pipeline
+- [ ] Build community detection
+- [ ] Pre-compute community summaries
+- [ ] Implement local search retrieval
+- [ ] Implement global search retrieval
+- [ ] Add hybrid fallback to vector search
+- [ ] Monitor extraction quality
+
+## Further Reading
+
+- [GraphRAG Paper (Microsoft, 2024)](https://arxiv.org/abs/2404.16130)
+- [GraphRAG GitHub](https://github.com/microsoft/graphrag)
+- [LlamaIndex Knowledge Graphs](https://docs.llamaindex.ai/en/stable/examples/index_structs/knowledge_graph/)
+

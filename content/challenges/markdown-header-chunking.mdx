@@ -1,0 +1,39 @@
+﻿<Callout title="Goal" variant="info">
+  Implement structure-aware chunking for Markdown. In production, “split by meaning/structure” beats “split by characters”.
+</Callout>
+
+## Why this matters in production
+
+Docs are usually structured:
+
+- headings
+- sections
+- subsections
+- code blocks and lists
+
+If you chunk without structure, you often:
+
+- separate definitions from their headings
+- mix unrelated topics into one chunk
+- make metadata filtering impossible (because you lost the section info)
+
+## Offline vs online
+
+- **Offline (ingestion)**: chunk by headers and store metadata (`h1/h2/h3`).
+- **Online (query time)**: use metadata filters and routing (e.g., “only search under Usage”).
+
+## What you’re building
+
+A chunker that:
+
+- starts a new chunk at each `#`, `##`, `###` heading
+- attaches hierarchical metadata so chunks know where they live in the doc
+
+## Production extensions (optional)
+
+- preserve a `path` array like `["Title", "Usage", "Advanced"]`
+- add `chunk_id` (combine this with the “Stable Chunk IDs” lab)
+- special-handle fenced code blocks so they don’t get split incorrectly
+
+
+

@@ -1,0 +1,33 @@
+---
+title: "Affordance RAG Robotics"
+description: "Implement RAG for robotic action planning"
+---
+
+# Affordance RAG Robotics
+
+Implement a RAG system that retrieves action affordances and procedural knowledge for robotic task planning.
+
+## Requirements
+
+1. Index manipulation procedures
+2. Match affordances to current state
+3. Retrieve step-by-step actions
+4. Validate action feasibility
+
+## Starter Code
+
+```python
+class AffordanceRAG:
+    def __init__(self, action_encoder, state_encoder):
+        self.action_encoder = action_encoder
+        self.state_encoder = state_encoder
+        self.procedures = []
+    
+    def index_procedure(self, procedure: dict):
+        """Index a manipulation procedure."""
+        pass
+    
+    def plan_action(self, goal: str, current_state: dict) -> list[dict]:
+        """Retrieve action plan for goal given current state."""
+        pass
+```

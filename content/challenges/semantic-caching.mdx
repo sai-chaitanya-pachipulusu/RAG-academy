@@ -1,0 +1,311 @@
+﻿<Callout title="Goal" variant="info">
+  Implement semantic caching — avoid redundant LLM calls by matching
+  semantically similar queries.
+</Callout>
+
+## Why Semantic Caching?
+
+LLM calls are:
+
+- **Expensive**: $0.01-0.10 per query
+- **Slow**: 500ms-3s per call
+- **Redundant**: Many queries are semantically similar
+
+Semantic caching detects when a new query is similar to a cached one.
+
+## Exact Match vs Semantic Match
+
+```python
+# Exact match (basic)
+cache = {"What is the capital of France?": "Paris"}
+query = "What's the capital of France?"  # MISS! Different string
+
+# Semantic match
+query_embedding = embed("What's the capital of France?")
+similar = find_similar(query_embedding, threshold=0.95)
+# HIT! "What is the capital of France?" is 0.97 similar
+```
+
+## Basic Implementation
+
+```python
+import numpy as np
+from collections import OrderedDict
+
+class SemanticCache:
+    def __init__(self, embedder, similarity_threshold: float = 0.95, max_size: int = 10000):
+        self.embedder = embedder
+        self.threshold = similarity_threshold
+        self.max_size = max_size
+
+        # Cache stores: query_text -> (embedding, response)
+        self.cache = OrderedDict()
+
+        # Matrix of cached embeddings for fast search
+        self.embeddings = []
+        self.keys = []
+
+    def get(self, query: str) -> str | None:
+        """Check if a semantically similar query is cached."""
+        if not self.embeddings:
+            return None
+
+        query_embedding = self.embedder.encode(query)
+
+        # Compute similarities with all cached queries
+        cached_matrix = np.array(self.embeddings)
+        similarities = query_embedding @ cached_matrix.T
+
+        max_idx = np.argmax(similarities)
+        max_sim = similarities[max_idx]
+
+        if max_sim >= self.threshold:
+            cached_key = self.keys[max_idx]
+            # Move to end (LRU)
+            self.cache.move_to_end(cached_key)
+            return self.cache[cached_key][1]  # Return cached response
+
+        return None
+
+    def set(self, query: str, response: str):
+        """Cache a query-response pair."""
+        embedding = self.embedder.encode(query)
+
+        # Add to cache
+        self.cache[query] = (embedding, response)
+        self.embeddings.append(embedding)
+        self.keys.append(query)
+
+        # Evict if over capacity
+        if len(self.cache) > self.max_size:
+            oldest_key = next(iter(self.cache))
+            del self.cache[oldest_key]
+            idx = self.keys.index(oldest_key)
+            del self.embeddings[idx]
+            del self.keys[idx]
+```
+
+## Production Implementation with Vector DB
+
+```python
+from qdrant_client import QdrantClient
+from qdrant_client.models import Distance, VectorParams, PointStruct
+import uuid
+
+class VectorDBSemanticCache:
+    def __init__(self, embedder, threshold: float = 0.95, ttl_seconds: int = 3600):
+        self.embedder = embedder
+        self.threshold = threshold
+        self.ttl = ttl_seconds
+
+        self.client = QdrantClient(host="localhost", port=6333)
+        self.collection = "rag_cache"
+
+        # Create collection if not exists
+        self.client.recreate_collection(
+            collection_name=self.collection,
+            vectors_config=VectorParams(size=768, distance=Distance.COSINE)
+        )
+
+    def get(self, query: str) -> dict | None:
+        """Find semantically similar cached response."""
+        embedding = self.embedder.encode(query)
+
+        results = self.client.search(
+            collection_name=self.collection,
+            query_vector=embedding.tolist(),
+            limit=1,
+            score_threshold=self.threshold
+        )
+
+        if results:
+            hit = results[0]
+            # Check TTL
+            if time.time() - hit.payload["timestamp"] < self.ttl:
+                return {
+                    "response": hit.payload["response"],
+                    "original_query": hit.payload["query"],
+                    "similarity": hit.score
+                }
+            else:
+                # Expired, delete
+                self.client.delete(
+                    collection_name=self.collection,
+                    points_selector=[hit.id]
+                )
+
+        return None
+
+    def set(self, query: str, response: str, metadata: dict = None):
+        """Cache a query-response pair."""
+        embedding = self.embedder.encode(query)
+
+        point = PointStruct(
+            id=str(uuid.uuid4()),
+            vector=embedding.tolist(),
+            payload={
+                "query": query,
+                "response": response,
+                "timestamp": time.time(),
+                **(metadata or {})
+            }
+        )
+
+        self.client.upsert(
+            collection_name=self.collection,
+            points=[point]
+        )
+```
+
+## Integration with RAG Pipeline
+
+```python
+class CachedRAGPipeline:
+    def __init__(self, retriever, generator, cache: SemanticCache):
+        self.retriever = retriever
+        self.generator = generator
+        self.cache = cache
+
+    def query(self, query: str) -> dict:
+        # Check cache first
+        cached = self.cache.get(query)
+        if cached:
+            return {
+                "response": cached["response"],
+                "cached": True,
+                "similarity": cached.get("similarity", 1.0)
+            }
+
+        # Cache miss - run full pipeline
+        docs = self.retriever.search(query)
+        response = self.generator.generate(query, docs)
+
+        # Store in cache
+        self.cache.set(query, response)
+
+        return {
+            "response": response,
+            "cached": False,
+            "docs": docs
+        }
+```
+
+## Cache Key Strategies
+
+### 1. Query Only (Simple)
+
+```python
+cache_key = embed(query)
+```
+
+### 2. Query + Context (More Precise)
+
+```python
+# Include retrieval context in cache key
+docs = retriever.search(query)
+doc_ids = sorted([d.id for d in docs])
+cache_key = f"{query}|{','.join(doc_ids)}"
+```
+
+### 3. Query + Params (Multi-tenant)
+
+```python
+# Different cache per user/config
+cache_key = embed(f"{user_id}:{namespace}:{query}")
+```
+
+## Threshold Selection
+
+| Threshold | Behavior                            |
+| --------- | ----------------------------------- |
+| 0.99+     | Nearly exact match only             |
+| 0.95      | Conservative - similar phrasing     |
+| 0.90      | Moderate - catches paraphrases      |
+| 0.85      | Aggressive - may return wrong cache |
+
+**Recommendation**: Start at 0.95, tune based on miss/hit quality.
+
+## Cache Invalidation Strategies
+
+### 1. TTL-Based
+
+```python
+if time.time() - cached["timestamp"] > TTL:
+    delete(cached)
+```
+
+### 2. Document Update
+
+```python
+def on_document_update(doc_id: str):
+    # Invalidate cache entries that used this document
+    affected = cache.find_by_metadata({"doc_ids": doc_id})
+    cache.delete_many(affected)
+```
+
+### 3. Confidence-Based
+
+```python
+# Only cache high-confidence responses
+if response_confidence > 0.8:
+    cache.set(query, response)
+```
+
+## Metrics to Track
+
+| Metric                | Calculation                            | Target     |
+| --------------------- | -------------------------------------- | ---------- |
+| Hit rate              | hits / total_queries                   | >30%       |
+| Avg similarity at hit | mean(hit_similarities)                 | >0.95      |
+| Cache size            | num_entries                            | < max_size |
+| Latency saved         | (full_latency - cache_latency) \* hits | Maximize   |
+| Cost saved            | hit_rate \* cost_per_query             | Maximize   |
+
+```python
+class CacheMetrics:
+    def __init__(self):
+        self.hits = 0
+        self.misses = 0
+        self.total_latency_saved = 0
+
+    def record_hit(self, full_latency_ms: float, cache_latency_ms: float):
+        self.hits += 1
+        self.total_latency_saved += (full_latency_ms - cache_latency_ms)
+
+    def record_miss(self):
+        self.misses += 1
+
+    @property
+    def hit_rate(self) -> float:
+        total = self.hits + self.misses
+        return self.hits / total if total > 0 else 0
+```
+
+## Cost Savings Analysis
+
+| Monthly Queries | Hit Rate | Cost/Query | Savings     |
+| --------------- | -------- | ---------- | ----------- |
+| 100K            | 30%      | $0.02      | $600/mo     |
+| 1M              | 40%      | $0.02      | $8,000/mo   |
+| 10M             | 50%      | $0.02      | $100,000/mo |
+
+The embedding cost for cache lookup (~$0.0001) is negligible.
+
+## When NOT to Cache
+
+- Real-time data requirements
+- User-specific personalized responses
+- Low query repetition (unique queries)
+- Rapidly changing knowledge base
+- Privacy-sensitive queries
+
+## Production Checklist
+
+- [ ] Set appropriate similarity threshold
+- [ ] Implement TTL for cache expiration
+- [ ] Add cache invalidation on doc updates
+- [ ] Track hit rate and quality metrics
+- [ ] Monitor for stale responses
+- [ ] Implement per-tenant isolation if needed
+- [ ] Add circuit breaker for cache failures
+

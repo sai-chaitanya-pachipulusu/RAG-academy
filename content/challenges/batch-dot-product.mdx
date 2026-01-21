@@ -1,0 +1,27 @@
+﻿---
+title: "Batched Dot Product"
+description: "Compute dot products for multiple documents efficiently."
+---
+
+# Batched Dot Product (Matrix Multiply)
+
+In production, you don't compare one vector at a time—you compare one query against **thousands of documents** simultaneously.
+
+### The Performance Problem
+
+A naive Python loop is ~100x slower than a vectorized operation. This challenge teaches the mental model before you move to NumPy/FAISS.
+
+### Your Task
+
+Given a query vector and a list of document vectors, return a list of dot product scores.
+
+```python
+query = [1.0, 2.0]
+docs = [[1, 0], [0, 1], [1, 1]]
+# Expected: [1.0, 2.0, 3.0]
+```
+
+### Production Scale
+
+In real systems, this operation is done on GPUs using CUDA (NVIDIA) or Metal (Apple). FAISS and cuANN can compare a query against 1 billion vectors in milliseconds.
+

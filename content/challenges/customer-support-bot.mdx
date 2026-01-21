@@ -1,0 +1,42 @@
+---
+title: "Customer Support Bot"
+description: "Build a production-ready support chatbot"
+---
+
+# Customer Support Bot
+
+Build a customer support chatbot that can answer questions from a knowledge base, escalate complex issues, and maintain conversation context.
+
+## Requirements
+
+1. Index support documentation
+2. Maintain conversation history
+3. Detect escalation triggers
+4. Provide cited answers
+
+## Starter Code
+
+```python
+class SupportBot:
+    def __init__(self, knowledge_base: list[dict]):
+        self.kb = knowledge_base
+        self.conversations = {}
+    
+    def start_conversation(self, user_id: str) -> str:
+        """Start a new support conversation."""
+        pass
+    
+    def respond(self, user_id: str, message: str) -> dict:
+        """
+        Generate response.
+        
+        Returns:
+            {
+                "response": str,
+                "citations": list[str],
+                "should_escalate": bool,
+                "escalation_reason": str | None
+            }
+        """
+        pass
+```

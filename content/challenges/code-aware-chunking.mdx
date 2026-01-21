@@ -1,0 +1,140 @@
+﻿---
+title: "Code-Aware Chunking: Respecting Program Structure"
+description: "Chunk code by semantic units like functions and classes, not arbitrary character counts"
+difficulty: "hard"
+timeEstimate: "40-50 min"
+xpReward: 125
+prerequisites: ["section-based-chunking"]
+---
+
+# Code-Aware Chunking: Respecting Program Structure
+
+## Code is NOT Prose
+
+Standard chunking on code is a disaster:
+
+```python
+# Fixed-size chunk boundary falls HERE ↓
+def calculate_total(items):
+    total = 0
+    for item in it    # CHUNK BOUNDARY
+ems:                   # New chunk starts mid-word!
+        total += item
+    return total
+```
+
+This chunk is **useless**. It won't compile, can't be understood, and the embedding is nonsense.
+
+---
+
+## The Insight: Program Structure
+
+Code has **explicit structure**:
+
+- Classes contain methods
+- Functions contain logic
+- Modules contain functions
+
+These are natural, semantic units. Respect them!
+
+---
+
+## The Algorithm
+
+```python
+def chunk_code(code, language="python"):
+    chunks = []
+
+    # Find top-level definitions
+    for match in re.finditer(r'^(class|def)\s+(\w+)', code, re.MULTILINE):
+        start = match.start()
+        end = find_block_end(code, start)
+
+        chunks.append({
+            'code': code[start:end],
+            'type': 'class' if 'class' in match.group(1) else 'function',
+            'name': match.group(2),
+            'docstring': extract_docstring(code[start:end])
+        })
+
+    return chunks
+```
+
+---
+
+## Metadata Matters
+
+For code, extract:
+
+- **Type**: function, class, method
+- **Name**: for search and filtering
+- **Docstring**: often the best description
+- **Imports**: what dependencies are needed
+- **Signature**: function arguments
+
+---
+
+## ⚖️ Tradeoffs
+
+### Pros
+
+- ✅ Each chunk is runnable/parseable
+- ✅ Docstrings explain the code
+- ✅ Natural for code search
+
+### Cons
+
+- ❌ Language-specific logic needed
+- ❌ Large classes may exceed chunk limits
+- ❌ Needs fallback for unusual syntax
+
+---
+
+## Real-World Usage
+
+**Critical for**:
+
+- GitHub Copilot (understands functions)
+- Sourcegraph (code search)
+- Cursor (AI code editor)
+- Stack Overflow (answer extraction)
+
+**Tools**:
+
+- Tree-sitter (universal parser)
+- AST parsers per language
+- Language Server Protocol data
+
+---
+
+## Language-Specific Separators
+
+```python
+# Python
+separators = ["\nclass ", "\ndef ", "\n\n", "\n"]
+
+# JavaScript
+separators = ["\nfunction ", "\nclass ", "\nconst ", "\n\n"]
+
+# Java
+separators = ["\npublic class ", "\nprivate ", "\npublic ", "\n\n"]
+```
+
+---
+
+## Key Insight
+
+Code-aware chunking teaches us:
+
+> "Domain-specific content needs domain-specific chunking."
+
+Don't force code into prose-shaped chunks.
+
+---
+
+## Related Challenges
+
+- `section-based-chunking` - Similar structure-awareness for docs
+- `table-aware-chunking` - Another domain-specific approach
+- `chunking-router` - Route code to this strategy automatically
+

@@ -1,0 +1,23 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Generate cache keys for embeddings that handle semantic equivalence.
+</Callout>
+
+## Why this matters in production
+
+Embedding caching can reduce API costs by 50%+ for repetitive content. The key is normalizing inputs so semantically equivalent texts hit the cache.
+
+## What you're implementing
+
+- Normalize: lowercase, collapse whitespace, trim.
+- Hash long texts for key efficiency.
+- Include model name in key (different models = different embeddings).
+
+## Common pitfalls
+
+- Not normalizing (missing cache hits).
+- Hash collisions for very different texts.
+
+## After you pass
+
+Build a complete **Embedding Cache** with TTL and eviction.
+

@@ -1,0 +1,24 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Implement the ReAct loop — Think → Act → Observe → Repeat.
+</Callout>
+
+## Why this matters in production
+
+ReAct (Reasoning + Acting) is the foundational pattern for LLM agents. It's used in LangChain agents, AutoGPT, and Claude's tool use.
+
+## What you're implementing
+
+- Think: generate thought and decide on action.
+- Act: execute the action and get observation.
+- Loop: repeat until action is null or max steps reached.
+- Return: final answer and execution trace.
+
+## Common pitfalls
+
+- Infinite loops without max steps limit.
+- Not preserving action history for context.
+
+## After you pass
+
+Add **Agent Memory** for multi-turn conversations.
+

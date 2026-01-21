@@ -1,0 +1,103 @@
+﻿<Callout title="Goal" variant="info">
+  Implement Precision@K to measure the proportion of relevant documents in your
+  top-K results.
+</Callout>
+
+## Precision vs Recall: The Fundamental Tradeoff
+
+- **Recall@K**: "Of all relevant docs, how many did we find?" (completeness)
+- **Precision@K**: "Of all docs we retrieved, how many are relevant?" (accuracy)
+
+In RAG, **both matter**:
+
+- Low recall = missing critical evidence
+- Low precision = diluting context with irrelevant content (context rot)
+
+## The Formula
+
+```
+Precision@K = |{relevant docs in top-K}| / K
+```
+
+### Example
+
+You retrieve 10 documents, 3 are relevant:
+
+- **Precision@10 = 3/10 = 0.30**
+
+You retrieve 5 documents, 3 are relevant:
+
+- **Precision@5 = 3/5 = 0.60**
+
+This demonstrates why reranking + filtering improves RAG: fewer, better documents = higher precision.
+
+## Edge Cases to Handle
+
+| Scenario                           | Precision@K                     |
+| ---------------------------------- | ------------------------------- |
+| K=0 or no results                  | Undefined (return 0.0 or raise) |
+| Empty relevance set                | 0.0 for any K                   |
+| Perfect retrieval (all K relevant) | 1.0                             |
+| K > corpus size                    | Use actual retrieved count      |
+
+## Precision@K vs Recall@K Decision Guide
+
+| Scenario                        | Optimize for                       |
+| ------------------------------- | ---------------------------------- |
+| RAG with limited context window | **Precision** (every token counts) |
+| Document discovery / search     | **Recall** (don't miss anything)   |
+| Reranker tuning                 | **Precision** at small K (top-5)   |
+| First-stage retrieval           | **Recall** at larger K (top-100)   |
+
+## The Precision-Recall Tradeoff
+
+```
+         High Precision
+              │
+              │   🎯 Ideal
+              │   (top-right)
+              │
+Low Recall ───┼─────────────── High Recall
+              │
+              │
+              │   ⚠️ Avoid
+              │   (bottom-left)
+              │
+         Low Precision
+```
+
+As K increases:
+
+- Recall generally increases (more chances to find relevant docs)
+- Precision generally decreases (more irrelevant docs included)
+
+## Production Tip
+
+Track **Precision@5** after reranking — this is what actually goes into your LLM context. If Precision@5 < 0.6, your RAG answers will likely hallucinate.
+
+## Implementation Notes
+
+```python
+def precision_at_k(retrieved: List[str], relevant: Set[str], k: int) -> float:
+    """
+    Args:
+        retrieved: Ordered list of retrieved doc IDs
+        relevant: Set of ground-truth relevant doc IDs
+        k: Cutoff position
+
+    Returns:
+        Precision@K score (0.0 to 1.0)
+
+    Edge cases:
+        - k <= 0: return 0.0
+        - empty retrieved: return 0.0
+        - k > len(retrieved): use len(retrieved)
+    """
+    if k <= 0 or not retrieved:
+        return 0.0
+
+    top_k = retrieved[:k]
+    relevant_in_top_k = sum(1 for doc in top_k if doc in relevant)
+    return relevant_in_top_k / len(top_k)
+```
+

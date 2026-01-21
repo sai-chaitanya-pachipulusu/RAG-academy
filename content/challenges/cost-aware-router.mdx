@@ -1,0 +1,19 @@
+﻿<Callout title="Goal" variant="info">
+  Build a cost-aware router to optimize token usage by selecting the most
+  appropriate model for each query.
+</Callout>
+
+## The "Overkill" Problem
+
+Not every query needs a flagship model like GPT-4o. Simple tasks like "Summarize my previous message" or "What is my account balance?" can be handled perfectly by cheaper, faster models (e.g., GPT-4o-mini).
+
+**Cost-Aware Routing** involves:
+
+1.  Analyzing query complexity (length, intent, reasoning type).
+2.  Routing to a "Small" model for simple tasks.
+3.  Routing to a "Large" model for complex tasks.
+
+## Task
+
+Implement a routing function that uses heuristics (keywords and complexity signals) to decide which model tier to use.
+

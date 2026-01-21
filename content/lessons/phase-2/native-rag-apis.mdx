@@ -1,0 +1,317 @@
+---
+title: "Native RAG APIs"
+description: "Use built-in RAG features from OpenAI, Anthropic, Google, and other providers."
+order: 9
+estimatedMinutes: 20
+stage: retrieval
+prereqs:
+  - phase: phase-1
+    slug: grounding-safety
+next:
+  phase: phase-2
+  slug: caching-strategies
+outcomes:
+  - "Use Claude's native citation features."
+  - "Implement Gemini's grounding with Google Search."
+  - "Compare native vs custom RAG tradeoffs."
+tags: ["native", "api", "2025", "citations"]
+sources:
+  - title: "Claude Citations Documentation"
+    url: "https://docs.anthropic.com/en/docs/build-with-claude/citations"
+    type: "docs"
+  - title: "Gemini Grounding with Google Search"
+    url: "https://ai.google.dev/gemini-api/docs/grounding"
+    type: "docs"
+  - title: "OpenAI File Search"
+    url: "https://platform.openai.com/docs/assistants/tools/file-search"
+    type: "docs"
+---
+
+## Goals
+
+- Understand native RAG features in modern LLM APIs.
+- Know when to use native vs custom RAG.
+- Implement citations with Claude and Gemini.
+
+## Prereqs
+
+- Read: **Grounding & Safety** (Phase 1) for context.
+- Basic familiarity with LLM API calls.
+
+## Core idea
+
+2025 brought **built-in RAG** to major LLM providers:
+
+| Provider | Feature | What It Does |
+|----------|---------|--------------|
+| **Anthropic** | Native Citations | Auto-cite from uploaded documents |
+| **Google** | Grounding | Ground responses in Google Search |
+| **OpenAI** | File Search | Vector search over uploaded files |
+| **Mistral** | Document Upload | Query documents via API |
+
+**Why use native RAG?**
+- No infrastructure to manage
+- Built-in citation extraction
+- Optimized for the model
+- Lower latency
+
+**Why build custom RAG?**
+- Full control over retrieval
+- Custom chunking/embedding
+- Multi-source fusion
+- Cost optimization at scale
+
+## Claude Native Citations
+
+Claude 3.5+ can automatically cite sources from documents you provide:
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+# Upload document content
+response = client.messages.create(
+    model="claude-3-5-sonnet-20241022",
+    max_tokens=1024,
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "document",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "application/pdf",
+                        "data": base64_encoded_pdf,
+                    },
+                    "title": "Company Annual Report 2024"
+                },
+                {
+                    "type": "text",
+                    "text": "What was the company's revenue growth? Include citations."
+                }
+            ]
+        }
+    ]
+)
+
+# Response includes citations like:
+# "Revenue grew by 15% year-over-year [Annual Report, p.12]"
+```
+
+### With Multiple Documents
+
+```python
+response = client.messages.create(
+    model="claude-3-5-sonnet-20241022",
+    max_tokens=2048,
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "document",
+                    "source": {"type": "base64", "media_type": "application/pdf", "data": doc1_b64},
+                    "title": "Q1 Report"
+                },
+                {
+                    "type": "document",
+                    "source": {"type": "base64", "media_type": "application/pdf", "data": doc2_b64},
+                    "title": "Q2 Report"
+                },
+                {
+                    "type": "document",
+                    "source": {"type": "base64", "media_type": "application/pdf", "data": doc3_b64},
+                    "title": "Q3 Report"
+                },
+                {
+                    "type": "text",
+                    "text": "Compare quarterly performance across these reports. Cite each claim."
+                }
+            ]
+        }
+    ]
+)
+```
+
+## Gemini Grounding
+
+Gemini 2.0 can automatically ground responses in Google Search:
+
+```python
+import google.generativeai as genai
+
+genai.configure(api_key="YOUR_API_KEY")
+
+model = genai.GenerativeModel("gemini-2.0-flash")
+
+# Enable Google Search grounding
+response = model.generate_content(
+    "What are the latest developments in RAG technology?",
+    tools=[
+        {
+            "google_search_retrieval": {
+                "dynamic_retrieval_config": {
+                    "mode": "MODE_DYNAMIC",
+                    "dynamic_threshold": 0.3  # Lower = more likely to search
+                }
+            }
+        }
+    ]
+)
+
+# Response is grounded in real-time web search
+print(response.text)
+
+# Access grounding metadata
+if response.candidates[0].grounding_metadata:
+    for chunk in response.candidates[0].grounding_metadata.grounding_chunks:
+        print(f"Source: {chunk.web.uri}")
+```
+
+### Grounding with Your Own Documents
+
+```python
+# Create a corpus (one-time setup)
+corpus = genai.create_corpus(
+    display_name="My Knowledge Base",
+    description="Company documentation"
+)
+
+# Add documents to corpus
+document = genai.create_document(
+    corpus=corpus.name,
+    display_name="Product Guide",
+    custom_metadata=[{"key": "category", "value": "documentation"}]
+)
+
+# Add chunks to document
+chunk = genai.create_chunk(
+    document=document.name,
+    data={"string_value": "Your document content here..."}
+)
+
+# Query with retrieval from your corpus
+response = model.generate_content(
+    "How do I configure the product?",
+    tools=[
+        {
+            "retrieval": {
+                "source": {"corpus": corpus.name},
+                "similarity_top_k": 5
+            }
+        }
+    ]
+)
+```
+
+## OpenAI File Search
+
+OpenAI's Assistants API includes vector search:
+
+```python
+from openai import OpenAI
+
+client = OpenAI()
+
+# Create a vector store
+vector_store = client.beta.vector_stores.create(name="Company Docs")
+
+# Upload files to the vector store
+file = client.files.create(
+    file=open("annual_report.pdf", "rb"),
+    purpose="assistants"
+)
+
+client.beta.vector_stores.files.create(
+    vector_store_id=vector_store.id,
+    file_id=file.id
+)
+
+# Create an assistant with file search
+assistant = client.beta.assistants.create(
+    name="Financial Analyst",
+    instructions="You are a financial analyst. Answer questions about company documents.",
+    model="gpt-4o",
+    tools=[{"type": "file_search"}],
+    tool_resources={
+        "file_search": {
+            "vector_store_ids": [vector_store.id]
+        }
+    }
+)
+
+# Create a thread and run
+thread = client.beta.threads.create()
+
+message = client.beta.threads.messages.create(
+    thread_id=thread.id,
+    role="user",
+    content="What was the revenue growth rate?"
+)
+
+run = client.beta.threads.runs.create_and_poll(
+    thread_id=thread.id,
+    assistant_id=assistant.id
+)
+
+# Get the response with citations
+messages = client.beta.threads.messages.list(thread_id=thread.id)
+print(messages.data[0].content[0].text.value)
+```
+
+## Comparison Table
+
+| Feature | Claude | Gemini | OpenAI | Custom RAG |
+|---------|--------|--------|--------|------------|
+| **Setup time** | Minutes | Minutes | Minutes | Days/Weeks |
+| **Document types** | PDF, text | PDF, text, web | PDF, text | Anything |
+| **Max docs** | ~10 per request | Corpus-based | 10,000 files | Unlimited |
+| **Citations** | ✅ Built-in | ✅ With metadata | ✅ With annotations | Manual |
+| **Real-time web** | ❌ | ✅ Google Search | ❌ | With APIs |
+| **Custom chunking** | ❌ | Limited | Limited | ✅ Full control |
+| **Cost at scale** | Higher | Medium | Higher | Optimizable |
+| **Latency** | Low | Low | Medium | Variable |
+
+## When to Use Native RAG
+
+✅ **Use Native RAG when:**
+- Quick prototyping / MVP
+- Small document sets (<100 docs)
+- Need built-in citations
+- Team lacks RAG expertise
+- Gemini + need real-time web info
+
+❌ **Build Custom RAG when:**
+- Large document corpus (>10,000 docs)
+- Need custom chunking strategies
+- Multi-source retrieval (docs + databases + APIs)
+- Cost optimization is critical
+- Need full control over retrieval quality
+
+## Failure modes
+
+- **Context limits**: Native RAG still bound by context windows
+- **Black box retrieval**: Can't see why certain chunks were selected
+- **Vendor lock-in**: Switching providers requires rewriting
+- **Cost at scale**: Native RAG often more expensive per query
+
+## Production defaults
+
+```python
+# Hybrid approach: native for simple, custom for complex
+def smart_rag(query: str, doc_count: int):
+    if doc_count < 10 and needs_citations(query):
+        return claude_native_rag(query)
+    elif needs_real_time_info(query):
+        return gemini_grounded(query)
+    else:
+        return custom_rag_pipeline(query)
+```
+
+## Do next
+
+1. **Challenge**: [Claude Citations](/challenges/claude-native-citations)
+2. **Challenge**: [Gemini Grounding](/challenges/gemini-grounding)
+3. **Continue to**: [Caching Strategies](/learn/phase-2/caching-strategies)

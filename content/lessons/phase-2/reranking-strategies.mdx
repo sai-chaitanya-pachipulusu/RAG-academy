@@ -1,0 +1,205 @@
+---
+title: "Reranking Strategies"
+description: "Boost precision with cross-encoders, ColBERT, and LLM rerankers."
+order: 2
+estimatedMinutes: 30
+stage: post-retrieval
+prereqs:
+  - phase: phase-2
+    slug: hybrid-retrieval
+next:
+  phase: phase-2
+  slug: chunking-mastery
+outcomes:
+  - "Explain the difference between bi-encoders and cross-encoders."
+  - "Know when to use cross-encoder vs ColBERT vs LLM reranking."
+  - "Implement a reranking cascade for latency-quality tradeoffs."
+tags: ["reranking", "cross-encoder", "colbert", "precision"]
+sources:
+  - title: "Passage Re-ranking with BERT (Nogueira & Cho, 2019)"
+    url: "https://arxiv.org/abs/1901.04085"
+    type: "paper"
+    year: 2019
+  - title: "ColBERT: Efficient and Effective Passage Search (Khattab & Zaharia, 2020)"
+    url: "https://arxiv.org/abs/2004.12832"
+    type: "paper"
+    year: 2020
+  - title: "RankGPT: Is ChatGPT Good at Search? (Sun et al., 2023)"
+    url: "https://arxiv.org/abs/2304.09542"
+    type: "paper"
+    year: 2023
+  - title: "Cohere Rerank API"
+    url: "https://docs.cohere.com/docs/rerank"
+    type: "docs"
+---
+
+## Goals
+
+- Understand why reranking is the "precision lever" in RAG.
+- Master the tradeoffs between different reranking approaches.
+- Know when reranking is worth the latency cost.
+
+## Prereqs
+
+- Read: **Hybrid Retrieval** (you need candidates before you can rerank).
+- Challenge: `reranker-score-function` (implement basic scoring).
+
+## Core idea
+
+### The retrieval-rerank pattern
+
+Retrieval optimizes for **recall** (don't miss anything).
+Reranking optimizes for **precision** (put the best at the top).
+
+```
+Query
+  ↓
+Retrieve top-50/100 (fast, high recall, lower precision)
+  ↓
+Rerank to top-5/10 (slower, higher precision)
+  ↓
+Generate answer
+```
+
+### Why reranking matters
+
+From the [Lost in the Middle paper](https://arxiv.org/abs/2307.03172): LLMs struggle when relevant information is buried in the context. Reranking ensures the **best evidence is at the top**.
+
+### Bi-encoder vs Cross-encoder
+
+| Aspect | Bi-encoder (Retrieval) | Cross-encoder (Rerank) |
+|--------|------------------------|------------------------|
+| **How it works** | Encode query and docs separately | Encode query+doc together |
+| **Speed** | Fast (precompute doc embeddings) | Slow (N forward passes) |
+| **Accuracy** | Good recall | Better precision |
+| **Use case** | First-stage retrieval | Second-stage reranking |
+
+**Cross-encoder** sees the query and document together, allowing fine-grained attention:
+
+```python
+# Bi-encoder (retrieval)
+query_emb = encode(query)
+doc_emb = encode(doc)  # Can be precomputed
+score = cosine_similarity(query_emb, doc_emb)
+
+# Cross-encoder (rerank)
+score = model.predict([query, doc])  # Must be computed at query time
+```
+
+### Reranking methods compared
+
+| Method | Quality | Latency | Cost | Best For |
+|--------|---------|---------|------|----------|
+| **Cross-encoder** | High | +100-300ms | Medium | Default production choice |
+| **ColBERT** | High | +50-150ms | Infra-heavy | Large corpora, speed-critical |
+| **LLM rerank** | Very high | +500-2000ms | High | Hard queries, low volume |
+| **Cascade** | Tunable | Tunable | Tunable | Latency-sensitive systems |
+
+### Cross-encoder reranking
+
+The most common production pattern:
+
+```python
+from sentence_transformers import CrossEncoder
+
+reranker = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
+
+def rerank(query: str, candidates: List[str], top_k: int = 10) -> List[str]:
+    """Rerank candidates using cross-encoder."""
+    pairs = [[query, doc] for doc in candidates]
+    scores = reranker.predict(pairs)
+    
+    # Sort by score descending
+    ranked = sorted(zip(candidates, scores), key=lambda x: x[1], reverse=True)
+    return [doc for doc, score in ranked[:top_k]]
+```
+
+### ColBERT: Late interaction
+
+[ColBERT](https://arxiv.org/abs/2004.12832) offers a middle ground:
+- Encode query and document into **multiple vectors** (one per token)
+- Score via **MaxSim**: max similarity between each query token and all doc tokens
+- Faster than cross-encoder because doc encodings can be precomputed
+
+```python
+def colbert_score(query_vectors, doc_vectors):
+    """MaxSim scoring for ColBERT."""
+    # For each query token, find max similarity to any doc token
+    max_sims = []
+    for q_vec in query_vectors:
+        similarities = [cosine_sim(q_vec, d_vec) for d_vec in doc_vectors]
+        max_sims.append(max(similarities))
+    return sum(max_sims)
+```
+
+### LLM reranking (listwise)
+
+For the hardest queries, use an LLM to reason about relevance:
+
+```python
+def llm_rerank(query: str, candidates: List[str], top_k: int = 5) -> List[str]:
+    """Use LLM to rerank candidates."""
+    prompt = f"""Given the query and documents, rank them by relevance.
+    
+Query: {query}
+
+Documents:
+{chr(10).join(f'[{i}] {doc}' for i, doc in enumerate(candidates))}
+
+Return the document numbers in order of relevance (most relevant first).
+Format: [3], [1], [5], ...
+"""
+    response = llm.generate(prompt)
+    # Parse the ranking from response
+    return parse_ranking(response, candidates)[:top_k]
+```
+
+<Callout title="Warning" variant="warning">
+  LLM reranking is expensive and slow. Use only when: (1) queries are hard, (2) volume is low, (3) stakes are high.
+</Callout>
+
+### Reranking cascade
+
+For latency-sensitive systems, use a cascade:
+
+```python
+def cascade_rerank(query: str, candidates: List[str]) -> List[str]:
+    """
+    Cascade: cheap shortlist → expensive rerank.
+    """
+    # Stage 1: Fast reranker on all candidates (e.g., MiniLM)
+    shortlist = fast_reranker.rerank(query, candidates, top_k=20)
+    
+    # Stage 2: Expensive reranker on shortlist (e.g., large cross-encoder)
+    final = expensive_reranker.rerank(query, shortlist, top_k=5)
+    
+    return final
+```
+
+## Failure modes
+
+1. **Reranking too few candidates**: Rerank at least 20-50. If you only rerank top-5, you might miss the best result.
+2. **Reranking too many**: Diminishing returns + latency. 50-100 is usually enough.
+3. **Model mismatch**: Use rerankers trained on similar domains (MS MARCO for general, domain-specific for specialized).
+4. **Ignoring diversity**: Reranking by relevance alone can create redundant results. Consider MMR.
+
+## Production defaults
+
+- **Default**: Cross-encoder rerank top-50 → keep top-5/10.
+- **Budget**: MS MARCO MiniLM (fast, good quality).
+- **Quality**: Cohere Rerank or larger cross-encoders.
+- **Hard queries**: LLM rerank as fallback, not default.
+
+## Do next
+
+<ChallengeLinks slugs={["rerank-cascade", "reranker-score-function", "mmr-diversity", "llm-reranker"]} />
+
+<Card className="mt-4 p-4">
+  <p className="text-sm font-medium">Compare reranking approaches:</p>
+  <Link
+    href="/compare/reranking"
+    className="mt-2 inline-flex text-xs font-medium text-blue-700 hover:text-blue-500 dark:text-blue-400"
+  >
+    Compare: Reranking →
+  </Link>
+</Card>

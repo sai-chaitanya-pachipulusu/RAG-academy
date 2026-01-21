@@ -1,0 +1,24 @@
+﻿<Callout title="Goal" variant="info">
+  Implement a naive flat index (brute force search) for small-scale retrieval.
+</Callout>
+
+## Why this matters in production
+
+Before reaching for Faiss or Pinecone, understanding how to iterate and score vectors directly is key for:
+
+- Debugging retrieval quality
+- Implementing "reranking" or custom scoring
+- Handling small datasets where an index overhead is unnecessary
+
+## What you’re implementing
+
+Given:
+
+- `vectors: List[List[float]]`
+- `query: List[float]`
+- `k: int`
+
+Return top `k` similar vectors.
+
+This is fundamentally similar to "Embed and Search" but focuses on the data structure aspect (List of Lists).
+

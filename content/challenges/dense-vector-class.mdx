@@ -1,0 +1,16 @@
+﻿<Callout title="Goal" variant="info">
+  Create a formal `DenseVector` class to manage metadata and operations.
+</Callout>
+
+## The "Raw Array" Problem
+
+Passing around raw lists of floats (`List[float]`) is fine for a single function, but in a real Vector DB, you need to track:
+
+1.  The **Vector Data** itself.
+2.  The **Primary Key** (ID).
+3.  **Metadata** (e.g., source file, timestamp).
+
+## Task
+
+Implement a proper Python class that encapsulates a vector and provides utility methods for computing similarity and managing associated data. This will be the primitive "cell" of your `VectorDB`.
+

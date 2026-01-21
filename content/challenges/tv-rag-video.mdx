@@ -1,0 +1,34 @@
+---
+title: "TV-RAG Video"
+description: "Implement RAG over video content with temporal awareness"
+---
+
+# TV-RAG Video
+
+Implement a RAG system that can retrieve and reason over video content, including visual frames and audio transcripts.
+
+## Requirements
+
+1. Index video frames with timestamps
+2. Index audio transcripts
+3. Align visual and text retrieval
+4. Generate answers with temporal citations
+
+## Starter Code
+
+```python
+class VideoRAG:
+    def __init__(self, frame_encoder, text_encoder):
+        self.frame_encoder = frame_encoder
+        self.text_encoder = text_encoder
+        self.frame_index = []
+        self.transcript_index = []
+    
+    def index_video(self, video_path: str, transcript: str):
+        """Index video frames and transcript."""
+        pass
+    
+    def query(self, query: str) -> dict:
+        """Query with temporal alignment."""
+        pass
+```

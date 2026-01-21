@@ -1,0 +1,239 @@
+﻿<Callout title="Goal" variant="info">
+  Master reranker selection with benchmarks, latency analysis, and production
+  integration patterns.
+</Callout>
+
+## Why Reranking Matters
+
+First-stage retrieval (BM25 + dense) optimizes for **recall** — don't miss anything.
+Reranking optimizes for **precision** — put the best documents at the top.
+
+```
+First Stage: Retrieve 100 candidates (high recall)
+    ↓
+Reranker: Score each candidate against the query
+    ↓
+Final: Keep top 5-10 for LLM context (high precision)
+```
+
+## Reranker Types
+
+### 1. Cross-Encoder Rerankers
+
+Process query-document pairs together through a transformer:
+
+```
+[CLS] query [SEP] document [SEP] → relevance score
+```
+
+**Pros**: Highest accuracy (full attention between query and doc)
+**Cons**: Slow (can't precompute document representations)
+
+### 2. Late Interaction (ColBERT)
+
+Precompute token embeddings, interaction at query time:
+
+```
+Query tokens → Q embeddings
+Doc tokens → D embeddings (precomputed)
+Score = Σ max similarity (Q_i, D_j)
+```
+
+**Pros**: Fast (100x faster than cross-encoder)
+**Cons**: Large index (128 vectors per doc)
+
+### 3. LLM-as-Reranker
+
+Use an LLM to score relevance:
+
+```
+"Rate the relevance of this document to the query on a scale of 1-5.
+Query: {query}
+Document: {document}
+Rating:"
+```
+
+**Pros**: Best for nuanced relevance, zero-shot
+**Cons**: Extremely slow and expensive
+
+## Benchmark: BEIR Dataset (Dec 2024)
+
+| Model                                     | BEIR Average nDCG@10 | Latency (ms/query) | Cost          |
+| ----------------------------------------- | -------------------- | ------------------ | ------------- |
+| No reranker (dense only)                  | 44.2                 | 5                  | Free          |
+| **bge-reranker-v2-m3**                    | 49.8                 | 15                 | Free (OSS)    |
+| **Cohere rerank-v3.0**                    | 52.1                 | 80                 | $2/1K docs    |
+| **cross-encoder/ms-marco-MiniLM-L-12-v2** | 48.5                 | 25                 | Free (OSS)    |
+| **jina-reranker-v2-base-multilingual**    | 50.3                 | 35                 | $0.01/1K docs |
+| **Voyage rerank-2**                       | 51.8                 | 60                 | $0.05/1K docs |
+| **RankLLaMA**                             | 50.9                 | 200                | GPU cost      |
+| **GPT-4 as reranker**                     | 53.2                 | 2000               | ~$0.50/query  |
+
+## Cost Analysis
+
+### Per-Query Cost (reranking 20 docs)
+
+| Provider    | Model              | Cost per Query           |
+| ----------- | ------------------ | ------------------------ |
+| Open Source | bge-reranker-v2-m3 | GPU time only (~$0.0001) |
+| Cohere      | rerank-v3.0        | $0.04                    |
+| Voyage      | rerank-2           | $0.001                   |
+| Jina        | reranker-v2        | $0.0002                  |
+| OpenAI      | GPT-4 listwise     | ~$0.10                   |
+
+### Monthly Cost at Scale
+
+| Daily Queries | Cohere   | Voyage | OSS (GPU) |
+| ------------- | -------- | ------ | --------- |
+| 1,000         | $1,200   | $30    | ~$50      |
+| 10,000        | $12,000  | $300   | ~$100     |
+| 100,000       | $120,000 | $3,000 | ~$500     |
+
+## Implementation Patterns
+
+### Pattern 1: API Reranker (Cohere)
+
+```python
+import cohere
+
+co = cohere.Client("your-api-key")
+
+def rerank_cohere(query: str, documents: List[str], top_k: int = 5) -> List[str]:
+    response = co.rerank(
+        model="rerank-english-v3.0",
+        query=query,
+        documents=documents,
+        top_n=top_k,
+        return_documents=True
+    )
+    return [r.document.text for r in response.results]
+```
+
+### Pattern 2: Open Source (BGE)
+
+```python
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
+import torch
+
+model_name = "BAAI/bge-reranker-v2-m3"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForSequenceClassification.from_pretrained(model_name)
+model.eval()
+
+def rerank_bge(query: str, documents: List[str], top_k: int = 5) -> List[str]:
+    pairs = [[query, doc] for doc in documents]
+
+    with torch.no_grad():
+        inputs = tokenizer(
+            pairs,
+            padding=True,
+            truncation=True,
+            max_length=512,
+            return_tensors="pt"
+        )
+        scores = model(**inputs).logits.squeeze(-1)
+
+    # Sort by score descending
+    ranked_indices = torch.argsort(scores, descending=True)[:top_k]
+    return [documents[i] for i in ranked_indices.tolist()]
+```
+
+### Pattern 3: Cascade Reranker (Fast → Accurate)
+
+```python
+def cascade_rerank(query: str, documents: List[str], final_k: int = 5) -> List[str]:
+    """
+    Stage 1: Fast reranker on 100 candidates → 20
+    Stage 2: Accurate reranker on 20 → 5
+    """
+    # Stage 1: Fast (BGE small or MiniLM)
+    intermediate = rerank_fast(query, documents, top_k=20)
+
+    # Stage 2: Accurate (Cohere or large cross-encoder)
+    final = rerank_accurate(query, intermediate, top_k=final_k)
+
+    return final
+```
+
+### Pattern 4: LLM Listwise Reranking
+
+```python
+def llm_rerank(query: str, documents: List[str], top_k: int = 5) -> List[str]:
+    """Use LLM to rank documents by relevance."""
+
+    doc_list = "\n".join([f"[{i+1}] {doc[:200]}" for i, doc in enumerate(documents)])
+
+    prompt = f"""Rank these documents by relevance to the query.
+Return only the document numbers in order from most to least relevant.
+
+Query: {query}
+
+Documents:
+{doc_list}
+
+Ranking (comma-separated numbers):"""
+
+    response = llm.generate(prompt)
+
+    # Parse response: "3, 1, 5, 2, 4" → [3, 1, 5, 2, 4]
+    ranking = [int(x.strip()) - 1 for x in response.split(",")]
+
+    return [documents[i] for i in ranking[:top_k]]
+```
+
+## When to Use Which Reranker
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ What's your priority?                                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│ 💰 Minimum cost?                                                 │
+│   └─→ bge-reranker-v2-m3 (open source, GPU)                     │
+│                                                                  │
+│ 🎯 Maximum accuracy?                                             │
+│   └─→ Cohere rerank-v3.0 or GPT-4 listwise                      │
+│                                                                  │
+│ ⚡ Low latency (<50ms)?                                          │
+│   └─→ ColBERT (late interaction) or small cross-encoder        │
+│                                                                  │
+│ 🌍 Multilingual?                                                 │
+│   └─→ jina-reranker-v2-base-multilingual                        │
+│       bge-reranker-v2-m3 (100+ languages)                       │
+│                                                                  │
+│ 🔒 On-premise required?                                          │
+│   └─→ Any open-source model (BGE, cross-encoder, ColBERT)       │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Latency Optimization
+
+| Technique                 | Latency Reduction           |
+| ------------------------- | --------------------------- |
+| Batch processing          | 3-5x faster                 |
+| GPU inference             | 10-20x faster than CPU      |
+| Model quantization (INT8) | 2x faster, ~1% quality loss |
+| Reduce candidate count    | Linear improvement          |
+| Async processing          | Better throughput           |
+
+## Edge Cases
+
+| Scenario                        | Handling                                   |
+| ------------------------------- | ------------------------------------------ |
+| Document longer than 512 tokens | Truncate or chunk + max score              |
+| Query longer than model limit   | Truncate (queries rarely exceed limit)     |
+| Tie scores                      | Use original retrieval order as tiebreaker |
+| All scores very low             | Consider fallback or "no relevant docs"    |
+| Single candidate                | Skip reranking (unnecessary)               |
+
+## Production Checklist
+
+- [ ] Benchmark on YOUR data (not just BEIR)
+- [ ] Measure P99 latency, not average
+- [ ] Set up fallback if reranker fails
+- [ ] Log reranker scores for debugging
+- [ ] A/B test reranker vs no reranker
+- [ ] Monitor cost per query
+- [ ] Cache reranker results for repeated queries
+

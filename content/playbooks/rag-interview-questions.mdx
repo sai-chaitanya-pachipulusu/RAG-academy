@@ -1,0 +1,333 @@
+﻿---
+title: "RAG Interview Questions (2025)"
+description: "Common RAG interview questions with answers for ML Engineer and AI Engineer roles."
+order: 5
+tags: ["interview", "preparation", "questions", "answers", "career"]
+---
+
+<Callout title="Interview Prep" variant="info">
+  Top RAG interview questions from FAANG, AI startups, and enterprise companies.
+  Covers fundamentals to advanced patterns.
+</Callout>
+
+## Fundamentals (Junior-Mid Level)
+
+### Q1: What is RAG and why use it instead of fine-tuning?
+
+**Answer:**
+RAG (Retrieval-Augmented Generation) combines external knowledge retrieval with LLM generation. Key advantages over fine-tuning:
+
+| Aspect            | RAG                   | Fine-tuning             |
+| ----------------- | --------------------- | ----------------------- |
+| Knowledge updates | Instant (update docs) | Requires retraining     |
+| Cost              | Low (no training)     | High (GPU hours)        |
+| Hallucination     | Reduced (grounded)    | Can increase            |
+| Traceability      | Citations possible    | No source tracking      |
+| Domain shift      | Add new docs          | Retrain for new domains |
+
+**When to fine-tune instead**: You need specific output format, tone, or reasoning style that can't be prompted.
+
+---
+
+### Q2: Explain the difference between sparse and dense retrieval.
+
+**Answer:**
+
+**Sparse (BM25)**:
+
+- Bag-of-words approach
+- Exact term matching
+- Fast, interpretable
+- Great for: acronyms, IDs, exact phrases
+- Formula uses TF-IDF variants
+
+**Dense (Embeddings)**:
+
+- Neural network produces fixed-size vectors
+- Semantic similarity via cosine/dot product
+- Catches synonyms and paraphrases
+- Requires embedding model
+
+**Best practice**: Hybrid retrieval (both) with RRF fusion, then rerank.
+
+---
+
+### Q3: What is the "lost in the middle" problem?
+
+**Answer:**
+LLMs pay more attention to the beginning and end of their context window, often missing information in the middle.
+
+**Mitigation strategies**:
+
+1. Order retrieved docs: Best → Filler → Second-best
+2. Use shorter context with only high-relevance docs
+3. Summarize middle content
+4. Fine-tune to reduce positional bias
+
+---
+
+### Q4: How do you evaluate a RAG system?
+
+**Answer:**
+
+**Retrieval metrics**:
+
+- Recall@K: Did we find the relevant docs?
+- Precision@K: How clean is the context?
+- MRR: How quickly do we find the first relevant?
+- nDCG: Ranking quality with graded relevance
+
+**Generation metrics**:
+
+- Faithfulness: Is the answer grounded in context?
+- Answer relevance: Does it answer the question?
+- Context relevance: Was the right context retrieved?
+
+**Tools**: RAGAS, TruLens, custom golden set evaluation
+
+---
+
+## Intermediate (Mid-Senior Level)
+
+### Q5: What is HNSW and how does it work?
+
+**Answer:**
+HNSW (Hierarchical Navigable Small World) is a graph-based approximate nearest neighbor algorithm.
+
+**Key concepts**:
+
+1. **Multi-layer graph**: Higher layers have fewer nodes, longer edges (express lanes)
+2. **Greedy search**: Start at highest layer, descend while getting closer
+3. **Parameters**: M (connections per node), ef (search beam width)
+
+**Complexity**: O(log N) query time
+**Tradeoff**: Uses more memory than IVF-PQ but faster queries
+
+---
+
+### Q6: Explain how RRF (Reciprocal Rank Fusion) works.
+
+**Answer:**
+
+```
+RRF(d) = Σ 1/(k + rank(d))
+```
+
+For each document d, sum the reciprocal ranks across all rankers plus a constant k (typically 60).
+
+**Why it works**: Documents ranked highly by multiple systems get higher scores. The k parameter prevents overweighting very top ranks.
+
+**Use case**: Combining BM25 and dense retrieval results.
+
+---
+
+### Q7: How would you handle a RAG system for 1 billion documents?
+
+**Answer:**
+
+1. **Index choice**: IVF-PQ or IVF-HNSW-PQ for memory efficiency
+2. **Sharding**: Partition by date, category, or hash
+3. **Two-stage retrieval**: Coarse (fast, many candidates) → Fine (rerank top-K)
+4. **Caching**: Query cache, embedding cache, response cache
+5. **Async processing**: Background indexing, batch embeddings
+6. **Metadata filtering**: Pre-filter before vector search
+7. **Quantization**: Reduce vector precision (FP32 → INT8)
+
+---
+
+### Q8: What is contextual retrieval?
+
+**Answer:**
+Anthropic's technique where you prepend contextual information to each chunk before embedding:
+
+```
+Original chunk: "Revenue increased 15%."
+Contextualized: "From Acme Corp Q3 2024 Report, Revenue section: Revenue increased 15%."
+```
+
+**Results**: +35% recall alone, +67% with hybrid + rerank
+
+---
+
+## Advanced (Senior-Staff Level)
+
+### Q9: Design a production RAG system for a legal firm.
+
+**Answer:**
+
+**Requirements**: High accuracy, citation tracking, access control, audit logging
+
+**Architecture**:
+
+```
+Ingestion:
+- PDF extraction with layout awareness
+- Chunk by legal section/clause
+- Entity extraction (parties, dates, clauses)
+- Embed with legal-specific model
+
+Query:
+- Query understanding (intent, entities)
+- Hybrid retrieval (BM25 critical for case numbers)
+- ACL enforcement at retrieval time
+- Cross-encoder rerank
+- Citation validation
+
+Generation:
+- Low-temperature generation
+- Mandatory source citation
+- Confidence thresholds for refusal
+- Human-in-the-loop for high-stakes answers
+```
+
+**Key considerations**:
+
+- PII redaction
+- Privilege detection
+- Audit trail for every access
+- Version control for documents
+
+---
+
+### Q10: How would you debug poor retrieval quality?
+
+**Answer:**
+
+**Systematic debugging**:
+
+1. **Check embedding quality**:
+
+   - Sample queries → expected docs retrieved?
+   - Compute similarity scores manually
+   - Try different embedding models
+
+2. **Check chunking**:
+
+   - Are relevant phrases split across chunks?
+   - Is chunk size appropriate for query length?
+   - Are metadata/headers preserved?
+
+3. **Check index configuration**:
+
+   - ef_search high enough? (try 100+)
+   - nprobe sufficient for IVF?
+   - Distance metric correct (cosine vs L2)?
+
+4. **Evaluate with golden set**:
+
+   - Recall@10 should be >80%
+   - If recall is good but answers bad → generation problem
+
+5. **Analyze failure cases**:
+   - Is the relevant doc in the corpus at all?
+   - Is the query too vague?
+   - Does it require multi-hop reasoning?
+
+---
+
+### Q11: Explain Self-RAG and when you'd use it.
+
+**Answer:**
+Self-RAG adds self-reflection to retrieval:
+
+1. **Retrieve decision**: Does this query need external knowledge?
+2. **Relevance grading**: Are retrieved docs actually relevant?
+3. **Support checking**: Is the response grounded in context?
+4. **Usefulness scoring**: Is this answer actually helpful?
+
+**Use when**:
+
+- Answer quality is critical
+- You want to reduce hallucinations
+- Some queries don't need retrieval
+
+**Skip when**: Latency-critical, cost-sensitive, simple use cases
+
+---
+
+### Q12: How do you handle RAG for real-time data?
+
+**Answer:**
+
+**Strategies**:
+
+1. **Streaming ingestion**: Kafka → embedding → incremental index updates
+2. **Cache invalidation**: TTL on cached results, version-aware retrieval
+3. **Hybrid sources**: Static index + live API calls + web search
+4. **Time-decay scoring**: Boost recent documents
+5. **Query routing**: Route "latest news" queries to live sources
+
+**Example architecture**:
+
+```
+Query → Router →
+  ├── Historical (vector DB)
+  ├── Recent (last 24h index)
+  └── Real-time (API/web search)
+→ Merge → Rerank → Generate
+```
+
+---
+
+## System Design Questions
+
+### Q13: Design a RAG system that handles images in scientific papers.
+
+**Key components**:
+
+1. **OCR for text** + **vision model for figures/tables**
+2. **Figure captioning** using GPT-4V or similar
+3. **Store image embeddings** (CLIP) alongside text
+4. **Query types**: Text-only, image-only, multimodal
+5. **Citation**: Link back to specific figures in PDF
+
+---
+
+### Q14: How would you reduce RAG latency from 2s to 200ms?
+
+**Strategies**:
+
+1. **Async/parallel**: Retrieve while preparing prompt
+2. **Caching**: Query cache, semantic cache (similar queries)
+3. **Smaller model**: GPT-4o-mini vs GPT-4o
+4. **Fewer docs**: Retrieve less, more precisely
+5. **Streaming**: Start showing response immediately
+6. **Edge deployment**: Embed & rerank on edge
+7. **Pre-computation**: Pre-generate common answers
+
+---
+
+## Behavioral Questions
+
+### Q15: Tell me about a time you debugged a RAG system failure.
+
+**Structure your answer**:
+
+1. **Situation**: What was the system and what went wrong?
+2. **Task**: What was your role?
+3. **Action**: How did you systematically debug?
+4. **Result**: What was the fix and impact?
+
+**Example topics**:
+
+- Poor retrieval due to embedding model mismatch
+- Hallucinations from irrelevant context
+- Performance issues at scale
+- Production incident response
+
+---
+
+## Quick Facts for Interviews
+
+| Topic         | Remember            |
+| ------------- | ------------------- |
+| Chunk size    | 300-600 tokens      |
+| Overlap       | 10-20%              |
+| Retrieve K    | 20-50 before rerank |
+| Final context | 5-10 docs           |
+| RRF k         | 60                  |
+| BM25 k1       | 1.5                 |
+| BM25 b        | 0.75                |
+| HNSW M        | 16-64               |
+| HNSW ef       | 64-200              |
+

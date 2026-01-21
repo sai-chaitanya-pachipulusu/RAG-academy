@@ -1,0 +1,38 @@
+﻿---
+title: "Audit Logger (Compliance)"
+description: "Log every RAG query and response for compliance and debugging."
+---
+
+# Audit Logger (Compliance)
+
+"What did our RAG system tell the CEO last Tuesday?" If you can't answer this question, you're not production-ready.
+
+### Why Audit Logging?
+
+1. **Compliance**: GDPR "Right to Explanation" requires you to explain AI decisions.
+2. **Debugging**: "Why did the bot give a wrong answer?" requires seeing what was retrieved.
+3. **Improvement**: Analyzing logs reveals common failure patterns.
+
+### What to Log
+
+| Field         | Purpose           |
+| ------------- | ----------------- |
+| log_id        | Unique identifier |
+| timestamp     | When it happened  |
+| user_id       | Who asked         |
+| query         | What they asked   |
+| retrieved_ids | What was found    |
+| answer        | What we said      |
+
+### Your Task
+
+Implement an `AuditLogger` class that:
+
+- Logs complete RAG interactions.
+- Retrieves logs for a specific user.
+- Exports all logs as JSON.
+
+### SOC2 / HIPAA
+
+If you're building enterprise RAG, audit logging isn't optional—it's a checkbox on the compliance audit.
+

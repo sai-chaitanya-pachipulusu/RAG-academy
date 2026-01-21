@@ -1,0 +1,391 @@
+---
+title: "Reasoning RAG"
+description: "Combine chain-of-thought reasoning with retrieval for complex questions."
+order: 8
+estimatedMinutes: 25
+stage: agentic-rag
+prereqs:
+  - phase: phase-3
+    slug: adaptive-rag
+  - phase: phase-3
+    slug: self-rag
+next:
+  phase: phase-4
+  slug: knowledge-graphs-intro
+outcomes:
+  - "Implement think-then-retrieve patterns."
+  - "Use iterative retrieval with reasoning."
+  - "Handle multi-hop questions effectively."
+tags: ["reasoning", "chain-of-thought", "2025", "multi-hop"]
+sources:
+  - title: "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models"
+    url: "https://arxiv.org/abs/2201.11903"
+    type: "paper"
+  - title: "Interleaving Retrieval with Chain-of-Thought Reasoning (IRCoT)"
+    url: "https://arxiv.org/abs/2212.10509"
+    type: "paper"
+  - title: "OpenAI o1 System Card"
+    url: "https://openai.com/index/openai-o1-system-card/"
+    type: "docs"
+---
+
+## Goals
+
+- Understand why single-pass RAG fails on complex questions.
+- Learn to interleave reasoning with retrieval.
+- Implement verification loops for accuracy.
+
+## Prereqs
+
+- Read: **Adaptive RAG** (Phase 3) for query routing.
+- Read: **Self-RAG** (Phase 3) for retrieval decisions.
+
+## Core idea
+
+Traditional RAG retrieves once, then generates. This fails for:
+
+```
+Query: "Which company had higher revenue growth in 2024, 
+        and what factors contributed to the difference?"
+
+Traditional RAG problem:
+  - Retrieves docs about Company A
+  - Misses docs about Company B
+  - Can't compare what it doesn't have
+```
+
+**Reasoning RAG** thinks first, retrieves iteratively, and verifies:
+
+```
+Reasoning RAG:
+  1. THINK: "I need revenue data for both companies"
+  2. RETRIEVE: Company A revenue 2024
+  3. RETRIEVE: Company B revenue 2024
+  4. THINK: "Company A: 15% growth. Company B: 8% growth. Why?"
+  5. RETRIEVE: Factors for Company A growth
+  6. RETRIEVE: Factors for Company B growth
+  7. VERIFY: Do my sources support my comparison?
+  8. GENERATE: Final answer with citations
+```
+
+## The Reasoning RAG Pattern
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        Query                                 │
+└─────────────────────────────┬───────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    THINK (Plan)                              │
+│  "What information do I need to answer this question?"       │
+└─────────────────────────────┬───────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    RETRIEVE (Act)                            │
+│  Execute sub-queries based on the plan                       │
+└─────────────────────────────┬───────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   REASON (Observe)                           │
+│  "Do I have enough information? What's missing?"             │
+│  If gaps → back to RETRIEVE                                  │
+└─────────────────────────────┬───────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    VERIFY (Reflect)                          │
+│  "Does my answer match the sources? Any contradictions?"     │
+└─────────────────────────────┬───────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    GENERATE (Answer)                         │
+│  Final answer with step-by-step reasoning and citations      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Implementation
+
+### Basic Reasoning RAG
+
+```python
+from dataclasses import dataclass
+from typing import List, Optional
+
+@dataclass
+class ReasoningStep:
+    thought: str
+    action: str  # "retrieve", "reason", "verify", "answer"
+    query: Optional[str] = None
+    result: Optional[str] = None
+
+class ReasoningRAG:
+    def __init__(self, retriever, llm, max_iterations: int = 5):
+        self.retriever = retriever
+        self.llm = llm
+        self.max_iterations = max_iterations
+    
+    def answer(self, query: str) -> str:
+        context = []
+        steps: List[ReasoningStep] = []
+        
+        for i in range(self.max_iterations):
+            # THINK: What should we do next?
+            next_action = self._plan_next_step(query, context, steps)
+            steps.append(next_action)
+            
+            if next_action.action == "answer":
+                # We have enough information
+                return self._generate_final_answer(query, context, steps)
+            
+            elif next_action.action == "retrieve":
+                # Retrieve more information
+                docs = self.retriever.retrieve(next_action.query, k=5)
+                context.extend(docs)
+                next_action.result = f"Retrieved {len(docs)} documents"
+            
+            elif next_action.action == "reason":
+                # Reason about what we have
+                reasoning = self._reason_about_context(query, context)
+                next_action.result = reasoning
+            
+            elif next_action.action == "verify":
+                # Verify our understanding
+                verification = self._verify_context(query, context)
+                next_action.result = verification
+        
+        # Max iterations reached
+        return self._generate_final_answer(query, context, steps)
+    
+    def _plan_next_step(
+        self, 
+        query: str, 
+        context: List[str], 
+        steps: List[ReasoningStep]
+    ) -> ReasoningStep:
+        """Decide what to do next."""
+        
+        steps_summary = "\n".join([
+            f"Step {i+1}: {s.action} - {s.thought}"
+            for i, s in enumerate(steps)
+        ])
+        
+        prompt = f"""You are solving a question step by step.
+
+Question: {query}
+
+Context gathered so far: {len(context)} documents
+
+Steps taken:
+{steps_summary if steps else "None yet"}
+
+What should we do next? Choose ONE:
+1. RETRIEVE: Need more information. Specify what to search for.
+2. REASON: Analyze current information to find gaps.
+3. VERIFY: Check if our information is sufficient and consistent.
+4. ANSWER: We have enough to answer the question.
+
+Respond with JSON:
+{{"thought": "why this action", "action": "retrieve|reason|verify|answer", "query": "search query if retrieve"}}"""
+        
+        response = self.llm.generate(prompt)
+        data = json.loads(response)
+        
+        return ReasoningStep(
+            thought=data["thought"],
+            action=data["action"],
+            query=data.get("query")
+        )
+    
+    def _reason_about_context(self, query: str, context: List[str]) -> str:
+        """Analyze what we have and identify gaps."""
+        
+        prompt = f"""Analyze the retrieved information for answering this question.
+
+Question: {query}
+
+Retrieved Information:
+{self._format_context(context)}
+
+What do we know? What's still missing? Are there any contradictions?"""
+        
+        return self.llm.generate(prompt)
+    
+    def _verify_context(self, query: str, context: List[str]) -> str:
+        """Verify information consistency."""
+        
+        prompt = f"""Verify the information we have for this question.
+
+Question: {query}
+
+Information:
+{self._format_context(context)}
+
+Check:
+1. Is the information consistent (no contradictions)?
+2. Is it sufficient to answer the question?
+3. Are the sources reliable?
+4. Any gaps that would affect answer quality?"""
+        
+        return self.llm.generate(prompt)
+    
+    def _generate_final_answer(
+        self, 
+        query: str, 
+        context: List[str], 
+        steps: List[ReasoningStep]
+    ) -> str:
+        """Generate the final answer with reasoning trace."""
+        
+        reasoning_trace = "\n".join([
+            f"Step {i+1} ({s.action}): {s.thought}"
+            for i, s in enumerate(steps)
+        ])
+        
+        prompt = f"""Answer this question with detailed reasoning and citations.
+
+Question: {query}
+
+Reasoning process:
+{reasoning_trace}
+
+Information gathered:
+{self._format_context(context)}
+
+Provide a comprehensive answer that:
+1. Shows your reasoning step by step
+2. Cites specific sources for each claim
+3. Acknowledges any limitations or uncertainties"""
+        
+        return self.llm.generate(prompt)
+    
+    def _format_context(self, context: List[str]) -> str:
+        return "\n\n".join([f"[Doc {i+1}]: {doc}" for i, doc in enumerate(context)])
+```
+
+### Interleaved Retrieval with Chain-of-Thought (IRCoT)
+
+```python
+class IRCoT:
+    """Interleaving Retrieval with Chain-of-Thought."""
+    
+    def __init__(self, retriever, llm):
+        self.retriever = retriever
+        self.llm = llm
+    
+    def answer(self, query: str) -> str:
+        thoughts = []
+        all_context = []
+        
+        # Initial thought
+        thought = self._generate_thought(query, thoughts, all_context)
+        thoughts.append(thought)
+        
+        while not self._is_answer_ready(thought):
+            # Extract retrieval need from thought
+            retrieval_query = self._extract_retrieval_need(thought)
+            
+            if retrieval_query:
+                # Retrieve relevant information
+                docs = self.retriever.retrieve(retrieval_query, k=3)
+                all_context.extend(docs)
+            
+            # Generate next thought with new context
+            thought = self._generate_thought(query, thoughts, all_context)
+            thoughts.append(thought)
+            
+            if len(thoughts) > 10:  # Safety limit
+                break
+        
+        return self._extract_final_answer(thoughts)
+    
+    def _generate_thought(
+        self, 
+        query: str, 
+        thoughts: List[str], 
+        context: List[str]
+    ) -> str:
+        """Generate next thought in the chain."""
+        
+        prompt = f"""Question: {query}
+
+Previous thoughts:
+{chr(10).join(thoughts) if thoughts else "None"}
+
+Available information:
+{chr(10).join(context) if context else "None yet"}
+
+Generate your next thought. If you need more information, indicate what to search for.
+If you can answer, start with "ANSWER:" followed by your answer."""
+        
+        return self.llm.generate(prompt)
+    
+    def _is_answer_ready(self, thought: str) -> bool:
+        return thought.strip().startswith("ANSWER:")
+    
+    def _extract_retrieval_need(self, thought: str) -> Optional[str]:
+        """Extract what needs to be retrieved from the thought."""
+        
+        patterns = [
+            r"need to (?:find|search|look up|retrieve) (.+)",
+            r"should search for (.+)",
+            r"let me find (.+)",
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, thought.lower())
+            if match:
+                return match.group(1)
+        
+        return None
+    
+    def _extract_final_answer(self, thoughts: List[str]) -> str:
+        for thought in reversed(thoughts):
+            if thought.strip().startswith("ANSWER:"):
+                return thought.replace("ANSWER:", "").strip()
+        return thoughts[-1]  # Return last thought if no explicit answer
+```
+
+## When to Use Reasoning RAG
+
+| Query Type | Use Reasoning RAG? | Why |
+|------------|-------------------|-----|
+| Multi-hop questions | ✅ Yes | Requires connecting information |
+| Comparison questions | ✅ Yes | Need data from multiple sources |
+| Analysis/explanation | ✅ Yes | Benefits from step-by-step |
+| Simple factual lookup | ❌ No | Overkill, adds latency |
+| Real-time queries | ❌ No | Too slow for live responses |
+
+## Failure modes
+
+- **Reasoning loops**: Model keeps retrieving without concluding
+- **Over-retrieval**: Too many documents dilute context
+- **Thought drift**: Reasoning veers off-topic
+- **Latency**: Multi-step adds significant time (2-5x baseline)
+
+## Production defaults
+
+```python
+# Reasonable limits for production
+MAX_REASONING_STEPS = 5
+MAX_CONTEXT_DOCS = 20
+MAX_LATENCY_SECONDS = 10
+
+# Fast path for simple queries
+def smart_reasoning_rag(query: str):
+    complexity = classify_query(query)
+    
+    if complexity == "simple":
+        return simple_rag(query)  # Fast path
+    else:
+        return reasoning_rag(query)  # Full reasoning
+```
+
+## Do next
+
+1. **Challenge**: [Reasoning RAG Implementation](/challenges/reasoning-rag-implementation)
+2. **Challenge**: [Multi-Hop Question Answering](/challenges/multi-hop-qa)
+3. **Continue to**: [Knowledge Graphs Introduction](/learn/phase-4/knowledge-graphs-intro)

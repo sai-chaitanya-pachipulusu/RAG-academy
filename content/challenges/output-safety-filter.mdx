@@ -1,0 +1,46 @@
+---
+title: "Output Safety Filter"
+description: "Implement safety filtering for RAG outputs"
+---
+
+# Output Safety Filter
+
+Implement a safety filter that checks RAG outputs before returning to users.
+
+## Requirements
+
+1. Detect harmful content categories
+2. Filter or flag unsafe outputs
+3. Provide safe fallback responses
+4. Log filtered content
+
+## Starter Code
+
+```python
+class OutputSafetyFilter:
+    def __init__(self, classifier):
+        self.classifier = classifier
+        self.blocked_categories = ["violence", "hate", "self_harm", "sexual"]
+    
+    def is_safe(self, text: str) -> tuple[bool, list[str]]:
+        """
+        Check if output is safe.
+        
+        Returns:
+            (is_safe, detected_categories)
+        """
+        pass
+    
+    def filter_output(self, response: str) -> dict:
+        """
+        Filter output and return safe version.
+        
+        Returns:
+            {
+                "output": str,
+                "was_filtered": bool,
+                "blocked_categories": list[str]
+            }
+        """
+        pass
+```

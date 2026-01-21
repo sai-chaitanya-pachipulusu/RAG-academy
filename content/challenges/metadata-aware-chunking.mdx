@@ -1,0 +1,208 @@
+﻿---
+title: "Metadata-Aware Chunking: Production Context"
+description: "Add rich metadata to chunks for citations, filtering, and access control"
+difficulty: "hard"
+timeEstimate: "40-50 min"
+xpReward: 125
+prerequisites: ["section-based-chunking"]
+---
+
+# Metadata-Aware Chunking: Production Context
+
+## Chunks Don't Exist in Vacuum
+
+Every chunk comes from somewhere:
+
+- **Who** wrote it?
+- **When** was it written?
+- **Where** did it come from?
+- **Who** can see it?
+
+Losing this context = losing trust, filtering, and citations.
+
+---
+
+## The Production Requirements
+
+For real enterprise RAG, you need:
+
+| Requirement         | Why                           |
+| ------------------- | ----------------------------- |
+| **Source tracking** | "Where did this come from?"   |
+| **Citations**       | "Source: Doc X, Page Y"       |
+| **Time filtering**  | "Only docs from 2024"         |
+| **Access control**  | "Only if user has permission" |
+| **Deduplication**   | "Same content = same chunk"   |
+
+---
+
+## The Algorithm
+
+```python
+def metadata_chunk(text, source_info, chunk_size=500):
+    chunks = []
+    position = 0
+    index = 0
+
+    for text_chunk in split_text(text, chunk_size):
+        # Deterministic IDs for dedup
+        content_hash = sha256(text_chunk)
+        chunk_id = sha256(f"{source_info['id']}:{index}:{content_hash}")
+
+        chunks.append({
+            # Identity
+            'chunk_id': chunk_id,
+            'content_hash': content_hash,
+
+            # Content
+            'text': text_chunk,
+
+            # Source tracking
+            'source_id': source_info['id'],
+            'source_name': source_info['name'],
+            'source_url': source_info.get('url'),
+
+            # Position for citations
+            'chunk_index': index,
+            'char_start': position,
+            'char_end': position + len(text_chunk),
+            'page_number': calculate_page(position),
+
+            # Time filtering
+            'created_at': source_info.get('date'),
+            'indexed_at': datetime.now(),
+
+            # Access control
+            'access_level': source_info.get('access', 'public'),
+            'allowed_users': source_info.get('allowed_users', []),
+            'owner_id': source_info.get('owner_id')
+        })
+
+        position += len(text_chunk)
+        index += 1
+
+    return chunks
+```
+
+---
+
+## Metadata Fields Explained
+
+### Identity
+
+```python
+'chunk_id': 'abc123',      # Unique, deterministic
+'content_hash': 'def456'   # For deduplication
+```
+
+### Source Tracking
+
+```python
+'source_id': 'doc_789',    # Parent document
+'source_name': 'User Manual v2.0',
+'source_url': 'https://...'
+```
+
+### Citation Support
+
+```python
+'chunk_index': 5,          # 5th chunk in this doc
+'char_start': 2500,        # Exact position
+'char_end': 3000,
+'page_number': 12          # For PDF citation
+```
+
+### Filtering
+
+```python
+'created_at': '2024-01-15',
+'access_level': 'internal',
+'allowed_users': ['alice', 'bob']
+```
+
+---
+
+## Enabled Features
+
+### 1. Citations
+
+```
+Answer: "The API rate limit is 100 requests per minute."
+Source: User Manual v2.0, Page 12, Section 3.2
+```
+
+### 2. Time Filtering
+
+```python
+# Only recent docs
+filter = {"created_at": {"$gte": "2024-01-01"}}
+```
+
+### 3. Access Control
+
+```python
+# Filter by user permissions
+user_chunks = [c for c in chunks if user.id in c['allowed_users']]
+```
+
+### 4. Deduplication
+
+```python
+# Same content = same chunk_id
+if new_chunk['content_hash'] in existing_hashes:
+    skip_indexing(new_chunk)
+```
+
+---
+
+## ⚖️ Tradeoffs
+
+### Pros
+
+- ✅ Full traceability
+- ✅ Enables enterprise features
+- ✅ GDPR/compliance friendly
+- ✅ Deduplication saves storage
+
+### Cons
+
+- ❌ More storage per chunk
+- ❌ More fields to maintain
+- ❌ Requires source integration
+
+---
+
+## Real-World Usage
+
+**Essential for**:
+
+- Enterprise search (Glean, Guru)
+- Legal tech (casetext)
+- Healthcare (Epic)
+- Financial services (Bloomberg)
+
+**Features they enable**:
+
+- "Show Source" buttons
+- Audit trails
+- Role-based filtering
+- Compliance reporting
+
+---
+
+## Key Insight
+
+Metadata-aware chunking teaches us:
+
+> "Production RAG is about trust. Trust requires provenance."
+
+Users need to verify AI answers. Give them the tools.
+
+---
+
+## Related Challenges
+
+- `stable-chunk-ids` - Deterministic ID generation
+- `acl-filter-enforcement` - Access control at retrieval
+- `citation-validator` - Verify citations are valid
+

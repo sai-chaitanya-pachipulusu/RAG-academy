@@ -1,0 +1,73 @@
+﻿<Callout title="Goal" variant="info">
+  Implement cosine similarity — the default similarity metric for most embedding
+  models.
+</Callout>
+
+## Why this matters in production
+
+Cosine similarity answers: "Are these vectors pointing in the same direction?"
+
+That's why it's used for embeddings:
+
+- magnitude can vary with length/frequency
+- direction tends to capture meaning
+
+## What you're implementing
+
+$$
+\cos(\theta)=\frac{a\cdot b}{\|a\|\cdot\|b\|}
+$$
+
+## Edge Cases (Critical for Production)
+
+| Scenario              | Expected Behavior          | Why                                    |
+| --------------------- | -------------------------- | -------------------------------------- |
+| Mismatched lengths    | `ValueError`               | Can't compare different dimensions     |
+| Zero-magnitude vector | `ValueError`               | Division by zero (undefined direction) |
+| Empty vs non-empty    | `ValueError`               | Dimension mismatch                     |
+| Both empty            | `ValueError`               | No direction to compare                |
+| Very small magnitudes | Potential precision issues | See numerical stability below          |
+| Identical vectors     | Exactly `1.0`              | Same direction                         |
+| Opposite vectors      | Exactly `-1.0`             | Opposite directions                    |
+| Orthogonal vectors    | Exactly `0.0`              | No correlation                         |
+
+## Numerical Stability Considerations
+
+In production with float32 embeddings:
+
+```python
+# BAD: Can overflow with large vectors
+mag = sqrt(sum(x*x for x in vec))  # sum can overflow
+
+# BETTER: Use numpy's stable norm
+import numpy as np
+mag = np.linalg.norm(vec)
+
+# BEST: Pre-normalize your vectors at indexing time
+# Then cosine similarity = dot product (fast!)
+```
+
+**Pro tip**: Most embedding APIs return L2-normalized vectors. Check your provider's docs — if normalized, just use dot product directly.
+
+## Common pitfalls
+
+- Not guarding the zero-norm case.
+- Computing norms incorrectly (must be sqrt(sum(x²))).
+- Floating-point precision: `1.0000000001` should clamp to `1.0`.
+- Using L2 distance when you meant cosine (they're related but different).
+
+## Cosine vs L2 Distance
+
+| Metric            | Formula           | Range   | Use when                 |
+| ----------------- | ----------------- | ------- | ------------------------ |
+| Cosine similarity | dot / (mag × mag) | [-1, 1] | Semantic similarity      |
+| Cosine distance   | 1 - cosine_sim    | [0, 2]  | Some vector DBs use this |
+| L2 (Euclidean)    | sqrt(sum((a-b)²)) | [0, ∞)  | Magnitude matters        |
+| Dot product       | sum(a × b)        | (-∞, ∞) | Normalized vectors       |
+
+For normalized vectors: **cosine similarity = dot product** and **L2 distance ∝ 1 - cosine similarity**
+
+## After you pass
+
+Use cosine similarity to build **Top-K retrieval**.
+

@@ -1,0 +1,23 @@
+﻿<Callout title="Goal" variant="info">
+  Implement "Autocut" to adaptively select search results based on similarity
+  score deltas.
+</Callout>
+
+## The "Fixed Top-K" Problem
+
+Most RAG systems retrieve exactly `k` documents (e.g., Top 5).
+But what if only 2 documents are relevant? You end up with 3 "hallucinated" or noisy chunks in your context.
+What if 10 documents are relevant? You miss 5 critical facts.
+
+## The Autocut Solution
+
+**Autocut** (pioneered by Weaviate) looks at the _gaps_ between scores. If there is a sudden, large drop in similarity score between result #3 and result #4, Autocut "cuts" the list at #3.
+
+Instead of a hard limit, you use a **relative threshold**.
+
+## Implementation
+
+1. Calculate the gaps between consecutive scores.
+2. Maintain a running average of gaps.
+3. If a gap is significantly larger than the average (defined by a multiplier), terminate the list there.
+

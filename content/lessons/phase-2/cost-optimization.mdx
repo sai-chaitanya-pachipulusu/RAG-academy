@@ -1,0 +1,285 @@
+---
+title: "Cost Optimization"
+description: "Reduce RAG costs without sacrificing quality."
+order: 8
+estimatedMinutes: 20
+stage: production-ops
+prereqs:
+  - phase: phase-2
+    slug: caching-strategies
+next:
+  phase: phase-3
+  slug: modular-rag-architecture
+outcomes:
+  - "Identify the biggest cost drivers in RAG systems."
+  - "Implement model routing for cost-quality tradeoffs."
+  - "Build cost monitoring and alerting."
+tags: ["cost", "optimization", "routing", "monitoring"]
+sources:
+  - title: "OpenAI Pricing"
+    url: "https://openai.com/pricing"
+    type: "docs"
+  - title: "Anthropic Pricing"
+    url: "https://www.anthropic.com/pricing"
+    type: "docs"
+  - title: "LiteLLM: Model Routing"
+    url: "https://docs.litellm.ai/docs/"
+    type: "docs"
+---
+
+## Goals
+
+- Understand where costs come from in RAG.
+- Implement strategies to reduce costs 50-80%.
+- Build cost monitoring that prevents surprises.
+
+## Prereqs
+
+- Read: **Caching Strategies** (first line of cost defense).
+
+## Core idea
+
+### RAG cost breakdown
+
+Typical cost distribution:
+
+```
+LLM Generation: 60-80% ████████████████████
+Embeddings:     10-20% ████
+Reranking:       5-15% ███
+Vector DB:       5-10% ██
+```
+
+**Key insight**: LLM generation dominates. Optimize there first.
+
+### Cost drivers
+
+| Component | Cost Per | Optimization Lever |
+|-----------|----------|-------------------|
+| **LLM (input)** | 1M tokens | Compression, shorter prompts |
+| **LLM (output)** | 1M tokens | Shorter responses, streaming |
+| **Embeddings** | 1M tokens | Caching, batch processing |
+| **Reranking** | Per call | Cascade, skip when possible |
+| **Vector DB** | Storage + queries | Index optimization |
+
+### Strategy 1: Model routing
+
+Use expensive models only when needed:
+
+```python
+class ModelRouter:
+    MODELS = {
+        "fast": {
+            "name": "gpt-4o-mini",
+            "cost_per_1k": 0.00015,
+            "quality": "good",
+        },
+        "quality": {
+            "name": "gpt-4o",
+            "cost_per_1k": 0.005,
+            "quality": "excellent",
+        },
+        "reasoning": {
+            "name": "o1-mini",
+            "cost_per_1k": 0.003,
+            "quality": "excellent",
+        },
+    }
+    
+    def route(self, query: str, context: str) -> str:
+        """
+        Route to appropriate model based on query complexity.
+        """
+        complexity = self.estimate_complexity(query, context)
+        
+        if complexity == "simple":
+            # FAQ, simple lookups
+            return "fast"
+        elif complexity == "complex":
+            # Multi-step reasoning, synthesis
+            return "quality"
+        elif complexity == "reasoning":
+            # Math, logic, code generation
+            return "reasoning"
+        else:
+            return "fast"  # Default to cheap
+    
+    def estimate_complexity(self, query: str, context: str) -> str:
+        """
+        Estimate query complexity for routing.
+        """
+        # Simple heuristics
+        word_count = len(query.split())
+        
+        # Short, simple queries
+        if word_count < 10 and "?" not in query:
+            return "simple"
+        
+        # Complex indicators
+        complex_words = ["compare", "analyze", "explain why", "step by step"]
+        if any(w in query.lower() for w in complex_words):
+            return "complex"
+        
+        # Reasoning indicators
+        reasoning_words = ["calculate", "prove", "solve", "code"]
+        if any(w in query.lower() for w in reasoning_words):
+            return "reasoning"
+        
+        return "simple"
+```
+
+### Strategy 2: Context compression
+
+Reduce input tokens:
+
+```python
+def compress_context(context: str, target_reduction: float = 0.5) -> str:
+    """
+    Compress context to reduce token costs.
+    """
+    original_tokens = count_tokens(context)
+    target_tokens = int(original_tokens * (1 - target_reduction))
+    
+    # Method 1: Extractive (keep important sentences)
+    sentences = split_sentences(context)
+    scored = [(s, importance_score(s)) for s in sentences]
+    sorted_sentences = sorted(scored, key=lambda x: x[1], reverse=True)
+    
+    compressed = []
+    current_tokens = 0
+    for sentence, score in sorted_sentences:
+        sent_tokens = count_tokens(sentence)
+        if current_tokens + sent_tokens <= target_tokens:
+            compressed.append(sentence)
+            current_tokens += sent_tokens
+    
+    # Restore original order
+    original_order = {s: i for i, s in enumerate(sentences)}
+    compressed.sort(key=lambda s: original_order.get(s, 999))
+    
+    return ' '.join(compressed)
+```
+
+### Strategy 3: Batch embedding
+
+Batch requests to reduce overhead:
+
+```python
+class BatchEmbedder:
+    def __init__(self, batch_size: int = 100):
+        self.batch_size = batch_size
+        self.pending = []
+        self.results = {}
+    
+    async def embed_batch(self, texts: List[str]) -> List[List[float]]:
+        """
+        Embed multiple texts in efficient batches.
+        """
+        all_embeddings = []
+        
+        for i in range(0, len(texts), self.batch_size):
+            batch = texts[i:i + self.batch_size]
+            # Single API call for batch
+            embeddings = await self.embedding_api.embed(batch)
+            all_embeddings.extend(embeddings)
+        
+        return all_embeddings
+```
+
+### Strategy 4: Skip reranking when confident
+
+```python
+def smart_rerank(
+    query: str,
+    results: List[Dict],
+    confidence_threshold: float = 0.9
+) -> List[Dict]:
+    """
+    Skip reranking if top result is highly confident.
+    """
+    if not results:
+        return results
+    
+    top_score = results[0]["score"]
+    
+    # If top result is very confident, skip reranking
+    if top_score >= confidence_threshold:
+        return results[:5]  # Just truncate
+    
+    # Otherwise, rerank
+    return reranker.rerank(query, results)
+```
+
+### Cost monitoring
+
+Track costs in real-time:
+
+```python
+class CostTracker:
+    def __init__(self):
+        self.costs = defaultdict(float)
+        self.daily_budget = 100.0  # $100/day
+    
+    def track(self, component: str, tokens: int, model: str):
+        """Track token usage and cost."""
+        cost = self.calculate_cost(tokens, model)
+        self.costs[component] += cost
+        self.costs["total"] += cost
+        
+        # Alert if approaching budget
+        if self.costs["total"] > self.daily_budget * 0.8:
+            self.alert("Approaching daily budget limit")
+    
+    def calculate_cost(self, tokens: int, model: str) -> float:
+        """Calculate cost based on model pricing."""
+        pricing = {
+            "gpt-4o-mini": 0.00015 / 1000,
+            "gpt-4o": 0.005 / 1000,
+            "text-embedding-3-small": 0.00002 / 1000,
+        }
+        return tokens * pricing.get(model, 0.001 / 1000)
+    
+    def get_report(self) -> Dict:
+        """Generate cost report."""
+        return {
+            "total": self.costs["total"],
+            "by_component": dict(self.costs),
+            "budget_remaining": self.daily_budget - self.costs["total"],
+        }
+```
+
+### Cost reduction checklist
+
+1. **Embedding cache**: 50-80% reduction in embedding costs
+2. **Model routing**: 40-60% reduction in LLM costs
+3. **Context compression**: 20-40% reduction in input tokens
+4. **Batch processing**: 10-20% reduction in API overhead
+5. **Skip reranking**: 30-50% reduction in reranking costs
+
+## Failure modes
+
+1. **Over-optimizing**: Quality drops noticeably.
+2. **No monitoring**: Surprise bills.
+3. **Wrong routing**: Expensive model for simple queries.
+4. **Stale caches**: Wrong answers to save money.
+
+## Production defaults
+
+- **Default model**: gpt-4o-mini (good quality, low cost).
+- **Upgrade to**: gpt-4o for complex queries only.
+- **Monitor**: Daily cost reports, alerts at 80% budget.
+- **Cache**: Always cache embeddings.
+
+## Do next
+
+<ChallengeLinks slugs={["cost-aware-router", "rag-cost-tracker", "token-budget-packing"]} />
+
+<Card className="mt-4 p-4">
+  <p className="text-sm font-medium">Next phase: Modular RAG</p>
+  <Link
+    href="/learn/phase-3/modular-rag-architecture"
+    className="mt-2 inline-flex text-xs font-medium text-blue-700 hover:text-blue-500 dark:text-blue-400"
+  >
+    Phase 3: Modular RAG Architecture →
+  </Link>
+</Card>

@@ -1,0 +1,33 @@
+﻿---
+title: "Rate Limiter (Token Bucket)"
+description: "Implement a token bucket rate limiter to protect your RAG endpoint."
+---
+
+# Rate Limiter (Token Bucket)
+
+LLM APIs are expensive. One bad actor—or one buggy script—can drain your monthly budget in minutes.
+
+### How Token Bucket Works
+
+1. **Bucket** starts full of tokens (e.g., 100 tokens).
+2. Each request **consumes** a token.
+3. Tokens **refill** over time (e.g., 10 tokens/sec).
+4. If bucket is empty, request is **rejected** (HTTP 429).
+
+### Why Token Bucket?
+
+- **Allows bursts**: A user can make 100 quick requests if they haven't hit the API recently.
+- **Sustainable rate**: Over time, rate is limited to refill_rate.
+- **Simple to implement**: No complex windowing logic.
+
+### Your Task
+
+Implement a `TokenBucket` class with:
+
+- `__init__(capacity, refill_rate)`
+- `consume(tokens) -> bool` (True if allowed, False if rate limited)
+
+### Production Use
+
+Every major API (Stripe, OpenAI, AWS) uses rate limiting. Your RAG service should too.
+

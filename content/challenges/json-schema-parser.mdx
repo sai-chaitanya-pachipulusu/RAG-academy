@@ -1,0 +1,39 @@
+﻿---
+title: "JSON/API Response Parser"
+description: "Parse nested JSON responses into searchable chunks."
+---
+
+# JSON/API Response Parser
+
+Enterprise RAG often needs to index structured data from databases, CRMs, and APIs. But JSON doesn't embed well as-is.
+
+### The Problem
+
+```json
+{
+  "user": {
+    "name": "Alice",
+    "department": { "id": 123, "name": "Engineering" }
+  }
+}
+```
+
+Embedding this as a raw string loses the structure. A query for "Engineering department" won't match well.
+
+### The Solution
+
+Flatten to key-value pairs:
+
+```
+user.name: Alice
+user.department.id: 123
+user.department.name: Engineering
+```
+
+Now each fact is individually searchable and embeddable.
+
+### Your Task
+
+1. Flatten nested JSON recursively.
+2. Group flattened items into chunks under a size limit.
+

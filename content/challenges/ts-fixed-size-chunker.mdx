@@ -1,0 +1,25 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Implement fixed-size text chunking with overlap — the foundation of RAG indexing.
+</Callout>
+
+## Why this matters in production
+
+Before you can search documents, you need to split them into chunks that fit in embedding model context windows. Fixed-size chunking is the simplest and most common approach.
+
+LlamaIndex and LangChain both default to this strategy. Understanding it helps you tune chunk sizes for your use case.
+
+## What you're implementing
+
+- Split text into chunks of `chunkSize` characters.
+- Support `overlap` for context continuity between chunks.
+- Track `startIndex` and `endIndex` for each chunk (useful for citations).
+
+## Common pitfalls
+
+- Infinite loops when `overlap >= chunkSize`.
+- Off-by-one errors with the last chunk.
+
+## After you pass
+
+Try **Sentence-Aware Chunker** for more semantically coherent chunks.
+

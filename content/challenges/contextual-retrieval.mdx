@@ -1,0 +1,211 @@
+﻿<Callout title="Goal" variant="info">
+  Implement Contextual Retrieval — Anthropic's technique that dramatically
+  improves chunk retrieval by prepending context.
+</Callout>
+
+## The "Lost Context" Problem
+
+When you chunk a document, each chunk loses its context:
+
+```
+Original Document: "Q3 2024 Financial Report for Acme Corp..."
+
+Chunk 47: "Revenue increased by 15% compared to the previous quarter."
+```
+
+**Problem**: Chunk 47 doesn't say WHICH company, WHICH quarter, or WHICH year. The embedding captures "revenue increased 15%" but misses the crucial context.
+
+## Contextual Retrieval Solution
+
+**Before embedding**, prepend a brief context to each chunk:
+
+```
+Contextualized Chunk 47:
+"This chunk is from Acme Corp's Q3 2024 Financial Report, specifically the Revenue section.
+
+Revenue increased by 15% compared to the previous quarter."
+```
+
+Now the embedding captures both the content AND its context.
+
+## The Algorithm
+
+```python
+def contextualize_chunk(chunk: str, document: dict, chunk_index: int) -> str:
+    """
+    Prepend contextual header to a chunk before embedding.
+
+    Args:
+        chunk: The raw chunk text
+        document: Full document metadata (title, source, section headers)
+        chunk_index: Position of this chunk in the document
+
+    Returns:
+        Contextualized chunk ready for embedding
+    """
+    # Option 1: Manual template (fast, deterministic)
+    context = f"""Document: {document['title']}
+Source: {document['source']}
+Section: {document.get('current_section', 'General')}
+Chunk {chunk_index} of {document['total_chunks']}
+
+"""
+    return context + chunk
+
+
+def contextualize_with_llm(chunk: str, document_text: str) -> str:
+    """
+    Use an LLM to generate situating context (higher quality, slower).
+
+    This is Anthropic's recommended approach for maximum retrieval improvement.
+    """
+    prompt = f"""Here is a chunk from a larger document:
+
+<chunk>
+{chunk}
+</chunk>
+
+<document>
+{document_text[:2000]}  # First 2000 chars for context
+</document>
+
+Write a short 1-2 sentence context that situates this chunk within the document.
+Include key identifiers (dates, names, section) that help understand what this chunk refers to.
+Do not summarize the chunk content itself.
+
+Context:"""
+
+    return llm.generate(prompt) + "\n\n" + chunk
+```
+
+## Benchmarks (Anthropic's Results)
+
+| Technique                    | Recall@20 Improvement |
+| ---------------------------- | --------------------- |
+| Contextual Retrieval alone   | +35%                  |
+| Contextual + BM25 Hybrid     | +49%                  |
+| Contextual + Hybrid + Rerank | +67%                  |
+
+**Source**: [Anthropic Blog - Introducing Contextual Retrieval](https://www.anthropic.com/news/contextual-retrieval)
+
+## Implementation Options
+
+### Option 1: Template-Based (Fast, ~0ms per chunk)
+
+```python
+CONTEXT_TEMPLATE = """Document: {title}
+Type: {doc_type}
+Section: {section_path}
+"""
+
+def fast_contextualize(chunk: str, metadata: dict) -> str:
+    header = CONTEXT_TEMPLATE.format(**metadata)
+    return header + chunk
+```
+
+**Pros**: No LLM cost, instant, deterministic
+**Cons**: May miss nuanced context
+
+### Option 2: LLM-Generated (Slow, ~200ms per chunk)
+
+```python
+def llm_contextualize(chunk: str, doc_context: str) -> str:
+    prompt = f"Situate this chunk: {chunk[:500]}..."
+    return claude_generate(prompt) + "\n\n" + chunk
+```
+
+**Pros**: Highest quality context
+**Cons**: Adds indexing cost (~$1.50 per 1M tokens for Claude Haiku)
+
+### Option 3: Hybrid (Recommended)
+
+```python
+def smart_contextualize(chunk: str, metadata: dict, doc_text: str) -> str:
+    # Use template for structured docs (manuals, reports)
+    if metadata.get('is_structured'):
+        return template_contextualize(chunk, metadata)
+
+    # Use LLM for unstructured docs (articles, emails)
+    return llm_contextualize(chunk, doc_text)
+```
+
+## Edge Cases
+
+| Scenario                       | Handling                                   |
+| ------------------------------ | ------------------------------------------ |
+| Very short chunks (<50 tokens) | Context may dominate; keep context brief   |
+| Very long chunks (>500 tokens) | Context adds less value; may skip          |
+| First chunk of document        | Already has natural context (title, intro) |
+| Code chunks                    | Use language/file/function as context      |
+| Table chunks                   | Include table title and column headers     |
+
+## When NOT to Use Contextual Retrieval
+
+- **Homogeneous corpus**: All docs about the same topic
+- **Already contextualized**: Chunks include headers naturally
+- **Extreme latency sensitivity**: Can't afford indexing overhead
+- **Ephemeral data**: Content changes too fast to re-index
+
+## Cost Analysis
+
+| Corpus Size | Template Cost | LLM Cost (Haiku) |
+| ----------- | ------------- | ---------------- |
+| 10K chunks  | $0            | ~$0.50           |
+| 100K chunks | $0            | ~$5.00           |
+| 1M chunks   | $0            | ~$50.00          |
+
+## Production Implementation
+
+```python
+class ContextualIndexer:
+    def __init__(self, use_llm: bool = False):
+        self.use_llm = use_llm
+        self.embedder = get_embedder()
+
+    def index_document(self, doc: Document) -> List[Chunk]:
+        chunks = self.chunk(doc)
+        contextualized = []
+
+        for i, chunk in enumerate(chunks):
+            if self.use_llm:
+                ctx_chunk = self.llm_contextualize(chunk, doc)
+            else:
+                ctx_chunk = self.template_contextualize(chunk, doc, i)
+
+            # Store both versions
+            contextualized.append({
+                'original': chunk,
+                'contextualized': ctx_chunk,
+                'embedding': self.embedder.embed(ctx_chunk),
+                'metadata': {...}
+            })
+
+        return contextualized
+```
+
+## Evaluation
+
+Compare Recall@10 with and without contextualization:
+
+```python
+def evaluate_contextualization(test_set, index_original, index_contextualized):
+    recall_original = []
+    recall_contextualized = []
+
+    for query, relevant_ids in test_set:
+        orig_results = index_original.search(query, k=10)
+        ctx_results = index_contextualized.search(query, k=10)
+
+        recall_original.append(compute_recall(orig_results, relevant_ids))
+        recall_contextualized.append(compute_recall(ctx_results, relevant_ids))
+
+    print(f"Original Recall@10: {mean(recall_original):.2%}")
+    print(f"Contextualized Recall@10: {mean(recall_contextualized):.2%}")
+    print(f"Improvement: +{mean(recall_contextualized) - mean(recall_original):.2%}")
+```
+
+## Further Reading
+
+- [Anthropic: Contextual Retrieval](https://www.anthropic.com/news/contextual-retrieval)
+- [LlamaIndex: Contextual Retrieval Implementation](https://docs.llamaindex.ai/)
+

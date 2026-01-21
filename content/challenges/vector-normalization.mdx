@@ -1,0 +1,24 @@
+﻿---
+title: "Vector Normalization (L2 Norm)"
+description: "Normalize a vector to unit length for consistent similarity computation."
+---
+
+# Vector Normalization (L2 Norm)
+
+When working with embeddings from different models or sources, **normalization** is critical. A normalized vector has a magnitude (L2 norm) of exactly 1.0.
+
+### Why it Matters
+
+If you mix unnormalized embeddings from OpenAI (which are already normalized) with embeddings from a local model (which might not be), your similarity scores become meaningless.
+
+### The Formula
+
+For a vector `v = [v1, v2, ..., vn]`:
+
+- **Magnitude**: `||v|| = sqrt(v1² + v2² + ... + vn²)`
+- **Normalized**: `v_norm = [v1/||v||, v2/||v||, ..., vn/||v||]`
+
+### Your Task
+
+Implement a function that returns a unit-length vector. Handle the edge case where the input is a zero vector (return it unchanged).
+

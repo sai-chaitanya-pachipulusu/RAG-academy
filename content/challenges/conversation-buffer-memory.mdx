@@ -1,0 +1,30 @@
+﻿---
+title: "Conversation Buffer Memory"
+description: "Implement sliding window conversation memory for multi-turn RAG"
+difficulty: "medium"
+xpReward: 100
+---
+
+# Conversation Buffer Memory
+
+## Overview
+
+Multi-turn RAG needs context from previous conversation turns. This challenge teaches you to manage conversation history within token limits.
+
+## Why This Matters
+
+- **Context Continuity**: "What about the second one?" needs prior context
+- **Token Management**: LLMs have fixed context windows
+- **User Experience**: Natural conversational flow
+
+## Key Concepts
+
+- Sliding window with max_messages limit
+- Token estimation for context fitting
+- Message role tracking (user/assistant)
+- Context string formatting
+
+## Real-World Applications
+
+ChatGPT, Claude, and every conversational AI uses some form of conversation memory management.
+

@@ -1,0 +1,16 @@
+﻿<Callout title="Goal" variant="info">
+  Add the retrieval logic to find the most relevant chunks for any given query.
+</Callout>
+
+## Stage 3: The Retriever
+
+With your chunks indexed as vectors, you can now perform a search. A good retriever doesn't just return matches; it handles top-k selection and score normalization efficiently.
+
+## Task
+
+Implement the `retrieve` method in your `Pipeline`. This method will:
+
+1. Embed the user query.
+2. Compare it against all document vectors in the pipeline.
+3. Return the best matching candidates.
+

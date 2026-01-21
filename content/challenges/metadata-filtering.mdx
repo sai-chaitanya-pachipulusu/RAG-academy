@@ -1,0 +1,34 @@
+﻿<Callout title="Goal" variant="warning">
+  Enforce metadata filters **before** scoring/ranking. This is a core safety requirement for multi-tenant RAG.
+</Callout>
+
+## Why this matters in production
+
+If you retrieve across tenants and filter later, you will eventually leak data:
+
+- the wrong tenant’s chunks can be retrieved, reranked, and cited
+- logging/tracing can store leaked snippets
+- an LLM can paraphrase leaked content even if you “remove it later”
+
+**Rule:** apply ACL/tenant filters at the retrieval boundary.
+
+## Offline vs online
+
+- **Offline**: attach `tenant_id`, `doc_type`, `classification`, etc. to every chunk.
+- **Online**: filter by these fields first, then score/rerank only eligible docs.
+
+## What you’re building
+
+A filtered search that:
+
+- refuses to consider docs missing `tenant_id` (unsafe-by-default)
+- supports extra filters (e.g., `doc_type`)
+
+## Production extensions (optional)
+
+- role-based access (`allowed_roles`)
+- row-level security (RLS) patterns
+- audit logging of `(query, tenant_id, retrieved_chunk_ids)`
+
+
+

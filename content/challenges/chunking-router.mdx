@@ -1,0 +1,160 @@
+﻿---
+title: "Chunking Router: Document-Aware Strategy Selection"
+description: "Automatically route documents to optimal chunking strategies based on content type"
+difficulty: "hard"
+timeEstimate: "50-60 min"
+xpReward: 150
+prerequisites: ["recursive-chunking", "code-aware-chunking"]
+---
+
+# Chunking Router: Document-Aware Strategy Selection
+
+## One Size Does NOT Fit All
+
+Your RAG system ingests:
+
+- Python files → Need code-aware chunking
+- Markdown docs → Need section-based chunking
+- Financial reports → Need table-aware chunking
+- Meeting notes → Recursive is fine
+
+Using ONE strategy for all is suboptimal!
+
+---
+
+## The Router Pattern
+
+```python
+def chunking_router(document, doc_type=None):
+    # Auto-detect if not provided
+    if doc_type is None:
+        doc_type = detect_document_type(document)
+
+    # Route to appropriate strategy
+    strategies = {
+        'code': code_aware_chunk,
+        'markdown': section_based_chunk,
+        'table': table_aware_chunk,
+        'prose': recursive_chunk
+    }
+
+    return strategies[doc_type](document)
+```
+
+---
+
+## Document Type Detection
+
+```python
+def detect_document_type(doc):
+    # Check for code
+    if re.search(r'^(def |class |function |import )', doc, re.MULTILINE):
+        return 'code'
+
+    # Check for tables
+    if '|' in doc and re.search(r'^\|.+\|$', doc, re.MULTILINE):
+        return 'table'
+
+    # Check for markdown
+    if re.search(r'^#{1,6} ', doc, re.MULTILINE):
+        return 'markdown'
+
+    # Default to prose
+    return 'prose'
+```
+
+---
+
+## Strategy Decision Matrix
+
+| Document Type | Detection Signal              | Strategy      |
+| ------------- | ----------------------------- | ------------- |
+| Python code   | `def `, `class `, `import `   | Code-aware    |
+| JavaScript    | `function `, `const `, `let ` | Code-aware    |
+| Markdown      | `# `## `###           | Section-based |
+| Tables        | `\|...\|` patterns            | Table-aware   |
+| Plain text    | No special signals            | Recursive     |
+
+---
+
+## ⚖️ Tradeoffs
+
+### Pros
+
+- ✅ Optimal chunking per document type
+- ✅ Single ingestion pipeline
+- ✅ Extensible to new types
+
+### Cons
+
+- ❌ Detection is imperfect
+- ❌ Edge cases need handling
+- ❌ More complex pipeline
+
+---
+
+## Real-World Usage
+
+**Enterprise document processing**:
+
+- Glean (enterprise search)
+- Guru (knowledge management)
+- Notion AI (notes + code + tables)
+
+**Tools built on this pattern**:
+
+- Unstructured.io
+- LlamaParse
+- Docugami
+
+---
+
+## Production Implementation
+
+```python
+class ChunkingPipeline:
+    def __init__(self):
+        self.detectors = [
+            (is_code, code_chunker),
+            (is_table_heavy, table_chunker),
+            (is_markdown, markdown_chunker),
+            (lambda x: True, recursive_chunker)  # Default
+        ]
+
+    def process(self, document):
+        for detector, chunker in self.detectors:
+            if detector(document):
+                return chunker(document)
+```
+
+---
+
+## Fallback Chain
+
+```
+1. Check: Is it code? → Code-aware
+   ↓ No
+2. Check: Has tables? → Table-aware
+   ↓ No
+3. Check: Has headers? → Section-based
+   ↓ No
+4. Default → Recursive (works for anything)
+```
+
+---
+
+## Key Insight
+
+The chunking router teaches us:
+
+> "Smart pipelines adapt to content. Don't force diverse documents into a single mold."
+
+---
+
+## Related Challenges
+
+- `code-aware-chunking` - Strategy for code
+- `table-aware-chunking` - Strategy for tables
+- `section-based-chunking` - Strategy for markdown
+- `recursive-chunking` - The fallback strategy
+

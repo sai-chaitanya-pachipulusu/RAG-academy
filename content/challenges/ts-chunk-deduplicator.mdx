@@ -1,0 +1,23 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Remove near-duplicate chunks from retrieval results.
+</Callout>
+
+## Why this matters in production
+
+Redundant chunks waste context window space and can confuse the LLM. Deduplication ensures each piece of context adds unique information.
+
+## What you're implementing
+
+- Compare chunks pairwise using similarity function.
+- Remove duplicates above similarity threshold.
+- Keep highest-scoring version of duplicates.
+
+## Common pitfalls
+
+- O(n²) complexity for large result sets.
+- Setting threshold too low (aggressive deduplication).
+
+## After you pass
+
+Apply deduplication to your RAG pipeline before context building.
+

@@ -1,0 +1,38 @@
+---
+title: "Graph-O1 Reasoning"
+description: "Implement graph-based chain-of-thought reasoning"
+---
+
+# Graph-O1 Reasoning
+
+Implement a reasoning system that builds and traverses a graph of intermediate reasoning steps.
+
+## Requirements
+
+1. Decompose query into sub-questions
+2. Build reasoning graph
+3. Retrieve evidence for each node
+4. Synthesize final answer from graph
+
+## Starter Code
+
+```python
+class GraphReasoner:
+    def __init__(self, decomposer, retriever, synthesizer):
+        self.decomposer = decomposer
+        self.retriever = retriever
+        self.synthesizer = synthesizer
+    
+    def reason(self, query: str) -> dict:
+        """
+        Graph-based reasoning.
+        
+        Returns:
+            {
+                "answer": str,
+                "reasoning_graph": dict,
+                "intermediate_steps": list[str]
+            }
+        """
+        pass
+```

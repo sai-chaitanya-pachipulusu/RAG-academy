@@ -1,0 +1,266 @@
+---
+title: "Knowledge Graphs for RAG"
+description: "Enhance retrieval with structured knowledge and entity relationships."
+order: 1
+estimatedMinutes: 30
+stage: graph-rag
+prereqs:
+  - phase: phase-3
+    slug: flare
+next:
+  phase: phase-4
+  slug: graphrag-implementation
+outcomes:
+  - "Understand when knowledge graphs improve RAG."
+  - "Know the key concepts: entities, relationships, triples."
+  - "Design knowledge graph schemas for your domain."
+tags: ["knowledge-graphs", "graph-rag", "entities", "relationships"]
+sources:
+  - title: "GraphRAG: Unlocking LLM Discovery (Microsoft, 2024)"
+    url: "https://arxiv.org/abs/2404.16130"
+    type: "paper"
+    year: 2024
+  - title: "Knowledge Graphs: A Survey (Ji et al., 2021)"
+    url: "https://arxiv.org/abs/2002.00388"
+    type: "paper"
+    year: 2021
+  - title: "Neo4j: Knowledge Graphs with RAG"
+    url: "https://neo4j.com/blog/knowledge-graph-llm-rag/"
+    type: "blog"
+---
+
+## Goals
+
+- Understand why vector search alone isn't enough for complex reasoning.
+- Learn knowledge graph fundamentals: entities, relationships, triples.
+- Know when to add a knowledge graph to your RAG system.
+
+## Prereqs
+
+- Complete Phase 3 (understand advanced retrieval techniques).
+
+## Core idea
+
+### Why knowledge graphs?
+
+Vector search finds **similar** content. Knowledge graphs find **connected** content.
+
+| Query Type | Vector Search | Knowledge Graph |
+|------------|---------------|-----------------|
+| "What is X?" | ✓ Good | Overkill |
+| "Who works at X?" | ~ OK | ✓ Better |
+| "How is X related to Y?" | ✗ Poor | ✓ Excellent |
+| "What are all subsidiaries of X?" | ✗ Poor | ✓ Excellent |
+
+### The knowledge graph model
+
+```
+Entity: A thing in your domain
+  - Person: "John Smith"
+  - Company: "Acme Corp"
+  - Product: "Widget Pro"
+
+Relationship: How entities connect
+  - WORKS_AT: Person → Company
+  - MANUFACTURES: Company → Product
+  - SUBSIDIARY_OF: Company → Company
+
+Triple: The fundamental unit (Subject, Predicate, Object)
+  - (John Smith, WORKS_AT, Acme Corp)
+  - (Acme Corp, MANUFACTURES, Widget Pro)
+```
+
+### Visualizing the difference
+
+```
+Vector Space:              Knowledge Graph:
+                          
+  •doc1    •doc4         [Person]──WORKS_AT──▶[Company]
+      •doc2                  │                    │
+  •doc3       •doc5          │                    │
+      •query              MANAGES             MANUFACTURES
+  •doc6                      │                    │
+                             ▼                    ▼
+(Similarity-based)       [Team]              [Product]
+                          
+                         (Relationship-based)
+```
+
+### When to use knowledge graphs
+
+| Scenario | Add KG? | Why |
+|----------|---------|-----|
+| Multi-hop reasoning | ✓ Yes | Traverse relationships |
+| Entity-centric queries | ✓ Yes | Find by entity, not similarity |
+| Hierarchical data | ✓ Yes | Navigate structure |
+| Simple Q&A | ✗ No | Overkill |
+| Unstructured content | ✗ No | No clear entities |
+
+### Building a knowledge graph schema
+
+```python
+# Define your domain schema
+ENTITY_TYPES = {
+    "Person": {
+        "properties": ["name", "title", "email"],
+        "description": "A person in the organization"
+    },
+    "Team": {
+        "properties": ["name", "department"],
+        "description": "A team or group"
+    },
+    "Project": {
+        "properties": ["name", "status", "deadline"],
+        "description": "A project or initiative"
+    },
+    "Document": {
+        "properties": ["title", "type", "created_at"],
+        "description": "A document in the knowledge base"
+    },
+}
+
+RELATIONSHIP_TYPES = {
+    "WORKS_ON": {
+        "source": "Person",
+        "target": "Project",
+        "properties": ["role", "since"],
+    },
+    "BELONGS_TO": {
+        "source": "Person",
+        "target": "Team",
+        "properties": ["role"],
+    },
+    "MANAGES": {
+        "source": "Person",
+        "target": ["Team", "Project"],
+        "properties": [],
+    },
+    "MENTIONS": {
+        "source": "Document",
+        "target": ["Person", "Project", "Team"],
+        "properties": ["context"],
+    },
+    "RELATED_TO": {
+        "source": "Document",
+        "target": "Document",
+        "properties": ["relationship_type"],
+    },
+}
+```
+
+### Extracting entities and relationships
+
+```python
+class EntityExtractor:
+    def extract(self, text: str, doc_id: str) -> Tuple[List[Entity], List[Relationship]]:
+        """
+        Extract entities and relationships from text.
+        """
+        prompt = f"""Extract entities and relationships from this text.
+
+Text: {text}
+
+Entity types: {list(ENTITY_TYPES.keys())}
+Relationship types: {list(RELATIONSHIP_TYPES.keys())}
+
+Output JSON:
+{{
+    "entities": [
+        {{"type": "...", "name": "...", "properties": {{...}}}}
+    ],
+    "relationships": [
+        {{"type": "...", "source": "...", "target": "...", "properties": {{...}}}}
+    ]
+}}
+
+Extract:"""
+        
+        response = self.llm.generate(prompt)
+        parsed = json.loads(response)
+        
+        entities = [
+            Entity(
+                type=e["type"],
+                name=e["name"],
+                properties=e.get("properties", {}),
+                source_doc=doc_id,
+            )
+            for e in parsed["entities"]
+        ]
+        
+        relationships = [
+            Relationship(
+                type=r["type"],
+                source=r["source"],
+                target=r["target"],
+                properties=r.get("properties", {}),
+                source_doc=doc_id,
+            )
+            for r in parsed["relationships"]
+        ]
+        
+        return entities, relationships
+```
+
+### Hybrid: Vector + Graph
+
+The most powerful pattern combines both:
+
+```python
+class HybridVectorGraphRAG:
+    def __init__(self, vector_store, graph_store):
+        self.vector_store = vector_store
+        self.graph_store = graph_store
+    
+    def retrieve(self, query: str) -> List[Dict]:
+        """
+        Hybrid retrieval: vector + graph.
+        """
+        # 1. Vector search for relevant chunks
+        vector_results = self.vector_store.search(query, k=20)
+        
+        # 2. Extract entities from query
+        query_entities = self.extract_entities(query)
+        
+        # 3. Graph traversal from entities
+        graph_results = []
+        for entity in query_entities:
+            # Find entity in graph
+            node = self.graph_store.find(entity)
+            if node:
+                # Traverse relationships
+                neighbors = self.graph_store.get_neighbors(node, depth=2)
+                graph_results.extend(neighbors)
+        
+        # 4. Merge results
+        return self.merge_results(vector_results, graph_results)
+```
+
+## Failure modes
+
+1. **Over-engineering**: Simple queries don't need graphs.
+2. **Schema rigidity**: Too strict schema misses important relationships.
+3. **Extraction errors**: LLM extraction is imperfect.
+4. **Graph bloat**: Too many entities and relationships.
+5. **Stale data**: Graph not updated when documents change.
+
+## Production defaults
+
+- **Start simple**: Add graph only when vector search fails for entity/relationship queries.
+- **Extract conservatively**: High-confidence entities only.
+- **Hybrid retrieval**: Combine vector + graph, don't replace.
+- **Schema evolution**: Start minimal, expand as needed.
+
+## Do next
+
+<ChallengeLinks slugs={["entity-extraction", "knowledge-graph-schema", "graph-traversal"]} />
+
+<Card className="mt-4 p-4">
+  <p className="text-sm font-medium">Next: implement GraphRAG:</p>
+  <Link
+    href="/learn/phase-4/graphrag-implementation"
+    className="mt-2 inline-flex text-xs font-medium text-blue-700 hover:text-blue-500 dark:text-blue-400"
+  >
+    Next: GraphRAG Implementation →
+  </Link>
+</Card>

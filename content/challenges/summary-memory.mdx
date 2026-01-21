@@ -1,0 +1,30 @@
+﻿---
+title: "Conversation Summary Memory"
+description: "Compress long conversations into summaries to maintain context"
+difficulty: "medium"
+xpReward: 100
+---
+
+# Conversation Summary Memory
+
+## Overview
+
+Long conversations exceed token limits. This challenge teaches progressive summarization to enable "infinite" conversation length.
+
+## Why This Matters
+
+- **Token Limits**: GPT-4 has ~128K tokens, but that's still finite
+- **Cost Optimization**: Summaries are cheaper than full history
+- **Hour-long Sessions**: Support extended user interactions
+
+## Key Concepts
+
+- Chunk-based summarization triggers
+- Progressive compression of older messages
+- Hybrid context (summaries + recent messages)
+- Token budget management
+
+## Real-World Applications
+
+LangChain's ConversationSummaryMemory and production chatbots handling long sessions.
+

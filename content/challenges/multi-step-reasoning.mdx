@@ -1,0 +1,53 @@
+﻿---
+title: "Multi-Step Reasoning Agent"
+description: "Break complex queries into executable sub-steps"
+difficulty: "hard"
+xpReward: 150
+prerequisites: ["react-implementation", "self-correction-loop"]
+---
+
+# Multi-Step Reasoning Agent
+
+Build an agent that breaks complex queries into sub-steps and executes them sequentially.
+
+## Why This Matters
+
+Single-shot RAG fails on complex questions. Multi-step reasoning enables "chain of thought" retrieval for multi-hop queries.
+
+## What You'll Learn
+
+- Query decomposition patterns
+- Sequential execution
+- Result synthesis
+- Execution tracing
+
+## Real-World Application
+
+**Companies:** Cognition (Devin), Perplexity, Elicit
+**Use Cases:** Research agents, Complex QA, Multi-document synthesis
+
+## Key Concepts
+
+### Query Decomposition
+
+```python
+# "What is Python and what is JavaScript?"
+# ["What is Python?", "What is JavaScript?"]
+```
+
+### Reasoning Plan
+
+```python
+@dataclass
+class ReasoningPlan:
+    original_query: str
+    steps: List[ReasoningStep]
+    final_answer: str
+```
+
+### Step Types
+
+- `RETRIEVE` - Fetch relevant documents
+- `REASON` - Generate answer from context
+- `ANSWER` - Final synthesis
+

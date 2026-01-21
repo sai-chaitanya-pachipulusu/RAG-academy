@@ -1,0 +1,152 @@
+﻿<Callout title="Goal" variant="info">
+  Master embedding model selection with real MTEB benchmarks, cost analysis, and
+  production tradeoffs.
+</Callout>
+
+## The MTEB Leaderboard (Dec 2024)
+
+MTEB (Massive Text Embedding Benchmark) is the industry standard for comparing embedding models. Here are the top performers for **retrieval** tasks:
+
+### Retrieval Performance (MTEB Retrieval Average)
+
+| Model                      | MTEB Retrieval | Dimensions | Context | Cost       | Latency     |
+| -------------------------- | -------------- | ---------- | ------- | ---------- | ----------- |
+| **voyage-3**               | 67.3           | 1024       | 32K     | $0.06/1M   | Fast        |
+| **text-embedding-3-large** | 64.6           | 3072       | 8K      | $0.13/1M   | Fast        |
+| **cohere-embed-v3**        | 64.5           | 1024       | 512     | $0.10/1M   | Fast        |
+| **voyage-3-lite**          | 63.3           | 512        | 32K     | $0.02/1M   | Very fast   |
+| **text-embedding-3-small** | 62.3           | 1536       | 8K      | $0.02/1M   | Very fast   |
+| **nomic-embed-text-v1.5**  | 62.3           | 768        | 8K      | Free (OSS) | Self-hosted |
+| **bge-large-en-v1.5**      | 63.6           | 1024       | 512     | Free (OSS) | Self-hosted |
+| **jina-embeddings-v3**     | 65.5           | 1024       | 8K      | $0.02/1M   | Fast        |
+| **e5-mistral-7b-instruct** | 66.6           | 4096       | 32K     | Free (OSS) | Slow        |
+| **GritLM-7B**              | 66.8           | 4096       | 8K      | Free (OSS) | Slow        |
+
+### Updated Dec 2024 Insights
+
+1. **Voyage-3** leads on retrieval, but costs 3x more than OpenAI small
+2. **text-embedding-3-large with Matryoshka** (truncate to 1024-dim) matches performance at lower cost
+3. **Open-source models** (E5-Mistral, GritLM) match proprietary on quality but require GPUs
+4. **Jina v3** excellent value: near-top quality at budget pricing
+
+## Real-World Benchmark: MS MARCO Passage Retrieval
+
+| Model                  | Recall@10 | Recall@100 | MRR@10 |
+| ---------------------- | --------- | ---------- | ------ |
+| BM25 (baseline)        | 65.8%     | 85.3%      | 18.4   |
+| text-embedding-ada-002 | 78.2%     | 92.1%      | 32.1   |
+| text-embedding-3-small | 80.1%     | 93.4%      | 33.8   |
+| text-embedding-3-large | 82.5%     | 94.8%      | 35.2   |
+| voyage-3               | 84.1%     | 95.6%      | 36.8   |
+| cohere-embed-v3        | 83.2%     | 95.1%      | 35.9   |
+| Hybrid (BM25 + dense)  | 86.4%     | 96.2%      | 38.1   |
+| Hybrid + rerank        | 89.2%     | 97.1%      | 41.3   |
+
+## Cost Calculator
+
+### Embedding Costs (per 1M tokens)
+
+| Provider | Model                  | Cost/1M tokens | 10M docs (avg 500 tokens) |
+| -------- | ---------------------- | -------------- | ------------------------- |
+| OpenAI   | text-embedding-3-small | $0.02          | $100                      |
+| OpenAI   | text-embedding-3-large | $0.13          | $650                      |
+| Voyage   | voyage-3               | $0.06          | $300                      |
+| Voyage   | voyage-3-lite          | $0.02          | $100                      |
+| Cohere   | embed-v3               | $0.10          | $500                      |
+| Jina     | jina-embeddings-v3     | $0.02          | $100                      |
+| OSS      | nomic/bge/e5           | GPU cost only  | ~$50-200 (cloud GPU)      |
+
+### Vector Storage Costs (monthly)
+
+| Provider             | Vectors | Dimensions | Monthly Cost        |
+| -------------------- | ------- | ---------- | ------------------- |
+| Pinecone (Starter)   | 100K    | 1536       | Free                |
+| Pinecone (Standard)  | 1M      | 1536       | ~$70                |
+| Weaviate Cloud       | 1M      | 1536       | ~$25                |
+| Supabase (pgvector)  | 1M      | 1536       | ~$25                |
+| Self-hosted (Qdrant) | 10M     | 1536       | ~$100-300 (compute) |
+
+### Token Consumption Estimates
+
+| Document Type  | Avg Tokens | Chunks (500 tok) | Embeddings |
+| -------------- | ---------- | ---------------- | ---------- |
+| README.md      | 800        | 2                | 2          |
+| Blog post      | 2,000      | 4                | 4          |
+| Research paper | 8,000      | 16               | 16         |
+| Technical docs | 15,000     | 30               | 30         |
+| Book chapter   | 25,000     | 50               | 50         |
+
+## Dimension Reduction: Matryoshka Embeddings
+
+OpenAI's text-embedding-3 models support **Matryoshka Representation Learning** — you can truncate dimensions with minimal quality loss:
+
+| Dimensions  | Relative Performance | Cost Savings |
+| ----------- | -------------------- | ------------ |
+| 3072 (full) | 100%                 | Baseline     |
+| 1536        | 98.5%                | 50% storage  |
+| 1024        | 97.2%                | 67% storage  |
+| 512         | 94.8%                | 83% storage  |
+| 256         | 90.1%                | 92% storage  |
+
+**Recommendation**: Use 1024 or 1536 dimensions for most production use cases.
+
+## Model Selection Decision Tree
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ What's your priority?                                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│ 💰 Cost-sensitive?                                               │
+│   └─→ text-embedding-3-small or voyage-3-lite ($0.02/1M)        │
+│       Open-source (nomic, bge) if you have GPUs                  │
+│                                                                  │
+│ 🎯 Maximum quality?                                              │
+│   └─→ voyage-3 for retrieval                                     │
+│       + reranking with Cohere or cross-encoder                   │
+│                                                                  │
+│ 🔒 Data privacy / on-prem?                                       │
+│   └─→ bge-large-en-v1.5 or nomic-embed-text-v1.5                │
+│       e5-mistral-7b for maximum quality                          │
+│                                                                  │
+│ 🌍 Multilingual?                                                 │
+│   └─→ cohere-embed-v3 (100+ languages)                          │
+│       multilingual-e5-large (open source)                        │
+│                                                                  │
+│ 📄 Long documents (>8K tokens)?                                  │
+│   └─→ voyage-3 (32K context)                                     │
+│       jina-embeddings-v3 (8K)                                    │
+│       e5-mistral-7b-instruct (32K)                               │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Domain-Specific Considerations
+
+| Domain             | Recommended Models                   | Why                        |
+| ------------------ | ------------------------------------ | -------------------------- |
+| **Code/Technical** | voyage-code-2, CodeSage              | Trained on code            |
+| **Legal**          | Fine-tuned bge + domain data         | Domain vocab critical      |
+| **Medical**        | PubMedBERT embeddings, fine-tuned E5 | HIPAA compliance + domain  |
+| **Financial**      | Fine-tuned + hybrid search           | Numbers, tickers important |
+| **Multilingual**   | Cohere embed-v3, BGE-M3              | Cross-lingual retrieval    |
+
+## Edge Cases & Gotchas
+
+1. **Instruction prefixes matter**: Some models (E5, GritLM) need "query:" / "passage:" prefixes
+2. **Normalization**: Some models output normalized vectors, some don't — check before using cosine
+3. **Tokenizer limits**: Exceeding context silently truncates — always check
+4. **Batching**: API rate limits vary; batch appropriately
+5. **Version pinning**: Models update; pin versions for reproducibility
+
+## Production Testing Protocol
+
+Before committing to a model:
+
+1. **Prepare golden set**: 50-100 query/relevant-doc pairs from YOUR domain
+2. **Test Recall@10**: Must exceed 80% on your data
+3. **Test latency**: P99 under your SLA (typically <100ms for embedding)
+4. **Test edge cases**: Short queries, long docs, special chars, numbers
+5. **Cost projection**: Calculate monthly cost at expected scale
+6. **Fallback plan**: What if the API goes down? (Cache, open-source backup)
+

@@ -1,0 +1,27 @@
+[
+  {
+    "query": "What is chunking in RAG?",
+    "expectedSources": ["chunking-101.md", "chunking-strategies.mdx"],
+    "expectedAnswerContains": ["split", "document", "token", "overlap"]
+  },
+  {
+    "query": "How do I choose chunk size?",
+    "expectedSources": ["chunking-101.md"],
+    "expectedAnswerContains": ["512", "token", "context", "overlap"]
+  },
+  {
+    "query": "What is hybrid retrieval?",
+    "expectedSources": ["retrieval-basics.md", "hybrid-search.md"],
+    "expectedAnswerContains": ["dense", "sparse", "BM25", "vector", "combine"]
+  },
+  {
+    "query": "How does reranking improve precision?",
+    "expectedSources": ["reranking.md", "cross-encoder.md"],
+    "expectedAnswerContains": ["precision", "relevance", "cross-encoder", "top-k"]
+  },
+  {
+    "query": "What is RRF fusion?",
+    "expectedSources": ["fusion.md", "rrf.md"],
+    "expectedAnswerContains": ["reciprocal", "rank", "combine", "score"]
+  }
+]

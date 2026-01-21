@@ -1,0 +1,274 @@
+---
+title: "Adaptive RAG"
+description: "Dynamically choose the optimal retrieval strategy based on query complexity."
+order: 7
+estimatedMinutes: 25
+stage: advanced-retrieval
+prereqs:
+  - phase: phase-3
+    slug: self-rag
+  - phase: phase-2
+    slug: query-transform-patterns
+next:
+  phase: phase-3
+  slug: reasoning-rag
+outcomes:
+  - "Classify queries into complexity levels."
+  - "Route queries to appropriate RAG pipelines."
+  - "Reduce latency by 40% with smart routing."
+tags: ["adaptive", "routing", "2025", "optimization"]
+sources:
+  - title: "Adaptive-RAG: Learning to Adapt Retrieval-Augmented LLMs"
+    url: "https://arxiv.org/abs/2403.14403"
+    type: "paper"
+  - title: "Self-RAG: Learning to Retrieve, Generate, and Critique"
+    url: "https://arxiv.org/abs/2310.11511"
+    type: "paper"
+---
+
+## Goals
+
+- Understand why one-size-fits-all RAG is inefficient.
+- Learn to classify queries by complexity.
+- Implement adaptive routing for optimal performance.
+
+## Prereqs
+
+- Read: **Self-RAG** (Phase 3) for retrieval decision patterns.
+- Read: **Query Transform Patterns** (Phase 2) for query analysis.
+
+## Core idea
+
+Not all queries need the same treatment:
+
+| Query Type | Example | Optimal Strategy |
+|------------|---------|------------------|
+| **Simple lookup** | "What's the return policy?" | Single retrieval, fast |
+| **Complex reasoning** | "Compare Q1 vs Q2 performance and explain trends" | Multi-step RAG |
+| **Ambiguous** | "Tell me about the thing" | Query rewriting first |
+| **LLM-answerable** | "What is 2 + 2?" | No retrieval needed |
+
+**Adaptive RAG** dynamically selects the strategy, reducing latency by 40% while maintaining quality.
+
+## The Adaptive RAG Pipeline
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     User Query                               │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  Query Classifier                            │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────────────┐ │
+│  │ Simple  │  │ Complex │  │Ambiguous│  │ No Retrieval    │ │
+│  └────┬────┘  └────┬────┘  └────┬────┘  └───────┬─────────┘ │
+└───────┼────────────┼────────────┼───────────────┼───────────┘
+        │            │            │               │
+        ▼            ▼            ▼               ▼
+   ┌────────┐   ┌─────────┐  ┌─────────┐    ┌──────────┐
+   │Single  │   │Multi-   │  │ Rewrite │    │ Direct   │
+   │Retrieve│   │Step RAG │  │ + RAG   │    │ LLM      │
+   └────────┘   └─────────┘  └─────────┘    └──────────┘
+```
+
+## Implementation
+
+### Step 1: Query Classifier
+
+```python
+from enum import Enum
+from pydantic import BaseModel
+
+class QueryComplexity(Enum):
+    NO_RETRIEVAL = "no_retrieval"      # LLM can answer directly
+    SIMPLE = "simple"                   # Single retrieval pass
+    COMPLEX = "complex"                 # Multi-step reasoning
+    AMBIGUOUS = "ambiguous"             # Needs clarification/rewriting
+
+class QueryClassification(BaseModel):
+    complexity: QueryComplexity
+    confidence: float
+    reasoning: str
+
+def classify_query(query: str, llm) -> QueryClassification:
+    """Classify query complexity using LLM."""
+    
+    prompt = f"""Classify this query's complexity for a RAG system.
+
+Query: {query}
+
+Categories:
+- NO_RETRIEVAL: General knowledge, math, or tasks the LLM can handle without documents
+- SIMPLE: Factual lookup that one retrieval pass can answer
+- COMPLEX: Requires reasoning across multiple documents or multi-hop logic
+- AMBIGUOUS: Unclear, needs rewriting or clarification
+
+Respond with JSON: {{"complexity": "...", "confidence": 0.0-1.0, "reasoning": "..."}}"""
+    
+    response = llm.generate(prompt)
+    return QueryClassification.model_validate_json(response)
+```
+
+### Step 2: Route to Strategy
+
+```python
+class AdaptiveRAG:
+    def __init__(self, retriever, llm, reranker=None):
+        self.retriever = retriever
+        self.llm = llm
+        self.reranker = reranker
+    
+    def answer(self, query: str) -> str:
+        # Step 1: Classify query
+        classification = classify_query(query, self.llm)
+        
+        # Step 2: Route to appropriate strategy
+        match classification.complexity:
+            case QueryComplexity.NO_RETRIEVAL:
+                return self._direct_answer(query)
+            
+            case QueryComplexity.SIMPLE:
+                return self._simple_rag(query)
+            
+            case QueryComplexity.COMPLEX:
+                return self._multi_step_rag(query)
+            
+            case QueryComplexity.AMBIGUOUS:
+                return self._rewrite_and_rag(query)
+    
+    def _direct_answer(self, query: str) -> str:
+        """No retrieval needed."""
+        return self.llm.generate(query)
+    
+    def _simple_rag(self, query: str) -> str:
+        """Single retrieval pass."""
+        docs = self.retriever.retrieve(query, k=5)
+        if self.reranker:
+            docs = self.reranker.rerank(query, docs, top_n=3)
+        return self.llm.generate(query, context=docs)
+    
+    def _multi_step_rag(self, query: str) -> str:
+        """Multi-step reasoning with iterative retrieval."""
+        # Initial retrieval
+        docs = self.retriever.retrieve(query, k=10)
+        
+        # Think about what we have
+        analysis = self.llm.generate(
+            f"Analyze these documents for answering: {query}\n"
+            f"What additional information is needed?",
+            context=docs
+        )
+        
+        # Check if we need more retrieval
+        if "need more information" in analysis.lower():
+            # Generate follow-up query
+            follow_up = self.llm.generate(
+                f"Based on this analysis, what should we search for next?\n{analysis}"
+            )
+            additional_docs = self.retriever.retrieve(follow_up, k=5)
+            docs.extend(additional_docs)
+        
+        # Final answer with reasoning
+        return self.llm.generate(
+            f"Answer step by step with citations: {query}",
+            context=docs
+        )
+    
+    def _rewrite_and_rag(self, query: str) -> str:
+        """Rewrite ambiguous query, then RAG."""
+        # Rewrite to be more specific
+        rewritten = self.llm.generate(
+            f"Rewrite this ambiguous query to be more specific and searchable:\n{query}"
+        )
+        
+        # Now do simple RAG with rewritten query
+        docs = self.retriever.retrieve(rewritten, k=5)
+        return self.llm.generate(
+            f"Original question: {query}\nClarified as: {rewritten}",
+            context=docs
+        )
+```
+
+### Step 3: Rule-Based Classifier (Faster)
+
+For production, you might want a faster rule-based classifier:
+
+```python
+import re
+
+def fast_classify(query: str) -> QueryComplexity:
+    """Rule-based classification (faster than LLM)."""
+    query_lower = query.lower()
+    
+    # No retrieval patterns
+    no_retrieval_patterns = [
+        r"what is \d+ [+\-*/] \d+",  # Math
+        r"^(hi|hello|hey)",          # Greetings
+        r"(weather|time|date) today", # Real-time (needs API, not docs)
+    ]
+    for pattern in no_retrieval_patterns:
+        if re.search(pattern, query_lower):
+            return QueryComplexity.NO_RETRIEVAL
+    
+    # Complex patterns
+    complex_patterns = [
+        r"compare.*and",              # Comparison
+        r"(explain|analyze).*trend",  # Analysis
+        r"(why|how).*different",      # Reasoning
+        r"step by step",              # Multi-step
+        r"pros and cons",             # Evaluation
+    ]
+    for pattern in complex_patterns:
+        if re.search(pattern, query_lower):
+            return QueryComplexity.COMPLEX
+    
+    # Ambiguous patterns
+    if len(query.split()) < 3:        # Too short
+        return QueryComplexity.AMBIGUOUS
+    if query_lower.startswith("it "):  # Unclear reference
+        return QueryComplexity.AMBIGUOUS
+    
+    # Default to simple
+    return QueryComplexity.SIMPLE
+```
+
+## Failure modes
+
+- **Over-classification to COMPLEX**: Wastes compute on simple queries
+- **Under-classification**: Misses nuance in complex questions
+- **Classifier latency**: LLM classification adds 200-500ms overhead
+- **Edge cases**: Queries that don't fit neatly into categories
+
+## Production defaults
+
+```python
+# Hybrid approach: rules first, LLM fallback
+def hybrid_classify(query: str, llm) -> QueryComplexity:
+    rule_result = fast_classify(query)
+    
+    # If rule-based is confident, use it
+    if rule_result in [QueryComplexity.NO_RETRIEVAL, QueryComplexity.COMPLEX]:
+        return rule_result
+    
+    # For SIMPLE/AMBIGUOUS, use LLM for better accuracy
+    llm_result = classify_query(query, llm)
+    if llm_result.confidence > 0.8:
+        return llm_result.complexity
+    
+    return rule_result  # Fall back to rules
+```
+
+## Metrics to Track
+
+| Metric | Target | Why |
+|--------|--------|-----|
+| **Classification accuracy** | >85% | Correct routing |
+| **Latency by class** | Simple <500ms, Complex <2s | Performance |
+| **Retrieval skip rate** | 10-20% | Efficiency gain |
+| **User satisfaction by class** | Equal across classes | No quality regression |
+
+## Do next
+
+1. **Challenge**: [Adaptive RAG Router](/challenges/adaptive-rag-router)
+2. **Continue to**: [Reasoning RAG](/learn/phase-3/reasoning-rag)

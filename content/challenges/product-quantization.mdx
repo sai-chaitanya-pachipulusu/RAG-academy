@@ -1,0 +1,19 @@
+﻿<Callout title="Goal" variant="info">
+  Implement Product Quantization (PQ) to compress high-dimensional vectors and
+  optimize memory usage.
+</Callout>
+
+## The "Memory Wall"
+
+A single 768-dimensional float32 vector takes about 3KB. If you have 100 million vectors, you need 300GB of RAM just to store the index. This is prohibitively expensive.
+
+**Product Quantization (PQ)** solves this by:
+
+1.  Splitting a high-dimensional vector into smaller sub-vectors.
+2.  Mapping each sub-vector to its nearest "centroid" from a pre-trained codebook.
+3.  Replacing the original floats with the integer indices (codes) of those centroids.
+
+## Task
+
+Implement a simple quantization step that finds the nearest centroid for a given vector, effectively "compressing" it into a single integer code.
+

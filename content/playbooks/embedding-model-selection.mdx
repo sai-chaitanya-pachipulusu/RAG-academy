@@ -1,0 +1,210 @@
+﻿---
+title: "Embedding Model Selection Guide"
+description: "Comprehensive guide to choosing the right embedding model for your RAG system"
+---
+
+# Embedding Model Selection Guide
+
+Choosing the right embedding model is **critical** for RAG performance. This guide helps you navigate the landscape.
+
+---
+
+## Quick Decision Matrix
+
+| Use Case           | Recommended Model        | Why                        |
+| ------------------ | ------------------------ | -------------------------- |
+| General English    | `text-embedding-3-small` | Best cost/quality ratio    |
+| Max Quality        | `text-embedding-3-large` | Highest accuracy           |
+| Open Source        | `bge-large-en-v1.5`      | Great quality, self-hosted |
+| Code Search        | `voyage-code-2`          | Trained on code            |
+| Multilingual       | `multilingual-e5-large`  | 100+ languages             |
+| Budget Constrained | `all-MiniLM-L6-v2`       | Fast, free                 |
+
+---
+
+## Model Comparison
+
+### OpenAI Models
+
+| Model                  | Dimensions | MTEB Score | Cost/1M tokens |
+| ---------------------- | ---------- | ---------- | -------------- |
+| text-embedding-3-small | 1536       | 62.3%      | $0.02          |
+| text-embedding-3-large | 3072       | 64.6%      | $0.13          |
+| text-embedding-ada-002 | 1536       | 61.0%      | $0.10          |
+
+### Open Source Models
+
+| Model               | Dimensions | MTEB Score | License    |
+| ------------------- | ---------- | ---------- | ---------- |
+| bge-large-en-v1.5   | 1024       | 63.5%      | MIT        |
+| e5-large-v2         | 1024       | 62.3%      | MIT        |
+| all-MiniLM-L6-v2    | 384        | 56.3%      | Apache 2.0 |
+| GTE-large           | 1024       | 63.1%      | MIT        |
+| nomic-embed-text-v1 | 768        | 61.5%      | Apache 2.0 |
+
+### Specialized Models
+
+| Model                   | Best For               | Provider |
+| ----------------------- | ---------------------- | -------- |
+| voyage-code-2           | Code                   | Voyage   |
+| voyage-large-2-instruct | Following instructions | Voyage   |
+| cohere-embed-english-v3 | Retrieval              | Cohere   |
+| jina-embeddings-v2      | Long context (8K)      | Jina     |
+
+---
+
+## Selection Criteria
+
+### 1. Domain Match
+
+```python
+# General text - use general models
+if domain == "general":
+    model = "text-embedding-3-small"
+
+# Code - use code-specific models
+elif domain == "code":
+    model = "voyage-code-2"
+
+# Legal/Medical - consider fine-tuned models
+elif domain in ["legal", "medical"]:
+    model = fine_tune_base_model("bge-large")
+```
+
+### 2. Dimension Tradeoff
+
+| Dimensions | Storage (1M vectors) | Search Speed | Quality   |
+| ---------- | -------------------- | ------------ | --------- |
+| 384        | 1.5 GB               | Fastest      | Good      |
+| 768        | 3 GB                 | Fast         | Better    |
+| 1024       | 4 GB                 | Medium       | Great     |
+| 1536       | 6 GB                 | Slower       | Excellent |
+| 3072       | 12 GB                | Slowest      | Best      |
+
+### 3. Latency Requirements
+
+```python
+# Real-time (< 100ms) - use smaller models
+if latency_budget_ms < 100:
+    model = "all-MiniLM-L6-v2"  # ~10ms per batch
+
+# Batch processing - use larger models
+elif batch_mode:
+    model = "text-embedding-3-large"
+```
+
+---
+
+## Production Recommendations
+
+### For Startups
+
+```
+Primary: text-embedding-3-small
+Fallback: all-MiniLM-L6-v2 (local backup)
+Cost: ~$200/month for 10M embeddings
+```
+
+### For Enterprise
+
+```
+Primary: text-embedding-3-large
+Secondary: bge-large-en-v1.5 (self-hosted)
+Why: Maximum quality + data sovereignty option
+```
+
+### For Open Source Projects
+
+```
+Primary: bge-large-en-v1.5 or e5-large-v2
+Why: No API costs, can fine-tune, MIT license
+```
+
+---
+
+## Benchmarking Your Use Case
+
+Always benchmark on YOUR data:
+
+```python
+from sentence_transformers import SentenceTransformer
+from openai import OpenAI
+
+def evaluate_model(model_name, test_pairs):
+    """
+    test_pairs: [(query, relevant_doc, irrelevant_doc), ...]
+    Returns accuracy of ranking relevant > irrelevant
+    """
+    model = load_model(model_name)
+    correct = 0
+
+    for query, relevant, irrelevant in test_pairs:
+        q_emb = model.encode(query)
+        r_emb = model.encode(relevant)
+        i_emb = model.encode(irrelevant)
+
+        if cosine_sim(q_emb, r_emb) > cosine_sim(q_emb, i_emb):
+            correct += 1
+
+    return correct / len(test_pairs)
+```
+
+---
+
+## Fine-Tuning Considerations
+
+When to fine-tune:
+
+- Domain-specific vocabulary (medical, legal)
+- Non-English languages with limited data
+- Specific retrieval patterns (code, tables)
+
+```python
+# Fine-tuning with sentence-transformers
+from sentence_transformers import losses
+
+train_loss = losses.MultipleNegativesRankingLoss(model)
+# Use contrastive pairs: (query, positive_doc)
+```
+
+---
+
+## Practical Tips
+
+### 1. Normalize Your Embeddings
+
+```python
+embedding = embedding / np.linalg.norm(embedding)
+```
+
+### 2. Use Matryoshka Embeddings
+
+Models like `text-embedding-3-*` support dimension reduction:
+
+```python
+# Use only first 256 dimensions for faster search
+small_embedding = embedding[:256]
+```
+
+### 3. Handle Long Documents
+
+```python
+if len(text) > max_tokens:
+    # Option 1: Truncate
+    text = text[:max_tokens]
+
+    # Option 2: Chunk and average
+    chunks = split_text(text, chunk_size)
+    embeddings = [encode(chunk) for chunk in chunks]
+    final = np.mean(embeddings, axis=0)
+```
+
+---
+
+## Related Challenges
+
+- `embed-and-search` - Basic embedding implementation
+- `dense-vector-class` - Vector operations
+- `cosine-similarity` - Distance metrics
+- `vector-db-insert` - Storing embeddings
+

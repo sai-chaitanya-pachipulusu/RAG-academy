@@ -1,0 +1,20 @@
+﻿<Callout title="Goal" variant="info">
+  Embed summaries for high-level semantic search, then map to granular chunks.
+</Callout>
+
+## The "Needle in a Haystack" problem
+
+If you have 1 million chunks, your retriever might miss the forest for the trees.
+**Recursive Retrieval** solves this by creating a hierarchy:
+
+1.  **Summarize** groups of chunks (e.g., a whole page or section).
+2.  Index the **summaries**.
+3.  Retrieve the best summary.
+4.  Expand it into the **raw chunks** associated with that summary.
+
+This is excellent for questions like _"What does the Q3 report say about revenue?"_ where a single chunk might not capture the full "revenue" context, but the section summary does.
+
+## Implementation details
+
+In this challenge, you will implement the logic: `Query -> Match Summary -> Lookup Chunks`.
+

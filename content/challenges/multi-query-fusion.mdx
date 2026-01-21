@@ -1,0 +1,36 @@
+﻿<Callout title="Goal" variant="info">
+  Implement the RAG‑Fusion pattern: **multi‑query retrieval → fuse rankings with RRF**.
+</Callout>
+
+## Why this matters in production
+
+Many failures are recall failures:
+
+- query is ambiguous
+- user vocabulary doesn’t match corpus vocabulary
+- multiple facets need coverage (A + B + C)
+
+Multi-query expansion increases recall by retrieving with several query variants.
+RRF fusion is a robust way to merge results without score normalization headaches.
+
+## Online pipeline (query time)
+
+1. Generate query variants (LLM or deterministic rules)
+2. Retrieve top‑K per variant
+3. Fuse rankings with RRF
+4. Rerank final shortlist (optional)
+
+## Common pitfalls
+
+- Generating too many variants (cost explosion).
+- Not deduplicating variants (wasted retrieval).
+- Forgetting that RRF uses **1-based ranks**.
+
+## Production extensions (optional)
+
+- Route multi-query only for “hard” queries (short/ambiguous).
+- Add hybrid retrieval (BM25 + dense) per variant, then fuse.
+- Track Recall@K improvements on a golden set (don’t guess).
+
+
+

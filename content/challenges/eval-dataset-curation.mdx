@@ -1,0 +1,40 @@
+﻿---
+title: "Evaluation Dataset Curator"
+description: "Design a diverse evaluation set with stratified sampling."
+---
+
+# Evaluation Dataset Curator
+
+A biased evaluation set gives misleading metrics. If all your test questions are easy, your RAG looks great—until it fails in production.
+
+### The Problem
+
+```
+Eval Set: 100 questions about "API key rotation"
+Result: 95% accuracy!
+Reality: Model fails on 70% of other topics.
+```
+
+### Stratified Sampling
+
+Sample equally from each category:
+
+- Topics: Tech, Finance, HR, Legal...
+- Difficulty: Easy, Medium, Hard.
+- Format: Factoid, Multi-hop, Comparison...
+
+### Diversity Measurement
+
+**Type-Token Ratio**: `unique_words / total_words`
+
+A diverse eval set has many unique words; a repetitive one doesn't.
+
+### Your Task
+
+1. Implement stratified sampling by category.
+2. Measure lexical diversity of the sample.
+
+### Why It Matters
+
+Biased eval = false confidence → production failures → unhappy users.
+

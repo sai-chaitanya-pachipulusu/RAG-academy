@@ -1,0 +1,307 @@
+﻿<Callout title="Goal" variant="info">
+  Master chunking strategies — the most underrated lever for RAG quality.
+</Callout>
+
+## Why Chunking Matters More Than You Think
+
+Chunking converts documents into retrievable units. Get it wrong, and even the best retrieval can't save you:
+
+| Bad Chunking            | Result                           |
+| ----------------------- | -------------------------------- |
+| Too small (50 tokens)   | Fragments, missing context       |
+| Too large (2000 tokens) | Diluted relevance, wasted tokens |
+| Wrong boundaries        | Split sentences, broken tables   |
+| No overlap              | Miss context at boundaries       |
+
+**Chunking is where most RAG projects fail silently.**
+
+## Chunking Strategies Comparison
+
+| Strategy            | Best For                    | Complexity | Quality   |
+| ------------------- | --------------------------- | ---------- | --------- |
+| **Fixed-size**      | Baseline, unstructured text | Low        | Medium    |
+| **Recursive**       | Most documents              | Low-Medium | Good      |
+| **Semantic**        | Essays, articles            | Medium     | Good      |
+| **Structure-aware** | Markdown, HTML, code        | Medium     | Excellent |
+| **Sentence-window** | QA with context expansion   | Medium     | Good      |
+| **Parent-child**    | Complex docs                | High       | Excellent |
+| **Proposition**     | Legal, scientific           | High       | Excellent |
+
+## Strategy 1: Fixed-Size Chunking
+
+```python
+def fixed_chunk(text: str, size: int = 500, overlap: int = 50) -> list[str]:
+    """Simple fixed-size chunking with overlap."""
+    chunks = []
+    start = 0
+    while start < len(text):
+        end = start + size
+        chunks.append(text[start:end])
+        start = end - overlap
+    return chunks
+```
+
+**Pros**: Simple, fast, predictable
+**Cons**: Breaks mid-sentence, ignores structure
+
+## Strategy 2: Recursive Character Splitting
+
+```python
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+splitter = RecursiveCharacterTextSplitter(
+    chunk_size=500,
+    chunk_overlap=50,
+    separators=["\n\n", "\n", ". ", " ", ""]  # Try in order
+)
+
+chunks = splitter.split_text(document)
+```
+
+**How it works**: Try to split on paragraphs first, then sentences, then words.
+
+**Pros**: Respects natural boundaries, universal
+**Cons**: Can still break structure
+
+## Strategy 3: Semantic Chunking
+
+```python
+from sentence_transformers import SentenceTransformer
+import numpy as np
+
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+def semantic_chunk(sentences: list[str], threshold: float = 0.5) -> list[str]:
+    """Chunk based on semantic similarity between sentences."""
+    embeddings = model.encode(sentences)
+    chunks = []
+    current_chunk = [sentences[0]]
+
+    for i in range(1, len(sentences)):
+        similarity = np.dot(embeddings[i-1], embeddings[i])
+
+        if similarity < threshold:  # New topic detected
+            chunks.append(" ".join(current_chunk))
+            current_chunk = [sentences[i]]
+        else:
+            current_chunk.append(sentences[i])
+
+    if current_chunk:
+        chunks.append(" ".join(current_chunk))
+
+    return chunks
+```
+
+**Pros**: Groups related content, topic-aware
+**Cons**: Slow (embedding each sentence), variable size
+
+## Strategy 4: Structure-Aware (Markdown/HTML)
+
+```python
+from langchain.text_splitter import MarkdownHeaderTextSplitter
+
+headers_to_split_on = [
+    ("#", "Header 1"),
+    ("##", "Header 2"),
+    ("###", "Header 3"),
+]
+
+splitter = MarkdownHeaderTextSplitter(headers_to_split_on=headers_to_split_on)
+chunks = splitter.split_text(markdown_doc)
+
+# Each chunk includes its header hierarchy as metadata
+for chunk in chunks:
+    print(chunk.metadata)  # {'Header 1': 'Introduction', 'Header 2': 'Overview'}
+    print(chunk.page_content)
+```
+
+**Pros**: Preserves document structure, metadata-rich
+**Cons**: Requires structured input
+
+## Strategy 5: Sentence-Window (SBERT)
+
+```python
+def sentence_window_chunk(
+    sentences: list[str],
+    window_size: int = 3
+) -> list[dict]:
+    """Create chunks with surrounding context."""
+    chunks = []
+
+    for i, sentence in enumerate(sentences):
+        start = max(0, i - window_size)
+        end = min(len(sentences), i + window_size + 1)
+
+        chunks.append({
+            "center": sentence,  # Embed this
+            "window": " ".join(sentences[start:end]),  # Return this
+            "position": i
+        })
+
+    return chunks
+```
+
+**How it works**:
+
+- **Index**: Embed the center sentence only
+- **Retrieve**: Return the full window for context
+
+**Pros**: Precise retrieval, rich context
+**Cons**: More complex indexing
+
+## Strategy 6: Parent-Child (LlamaIndex)
+
+```python
+# Concept:
+# Split into LARGE parent chunks (2000 tokens)
+# Split each parent into SMALL child chunks (200 tokens)
+# Index only child chunks
+# At retrieval: return the PARENT chunk for context
+
+def parent_child_chunk(document: str) -> list[dict]:
+    # Create parents
+    parents = fixed_chunk(document, size=2000, overlap=200)
+
+    result = []
+    for parent_id, parent in enumerate(parents):
+        # Create children
+        children = fixed_chunk(parent, size=200, overlap=20)
+
+        for child in children:
+            result.append({
+                "child_text": child,      # Embed this
+                "parent_text": parent,    # Return this
+                "parent_id": parent_id
+            })
+
+    return result
+```
+
+**Pros**: Best of both worlds — precise retrieval, rich context
+**Cons**: Complex storage, more metadata
+
+## Strategy 7: Proposition Chunking (Anthropic/BareBones)
+
+Convert each chunk into atomic factual propositions:
+
+```python
+def propositionize(text: str) -> list[str]:
+    """Convert text into atomic propositions using LLM."""
+    prompt = f"""Break this text into atomic factual propositions.
+Each proposition should be:
+- A single, verifiable fact
+- Self-contained (understandable alone)
+- De-referenced (no pronouns without antecedents)
+
+Text: {text}
+
+Propositions (one per line):"""
+
+    response = llm.generate(prompt)
+    return [p.strip() for p in response.split("\n") if p.strip()]
+
+# Example:
+# Input: "The Eiffel Tower, built in 1889, is located in Paris."
+# Output: [
+#     "The Eiffel Tower was built in 1889.",
+#     "The Eiffel Tower is located in Paris."
+# ]
+```
+
+**Pros**: Highly precise retrieval, excellent for Q&A
+**Cons**: Expensive (LLM call per chunk), large index
+
+## Size Guidelines
+
+| Document Type   | Chunk Size     | Overlap | Rationale          |
+| --------------- | -------------- | ------- | ------------------ |
+| Technical docs  | 400-600        | 50-100  | Dense information  |
+| Legal contracts | 200-400        | 100     | Precise clauses    |
+| Blog posts      | 500-800        | 50      | Natural paragraphs |
+| Code            | Function-level | 0       | Self-contained     |
+| Transcripts     | 300-500        | 50      | Spoken fragments   |
+| Tables          | Keep intact    | 0       | Structure critical |
+
+## Overlap Considerations
+
+| Overlap | Effect                            |
+| ------- | --------------------------------- |
+| 0%      | Miss context at boundaries        |
+| 10-20%  | Standard, works well              |
+| 30%+    | Redundant embeddings, higher cost |
+
+## Token Counting
+
+Always count tokens, not characters:
+
+```python
+import tiktoken
+
+encoding = tiktoken.get_encoding("cl100k_base")  # GPT-4/3.5
+
+def count_tokens(text: str) -> int:
+    return len(encoding.encode(text))
+
+def chunk_by_tokens(text: str, max_tokens: int = 500) -> list[str]:
+    tokens = encoding.encode(text)
+    chunks = []
+
+    for i in range(0, len(tokens), max_tokens):
+        chunk_tokens = tokens[i:i + max_tokens]
+        chunks.append(encoding.decode(chunk_tokens))
+
+    return chunks
+```
+
+## Edge Cases
+
+| Scenario         | Handling                             |
+| ---------------- | ------------------------------------ |
+| **Table splits** | Keep tables intact, chunk separately |
+| **Code blocks**  | Chunk by function/class              |
+| **Lists**        | Keep list items together             |
+| **Images**       | Add captions as separate chunks      |
+| **Headers**      | Prepend to following content         |
+| **Empty chunks** | Skip or merge with neighbors         |
+
+## Evaluation
+
+Test different chunking strategies on YOUR data:
+
+```python
+def evaluate_chunking(
+    chunking_fn: Callable,
+    test_set: list[tuple[str, str]],  # (query, relevant_passage)
+    retriever: Retriever
+) -> float:
+    """Evaluate chunking by measuring Recall@10."""
+
+    # Re-chunk and re-index
+    chunks = chunking_fn(corpus)
+    retriever.index(chunks)
+
+    # Measure recall
+    recalls = []
+    for query, relevant_passage in test_set:
+        retrieved = retriever.search(query, k=10)
+        # Check if relevant passage is in any retrieved chunk
+        found = any(relevant_passage in chunk for chunk in retrieved)
+        recalls.append(1.0 if found else 0.0)
+
+    return sum(recalls) / len(recalls)
+```
+
+## Quick Decision Guide
+
+```
+Is your document structured (MD/HTML)?
+├── Yes → Structure-aware chunking
+└── No
+    ├── Need precise retrieval (legal/scientific)?
+    │   └── Proposition chunking
+    ├── Need rich context for answers?
+    │   └── Parent-child or sentence-window
+    └── Default
+        └── Recursive with 400-600 tokens, 10% overlap
+```
+

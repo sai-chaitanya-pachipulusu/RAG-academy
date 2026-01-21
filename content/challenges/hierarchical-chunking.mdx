@@ -1,0 +1,171 @@
+﻿---
+title: "Hierarchical Chunking: Multi-Resolution Retrieval"
+description: "Create chunks at multiple levels for queries that need different granularity"
+difficulty: "hard"
+timeEstimate: "50-60 min"
+xpReward: 150
+prerequisites: ["section-based-chunking", "recursive-chunking"]
+---
+
+# Hierarchical Chunking: Multi-Resolution Retrieval
+
+## The Granularity Problem
+
+Different queries need different levels of detail:
+
+| Query                             | Ideal Chunk        |
+| --------------------------------- | ------------------ |
+| "What is machine learning?"       | Paragraph overview |
+| "What's the exact learning rate?" | Specific sentence  |
+| "Summarize Chapter 3"             | Entire section     |
+
+A single chunk size can't serve all these optimally.
+
+---
+
+## The Multi-Resolution Insight
+
+Instead of choosing ONE chunk size, create chunks at MULTIPLE levels and link them:
+
+```
+Document (summary)
+├── Section 1
+│   ├── Paragraph 1.1
+│   │   ├── Sentence 1.1.1
+│   │   └── Sentence 1.1.2
+│   └── Paragraph 1.2
+└── Section 2
+    └── ...
+```
+
+Now ANY query can find a match at the right level!
+
+---
+
+## The Algorithm
+
+```python
+def hierarchical_chunk(text):
+    # Create document-level node
+    doc_node = {
+        'id': uuid(),
+        'level': 'document',
+        'text': text,
+        'summary': summarize(text),  # Optional
+        'children': []
+    }
+
+    # Split into sections
+    for section in split_sections(text):
+        section_node = {
+            'id': uuid(),
+            'level': 'section',
+            'text': section,
+            'parent_id': doc_node['id'],
+            'children': []
+        }
+
+        # Split into paragraphs
+        for para in split_paragraphs(section):
+            para_node = {
+                'id': uuid(),
+                'level': 'paragraph',
+                'text': para,
+                'parent_id': section_node['id']
+            }
+            section_node['children'].append(para_node)
+
+        doc_node['children'].append(section_node)
+
+    return doc_node
+```
+
+---
+
+## The RAPTOR Pattern
+
+**R**ecursive **A**bstractive **P**rocessing for **T**ree-**O**rganized **R**etrieval:
+
+1. Chunk at leaf level (sentences/paragraphs)
+2. Cluster similar chunks
+3. Summarize each cluster
+4. Repeat recursively until single summary
+
+This creates a "summarization tree" for hierarchical retrieval.
+
+---
+
+## Retrieval Patterns
+
+**Small-to-big**: Find leaf node → Expand to parent for context
+
+```python
+leaf_chunk = retrieve(query)
+full_context = leaf_chunk + leaf_chunk.parent.text
+```
+
+**Big-to-small**: Match parent summary → Drill into children
+
+```python
+section = retrieve(query, level='section')
+specific = search_within(section.children, query)
+```
+
+---
+
+## ⚖️ Tradeoffs
+
+### Pros
+
+- ✅ Optimal retrieval for any granularity
+- ✅ Enables summarization trees
+- ✅ Parent-child context expansion
+
+### Cons
+
+- ❌ Complex to implement
+- ❌ 3-4x more storage
+- ❌ Complex retrieval logic
+
+---
+
+## Real-World Usage
+
+**Powers**:
+
+- RAPTOR (Stanford NLP)
+- LlamaIndex's auto-merging retriever
+- Google's hierarchical document understanding
+- Multi-hop reasoning systems
+
+**Companies**:
+
+- Google Research
+- Meta AI (FAISS hierarchical)
+- Cohere (semantic compression)
+
+---
+
+## Implementation Tips
+
+1. **Link nodes carefully**: Store parent_id in each chunk
+2. **Embed at each level**: Each level needs its own embedding
+3. **Consider summaries**: Summaries at high levels help retrieval
+4. **Index appropriately**: May need separate collections per level
+
+---
+
+## Key Insight
+
+Hierarchical chunking teaches us:
+
+> "Not all queries are equal. Build systems that adapt to query complexity."
+
+---
+
+## Related Challenges
+
+- `section-based-chunking` - Simpler structure-aware approach
+- `semantic-chunking` - Combine for smart leaf detection
+- `metadata-aware-chunking` - Track parent-child relationships
+

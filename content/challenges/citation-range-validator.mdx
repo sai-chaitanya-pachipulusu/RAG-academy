@@ -1,0 +1,22 @@
+﻿<Callout title="Goal" variant="info">
+  Validate that citations in an answer only refer to provided sources: no `[0]`, no out-of-range `[99]`.
+</Callout>
+
+## Why this matters in production
+
+If you show citations but don’t validate them, you get:
+
+- fake trust (“looks grounded” but isn’t)
+- broken UI links
+- increased hallucination risk
+
+This lab implements a minimal, deterministic validator.
+
+## Production extensions (optional)
+
+- require at least one citation for factual answers
+- require citations per paragraph/claim
+- enforce quote-attribution (citations attached to exact spans)
+
+
+

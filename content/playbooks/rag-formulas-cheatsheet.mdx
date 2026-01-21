@@ -1,0 +1,208 @@
+﻿---
+title: "RAG Formulas & Metrics Cheat Sheet"
+description: "All the mathematical formulas you need for RAG evaluation and implementation."
+order: 4
+tags: ["formulas", "metrics", "evaluation", "math", "reference"]
+---
+
+<Callout title="Print this!" variant="info">
+  A one-page reference for all RAG formulas. Great for interviews and quick
+  lookups.
+</Callout>
+
+## Similarity Metrics
+
+### Cosine Similarity
+
+$$
+\cos(\theta) = \frac{\mathbf{a} \cdot \mathbf{b}}{\|\mathbf{a}\| \times \|\mathbf{b}\|} = \frac{\sum_{i=1}^{n} a_i b_i}{\sqrt{\sum_{i=1}^{n} a_i^2} \times \sqrt{\sum_{i=1}^{n} b_i^2}}
+$$
+
+**Range**: [-1, 1] where 1 = identical direction
+
+### Dot Product
+
+$$
+\mathbf{a} \cdot \mathbf{b} = \sum_{i=1}^{n} a_i b_i
+$$
+
+**Note**: For normalized vectors, cosine = dot product
+
+### Euclidean Distance
+
+$$
+d(\mathbf{a}, \mathbf{b}) = \sqrt{\sum_{i=1}^{n} (a_i - b_i)^2}
+$$
+
+**Range**: [0, ∞) where 0 = identical
+
+---
+
+## BM25 (Sparse Retrieval)
+
+### IDF (Inverse Document Frequency)
+
+$$
+\text{IDF}(t) = \ln\left(1 + \frac{N - \text{df}(t) + 0.5}{\text{df}(t) + 0.5}\right)
+$$
+
+Where:
+
+- N = total documents
+- df(t) = documents containing term t
+
+### Full BM25 Score
+
+$$
+\text{BM25}(q, d) = \sum_{t \in q} \text{IDF}(t) \cdot \frac{\text{tf}(t,d) \cdot (k_1 + 1)}{\text{tf}(t,d) + k_1 \cdot \left(1 - b + b \cdot \frac{|d|}{\text{avgdl}}\right)}
+$$
+
+**Defaults**: k₁ = 1.5, b = 0.75
+
+---
+
+## Retrieval Metrics
+
+### Recall@K
+
+$$
+\text{Recall@K} = \frac{|\text{Relevant} \cap \text{Retrieved@K}|}{|\text{Relevant}|}
+$$
+
+"What fraction of relevant docs did we find?"
+
+### Precision@K
+
+$$
+\text{Precision@K} = \frac{|\text{Relevant} \cap \text{Retrieved@K}|}{K}
+$$
+
+"What fraction of retrieved docs are relevant?"
+
+### F1-Score
+
+$$
+F_1 = 2 \times \frac{\text{Precision} \times \text{Recall}}{\text{Precision} + \text{Recall}} = \frac{2 \times TP}{2 \times TP + FP + FN}
+$$
+
+### Mean Reciprocal Rank (MRR)
+
+$$
+\text{MRR} = \frac{1}{|Q|} \sum_{i=1}^{|Q|} \frac{1}{\text{rank}_i}
+$$
+
+Where rank_i is position of first relevant doc for query i
+
+### DCG (Discounted Cumulative Gain)
+
+$$
+\text{DCG@K} = \sum_{i=1}^{K} \frac{\text{rel}_i}{\log_2(i + 1)}
+$$
+
+### nDCG (Normalized DCG)
+
+$$
+\text{nDCG@K} = \frac{\text{DCG@K}}{\text{IDCG@K}}
+$$
+
+Where IDCG = DCG of ideal ranking
+
+### Average Precision (AP)
+
+$$
+\text{AP} = \frac{1}{R} \sum_{k=1}^{n} P(k) \cdot \text{rel}(k)
+$$
+
+Where R = total relevant docs, P(k) = Precision@k, rel(k) = 1 if doc k is relevant
+
+### Mean Average Precision (MAP)
+
+$$
+\text{MAP} = \frac{1}{|Q|} \sum_{q=1}^{|Q|} \text{AP}(q)
+$$
+
+---
+
+## RRF (Reciprocal Rank Fusion)
+
+$$
+\text{RRF}(d) = \sum_{r \in R} \frac{1}{k + r(d)}
+$$
+
+Where:
+
+- R = set of rankers
+- r(d) = rank of document d in ranker r
+- k = smoothing constant (typically 60)
+
+---
+
+## ColBERT MaxSim
+
+$$
+\text{Score}(Q, D) = \sum_{i=1}^{|Q|} \max_{j=1}^{|D|} (\mathbf{q}_i \cdot \mathbf{d}_j)
+$$
+
+For each query token, find max similarity with any document token, then sum.
+
+---
+
+## MMR (Maximal Marginal Relevance)
+
+$$
+\text{MMR} = \arg\max_{d_i \in R \setminus S} \left[ \lambda \cdot \text{Sim}(d_i, q) - (1-\lambda) \cdot \max_{d_j \in S} \text{Sim}(d_i, d_j) \right]
+$$
+
+Where:
+
+- λ = relevance vs diversity tradeoff (typically 0.5-0.7)
+- S = already selected documents
+
+---
+
+## Token Estimates
+
+| Model        | Approx chars/token | Context |
+| ------------ | ------------------ | ------- |
+| GPT-4/Claude | ~4 chars           | 8K-128K |
+| Embeddings   | ~4 chars           | 512-8K  |
+
+**Quick estimate**: tokens ≈ characters / 4
+
+---
+
+## Cost Formulas
+
+### Per-Query Cost
+
+$$
+\text{Cost} = \text{Embed}_{query} + \text{Rerank} + \text{LLM}_{input} + \text{LLM}_{output}
+$$
+
+### Embedding Cost
+
+$$
+\text{Cost} = \frac{\text{tokens}}{1,000,000} \times \text{rate}
+$$
+
+### LLM Cost
+
+$$
+\text{Cost} = \frac{\text{input\_tokens}}{1000} \times r_{in} + \frac{\text{output\_tokens}}{1000} \times r_{out}
+$$
+
+---
+
+## Quick Reference Values
+
+| Parameter         | Production Default |
+| ----------------- | ------------------ |
+| Chunk size        | 300-600 tokens     |
+| Overlap           | 10-20%             |
+| Retrieve K        | 20-50              |
+| Keep after rerank | 5-10               |
+| RRF k             | 60                 |
+| MMR λ             | 0.5-0.7            |
+| BM25 k₁           | 1.5                |
+| BM25 b            | 0.75               |
+

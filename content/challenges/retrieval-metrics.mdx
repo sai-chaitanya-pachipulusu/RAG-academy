@@ -1,0 +1,33 @@
+﻿<Callout title="Goal" variant="info">
+  Implement retrieval metrics (Recall@K, MRR, nDCG) so you can *measure* improvements instead of guessing.
+</Callout>
+
+## Why this matters in production
+
+“It feels better” is not engineering.
+
+These metrics let you:
+
+- compare chunking strategies
+- compare retrievers (dense vs BM25 vs hybrid)
+- tune ANN params, top‑k, reranking budgets
+- catch regressions in CI
+
+## Metrics you’re implementing
+
+- **Recall@K**: “did we retrieve any relevant evidence in the top‑K?”
+- **MRR@K**: “how early is the first relevant hit?”
+- **nDCG@K**: “is the ranking quality good, including graded relevance?”
+
+## Offline vs online
+
+- **Offline**: run these metrics on a golden set of queries + labeled relevant docs.
+- **Online**: track proxies + user feedback (but offline is where you debug system changes).
+
+## Common pitfalls
+
+- Dividing by 0 when there are no relevant docs (define a convention; tests may expect 0.0).
+- Implementing DCG incorrectly (watch the log base and the +1 offset).
+
+
+

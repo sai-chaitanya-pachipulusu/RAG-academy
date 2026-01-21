@@ -1,0 +1,394 @@
+---
+title: "Multi-Hop Question Answering"
+description: |
+  Build a RAG system that answers questions requiring information from multiple documents.
+difficulty: advanced
+estimatedMinutes: 40
+topics: ["multi-hop", "reasoning", "graph-traversal", "complex-qa"]
+language: python
+prerequisites:
+  - reasoning-rag-implementation
+  - basic-retrieval
+xp: 180
+---
+
+# Multi-Hop Question Answering
+
+Some questions can't be answered from a single document. They require "hopping" between multiple sources to connect information.
+
+**Your task**: Build a multi-hop RAG system that can answer questions requiring 2-3 document lookups.
+
+## Dataset
+
+```python
+from dataclasses import dataclass
+from typing import List, Dict, Optional, Set
+
+@dataclass
+class Document:
+    id: str
+    content: str
+    entities: List[str]  # Named entities in this document
+    metadata: Dict
+
+# Knowledge base with connected information
+DOCUMENTS = [
+    # People
+    Document(
+        "person-sarah",
+        "Sarah Chen is the CEO of TechCorp. She joined in 2020 from Google.",
+        ["Sarah Chen", "TechCorp", "Google"],
+        {"type": "person", "name": "Sarah Chen"}
+    ),
+    Document(
+        "person-mike",
+        "Mike Johnson is VP of Sales at TechCorp. He reports to Sarah Chen.",
+        ["Mike Johnson", "TechCorp", "Sarah Chen"],
+        {"type": "person", "name": "Mike Johnson"}
+    ),
+    Document(
+        "person-alex",
+        "Alex Kim is an engineer at TechCorp. Mike Johnson was his mentor.",
+        ["Alex Kim", "TechCorp", "Mike Johnson"],
+        {"type": "person", "name": "Alex Kim"}
+    ),
+    
+    # Companies
+    Document(
+        "company-techcorp",
+        "TechCorp was founded in 2015. Headquarters in San Francisco. 500 employees.",
+        ["TechCorp", "San Francisco"],
+        {"type": "company", "name": "TechCorp"}
+    ),
+    Document(
+        "company-acme",
+        "Acme Corp is a customer of TechCorp. Contract value: $5M annually.",
+        ["Acme Corp", "TechCorp"],
+        {"type": "company", "name": "Acme Corp"}
+    ),
+    
+    # Products
+    Document(
+        "product-smartfind",
+        "SmartFind is TechCorp's flagship product. Launched 2023. AI-powered search.",
+        ["SmartFind", "TechCorp"],
+        {"type": "product", "name": "SmartFind"}
+    ),
+    
+    # Financials
+    Document(
+        "finance-2024",
+        "TechCorp 2024 revenue: $50M. Biggest customer: Acme Corp (10% of revenue).",
+        ["TechCorp", "Acme Corp"],
+        {"type": "financial", "year": 2024}
+    ),
+]
+
+# Multi-hop test questions
+TEST_QUESTIONS = [
+    {
+        "question": "Who is the CEO of the company that Alex Kim works for?",
+        "hops": ["person-alex", "company-techcorp", "person-sarah"],
+        "answer": "Sarah Chen",
+        "reasoning": "Alex works at TechCorp → TechCorp's CEO is Sarah Chen"
+    },
+    {
+        "question": "What is the revenue of the company whose flagship product is SmartFind?",
+        "hops": ["product-smartfind", "company-techcorp", "finance-2024"],
+        "answer": "$50M",
+        "reasoning": "SmartFind is TechCorp's product → TechCorp's revenue is $50M"
+    },
+    {
+        "question": "Who reports to the person who joined TechCorp from Google?",
+        "hops": ["person-sarah", "person-mike"],
+        "answer": "Mike Johnson",
+        "reasoning": "Sarah Chen joined from Google → Mike Johnson reports to Sarah"
+    },
+    {
+        "question": "How much revenue does TechCorp's biggest customer generate?",
+        "hops": ["finance-2024", "company-acme"],
+        "answer": "$5M (10% of $50M)",
+        "reasoning": "Biggest customer is Acme Corp → Acme contract is $5M"
+    },
+]
+```
+
+## Your Task
+
+Implement the `MultiHopQA` class:
+
+```python
+@dataclass
+class HopResult:
+    doc_id: str
+    content: str
+    entities_found: List[str]
+    bridging_entity: Optional[str]  # Entity that connects to next hop
+
+@dataclass
+class MultiHopTrace:
+    question: str
+    hops: List[HopResult]
+    final_answer: str
+    confidence: float
+
+class MultiHopQA:
+    def __init__(self, documents: List[Document]):
+        """
+        Initialize with document corpus.
+        """
+        self.documents = documents
+        self.entity_index = self._build_entity_index()
+    
+    def _build_entity_index(self) -> Dict[str, List[str]]:
+        """
+        Build index: entity → list of doc_ids containing it.
+        
+        Returns:
+            {"Sarah Chen": ["person-sarah", "person-mike"], ...}
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def extract_entities(self, text: str) -> List[str]:
+        """
+        Extract named entities from text.
+        
+        Returns:
+            List of entity names found
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def find_documents_by_entity(self, entity: str) -> List[Document]:
+        """
+        Find all documents mentioning an entity.
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def retrieve_initial(self, question: str) -> List[Document]:
+        """
+        Initial retrieval based on question keywords.
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def find_bridging_entity(
+        self, 
+        current_doc: Document, 
+        question: str,
+        visited_docs: Set[str]
+    ) -> Optional[str]:
+        """
+        Find entity in current doc that can lead to answer.
+        
+        Returns:
+            Entity name that bridges to next relevant document
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def hop(
+        self, 
+        current_docs: List[Document],
+        question: str,
+        visited: Set[str]
+    ) -> List[Document]:
+        """
+        Perform one hop: find connected documents via entities.
+        
+        Returns:
+            New documents reached via entity links
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def extract_answer(
+        self, 
+        question: str, 
+        hops: List[HopResult]
+    ) -> str:
+        """
+        Extract final answer from hop trace.
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def answer(self, question: str, max_hops: int = 3) -> MultiHopTrace:
+        """
+        Answer multi-hop question with full trace.
+        
+        Returns:
+            MultiHopTrace with all hops and final answer
+        """
+        # YOUR CODE HERE
+        pass
+```
+
+## Requirements
+
+1. **Entity-based hopping**: Connect documents via shared entities
+2. **Full trace**: Return all documents visited
+3. **Reasonable depth**: Find answer within 3 hops
+4. **Answer extraction**: Extract specific answer from context
+
+## Example Trace
+
+```python
+qa = MultiHopQA(DOCUMENTS)
+
+trace = qa.answer("Who is the CEO of the company that Alex Kim works for?")
+
+# Expected trace:
+print(trace.hops)
+# [
+#   HopResult(doc_id="person-alex", content="Alex Kim is an engineer at TechCorp...",
+#             entities_found=["Alex Kim", "TechCorp"], bridging_entity="TechCorp"),
+#   HopResult(doc_id="company-techcorp", content="TechCorp was founded in 2015...",
+#             entities_found=["TechCorp"], bridging_entity="TechCorp"),
+#   HopResult(doc_id="person-sarah", content="Sarah Chen is the CEO of TechCorp...",
+#             entities_found=["Sarah Chen", "TechCorp"], bridging_entity=None),
+# ]
+
+print(trace.final_answer)
+# "Sarah Chen"
+
+print(trace.confidence)
+# 0.9
+```
+
+## Hints
+
+<details>
+<summary>Hint 1: Entity index</summary>
+
+```python
+def _build_entity_index(self) -> Dict[str, List[str]]:
+    index = {}
+    for doc in self.documents:
+        for entity in doc.entities:
+            if entity not in index:
+                index[entity] = []
+            index[entity].append(doc.id)
+    return index
+```
+
+</details>
+
+<details>
+<summary>Hint 2: Entity extraction</summary>
+
+Simple approach: check against known entities:
+
+```python
+def extract_entities(self, text: str) -> List[str]:
+    found = []
+    for entity in self.entity_index.keys():
+        if entity.lower() in text.lower():
+            found.append(entity)
+    return found
+```
+
+</details>
+
+<details>
+<summary>Hint 3: Hopping logic</summary>
+
+```python
+def hop(self, current_docs, question, visited):
+    new_docs = []
+    
+    for doc in current_docs:
+        # Find entities we haven't explored yet
+        for entity in doc.entities:
+            # Get docs containing this entity
+            connected_docs = self.find_documents_by_entity(entity)
+            
+            for connected in connected_docs:
+                if connected.id not in visited:
+                    visited.add(connected.id)
+                    new_docs.append(connected)
+    
+    return new_docs
+```
+
+</details>
+
+## Test Your Solution
+
+```python
+def test_multi_hop_qa():
+    qa = MultiHopQA(DOCUMENTS)
+    
+    for test in TEST_QUESTIONS:
+        print(f"\n{'='*60}")
+        print(f"Question: {test['question']}")
+        print(f"Expected reasoning: {test['reasoning']}")
+        
+        trace = qa.answer(test["question"])
+        
+        print(f"\nHops taken: {len(trace.hops)}")
+        for i, hop in enumerate(trace.hops):
+            print(f"  Hop {i+1}: {hop.doc_id}")
+            print(f"    Bridging entity: {hop.bridging_entity}")
+        
+        print(f"\nFinal answer: {trace.final_answer}")
+        print(f"Expected: {test['answer']}")
+        print(f"Confidence: {trace.confidence:.2f}")
+        
+        # Check answer contains expected value
+        answer_correct = test["answer"].lower() in trace.final_answer.lower()
+        status = "✓" if answer_correct else "✗"
+        print(f"{status} Answer correct")
+        
+        # Check we visited expected documents
+        visited_ids = {hop.doc_id for hop in trace.hops}
+        expected_ids = set(test["hops"])
+        coverage = len(visited_ids & expected_ids) / len(expected_ids)
+        print(f"Document coverage: {coverage:.0%}")
+    
+    print("\n✓ All tests completed!")
+
+test_multi_hop_qa()
+```
+
+## Bonus: Graph-Based Approach
+
+For complex multi-hop, model documents as a graph:
+
+```python
+import networkx as nx
+
+def build_knowledge_graph(documents: List[Document]) -> nx.Graph:
+    G = nx.Graph()
+    
+    # Add document nodes
+    for doc in documents:
+        G.add_node(doc.id, type="document", content=doc.content)
+    
+    # Add entity nodes and edges
+    for doc in documents:
+        for entity in doc.entities:
+            if not G.has_node(entity):
+                G.add_node(entity, type="entity")
+            G.add_edge(doc.id, entity)
+    
+    return G
+
+def graph_based_hop(G, start_docs, target_entity):
+    """Find path from start docs to target entity."""
+    for doc_id in start_docs:
+        try:
+            path = nx.shortest_path(G, doc_id, target_entity)
+            return path
+        except nx.NetworkXNoPath:
+            continue
+    return None
+```
+
+## Resources
+
+- [Multi-hop Question Answering Survey](https://arxiv.org/abs/2204.09140)
+- [HotpotQA Dataset](https://hotpotqa.github.io/)
+- [IRCoT: Interleaving Retrieval with CoT](https://arxiv.org/abs/2212.10509)

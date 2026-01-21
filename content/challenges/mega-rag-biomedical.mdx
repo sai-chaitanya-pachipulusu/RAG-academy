@@ -1,0 +1,32 @@
+---
+title: "MEGA-RAG Biomedical"
+description: "Implement domain-specific RAG for biomedical literature"
+---
+
+# MEGA-RAG Biomedical
+
+Implement a specialized RAG system for biomedical literature with entity recognition, citation linking, and evidence grading.
+
+## Requirements
+
+1. Extract biomedical entities (genes, drugs, diseases)
+2. Link entities to knowledge bases (UMLS, PubMed)
+3. Grade evidence strength
+4. Generate answers with evidence levels
+
+## Starter Code
+
+```python
+class BiomedicalRAG:
+    def __init__(self, entity_recognizer, knowledge_base):
+        self.ner = entity_recognizer
+        self.kb = knowledge_base
+    
+    def index_paper(self, paper: dict):
+        """Index a biomedical paper with entity extraction."""
+        pass
+    
+    def query(self, query: str) -> dict:
+        """Query with evidence grading."""
+        pass
+```

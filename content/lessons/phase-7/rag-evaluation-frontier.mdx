@@ -1,0 +1,334 @@
+---
+title: "RAG Evaluation at the Frontier"
+description: "Advanced evaluation techniques for modern RAG systems."
+order: 4
+estimatedMinutes: 25
+stage: frontier
+prereqs:
+  - phase: phase-7
+    slug: compound-ai-systems
+  - phase: phase-6
+    slug: evaluation-in-production
+next: null
+outcomes:
+  - "Implement comprehensive RAG evaluation suites."
+  - "Use LLM-as-judge for scalable evaluation."
+  - "Build continuous evaluation pipelines."
+tags: ["frontier", "evaluation", "metrics"]
+sources:
+  - title: "RAGAS: Automated Evaluation of Retrieval Augmented Generation"
+    url: "https://arxiv.org/abs/2309.15217"
+    type: "paper"
+  - title: "Judging LLM-as-a-Judge"
+    url: "https://arxiv.org/abs/2306.05685"
+    type: "paper"
+  - title: "ARES: An Automated Evaluation Framework for RAG Systems"
+    url: "https://arxiv.org/abs/2311.09476"
+    type: "paper"
+---
+
+## Goals
+
+- Implement comprehensive RAG evaluation suites.
+- Use LLM-as-judge for scalable evaluation.
+- Build continuous evaluation pipelines for production.
+
+## Prereqs
+
+- Read: **Compound AI Systems** (previous lesson).
+- Read: **Evaluation in Production** (Phase 6) for baseline metrics.
+
+## Core idea
+
+Evaluating RAG systems requires measuring **retrieval quality**, **generation quality**, and their **interaction**. Traditional metrics (BLEU, ROUGE) fail to capture what matters for RAG. Modern evaluation uses LLM-as-judge and specialized RAG metrics.
+
+## The evaluation hierarchy
+
+```
+┌────────────────────────────────────────────────────────────┐
+│                    SYSTEM LEVEL                            │
+│  User satisfaction, task completion, business metrics      │
+├────────────────────────────────────────────────────────────┤
+│                   COMPONENT LEVEL                          │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐      │
+│  │  Retrieval   │ │  Generation  │ │  End-to-End  │      │
+│  │  - Recall@K  │ │  - Faithful  │ │  - Correct   │      │
+│  │  - MRR       │ │  - Relevant  │ │  - Complete  │      │
+│  │  - nDCG      │ │  - Coherent  │ │  - Useful    │      │
+│  └──────────────┘ └──────────────┘ └──────────────┘      │
+├────────────────────────────────────────────────────────────┤
+│                    UNIT LEVEL                              │
+│  Chunking quality, embedding similarity, latency           │
+└────────────────────────────────────────────────────────────┘
+```
+
+## Failure modes
+
+- **Retrieval-generation disconnect**: Great retrieval but poor generation (or vice versa)
+- **Golden set bias**: Evaluating only on easy, well-defined questions
+- **LLM judge bias**: Judge model favors verbose or confident-sounding answers
+- **Metric gaming**: Optimizing for metrics that don't reflect user value
+
+## Production defaults
+
+### Core RAG metrics (RAGAS framework)
+
+```python
+from ragas.metrics import (
+    context_precision,
+    context_recall,
+    faithfulness,
+    answer_relevancy,
+)
+
+def evaluate_rag_response(query, retrieved_contexts, generated_answer, ground_truth):
+    """
+    Comprehensive RAG evaluation using RAGAS metrics.
+    
+    Returns dict with scores from 0-1 for each metric.
+    """
+    return {
+        # Retrieval metrics
+        "context_precision": context_precision(
+            question=query,
+            contexts=retrieved_contexts,
+            ground_truth=ground_truth
+        ),
+        "context_recall": context_recall(
+            question=query,
+            contexts=retrieved_contexts,
+            ground_truth=ground_truth
+        ),
+        
+        # Generation metrics
+        "faithfulness": faithfulness(
+            question=query,
+            contexts=retrieved_contexts,
+            answer=generated_answer
+        ),
+        "answer_relevancy": answer_relevancy(
+            question=query,
+            answer=generated_answer
+        ),
+    }
+```
+
+### Metric definitions
+
+| Metric | Measures | Formula |
+|--------|----------|---------|
+| **Context Precision** | Retrieved chunks relevance to answer | (relevant chunks) / (total retrieved) |
+| **Context Recall** | Coverage of ground truth | (GT sentences in context) / (total GT sentences) |
+| **Faithfulness** | Answer grounded in context | (supported claims) / (total claims) |
+| **Answer Relevancy** | Answer addresses the question | Semantic similarity(answer, question) |
+
+### LLM-as-Judge implementation
+
+```python
+from openai import OpenAI
+
+def llm_judge_faithfulness(context: str, answer: str) -> dict:
+    """
+    Use LLM to judge if answer is faithful to context.
+    Returns score and reasoning.
+    """
+    client = OpenAI()
+    
+    prompt = f"""You are evaluating whether an answer is faithful to the given context.
+    
+Context:
+{context}
+
+Answer:
+{answer}
+
+Evaluate faithfulness on a scale of 1-5:
+1: Answer contradicts or ignores the context
+2: Answer mostly unsupported by context
+3: Answer partially supported by context
+4: Answer mostly supported by context
+5: Answer fully grounded in context
+
+Respond in JSON format:
+{{"score": <1-5>, "reasoning": "<explanation>", "unsupported_claims": [<list of claims not in context>]}}
+"""
+    
+    response = client.chat.completions.create(
+        model="gpt-4-turbo",
+        messages=[{"role": "user", "content": prompt}],
+        response_format={"type": "json_object"},
+    )
+    
+    return json.loads(response.choices[0].message.content)
+
+
+def llm_judge_relevancy(question: str, answer: str) -> dict:
+    """
+    Use LLM to judge if answer is relevant to question.
+    """
+    client = OpenAI()
+    
+    prompt = f"""You are evaluating whether an answer is relevant to the question.
+    
+Question: {question}
+
+Answer: {answer}
+
+Evaluate relevancy on a scale of 1-5:
+1: Answer doesn't address the question at all
+2: Answer tangentially related but misses the point
+3: Answer partially addresses the question
+4: Answer mostly addresses the question
+5: Answer fully and directly addresses the question
+
+Respond in JSON format:
+{{"score": <1-5>, "reasoning": "<explanation>", "missing_aspects": [<what the answer should have covered>]}}
+"""
+    
+    response = client.chat.completions.create(
+        model="gpt-4-turbo",
+        messages=[{"role": "user", "content": prompt}],
+        response_format={"type": "json_object"},
+    )
+    
+    return json.loads(response.choices[0].message.content)
+```
+
+### Avoiding LLM judge bias
+
+```python
+def robust_llm_judge(question, answer, context):
+    """
+    Multiple strategies to reduce LLM judge bias.
+    """
+    # Strategy 1: Multiple judges
+    judges = ["gpt-4", "claude-3-opus", "gemini-pro"]
+    scores = [
+        llm_judge(judge, question, answer, context)
+        for judge in judges
+    ]
+    
+    # Strategy 2: Criteria decomposition
+    criteria_scores = {
+        "factual_accuracy": judge_factual(answer, context),
+        "completeness": judge_completeness(answer, question),
+        "conciseness": judge_conciseness(answer),
+        "coherence": judge_coherence(answer),
+    }
+    
+    # Strategy 3: Reference-based calibration
+    calibration_set = load_human_annotated_examples()
+    judge_calibration = compute_judge_accuracy(calibration_set)
+    
+    # Combine with confidence weighting
+    return weighted_average(scores, criteria_scores, judge_calibration)
+```
+
+### Continuous evaluation pipeline
+
+```python
+class RAGEvaluationPipeline:
+    def __init__(self, rag_system, eval_dataset):
+        self.rag = rag_system
+        self.dataset = eval_dataset
+        self.metrics_history = []
+    
+    def run_evaluation(self):
+        """Run full evaluation suite."""
+        results = []
+        
+        for example in self.dataset:
+            # Get RAG response
+            response = self.rag.query(example["question"])
+            
+            # Evaluate
+            metrics = {
+                "retrieval": self.eval_retrieval(
+                    response["contexts"], 
+                    example["relevant_contexts"]
+                ),
+                "generation": self.eval_generation(
+                    response["answer"],
+                    response["contexts"],
+                    example["ground_truth"]
+                ),
+                "end_to_end": self.eval_e2e(
+                    response["answer"],
+                    example["ground_truth"]
+                ),
+            }
+            results.append(metrics)
+        
+        # Aggregate
+        aggregated = self.aggregate_metrics(results)
+        self.metrics_history.append({
+            "timestamp": datetime.now(),
+            "metrics": aggregated,
+        })
+        
+        # Alert on regression
+        self.check_regressions(aggregated)
+        
+        return aggregated
+    
+    def check_regressions(self, current_metrics):
+        """Alert if metrics drop below thresholds."""
+        thresholds = {
+            "retrieval.recall@10": 0.8,
+            "generation.faithfulness": 0.85,
+            "end_to_end.correctness": 0.75,
+        }
+        
+        for metric, threshold in thresholds.items():
+            value = get_nested(current_metrics, metric)
+            if value < threshold:
+                alert(f"REGRESSION: {metric} = {value} < {threshold}")
+```
+
+### Building golden evaluation sets
+
+```python
+def create_golden_set(raw_queries, num_samples=100):
+    """
+    Create a golden evaluation set with human-verified ground truth.
+    """
+    golden_set = []
+    
+    for query in sample(raw_queries, num_samples):
+        # Get expert annotation
+        annotation = {
+            "question": query,
+            "ground_truth_answer": expert_write_answer(query),
+            "relevant_passages": expert_select_passages(query),
+            "difficulty": expert_rate_difficulty(query),
+            "query_type": expert_classify_query(query),
+        }
+        
+        # Verify with second annotator
+        if second_annotator_agrees(annotation):
+            golden_set.append(annotation)
+    
+    return golden_set
+```
+
+## Evaluation checklist
+
+```
+□ Retrieval metrics computed (Recall@K, MRR, nDCG)
+□ Generation metrics computed (Faithfulness, Relevancy)
+□ LLM judge calibrated against human annotations
+□ Golden set covers diverse query types
+□ Regression alerts configured
+□ Metrics tracked over time
+□ A/B testing framework in place
+```
+
+## Do next
+
+1. **Implement RAGAS**: Start with the standard metrics
+2. **Build golden set**: 50-100 expert-annotated examples
+3. **Set up monitoring**: Track metrics in production
+4. **Iterate**: Use evaluation to drive improvements
+
+**Congratulations!** You've completed the RAG Academy curriculum through Phase 7. You now have cutting-edge knowledge of RAG systems.
+

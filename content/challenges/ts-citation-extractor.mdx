@@ -1,0 +1,24 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Extract and validate citations from LLM responses.
+</Callout>
+
+## Why this matters in production
+
+Citations let users verify RAG answers against sources. Extracting and validating them enables trustworthy AI that shows its work.
+
+## What you're implementing
+
+- Find citation patterns like [1], [2] in text.
+- Track positions for highlighting.
+- Validate that cited indices exist in source list.
+- Create clean text without citation markers.
+
+## Common pitfalls
+
+- Not handling [10]+ (multi-digit citations).
+- Missing edge cases like [0] or negative numbers.
+
+## After you pass
+
+Use this to build a grounded QA system with source verification.
+

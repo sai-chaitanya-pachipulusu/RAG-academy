@@ -1,0 +1,334 @@
+---
+title: "Multi-Agent Systems"
+description: "Coordinate multiple specialized agents for complex tasks."
+order: 4
+estimatedMinutes: 30
+stage: agentic-rag
+prereqs:
+  - phase: phase-5
+    slug: plan-and-execute
+next:
+  phase: phase-5
+  slug: agent-memory
+outcomes:
+  - "Design multi-agent architectures for different use cases."
+  - "Implement agent coordination patterns (supervisor, swarm, debate)."
+  - "Handle communication and state sharing between agents."
+tags: ["multi-agent", "coordination", "supervisor", "swarm"]
+sources:
+  - title: "AutoGen: Multi-Agent Conversation (Wu et al., 2023)"
+    url: "https://arxiv.org/abs/2308.08155"
+    type: "paper"
+    year: 2023
+  - title: "LangGraph: Multi-Agent Systems"
+    url: "https://langchain-ai.github.io/langgraph/tutorials/multi_agent/multi-agent-collaboration/"
+    type: "docs"
+  - title: "CrewAI Documentation"
+    url: "https://docs.crewai.com/"
+    type: "docs"
+---
+
+## Goals
+
+- Understand when multi-agent beats single-agent.
+- Learn common multi-agent patterns.
+- Build systems with specialized agents that collaborate.
+
+## Prereqs
+
+- Read: **Plan-and-Execute Agents** (understand single-agent patterns).
+
+## Core idea
+
+### Why multiple agents?
+
+Single agents struggle when:
+- Task requires different expertise
+- Parallel work is possible
+- Quality benefits from multiple perspectives
+
+### Multi-agent patterns
+
+```
+1. SUPERVISOR
+   ┌─────────────┐
+   │ Supervisor  │ ← Coordinates, delegates, synthesizes
+   └─────────────┘
+         ↓
+   ┌─────────────────────────┐
+   │  Agent A  │  Agent B    │ ← Specialized workers
+   └─────────────────────────┘
+
+2. SWARM (Peer-to-Peer)
+   ┌─────────┐   ┌─────────┐
+   │ Agent A │←──│ Agent B │ ← Agents communicate directly
+   └─────────┘   └─────────┘
+        ↑             ↑
+        └──────┬──────┘
+          ┌─────────┐
+          │ Agent C │
+          └─────────┘
+
+3. DEBATE
+   ┌─────────┐      ┌─────────┐
+   │ Agent A │ vs   │ Agent B │ ← Agents argue positions
+   └─────────┘      └─────────┘
+         ↓               ↓
+        ┌─────────────────┐
+        │     Judge       │ ← Decides winner
+        └─────────────────┘
+```
+
+### Supervisor pattern implementation
+
+```python
+class SupervisorSystem:
+    def __init__(self, supervisor_llm, agents: Dict[str, Agent]):
+        self.supervisor_llm = supervisor_llm
+        self.agents = agents
+    
+    def run(self, query: str) -> str:
+        """
+        Supervisor coordinates specialized agents.
+        """
+        # Supervisor decides which agent(s) to invoke
+        plan = self.supervisor_plan(query)
+        
+        results = {}
+        for step in plan:
+            agent_name = step["agent"]
+            task = step["task"]
+            
+            # Invoke the agent
+            result = self.agents[agent_name].run(task)
+            results[agent_name] = result
+            
+            # Supervisor reviews progress
+            should_continue, next_steps = self.supervisor_review(
+                query, results
+            )
+            if not should_continue:
+                break
+        
+        # Supervisor synthesizes final answer
+        return self.supervisor_synthesize(query, results)
+    
+    def supervisor_plan(self, query: str) -> List[Dict]:
+        """
+        Supervisor creates delegation plan.
+        """
+        agents_desc = "\n".join([
+            f"- {name}: {agent.description}"
+            for name, agent in self.agents.items()
+        ])
+        
+        prompt = f"""You are a supervisor coordinating specialized agents.
+
+Available agents:
+{agents_desc}
+
+User query: {query}
+
+Create a plan to answer this query by delegating to the right agents.
+Each step should specify which agent to use and what task to give them.
+
+Plan:
+1. Agent: [name], Task: [specific task]
+2. Agent: [name], Task: [specific task]
+...
+
+Your plan:"""
+        
+        response = self.supervisor_llm.generate(prompt)
+        return self.parse_plan(response)
+    
+    def supervisor_review(
+        self,
+        query: str,
+        results: Dict[str, str],
+    ) -> Tuple[bool, List[Dict]]:
+        """
+        Supervisor reviews progress and decides next steps.
+        """
+        results_text = "\n".join([
+            f"{agent}: {result[:500]}"
+            for agent, result in results.items()
+        ])
+        
+        prompt = f"""Review the progress on this query.
+
+Original query: {query}
+
+Results so far:
+{results_text}
+
+Do we have enough to answer? If not, what else is needed?
+
+Decision (DONE or CONTINUE):
+Next steps (if CONTINUE):"""
+        
+        response = self.supervisor_llm.generate(prompt)
+        
+        if "DONE" in response:
+            return False, []
+        else:
+            next_steps = self.parse_next_steps(response)
+            return True, next_steps
+
+
+# Example: Specialized agents for RAG
+agents = {
+    "researcher": ResearcherAgent(
+        description="Searches knowledge base and synthesizes information",
+        tools=[search_tool, summarize_tool],
+    ),
+    "analyst": AnalystAgent(
+        description="Analyzes data, creates comparisons, calculates metrics",
+        tools=[calculate_tool, compare_tool],
+    ),
+    "writer": WriterAgent(
+        description="Writes clear, structured responses",
+        tools=[format_tool],
+    ),
+}
+
+supervisor = SupervisorSystem(llm, agents)
+result = supervisor.run("Compare our Q1 and Q2 sales, and explain the trends")
+```
+
+### Swarm (peer-to-peer) pattern
+
+```python
+class SwarmSystem:
+    def __init__(self, agents: List[SwarmAgent], max_rounds: int = 5):
+        self.agents = agents
+        self.max_rounds = max_rounds
+    
+    def run(self, query: str) -> str:
+        """
+        Agents collaborate in rounds, passing information.
+        """
+        # Shared state
+        state = {
+            "query": query,
+            "contributions": [],
+            "current_answer": "",
+        }
+        
+        for round_num in range(self.max_rounds):
+            # Each agent can contribute
+            for agent in self.agents:
+                if agent.wants_to_contribute(state):
+                    contribution = agent.contribute(state)
+                    state["contributions"].append({
+                        "agent": agent.name,
+                        "round": round_num,
+                        "content": contribution,
+                    })
+                    state["current_answer"] = self.merge_contributions(state)
+            
+            # Check if we've converged
+            if self.has_consensus(state):
+                break
+        
+        return state["current_answer"]
+
+
+class SwarmAgent:
+    def __init__(self, name: str, specialty: str, llm):
+        self.name = name
+        self.specialty = specialty
+        self.llm = llm
+    
+    def wants_to_contribute(self, state: Dict) -> bool:
+        """
+        Decide if this agent has something to add.
+        """
+        prompt = f"""You are {self.name}, an expert in {self.specialty}.
+
+Query: {state['query']}
+Current answer: {state['current_answer']}
+
+Do you have something valuable to add? Answer YES or NO.
+Consider: your expertise, gaps in the current answer, potential improvements."""
+        
+        response = self.llm.generate(prompt, max_tokens=10)
+        return "YES" in response.upper()
+    
+    def contribute(self, state: Dict) -> str:
+        """
+        Add contribution based on specialty.
+        """
+        prompt = f"""You are {self.name}, an expert in {self.specialty}.
+
+Query: {state['query']}
+Current answer: {state['current_answer']}
+Previous contributions: {self.format_contributions(state['contributions'])}
+
+Add your expert perspective. Be specific and actionable."""
+        
+        return self.llm.generate(prompt)
+```
+
+### Debate pattern
+
+```python
+class DebateSystem:
+    def __init__(self, agent_a, agent_b, judge, max_rounds: int = 3):
+        self.agent_a = agent_a
+        self.agent_b = agent_b
+        self.judge = judge
+        self.max_rounds = max_rounds
+    
+    def run(self, query: str) -> str:
+        """
+        Two agents debate, judge decides.
+        """
+        debate_history = []
+        
+        # Initial positions
+        position_a = self.agent_a.initial_position(query)
+        position_b = self.agent_b.initial_position(query)
+        
+        debate_history.append({"round": 0, "a": position_a, "b": position_b})
+        
+        # Debate rounds
+        for round_num in range(1, self.max_rounds + 1):
+            # Agent A responds to Agent B
+            response_a = self.agent_a.respond(query, position_b, debate_history)
+            
+            # Agent B responds to Agent A
+            response_b = self.agent_b.respond(query, response_a, debate_history)
+            
+            debate_history.append({
+                "round": round_num,
+                "a": response_a,
+                "b": response_b,
+            })
+            
+            position_a = response_a
+            position_b = response_b
+        
+        # Judge decides
+        final_answer = self.judge.decide(query, debate_history)
+        
+        return final_answer
+```
+
+## Failure modes
+
+1. **Coordination overhead**: Agents waste time coordinating.
+2. **Conflicting outputs**: Agents disagree without resolution.
+3. **Information loss**: Context not passed between agents.
+4. **Infinite delegation**: Supervisor keeps delegating.
+
+## Production defaults
+
+- **Supervisor**: Default for most multi-agent needs.
+- **Swarm**: Use for creative/brainstorming tasks.
+- **Debate**: Use when verification is critical.
+- **Max agents**: 3-5 (more = more coordination overhead).
+
+## Do next
+
+<ChallengeLinks slugs={["supervisor-agent", "swarm-collaboration", "agent-debate"]} />

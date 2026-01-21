@@ -1,0 +1,58 @@
+﻿---
+title: "BEIR Benchmark Setup"
+description: "Set up the BEIR (Benchmarking IR) framework to evaluate your retrieval system"
+difficulty: "medium"
+xpReward: 100
+prerequisites: ["evaluator-ndcg", "evaluator-recall-at-k"]
+---
+
+# BEIR Benchmark Setup
+
+Set up the BEIR (Benchmarking IR) framework to evaluate your retrieval system across standardized datasets.
+
+## Why This Matters
+
+BEIR is the industry standard for measuring retrieval quality. Every major embedding model (OpenAI, Cohere, Voyage AI) reports BEIR scores in their documentation.
+
+## What You'll Learn
+
+- BEIR dataset format and structure
+- How to evaluate retrievers on standard benchmarks
+- Computing nDCG, Recall, and Precision at K
+
+## Real-World Application
+
+**Companies:** OpenAI, Cohere, Voyage AI, Jina AI
+**Use Cases:** Model selection, Embedding evaluation, Academic research
+
+## The Challenge
+
+Implement functions to load BEIR-format datasets and evaluate retriever performance.
+
+## Getting Started
+
+1. Understand the BEIR dataset structure (queries, corpus, qrels)
+2. Implement mock datasets for testing
+3. Build the evaluation pipeline
+4. Compute standard IR metrics
+
+## Key Concepts
+
+### BEIR Dataset Format
+
+```python
+@dataclass
+class BEIRDataset:
+    name: str
+    queries: Dict[str, str]        # query_id -> query_text
+    corpus: Dict[str, str]         # doc_id -> doc_text
+    qrels: Dict[str, Dict[str, int]]  # query_id -> {doc_id: relevance}
+```
+
+### Standard Metrics
+
+- **nDCG@10**: Primary ranking metric
+- **Recall@10**: Coverage of relevant documents
+- **Precision@10**: Accuracy of top results
+- **MRR**: Position of first relevant result
+

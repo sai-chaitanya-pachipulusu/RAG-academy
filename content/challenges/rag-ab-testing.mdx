@@ -1,0 +1,395 @@
+﻿<Callout title="Goal" variant="info">
+  Implement A/B testing for RAG systems — experiment with different
+  configurations to optimize quality and cost.
+</Callout>
+
+## Why A/B Test RAG?
+
+RAG has many tunable parameters:
+
+- Chunk size (300 vs 500 vs 1000 tokens)
+- Retrieval k (5 vs 10 vs 20)
+- Reranking (none vs cross-encoder vs LLM)
+- Generation model (GPT-4o-mini vs GPT-4o)
+- Prompt templates
+
+Intuition often fails. Data-driven decisions win.
+
+## A/B Testing Framework
+
+### Basic Experiment Structure
+
+```python
+from dataclasses import dataclass
+from typing import Callable
+import random
+import hashlib
+
+@dataclass
+class Variant:
+    name: str
+    weight: float  # Percentage of traffic
+    config: dict
+
+@dataclass
+class Experiment:
+    name: str
+    variants: list[Variant]
+
+    def assign(self, user_id: str) -> Variant:
+        """Deterministically assign user to variant."""
+        # Hash for consistent assignment
+        hash_input = f"{self.name}:{user_id}"
+        hash_value = int(hashlib.md5(hash_input.encode()).hexdigest(), 16)
+        bucket = (hash_value % 100) / 100
+
+        cumulative = 0
+        for variant in self.variants:
+            cumulative += variant.weight
+            if bucket < cumulative:
+                return variant
+
+        return self.variants[-1]  # Fallback
+
+# Example experiment
+chunk_size_experiment = Experiment(
+    name="chunk_size_v1",
+    variants=[
+        Variant("control", 0.5, {"chunk_size": 500}),
+        Variant("small_chunks", 0.25, {"chunk_size": 300}),
+        Variant("large_chunks", 0.25, {"chunk_size": 800}),
+    ]
+)
+```
+
+### Experiment Manager
+
+```python
+class ExperimentManager:
+    def __init__(self):
+        self.experiments = {}
+        self.results_store = ResultsStore()
+
+    def register(self, experiment: Experiment):
+        self.experiments[experiment.name] = experiment
+
+    def get_config(self, user_id: str) -> dict:
+        """Get merged config from all active experiments."""
+        config = {}
+        assignments = {}
+
+        for name, exp in self.experiments.items():
+            variant = exp.assign(user_id)
+            config.update(variant.config)
+            assignments[name] = variant.name
+
+        return {
+            "config": config,
+            "assignments": assignments
+        }
+
+    def log_result(self, user_id: str, metric: str, value: float):
+        """Log metric for analysis."""
+        assignments = self.get_config(user_id)["assignments"]
+
+        self.results_store.log({
+            "user_id": user_id,
+            "timestamp": datetime.utcnow(),
+            "assignments": assignments,
+            "metric": metric,
+            "value": value
+        })
+```
+
+## Key Metrics to Track
+
+### Quality Metrics
+
+```python
+def track_quality_metrics(query: str, response: str, context: list[str]) -> dict:
+    """Track quality metrics for A/B analysis."""
+    return {
+        # Retrieval metrics
+        "retrieval_score": compute_retrieval_score(query, context),
+        "context_relevance": compute_relevance(query, context),
+
+        # Generation metrics
+        "response_length": len(response),
+        "faithfulness": compute_faithfulness(response, context),
+
+        # User feedback (collected async)
+        # "user_rating": None,  # Filled later
+        # "was_helpful": None,
+    }
+```
+
+### Latency Metrics
+
+```python
+def track_latency(func: Callable) -> Callable:
+    """Decorator to track latency by component."""
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        result = func(*args, **kwargs)
+        latency_ms = (time.time() - start) * 1000
+
+        metrics.record(f"{func.__name__}_latency_ms", latency_ms)
+        return result
+    return wrapper
+
+# Usage
+class RAGPipeline:
+    @track_latency
+    def embed(self, query): ...
+
+    @track_latency
+    def retrieve(self, embedding): ...
+
+    @track_latency
+    def rerank(self, query, docs): ...
+
+    @track_latency
+    def generate(self, query, context): ...
+```
+
+### Cost Metrics
+
+```python
+def track_cost(model: str, input_tokens: int, output_tokens: int) -> float:
+    """Calculate and track cost."""
+    costs = {
+        "gpt-4o-mini": {"input": 0.15 / 1_000_000, "output": 0.60 / 1_000_000},
+        "gpt-4o": {"input": 2.50 / 1_000_000, "output": 10.00 / 1_000_000},
+    }
+
+    model_costs = costs.get(model, costs["gpt-4o-mini"])
+    total = (input_tokens * model_costs["input"] +
+             output_tokens * model_costs["output"])
+
+    metrics.record("query_cost_usd", total)
+    return total
+```
+
+## Statistical Analysis
+
+### Sample Size Calculator
+
+```python
+import scipy.stats as stats
+import numpy as np
+
+def required_sample_size(
+    baseline_rate: float,
+    mde: float,  # Minimum detectable effect
+    alpha: float = 0.05,
+    power: float = 0.8
+) -> int:
+    """Calculate required sample size per variant."""
+    # For proportions (e.g., success rate)
+    p1 = baseline_rate
+    p2 = baseline_rate * (1 + mde)
+
+    pooled_p = (p1 + p2) / 2
+
+    z_alpha = stats.norm.ppf(1 - alpha / 2)
+    z_beta = stats.norm.ppf(power)
+
+    n = (
+        (z_alpha * np.sqrt(2 * pooled_p * (1 - pooled_p)) +
+         z_beta * np.sqrt(p1 * (1 - p1) + p2 * (1 - p2))) ** 2
+    ) / (p1 - p2) ** 2
+
+    return int(np.ceil(n))
+
+# Example: Detect 5% improvement in satisfaction from 70% baseline
+sample_size = required_sample_size(0.70, 0.05)
+print(f"Need {sample_size} samples per variant")  # ~1,200
+```
+
+### Significance Testing
+
+```python
+def analyze_experiment(control_data: list[float], treatment_data: list[float]) -> dict:
+    """Analyze A/B experiment results."""
+    # Descriptive stats
+    control_mean = np.mean(control_data)
+    treatment_mean = np.mean(treatment_data)
+    lift = (treatment_mean - control_mean) / control_mean
+
+    # T-test for continuous metrics
+    t_stat, p_value = stats.ttest_ind(control_data, treatment_data)
+
+    # Confidence interval
+    diff = treatment_mean - control_mean
+    se = np.sqrt(np.var(control_data)/len(control_data) +
+                 np.var(treatment_data)/len(treatment_data))
+    ci_low = diff - 1.96 * se
+    ci_high = diff + 1.96 * se
+
+    return {
+        "control_mean": control_mean,
+        "treatment_mean": treatment_mean,
+        "lift": lift,
+        "p_value": p_value,
+        "significant": p_value < 0.05,
+        "confidence_interval": (ci_low, ci_high)
+    }
+```
+
+## Common RAG Experiments
+
+### Experiment 1: Chunk Size
+
+```python
+chunk_experiment = Experiment(
+    name="chunk_size_2024_01",
+    variants=[
+        Variant("small", 0.33, {"chunk_size": 256, "chunk_overlap": 50}),
+        Variant("medium", 0.34, {"chunk_size": 512, "chunk_overlap": 100}),
+        Variant("large", 0.33, {"chunk_size": 1024, "chunk_overlap": 200}),
+    ]
+)
+
+# Metrics to track:
+# Recall@10
+# Answer quality (human rating)
+# Tokens per query (cost)
+```
+
+### Experiment 2: Retrieval Strategy
+
+```python
+retrieval_experiment = Experiment(
+    name="retrieval_strategy_2024_01",
+    variants=[
+        Variant("dense_only", 0.33, {"retrieval": "dense", "k": 10}),
+        Variant("hybrid_rrf", 0.34, {"retrieval": "hybrid", "k": 10}),
+        Variant("hybrid_rerank", 0.33, {"retrieval": "hybrid", "k": 20, "rerank": True}),
+    ]
+)
+```
+
+### Experiment 3: Model Selection
+
+```python
+model_experiment = Experiment(
+    name="model_routing_2024_01",
+    variants=[
+        Variant("always_mini", 0.5, {"model": "gpt-4o-mini"}),
+        Variant("always_4o", 0.25, {"model": "gpt-4o"}),
+        Variant("complexity_routing", 0.25, {"model": "route_by_complexity"}),
+    ]
+)
+```
+
+## RAG-Specific A/B Patterns
+
+### Multi-Armed Bandit (Auto-Optimize)
+
+```python
+class ThompsonSamplingRAG:
+    """Automatically shift traffic to winning variants."""
+
+    def __init__(self, variants: list[str]):
+        self.variants = variants
+        # Beta distribution parameters
+        self.successes = {v: 1 for v in variants}
+        self.failures = {v: 1 for v in variants}
+
+    def select_variant(self) -> str:
+        """Sample from posterior and select best."""
+        samples = {
+            v: np.random.beta(self.successes[v], self.failures[v])
+            for v in self.variants
+        }
+        return max(samples, key=samples.get)
+
+    def update(self, variant: str, success: bool):
+        """Update beliefs based on outcome."""
+        if success:
+            self.successes[variant] += 1
+        else:
+            self.failures[variant] += 1
+```
+
+### Staged Rollout
+
+```python
+class StagedRollout:
+    """Gradually increase traffic to new config."""
+
+    def __init__(self, new_config: dict, stages: list[float]):
+        self.new_config = new_config
+        self.stages = stages  # [0.01, 0.05, 0.25, 0.50, 1.0]
+        self.current_stage = 0
+        self.metrics = []
+
+    def get_traffic_percentage(self) -> float:
+        return self.stages[min(self.current_stage, len(self.stages) - 1)]
+
+    def advance_stage(self, min_samples: int = 100):
+        """Advance if metrics look good."""
+        if len(self.metrics) < min_samples:
+            return False
+
+        if self.check_guardrails():
+            self.current_stage += 1
+            return True
+        return False
+
+    def check_guardrails(self) -> bool:
+        """Ensure new config isn't degrading quality."""
+        # Compare recent metrics to baseline
+        recent = self.metrics[-100:]
+        return np.mean(recent) > self.baseline_threshold
+```
+
+## Results Dashboard
+
+```python
+def generate_experiment_report(experiment_name: str) -> dict:
+    """Generate report for experiment."""
+    data = results_store.get_by_experiment(experiment_name)
+
+    # Group by variant
+    by_variant = {}
+    for record in data:
+        variant = record["variant"]
+        if variant not in by_variant:
+            by_variant[variant] = []
+        by_variant[variant].append(record["value"])
+
+    # Analyze each variant
+    report = {
+        "experiment": experiment_name,
+        "total_samples": len(data),
+        "variants": {}
+    }
+
+    control = by_variant.get("control", [])
+    for variant, values in by_variant.items():
+        report["variants"][variant] = {
+            "samples": len(values),
+            "mean": np.mean(values),
+            "std": np.std(values),
+            "p95": np.percentile(values, 95),
+        }
+
+        if variant != "control" and control:
+            analysis = analyze_experiment(control, values)
+            report["variants"][variant]["vs_control"] = analysis
+
+    return report
+```
+
+## Production Checklist
+
+- [ ] Set up experiment framework
+- [ ] Define key metrics (quality, latency, cost)
+- [ ] Calculate required sample sizes
+- [ ] Implement consistent user assignment
+- [ ] Add guardrails for degradation detection
+- [ ] Build analysis pipeline
+- [ ] Create results dashboard
+- [ ] Document rollback procedures
+

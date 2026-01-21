@@ -1,0 +1,23 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Implement Normalized Discounted Cumulative Gain — the metric for graded relevance.
+</Callout>
+
+## Why this matters in production
+
+nDCG considers both relevance and position: highly relevant documents at the top matter more. It's the standard for benchmarks like BEIR and MTEB.
+
+## What you're implementing
+
+- DCG = Σ relevance[i] / log2(i + 2).
+- IDCG = DCG with perfect ranking (sorted by relevance).
+- nDCG = DCG / IDCG.
+
+## Common pitfalls
+
+- Using log2(i + 1) instead of log2(i + 2) (i is 0-indexed).
+- Not handling IDCG = 0 (all relevance scores are 0).
+
+## After you pass
+
+Use these metrics to evaluate your retrieval pipelines before deploying.
+

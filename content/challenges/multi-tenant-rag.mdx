@@ -1,0 +1,30 @@
+﻿---
+title: "Multi-Tenant RAG Architecture"
+description: "Build a multi-tenant RAG system with complete data isolation"
+difficulty: "hard"
+xpReward: 150
+---
+
+# Multi-Tenant RAG Architecture
+
+## Overview
+
+SaaS RAG products must serve multiple customers while ensuring **Tenant A never sees Tenant B's data**. This challenge teaches you to build production-grade tenant isolation.
+
+## Why This Matters
+
+- **Data Isolation**: Critical P0 security requirement for enterprise RAG
+- **SaaS Products**: Every commercial RAG product needs multi-tenancy
+- **Compliance**: GDPR, SOC2, and security audits demand proper isolation
+
+## Key Concepts
+
+- Tenant-partitioned data structures
+- Per-tenant configuration (embedding models, limits)
+- Secure search with automatic tenant filtering
+- Tenant lifecycle management (create, delete, stats)
+
+## Real-World Applications
+
+Used by Glean, Moveworks, Notion AI, and every enterprise RAG platform.
+

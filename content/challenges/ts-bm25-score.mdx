@@ -1,0 +1,23 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Implement BM25 scoring — the best classical text retrieval algorithm.
+</Callout>
+
+## Why this matters in production
+
+BM25 powers Elasticsearch, Lucene, and most traditional search. In hybrid RAG systems, BM25 handles exact keyword matching where dense embeddings fail (like product codes or technical terms).
+
+## What you're implementing
+
+- Compute IDF (inverse document frequency) for query terms.
+- Compute length-normalized term frequency.
+- Apply the BM25 formula with k1 and b parameters.
+
+## Common pitfalls
+
+- Forgetting the `+1` in IDF to avoid negative scores.
+- Not normalizing by document length.
+
+## After you pass
+
+Combine dense and sparse results with **RRF Fusion (TypeScript)**.
+

@@ -1,0 +1,333 @@
+﻿<Callout title="Goal" variant="info">
+  Master multimodal RAG — retrieving and reasoning over images, tables, PDFs,
+  and mixed content.
+</Callout>
+
+## The Multimodal Challenge
+
+Standard RAG works with text. Real-world documents contain:
+
+- **Images** (charts, diagrams, photos)
+- **Tables** (data, comparisons)
+- **PDFs** (mixed layout, headers, footers)
+- **Code** (syntax, structure)
+- **Audio/Video** (transcripts, visual content)
+
+## Multimodal RAG Architecture
+
+```
+Document
+    |
+    ├── Text Extraction ─────→ Text chunks ─→ Text embeddings
+    |
+    ├── Image Extraction
+    |   ├── Vision model caption ─→ Text embeddings
+    |   └── CLIP/ColPali ─────────→ Image embeddings
+    |
+    ├── Table Extraction
+    |   ├── Markdown conversion ──→ Text embeddings
+    |   └── Structured storage ───→ SQL/metadata
+    |
+    └── Audio/Video
+        └── Transcription ────────→ Text embeddings
+
+Query
+    |
+    ├── Text query ─→ Search text index
+    ├── Image query ─→ Search image index (CLIP)
+    └── Hybrid ──────→ Merge results ─→ Rerank ─→ Generate
+```
+
+## Strategy 1: Image-to-Text (Captioning)
+
+Convert images to text descriptions, then use standard text RAG:
+
+```python
+import base64
+from openai import OpenAI
+
+client = OpenAI()
+
+def caption_image(image_path: str) -> str:
+    """Generate a detailed caption for an image."""
+    with open(image_path, "rb") as f:
+        base64_image = base64.b64encode(f.read()).decode("utf-8")
+
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Describe this image in detail for search indexing. Include: objects, text, data values, relationships, and any key information visible."
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/png;base64,{base64_image}"}
+                }
+            ]
+        }],
+        max_tokens=500
+    )
+
+    return response.choices[0].message.content
+```
+
+**Pros**: Works with existing text RAG infrastructure
+**Cons**: Loses visual details, expensive at indexing
+
+## Strategy 2: Native Image Embeddings (CLIP)
+
+Embed images directly for image-to-image or text-to-image search:
+
+```python
+from sentence_transformers import SentenceTransformer
+from PIL import Image
+
+# Load CLIP model
+model = SentenceTransformer('clip-ViT-B-32')
+
+def embed_image(image_path: str) -> list[float]:
+    """Embed an image using CLIP."""
+    image = Image.open(image_path)
+    embedding = model.encode(image)
+    return embedding.tolist()
+
+def embed_text(text: str) -> list[float]:
+    """Embed text using CLIP (for cross-modal search)."""
+    embedding = model.encode(text)
+    return embedding.tolist()
+
+# Both produce vectors in the same space!
+# Text: "a chart showing revenue growth"
+# finds images of revenue charts
+```
+
+**Pros**: Real cross-modal search, faster at query time
+**Cons**: Less precise than text for specific details
+
+## Strategy 3: ColPali (Document Visual Embeddings)
+
+ColPali embeds entire document pages as images, preserving layout:
+
+```python
+from colpali import ColPali
+from pdf2image import convert_from_path
+
+model = ColPali.from_pretrained("vidore/colpali")
+
+def index_pdf_pages(pdf_path: str) -> list[dict]:
+    """Index PDF pages as visual embeddings."""
+    pages = convert_from_path(pdf_path)
+
+    indexed = []
+    for i, page_image in enumerate(pages):
+        # Embed the entire page visually
+        embedding = model.encode_image(page_image)
+
+        indexed.append({
+            "page_num": i + 1,
+            "embedding": embedding,
+            "image": page_image  # Store for retrieval
+        })
+
+    return indexed
+
+def search_pages(query: str, index: list, k: int = 5):
+    """Search pages using text query."""
+    query_embedding = model.encode_text(query)
+
+    # MaxSim-style scoring (like ColBERT)
+    scores = []
+    for page in index:
+        score = maxsim(query_embedding, page["embedding"])
+        scores.append((score, page))
+
+    return sorted(scores, reverse=True)[:k]
+```
+
+**Pros**: Preserves layout, handles tables/charts natively
+**Cons**: Large embeddings, newer technology
+
+## Strategy 4: Table Extraction
+
+### Option A: Markdown Conversion
+
+```python
+import pandas as pd
+from io import StringIO
+
+def table_to_markdown(html_table: str) -> str:
+    """Convert HTML table to markdown for embedding."""
+    df = pd.read_html(StringIO(html_table))[0]
+    return df.to_markdown(index=False)
+
+# Result:
+# Company | Q1 Revenue | Q2 Revenue |
+# |---------|-----------|-----------|
+# Acme    | $10M      | $12M      |
+```
+
+### Option B: Structured Extraction
+
+```python
+def extract_table_structured(image_or_pdf) -> dict:
+    """Extract table to structured JSON."""
+    prompt = """Extract this table as JSON with:
+    - headers: list of column names
+    - rows: list of row dicts
+
+    Example: {"headers": ["Name", "Age"], "rows": [{"Name": "Alice", "Age": 30}]}
+    """
+
+    response = vision_model.analyze(image_or_pdf, prompt)
+    return json.loads(response)
+```
+
+### Option C: Keep as Image + Caption
+
+```python
+def index_table_hybrid(table_image):
+    """Index table as both image and text."""
+    return {
+        "image_embedding": clip_embed(table_image),
+        "text_embedding": text_embed(caption_image(table_image)),
+        "structured_data": extract_table_structured(table_image),
+    }
+```
+
+## PDF Processing Pipeline
+
+```python
+import fitz  # PyMuPDF
+from pdf2image import convert_from_path
+
+def process_pdf_multimodal(pdf_path: str) -> list[dict]:
+    """Extract all content types from PDF."""
+    doc = fitz.open(pdf_path)
+    chunks = []
+
+    for page_num, page in enumerate(doc):
+        # 1. Extract text
+        text = page.get_text("text")
+        if text.strip():
+            chunks.append({
+                "type": "text",
+                "content": text,
+                "page": page_num + 1,
+                "embedding": embed_text(text)
+            })
+
+        # 2. Extract images
+        for img_index, img in enumerate(page.get_images()):
+            xref = img[0]
+            image = extract_image(doc, xref)
+            caption = caption_image(image)
+
+            chunks.append({
+                "type": "image",
+                "content": caption,
+                "image_data": image,
+                "page": page_num + 1,
+                "embedding": embed_text(caption),
+                "image_embedding": clip_embed(image)
+            })
+
+        # 3. Extract tables (using layout detection)
+        tables = detect_tables(page)
+        for table in tables:
+            structured = extract_table_structured(table)
+            markdown = table_to_markdown(structured)
+
+            chunks.append({
+                "type": "table",
+                "content": markdown,
+                "structured": structured,
+                "page": page_num + 1,
+                "embedding": embed_text(markdown)
+            })
+
+    return chunks
+```
+
+## Multimodal Query Pipeline
+
+```python
+def multimodal_rag(query: str, indices: dict) -> str:
+    """Query across text, images, and tables."""
+
+    # 1. Search text index
+    text_results = indices["text"].search(query, k=10)
+
+    # 2. Search image index (CLIP)
+    image_results = indices["images"].search(query, k=5)
+
+    # 3. Search tables (if query mentions data/numbers)
+    if contains_data_intent(query):
+        table_results = indices["tables"].search(query, k=3)
+    else:
+        table_results = []
+
+    # 4. Merge and rerank
+    all_results = text_results + image_results + table_results
+    reranked = rerank(query, all_results, top_k=5)
+
+    # 5. Build multimodal context
+    context = build_multimodal_context(reranked)
+
+    # 6. Generate with vision model if images present
+    if any(r["type"] == "image" for r in reranked):
+        return generate_with_vision(query, context)
+    else:
+        return generate_text_only(query, context)
+```
+
+## Benchmarks
+
+| Approach          | Text Recall | Image Recall | Table Recall | Cost   |
+| ----------------- | ----------- | ------------ | ------------ | ------ |
+| Text-only RAG     | 80%         | 0%           | 30%          | Low    |
+| + Image captions  | 80%         | 60%          | 40%          | Medium |
+| + CLIP embeddings | 80%         | 75%          | 40%          | Medium |
+| + ColPali         | 85%         | 85%          | 80%          | High   |
+| Full multimodal   | 90%         | 85%          | 85%          | High   |
+
+## Cost Analysis
+
+| Operation             | Model         | Cost         |
+| --------------------- | ------------- | ------------ |
+| Image caption         | GPT-4o        | ~$0.01/image |
+| CLIP embedding        | Open source   | GPU only     |
+| ColPali embedding     | Open source   | GPU only     |
+| Table extraction      | GPT-4o        | ~$0.02/table |
+| Multimodal generation | GPT-4o/Claude | ~$0.02/query |
+
+## When to Use Each Strategy
+
+| Scenario                  | Strategy                     |
+| ------------------------- | ---------------------------- |
+| Simple: occasional images | Caption + text RAG           |
+| Visual search required    | CLIP embeddings              |
+| PDF-heavy, layout matters | ColPali                      |
+| Data tables critical      | Structured extraction + text |
+| Full production system    | Hybrid: all of the above     |
+
+## Production Checklist
+
+- [ ] Detect content types during ingestion
+- [ ] Caption all images with high-quality prompts
+- [ ] Store both image and text embeddings for images
+- [ ] Keep tables in structured AND text format
+- [ ] Index page images with ColPali for fallback
+- [ ] Implement query intent detection
+- [ ] Use vision model for image-dependent answers
+- [ ] Add image citations in responses
+
+## Further Reading
+
+- [ColPali Paper](https://arxiv.org/abs/2407.01449)
+- [OpenAI Vision Guide](https://platform.openai.com/docs/guides/vision)
+- [Unstructured.io](https://unstructured.io/) - Document processing library
+- [LlamaIndex Multimodal](https://docs.llamaindex.ai/en/stable/examples/multi_modal/)
+

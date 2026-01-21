@@ -1,0 +1,199 @@
+---
+title: "Adaptive RAG Router"
+description: |
+  Build a query router that dynamically selects the optimal RAG strategy based on query complexity.
+difficulty: intermediate
+estimatedMinutes: 35
+topics: ["adaptive-rag", "routing", "classification", "optimization"]
+language: python
+prerequisites:
+  - basic-retrieval
+  - hyde-search
+xp: 150
+---
+
+# Adaptive RAG Router
+
+Not all queries need the same treatment. A simple lookup like "What's the return policy?" doesn't need multi-step reasoning, while "Compare our Q1 and Q2 performance and explain the trends" requires iterative retrieval.
+
+**Your task**: Build a router that classifies queries and routes them to the appropriate RAG strategy.
+
+## Dataset
+
+```python
+from dataclasses import dataclass
+from typing import List
+
+@dataclass
+class Document:
+    id: str
+    content: str
+    metadata: dict
+
+# Sample knowledge base
+DOCUMENTS = [
+    Document("policy-1", "Our return policy allows returns within 30 days of purchase with original receipt.", {"type": "policy"}),
+    Document("policy-2", "Refunds are processed within 5-7 business days to the original payment method.", {"type": "policy"}),
+    Document("q1-report", "Q1 2024 revenue was $1.2M, up 15% YoY. Key driver: new product launch.", {"type": "financial", "quarter": "Q1"}),
+    Document("q2-report", "Q2 2024 revenue was $1.4M, up 25% YoY. Key driver: expansion into APAC.", {"type": "financial", "quarter": "Q2"}),
+    Document("product-1", "ProductX features include: AI-powered search, real-time sync, and 99.9% uptime.", {"type": "product"}),
+    Document("faq-1", "To reset your password, click 'Forgot Password' on the login page.", {"type": "faq"}),
+]
+
+# Test queries with expected complexity
+TEST_QUERIES = [
+    ("What is 2 + 2?", "no_retrieval"),
+    ("What's the return policy?", "simple"),
+    ("How do I reset my password?", "simple"),
+    ("Compare Q1 and Q2 revenue and explain the differences", "complex"),
+    ("thing", "ambiguous"),
+    ("Analyze the trends across all quarters and predict Q3", "complex"),
+    ("Hello!", "no_retrieval"),
+    ("it", "ambiguous"),
+]
+```
+
+## Your Task
+
+Implement the `AdaptiveRAGRouter` class:
+
+```python
+from enum import Enum
+from typing import Callable
+
+class QueryComplexity(Enum):
+    NO_RETRIEVAL = "no_retrieval"  # LLM can answer directly
+    SIMPLE = "simple"               # Single retrieval pass
+    COMPLEX = "complex"             # Multi-step reasoning
+    AMBIGUOUS = "ambiguous"         # Needs clarification
+
+class AdaptiveRAGRouter:
+    def __init__(
+        self,
+        simple_rag: Callable[[str], str],
+        complex_rag: Callable[[str], str],
+        direct_llm: Callable[[str], str],
+        rewrite_rag: Callable[[str], str]
+    ):
+        """
+        Initialize router with different RAG strategies.
+        
+        Args:
+            simple_rag: Fast single-retrieval RAG
+            complex_rag: Multi-step reasoning RAG
+            direct_llm: Direct LLM call (no retrieval)
+            rewrite_rag: Rewrite query then RAG
+        """
+        self.simple_rag = simple_rag
+        self.complex_rag = complex_rag
+        self.direct_llm = direct_llm
+        self.rewrite_rag = rewrite_rag
+    
+    def classify_query(self, query: str) -> QueryComplexity:
+        """
+        Classify query complexity using rules and/or LLM.
+        
+        Returns:
+            QueryComplexity enum value
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def route(self, query: str) -> str:
+        """
+        Route query to appropriate RAG strategy and return answer.
+        
+        Returns:
+            Generated answer from selected strategy
+        """
+        # YOUR CODE HERE
+        pass
+```
+
+## Requirements
+
+1. **Classification accuracy**: At least 75% correct on test queries
+2. **Efficiency**: Simple queries should use fast path
+3. **Robustness**: Handle edge cases gracefully
+
+## Hints
+
+<details>
+<summary>Hint 1: Rule-based patterns</summary>
+
+Common patterns for each complexity:
+- **NO_RETRIEVAL**: Math (`\d+ [+\-*/] \d+`), greetings (`^(hi|hello)`)
+- **COMPLEX**: Comparisons (`compare.*and`), analysis (`explain.*trend`)
+- **AMBIGUOUS**: Very short queries, pronouns without context
+
+</details>
+
+<details>
+<summary>Hint 2: Hybrid approach</summary>
+
+Use rules for high-confidence cases, LLM for uncertain ones:
+
+```python
+def classify_query(self, query: str) -> QueryComplexity:
+    # Try rules first (fast)
+    rule_result = self._rule_based_classify(query)
+    if rule_result is not None:
+        return rule_result
+    
+    # Fall back to LLM (slower but accurate)
+    return self._llm_classify(query)
+```
+
+</details>
+
+## Test Your Solution
+
+```python
+def test_router():
+    # Mock RAG functions for testing
+    def simple_rag(q): return f"[SIMPLE] Answer for: {q}"
+    def complex_rag(q): return f"[COMPLEX] Answer for: {q}"
+    def direct_llm(q): return f"[DIRECT] Answer for: {q}"
+    def rewrite_rag(q): return f"[REWRITE] Answer for: {q}"
+    
+    router = AdaptiveRAGRouter(simple_rag, complex_rag, direct_llm, rewrite_rag)
+    
+    correct = 0
+    for query, expected in TEST_QUERIES:
+        result = router.classify_query(query)
+        if result.value == expected:
+            correct += 1
+            print(f"✓ '{query}' → {result.value}")
+        else:
+            print(f"✗ '{query}' → {result.value} (expected {expected})")
+    
+    accuracy = correct / len(TEST_QUERIES)
+    print(f"\nAccuracy: {accuracy:.0%}")
+    assert accuracy >= 0.75, f"Accuracy {accuracy:.0%} below 75% threshold"
+    print("All tests passed!")
+
+test_router()
+```
+
+## Bonus Challenge
+
+Implement latency tracking to verify that simple queries are actually faster:
+
+```python
+def route_with_metrics(self, query: str) -> tuple[str, dict]:
+    """
+    Route query and return (answer, metrics).
+    
+    metrics = {
+        "complexity": "simple",
+        "latency_ms": 150,
+        "retrieval_calls": 1
+    }
+    """
+    pass
+```
+
+## Resources
+
+- [Adaptive-RAG Paper](https://arxiv.org/abs/2403.14403)
+- [Query Classification Patterns](https://www.pinecone.io/learn/query-classification/)

@@ -1,0 +1,199 @@
+---
+title: "Long Context vs RAG"
+description: "When to use 1M token windows vs. retrieval-augmented generation."
+order: 2
+estimatedMinutes: 20
+stage: frontier
+prereqs:
+  - phase: phase-7
+    slug: late-2025-techniques
+next:
+  phase: phase-7
+  slug: compound-ai-systems
+outcomes:
+  - "Understand the tradeoffs between long context and RAG."
+  - "Know when each approach excels."
+  - "Design hybrid architectures."
+tags: ["frontier", "long-context", "architecture"]
+sources:
+  - title: "Same Task, More Tokens: the Impact of Input Length on the Reasoning Performance of Large Language Models"
+    url: "https://arxiv.org/abs/2402.14848"
+    type: "paper"
+  - title: "Lost in the Middle"
+    url: "https://arxiv.org/abs/2307.03172"
+    type: "paper"
+  - title: "Gemini 1.5 Technical Report"
+    url: "https://arxiv.org/abs/2403.05530"
+    type: "paper"
+---
+
+## Goals
+
+- Understand the tradeoffs between long context windows and RAG.
+- Know when each approach excels and when to combine them.
+- Design hybrid architectures that leverage both approaches.
+
+## Prereqs
+
+- Read: **Late 2025 RAG Innovations** (previous lesson).
+- Familiarity with context window limits and their implications.
+
+## Core idea
+
+With Gemini 1.5 Pro supporting 1M+ tokens and Claude 3 at 200K, the question arises: **do we still need RAG?** The answer is nuanced—each approach has distinct advantages.
+
+## The case for long context
+
+Modern LLMs can process entire codebases, books, or document collections in a single call:
+
+```python
+# Long context approach
+def answer_with_long_context(documents, query):
+    # Concatenate everything
+    full_context = "\n\n---\n\n".join(documents)
+    
+    # Single LLM call
+    return llm.generate(
+        f"Context:\n{full_context}\n\nQuestion: {query}"
+    )
+```
+
+**Advantages:**
+- Simpler architecture (no retrieval pipeline)
+- Perfect recall (everything is in context)
+- Better for tasks requiring global understanding
+- Handles implicit connections between passages
+
+## The case for RAG
+
+RAG retrieves only relevant context, even from massive corpora:
+
+```python
+# RAG approach
+def answer_with_rag(documents, query, k=10):
+    # Index once
+    index = build_index(documents)
+    
+    # Retrieve relevant chunks
+    relevant = index.search(query, k=k)
+    
+    # Focused LLM call
+    return llm.generate(
+        f"Context:\n{relevant}\n\nQuestion: {query}"
+    )
+```
+
+**Advantages:**
+- Works with unlimited corpus size
+- 10-100x cheaper per query
+- Faster latency (less to process)
+- Better for needle-in-haystack queries
+- Provides citations/provenance
+
+## Failure modes
+
+### Long context failures
+
+1. **Lost in the middle**: Important information in the middle of long contexts is often missed
+2. **Cost explosion**: 1M tokens at $0.01/1K = $10 per query
+3. **Latency**: Processing 1M tokens takes 30-60 seconds
+4. **Hallucination amplification**: More context = more potential for confusion
+
+### RAG failures
+
+1. **Retrieval errors**: The most relevant passage might not be retrieved
+2. **Context fragmentation**: Chunks may miss important surrounding information
+3. **Multi-hop failures**: Queries requiring multiple reasoning steps across documents
+4. **Freshness lag**: Index may be stale
+
+## Production defaults
+
+| Factor | Long Context | RAG | Winner |
+|--------|--------------|-----|--------|
+| Corpus size > 100K tokens | ❌ | ✓ | RAG |
+| Per-query cost matters | ❌ | ✓ | RAG |
+| Need citations | ❌ | ✓ | RAG |
+| Global reasoning required | ✓ | ❌ | Long Context |
+| Corpus changes rarely | ✓ | ❌ | Long Context |
+| Sub-second latency | ❌ | ✓ | RAG |
+
+## Hybrid architectures
+
+The best systems often combine both:
+
+```python
+class HybridRAG:
+    def __init__(self, max_context=100_000):
+        self.max_context = max_context
+        self.index = VectorIndex()
+    
+    def answer(self, query, corpus):
+        total_tokens = count_tokens(corpus)
+        
+        if total_tokens < self.max_context:
+            # Small corpus: use full context
+            return self.long_context_answer(query, corpus)
+        else:
+            # Large corpus: RAG
+            return self.rag_answer(query)
+    
+    def long_context_answer(self, query, corpus):
+        return llm.generate(f"Context:\n{corpus}\n\nQ: {query}")
+    
+    def rag_answer(self, query):
+        chunks = self.index.search(query, k=20)
+        return llm.generate(f"Context:\n{chunks}\n\nQ: {query}")
+```
+
+### LongRAG pattern
+
+Retrieve **longer units** (4K-30K tokens) instead of small chunks:
+
+```python
+# Traditional: many small chunks
+chunks = split_into_chunks(doc, chunk_size=512)  # 100 chunks
+
+# LongRAG: fewer long units
+units = split_into_units(doc, unit_size=8000)    # 6 units
+```
+
+**Benefits**: Maintain document coherence while still using retrieval for scalability.
+
+### Cache-augmented generation
+
+For repeated queries on the same corpus:
+
+```python
+class CacheAugmentedRAG:
+    def __init__(self):
+        self.kv_cache = {}  # Precomputed attention for corpus
+    
+    def prepare_corpus(self, corpus):
+        # Precompute KV cache for corpus
+        self.kv_cache = llm.encode_to_kv_cache(corpus)
+    
+    def answer(self, query):
+        # Only compute attention for query, reuse corpus KV
+        return llm.generate_with_cache(query, self.kv_cache)
+```
+
+## Decision framework
+
+```
+Is corpus < 50K tokens?
+├── Yes → Long context (simpler)
+└── No → 
+    Is corpus < 500K tokens AND queries need global understanding?
+    ├── Yes → Long context (if cost acceptable)
+    └── No →
+        Are queries specific/factual?
+        ├── Yes → RAG with small chunks
+        └── No → RAG with long units (LongRAG)
+```
+
+## Do next
+
+1. **Benchmark your use case**: Test both approaches on your actual queries
+2. **Measure what matters**: Latency, cost, accuracy, user satisfaction
+3. **Continue to**: [Compound AI Systems](/learn/phase-7/compound-ai-systems)
+

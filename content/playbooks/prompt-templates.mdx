@@ -1,0 +1,331 @@
+﻿---
+title: "Prompt Templates Library"
+description: "Production-ready prompt templates for RAG systems"
+---
+
+# Prompt Templates Library
+
+Battle-tested prompt templates for every RAG use case.
+
+---
+
+## Core RAG Template
+
+### Basic Context-Grounded Response
+
+```
+You are a helpful assistant that answers questions based ONLY on the provided context.
+
+<context>
+{context}
+</context>
+
+<question>
+{question}
+</question>
+
+Instructions:
+1. Answer ONLY based on the context above
+2. If the answer is not in the context, say "I don't have enough information to answer this question"
+3. Cite which part of the context supports your answer
+4. Be concise and direct
+
+Answer:
+```
+
+---
+
+## Citation Templates
+
+### Numbered Citation Style
+
+```
+Based on the following sources, answer the question.
+
+Sources:
+[1] {source_1}
+[2] {source_2}
+[3] {source_3}
+
+Question: {question}
+
+Provide your answer with inline citations like [1] or [2,3] to indicate which sources support each claim.
+
+Answer:
+```
+
+### Footnote Style
+
+```
+Context documents:
+---
+Document A: {doc_a}
+---
+Document B: {doc_b}
+---
+
+Question: {question}
+
+Answer the question and add footnotes (¹, ², etc.) linking to the source documents. End with a "Sources" section listing the documents you cited.
+```
+
+---
+
+## Query Transformation Templates
+
+### HyDE (Hypothetical Document Embeddings)
+
+```
+Given this question, write a short passage that would be the ideal answer.
+This will be used to search for relevant documents.
+
+Question: {question}
+
+Ideal Answer Passage:
+```
+
+### Multi-Query Expansion
+
+```
+Generate 3 different versions of this question to help find relevant documents.
+Each version should capture a different way of asking the same thing.
+
+Original Question: {question}
+
+Alternative Questions:
+1.
+2.
+3.
+```
+
+### Step-Back Prompting
+
+```
+Given this specific question, generate a more general "step-back" question
+that would help retrieve background information.
+
+Specific Question: {question}
+
+Step-Back Question:
+```
+
+---
+
+## Structured Output Templates
+
+### JSON Response Format
+
+```
+Based on the context, extract the requested information in JSON format.
+
+Context:
+{context}
+
+Query: {query}
+
+Respond with valid JSON only:
+{{
+  "answer": "...",
+  "confidence": 0.0-1.0,
+  "sources": ["source1", "source2"],
+  "reasoning": "..."
+}}
+```
+
+### Table Extraction
+
+```
+Extract information from this document and format as a markdown table.
+
+Document:
+{document}
+
+Create a table with columns: {column_names}
+
+| Column1 | Column2 | Column3 |
+|---------|---------|---------|
+```
+
+---
+
+## Agentic Templates
+
+### ReAct Format
+
+```
+Answer the question using the following tools when needed.
+
+Tools:
+- search(query): Search the knowledge base
+- calculate(expression): Perform math calculations
+- lookup(entity): Get information about an entity
+
+Format your response as:
+Thought: [your reasoning]
+Action: [tool_name]
+Action Input: [input to the tool]
+Observation: [tool output - I will fill this in]
+... (repeat as needed)
+Thought: I now have the answer
+Final Answer: [your final answer]
+
+Question: {question}
+```
+
+### Self-Correction Loop
+
+```
+Given the retrieved context and your initial answer, evaluate if the answer is correct
+and well-supported.
+
+Context: {context}
+Question: {question}
+Initial Answer: {answer}
+
+Evaluation Criteria:
+1. Is the answer factually correct based on the context?
+2. Does the answer fully address the question?
+3. Are there any unsupported claims?
+
+If issues are found, provide a corrected answer.
+
+Evaluation:
+Corrected Answer (if needed):
+```
+
+---
+
+## 🛡️ Safety Templates
+
+### Grounding Enforcement
+
+```
+CRITICAL INSTRUCTIONS:
+- You may ONLY use information from the provided context
+- Do NOT use prior knowledge
+- If uncertain, say "Based on the provided documents, I cannot determine..."
+- Never fabricate sources or quotes
+
+Context:
+{context}
+
+Question: {question}
+
+Grounded Answer:
+```
+
+### PII Filtering Prompt
+
+```
+Before answering, check if your response would include any of the following:
+- Names of individuals
+- Email addresses, phone numbers
+- Addresses or specific locations
+- Financial information
+- Health information
+
+If any PII would be included, replace it with [REDACTED] and note this.
+
+Context: {context}
+Question: {question}
+
+Safe Answer:
+```
+
+---
+
+## Summarization Templates
+
+### Context Compression
+
+```
+Summarize the following text while preserving all key facts that could answer
+questions about {topic}.
+
+Text:
+{long_text}
+
+Compressed Summary (max 200 words):
+```
+
+### Multi-Document Summary
+
+```
+Synthesize information from these multiple sources into a coherent summary.
+
+Source 1: {source_1}
+Source 2: {source_2}
+Source 3: {source_3}
+
+Create a unified summary that:
+1. Identifies common themes
+2. Notes any contradictions
+3. Preserves key facts from each source
+
+Synthesized Summary:
+```
+
+---
+
+## Domain-Specific Templates
+
+### Customer Support
+
+```
+You are a customer support agent for {company}.
+Answer the customer's question using ONLY the knowledge base articles provided.
+
+Knowledge Base:
+{context}
+
+Customer Question: {question}
+
+Guidelines:
+- Be friendly and professional
+- If you can't help, offer to escalate
+- Include relevant article links when possible
+
+Response:
+```
+
+### Legal/Compliance
+
+```
+IMPORTANT: This is a legal document analysis.
+
+Document:
+{document}
+
+Question: {question}
+
+Provide your analysis with explicit citations to specific clauses or sections.
+Do NOT provide legal advice - only summarize what the documents state.
+When uncertain, clearly indicate the ambiguity.
+
+Analysis:
+```
+
+---
+
+## ⚙️ Tips for Prompt Engineering
+
+### Do's ✅
+
+- Be explicit about output format
+- Include examples when possible
+- Set clear constraints and guardrails
+- Use XML tags for structure (`<context>`, `<question>`)
+- Test with edge cases
+
+### Don'ts ❌
+
+- Leave ambiguous instructions
+- Assume the model knows context
+- Skip safety/grounding reminders
+- Use overly complex nested instructions
+- Forget to specify "if you don't know" behavior
+
+---
+
+_Templates are starting points. Always iterate based on your specific use case and failure modes._
+

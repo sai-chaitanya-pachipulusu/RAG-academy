@@ -1,0 +1,292 @@
+---
+title: "Reasoning RAG Implementation"
+description: |
+  Build a RAG system that thinks step-by-step, retrieves iteratively, and verifies answers.
+difficulty: advanced
+estimatedMinutes: 45
+topics: ["reasoning", "chain-of-thought", "multi-hop", "verification"]
+language: python
+prerequisites:
+  - adaptive-rag-router
+  - rerank-cascade
+xp: 200
+---
+
+# Reasoning RAG Implementation
+
+Traditional RAG retrieves once and generates. This fails for complex questions that require connecting information from multiple sources.
+
+**Your task**: Build a Reasoning RAG system that thinks, retrieves iteratively, and verifies its answers.
+
+## Dataset
+
+```python
+from dataclasses import dataclass
+from typing import List, Optional
+import json
+
+@dataclass
+class Document:
+    id: str
+    content: str
+    metadata: dict
+
+# Multi-hop knowledge base
+DOCUMENTS = [
+    # Company financials
+    Document("fin-q1", "Q1 2024: Revenue $10M, Expenses $8M, Net Income $2M", {"type": "financial", "quarter": "Q1", "year": 2024}),
+    Document("fin-q2", "Q2 2024: Revenue $12M, Expenses $9M, Net Income $3M", {"type": "financial", "quarter": "Q2", "year": 2024}),
+    Document("fin-q3", "Q3 2024: Revenue $15M, Expenses $10M, Net Income $5M", {"type": "financial", "quarter": "Q3", "year": 2024}),
+    
+    # Growth factors
+    Document("growth-q1", "Q1 growth driven by: New product launch (ProductX) in January", {"type": "analysis", "quarter": "Q1"}),
+    Document("growth-q2", "Q2 growth driven by: APAC expansion, hired 50 new sales reps", {"type": "analysis", "quarter": "Q2"}),
+    Document("growth-q3", "Q3 growth driven by: Enterprise deals (5 Fortune 500 clients)", {"type": "analysis", "quarter": "Q3"}),
+    
+    # Product info
+    Document("product-x", "ProductX: AI-powered analytics platform launched Jan 2024. Price: $500/month.", {"type": "product"}),
+    Document("product-y", "ProductY: Legacy reporting tool, sunset planned for Dec 2024.", {"type": "product"}),
+    
+    # Team info
+    Document("team-sales", "Sales team grew from 20 to 70 members in 2024. Led by Sarah Chen (VP Sales).", {"type": "team"}),
+    Document("team-eng", "Engineering team: 45 members. Tech stack: Python, React, PostgreSQL.", {"type": "team"}),
+]
+
+# Complex multi-hop questions
+TEST_QUESTIONS = [
+    {
+        "question": "What was the revenue growth from Q1 to Q3, and what factors drove each quarter's growth?",
+        "requires": ["fin-q1", "fin-q3", "growth-q1", "growth-q2", "growth-q3"],
+        "expected_facts": ["$10M to $15M", "50% growth", "ProductX", "APAC", "Enterprise"]
+    },
+    {
+        "question": "Which product launch contributed to Q1 growth and what is its pricing?",
+        "requires": ["growth-q1", "product-x"],
+        "expected_facts": ["ProductX", "$500/month", "January"]
+    },
+    {
+        "question": "How did the sales team expansion relate to Q2 revenue growth?",
+        "requires": ["growth-q2", "team-sales", "fin-q2"],
+        "expected_facts": ["50 new sales reps", "APAC", "$12M"]
+    },
+]
+```
+
+## Your Task
+
+Implement the `ReasoningRAG` class:
+
+```python
+from dataclasses import dataclass, field
+from typing import List, Optional, Literal
+
+@dataclass
+class ReasoningStep:
+    thought: str
+    action: Literal["retrieve", "reason", "verify", "answer"]
+    query: Optional[str] = None
+    result: Optional[str] = None
+
+@dataclass
+class ReasoningTrace:
+    steps: List[ReasoningStep] = field(default_factory=list)
+    final_answer: str = ""
+    documents_used: List[str] = field(default_factory=list)
+
+class ReasoningRAG:
+    def __init__(self, documents: List[Document], max_steps: int = 6):
+        """
+        Initialize with document corpus and step limit.
+        
+        Args:
+            documents: List of documents to retrieve from
+            max_steps: Maximum reasoning steps before forcing answer
+        """
+        self.documents = documents
+        self.max_steps = max_steps
+        self.context: List[Document] = []
+    
+    def retrieve(self, query: str, k: int = 3) -> List[Document]:
+        """
+        Simple keyword-based retrieval (simulate vector search).
+        
+        Returns top-k documents matching query terms.
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def plan_next_step(
+        self, 
+        question: str, 
+        steps: List[ReasoningStep]
+    ) -> ReasoningStep:
+        """
+        Decide what to do next based on current state.
+        
+        Returns:
+            ReasoningStep with action and optional query
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def reason_about_context(self, question: str) -> str:
+        """
+        Analyze gathered context to identify gaps.
+        
+        Returns:
+            Analysis of what we know and what's missing
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def verify_answer(self, question: str, draft_answer: str) -> str:
+        """
+        Verify that answer is supported by context.
+        
+        Returns:
+            Verification result with any issues found
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def generate_answer(self, question: str, trace: ReasoningTrace) -> str:
+        """
+        Generate final answer with citations.
+        
+        Returns:
+            Answer string with [Source: doc_id] citations
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def answer(self, question: str) -> ReasoningTrace:
+        """
+        Main entry point: answer question with full reasoning trace.
+        
+        Returns:
+            ReasoningTrace with all steps and final answer
+        """
+        # YOUR CODE HERE
+        pass
+```
+
+## Requirements
+
+1. **Multi-hop retrieval**: Must retrieve from multiple documents when needed
+2. **Reasoning trace**: Return full trace of thinking steps
+3. **Verification**: Check that answer is supported by retrieved docs
+4. **Citations**: Include source document IDs in final answer
+
+## Example Output
+
+```python
+trace = rag.answer("What was the revenue growth from Q1 to Q3, and what drove it?")
+
+# Expected trace:
+# Step 1: THINK - "I need Q1 and Q3 revenue figures"
+# Step 2: RETRIEVE - "Q1 2024 revenue" → Found fin-q1
+# Step 3: RETRIEVE - "Q3 2024 revenue" → Found fin-q3
+# Step 4: REASON - "Got revenue: $10M → $15M (50% growth). Now need growth factors"
+# Step 5: RETRIEVE - "growth factors 2024" → Found growth-q1, growth-q2, growth-q3
+# Step 6: VERIFY - "Answer supported by fin-q1, fin-q3, growth-*"
+# Step 7: ANSWER - Final answer with citations
+
+print(trace.final_answer)
+# "Revenue grew from $10M in Q1 to $15M in Q3 (50% growth) [Source: fin-q1, fin-q3].
+#  Key drivers: ProductX launch in Q1 [Source: growth-q1], APAC expansion in Q2 
+#  [Source: growth-q2], and Enterprise deals in Q3 [Source: growth-q3]."
+```
+
+## Hints
+
+<details>
+<summary>Hint 1: Simple retrieval</summary>
+
+For this exercise, use keyword matching:
+
+```python
+def retrieve(self, query: str, k: int = 3) -> List[Document]:
+    query_terms = set(query.lower().split())
+    scores = []
+    for doc in self.documents:
+        doc_terms = set(doc.content.lower().split())
+        overlap = len(query_terms & doc_terms)
+        scores.append((doc, overlap))
+    scores.sort(key=lambda x: x[1], reverse=True)
+    return [doc for doc, score in scores[:k] if score > 0]
+```
+
+</details>
+
+<details>
+<summary>Hint 2: Planning logic</summary>
+
+Use a simple state machine:
+
+```python
+def plan_next_step(self, question: str, steps: List[ReasoningStep]):
+    # No steps yet → start with retrieval
+    if not steps:
+        return ReasoningStep("Need initial information", "retrieve", question)
+    
+    # Just retrieved → reason about what we have
+    if steps[-1].action == "retrieve":
+        return ReasoningStep("Analyze gathered info", "reason")
+    
+    # Just reasoned → check if we have gaps
+    if steps[-1].action == "reason":
+        if "missing" in steps[-1].result.lower():
+            # Extract what to search for
+            return ReasoningStep("Need more info", "retrieve", query=...)
+        return ReasoningStep("Ready to verify", "verify")
+    
+    # Verified → generate answer
+    if steps[-1].action == "verify":
+        return ReasoningStep("Generate final answer", "answer")
+```
+
+</details>
+
+## Test Your Solution
+
+```python
+def test_reasoning_rag():
+    rag = ReasoningRAG(DOCUMENTS)
+    
+    for test in TEST_QUESTIONS:
+        print(f"\n{'='*60}")
+        print(f"Question: {test['question']}")
+        
+        trace = rag.answer(test['question'])
+        
+        print(f"\nReasoning Steps: {len(trace.steps)}")
+        for i, step in enumerate(trace.steps):
+            print(f"  {i+1}. [{step.action}] {step.thought}")
+        
+        print(f"\nDocuments used: {trace.documents_used}")
+        print(f"Answer: {trace.final_answer[:200]}...")
+        
+        # Check required docs were retrieved
+        required = set(test['requires'])
+        retrieved = set(trace.documents_used)
+        coverage = len(required & retrieved) / len(required)
+        print(f"Document coverage: {coverage:.0%}")
+        
+        # Check expected facts are in answer
+        facts_found = sum(1 for fact in test['expected_facts'] 
+                        if fact.lower() in trace.final_answer.lower())
+        fact_coverage = facts_found / len(test['expected_facts'])
+        print(f"Fact coverage: {fact_coverage:.0%}")
+        
+        assert coverage >= 0.6, f"Document coverage {coverage:.0%} too low"
+        assert fact_coverage >= 0.5, f"Fact coverage {fact_coverage:.0%} too low"
+    
+    print("\n✓ All tests passed!")
+
+test_reasoning_rag()
+```
+
+## Resources
+
+- [Chain-of-Thought Prompting](https://arxiv.org/abs/2201.11903)
+- [IRCoT: Interleaving Retrieval with CoT](https://arxiv.org/abs/2212.10509)

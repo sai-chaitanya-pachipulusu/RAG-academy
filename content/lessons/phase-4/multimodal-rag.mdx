@@ -1,0 +1,290 @@
+---
+title: "Multimodal RAG"
+description: "Extend RAG to handle images, tables, and structured data."
+order: 4
+estimatedMinutes: 30
+stage: multimodal
+prereqs:
+  - phase: phase-4
+    slug: graph-queries
+next:
+  phase: phase-5
+  slug: agentic-rag-intro
+outcomes:
+  - "Understand approaches to multimodal retrieval."
+  - "Handle images, tables, and PDFs in RAG pipelines."
+  - "Know when vision models vs text extraction is appropriate."
+tags: ["multimodal", "vision", "images", "tables", "pdf"]
+sources:
+  - title: "ColPali: Vision Language Models for Retrieval (Faysse et al., 2024)"
+    url: "https://arxiv.org/abs/2407.01449"
+    type: "paper"
+    year: 2024
+  - title: "LlamaIndex: Multimodal RAG"
+    url: "https://docs.llamaindex.ai/en/stable/examples/multi_modal/multi_modal_pdf_tables/"
+    type: "docs"
+  - title: "GPT-4 Vision Documentation"
+    url: "https://platform.openai.com/docs/guides/vision"
+    type: "docs"
+---
+
+## Goals
+
+- Understand the challenges of multimodal content in RAG.
+- Learn strategies for handling images, tables, and PDFs.
+- Build retrieval pipelines that work across modalities.
+
+## Prereqs
+
+- Complete Phase 4 Graph lessons.
+- Understand basic RAG pipeline.
+
+## Core idea
+
+### The multimodal challenge
+
+Most RAG tutorials assume text. Real documents have:
+- **Images**: Diagrams, charts, screenshots
+- **Tables**: Data, comparisons, specifications
+- **Layouts**: Multi-column, headers, footers
+- **Mixed content**: Text + images + tables together
+
+### Approaches to multimodal RAG
+
+```
+Approach 1: Text Extraction
+  Image/PDF → OCR/Extraction → Text → Standard RAG
+  ✓ Simple, uses existing pipeline
+  ✗ Loses visual information
+
+Approach 2: Vision Model Description
+  Image → Vision Model → Description → Standard RAG
+  ✓ Captures visual semantics
+  ✗ Lossy, expensive
+
+Approach 3: Native Multimodal Embedding
+  Image → CLIP/ColPali → Vector → Multimodal Search
+  ✓ Direct visual retrieval
+  ✗ Requires multimodal embeddings
+
+Approach 4: Hybrid
+  Image → [Text Extraction + Visual Embedding] → Hybrid Index
+  ✓ Best of both
+  ✗ More complex
+```
+
+### Strategy 1: Enhanced text extraction
+
+```python
+class EnhancedPDFProcessor:
+    def __init__(self, vision_model=None):
+        self.vision_model = vision_model
+    
+    def process_pdf(self, pdf_path: str) -> List[Dict]:
+        """
+        Process PDF with enhanced extraction for images and tables.
+        """
+        import fitz  # PyMuPDF
+        
+        doc = fitz.open(pdf_path)
+        chunks = []
+        
+        for page_num, page in enumerate(doc):
+            # Extract text
+            text = page.get_text()
+            
+            # Extract images
+            images = page.get_images(full=True)
+            image_descriptions = []
+            for img in images:
+                xref = img[0]
+                image_bytes = self.extract_image(doc, xref)
+                description = self.describe_image(image_bytes)
+                image_descriptions.append(description)
+            
+            # Extract tables
+            tables = self.extract_tables(page)
+            table_descriptions = [self.describe_table(t) for t in tables]
+            
+            # Combine into chunk
+            chunks.append({
+                "page": page_num + 1,
+                "text": text,
+                "images": image_descriptions,
+                "tables": table_descriptions,
+                "full_text": self.combine_content(text, image_descriptions, table_descriptions),
+            })
+        
+        return chunks
+    
+    def describe_image(self, image_bytes: bytes) -> str:
+        """
+        Generate text description of image using vision model.
+        """
+        if not self.vision_model:
+            return "[Image present but not described]"
+        
+        response = self.vision_model.analyze(
+            image_bytes,
+            prompt="Describe this image in detail, including any text, diagrams, charts, or data shown."
+        )
+        return response
+    
+    def describe_table(self, table: List[List[str]]) -> str:
+        """
+        Convert table to text description.
+        """
+        # Convert to markdown
+        headers = table[0]
+        rows = table[1:]
+        
+        md = "| " + " | ".join(headers) + " |\n"
+        md += "| " + " | ".join(["---"] * len(headers)) + " |\n"
+        for row in rows:
+            md += "| " + " | ".join(row) + " |\n"
+        
+        return md
+```
+
+### Strategy 2: Vision model integration
+
+```python
+class VisionRAG:
+    def __init__(self, text_embedder, vision_model):
+        self.text_embedder = text_embedder
+        self.vision_model = vision_model
+    
+    def answer(self, query: str, docs: List[Dict]) -> str:
+        """
+        Answer query using both text and images.
+        """
+        # Collect images from retrieved docs
+        images = []
+        for doc in docs:
+            if "image_path" in doc:
+                images.append(doc["image_path"])
+        
+        # Build multimodal prompt
+        messages = [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant that can analyze both text and images."
+            },
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": f"Question: {query}\n\nContext:\n{self.format_text_context(docs)}"},
+                    *[{"type": "image_url", "image_url": {"url": img}} for img in images[:4]]  # Max 4 images
+                ]
+            }
+        ]
+        
+        response = self.vision_model.chat(messages)
+        return response
+```
+
+### Strategy 3: Multimodal embeddings (ColPali-style)
+
+```python
+class ColPaliRetriever:
+    """
+    ColPali-style: embed document pages as images directly.
+    """
+    def __init__(self, model_name: str = "vidore/colpali-v1.2"):
+        from colpali_engine.models import ColPali
+        self.model = ColPali.from_pretrained(model_name)
+    
+    def index_documents(self, pdf_paths: List[str]) -> None:
+        """
+        Index PDF pages as images.
+        """
+        for pdf_path in pdf_paths:
+            pages = self.pdf_to_images(pdf_path)
+            
+            for page_num, page_image in enumerate(pages):
+                # Embed page image directly
+                embedding = self.model.encode_image(page_image)
+                
+                self.index.add({
+                    "id": f"{pdf_path}_{page_num}",
+                    "embedding": embedding,
+                    "pdf_path": pdf_path,
+                    "page_num": page_num,
+                })
+    
+    def retrieve(self, query: str, k: int = 5) -> List[Dict]:
+        """
+        Retrieve relevant pages using query embedding.
+        """
+        # Embed query (text)
+        query_embedding = self.model.encode_query(query)
+        
+        # Search
+        results = self.index.search(query_embedding, k=k)
+        
+        return results
+```
+
+### Strategy 4: Table-aware retrieval
+
+```python
+class TableAwareRAG:
+    def __init__(self, text_index, table_index, sql_generator):
+        self.text_index = text_index
+        self.table_index = table_index
+        self.sql_generator = sql_generator
+    
+    def retrieve(self, query: str) -> Dict:
+        """
+        Retrieve from both text and structured tables.
+        """
+        # Classify query
+        if self.is_data_query(query):
+            # Generate SQL for table lookup
+            sql = self.sql_generator.generate(query)
+            table_results = self.execute_sql(sql)
+            return {"type": "table", "data": table_results}
+        else:
+            # Standard text retrieval
+            text_results = self.text_index.search(query)
+            return {"type": "text", "results": text_results}
+    
+    def is_data_query(self, query: str) -> bool:
+        """
+        Detect if query is asking for structured data.
+        """
+        data_indicators = [
+            "how many", "total", "average", "maximum", "minimum",
+            "compare", "list all", "show me the numbers"
+        ]
+        return any(ind in query.lower() for ind in data_indicators)
+```
+
+## Failure modes
+
+1. **OCR errors**: Bad text extraction from images.
+2. **Image description quality**: Vision model misunderstands diagrams.
+3. **Table structure loss**: Complex tables lose meaning in text.
+4. **Cost**: Vision models are expensive per image.
+5. **Latency**: Image processing is slow.
+
+## Production defaults
+
+- **PDFs**: Use enhanced extraction (text + table detection + image description).
+- **Images**: Describe critical images with vision model, skip decorative ones.
+- **Tables**: Preserve structure in markdown, consider storing in SQL for data queries.
+- **Hybrid index**: Text embeddings + visual embeddings for comprehensive retrieval.
+
+## Do next
+
+<ChallengeLinks slugs={["pdf-table-extraction", "vision-description", "multimodal-retriever"]} />
+
+<Card className="mt-4 p-4">
+  <p className="text-sm font-medium">Next phase: Agentic RAG</p>
+  <Link
+    href="/learn/phase-5/agentic-rag-intro"
+    className="mt-2 inline-flex text-xs font-medium text-blue-700 hover:text-blue-500 dark:text-blue-400"
+  >
+    Phase 5: Agentic RAG →
+  </Link>
+</Card>

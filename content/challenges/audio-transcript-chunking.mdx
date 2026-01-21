@@ -1,0 +1,35 @@
+﻿---
+title: "Audio Transcript Chunking"
+description: "Chunk audio transcripts by speaker turns and timestamps."
+---
+
+# Audio Transcript Chunking
+
+Earnings calls, meetings, and podcasts generate valuable content—but raw transcripts are a wall of text.
+
+### The Challenge
+
+```
+CEO: Welcome to the call.
+CEO: Revenue is up 20%.
+Analyst: What about margins?
+CEO: Margins improved by 5%.
+```
+
+Naive chunking might split the CEO's statements or mix speakers together.
+
+### Smart Chunking
+
+- Keep same-speaker segments together.
+- Respect time boundaries (e.g., max 60 seconds per chunk).
+- Include metadata: speaker, start_time, end_time.
+
+### Your Task
+
+Implement a chunker that groups consecutive same-speaker segments while respecting duration limits.
+
+### Use Cases
+
+- "What did the CEO say about revenue?"
+- "Find the analyst questions from the Q3 call."
+

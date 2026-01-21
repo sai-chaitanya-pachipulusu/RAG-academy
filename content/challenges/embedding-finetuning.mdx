@@ -1,0 +1,38 @@
+﻿---
+title: "Embedding Model Fine-Tuning"
+description: "Implement the contrastive loss function for embedding fine-tuning."
+---
+
+# Embedding Model Fine-Tuning (Contrastive Loss)
+
+General-purpose embeddings (text-embedding-3-small) are good, but **domain-specific embeddings** are better.
+
+### The Contrastive Learning Setup
+
+- **Anchor**: The query.
+- **Positive**: A document that answers the query.
+- **Negatives**: Documents that don't answer the query.
+
+### InfoNCE Loss
+
+Pull anchor close to positive, push away from negatives:
+
+```
+Loss = -log(exp(sim(A, P)/τ) / Σ exp(sim(A, Ni)/τ))
+```
+
+Where τ (temperature) controls the sharpness of the distribution.
+
+### Your Task
+
+Implement the contrastive loss function:
+
+1. Compute dot products (assuming normalized vectors).
+2. Apply temperature scaling.
+3. Compute softmax-style probability.
+4. Return -log(positive probability).
+
+### Why It Matters
+
+Fine-tuned embeddings can improve retrieval by 20-50% on domain-specific data.
+

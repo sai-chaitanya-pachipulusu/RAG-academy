@@ -1,0 +1,23 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Create sparse TF-IDF embeddings for hybrid search.
+</Callout>
+
+## Why this matters in production
+
+Sparse embeddings (TF-IDF, BM25 vectors) are the "S" in hybrid search. They excel at exact term matching where dense embeddings fail — like product codes or technical terms.
+
+## What you're implementing
+
+- Tokenize text and count term frequencies.
+- Apply IDF weighting from corpus statistics.
+- Return sparse vector (indices + values).
+
+## Common pitfalls
+
+- Not handling out-of-vocabulary terms.
+- Forgetting to normalize by document length.
+
+## After you pass
+
+Combine with dense embeddings for **Hybrid Search**.
+

@@ -1,0 +1,106 @@
+﻿---
+title: "Conversational Query Rewriting"
+description: "Rewrite follow-up questions to include context from conversation history"
+difficulty: "hard"
+timeEstimate: "40-50 min"
+xpReward: 100
+prerequisites: ["query-expansion"]
+---
+
+# Conversational Query Rewriting
+
+## The Problem with Follow-ups
+
+**Conversation**:
+
+```
+User: "Tell me about Pinecone"
+AI: "Pinecone is a vector database..."
+User: "What about its pricing?"  ← Has "its" pronoun!
+```
+
+If we search for "What about its pricing?", retrieval fails. We need "What is Pinecone's pricing?"
+
+---
+
+## The Rewriting Solution
+
+Before retrieval, rewrite the query to be **standalone**:
+
+```python
+history = [
+    {"role": "user", "content": "Tell me about Pinecone"},
+    {"role": "assistant", "content": "Pinecone is a vector database..."}
+]
+current = "What about its pricing?"
+
+rewritten = "What is Pinecone's pricing?"
+```
+
+Now retrieval works!
+
+---
+
+## Pronoun Resolution
+
+| Pronoun         | Resolution                    |
+| --------------- | ----------------------------- |
+| "it", "its"     | Most recent noun from history |
+| "they", "their" | Most recent plural entity     |
+| "this", "that"  | Most recent topic             |
+
+---
+
+## Implementation Approaches
+
+### Rule-Based
+
+```python
+# Detect pronouns
+# Find most recent entity in history
+# Replace pronoun with entity
+```
+
+### LLM-Based
+
+```python
+prompt = f"""
+Given this conversation history: {history}
+Rewrite this follow-up to be standalone: {query}
+"""
+rewritten = llm.generate(prompt)
+```
+
+---
+
+## Production Patterns
+
+| Product | Approach             |
+| ------- | -------------------- |
+| ChatGPT | LLM rewriting        |
+| Copilot | Context injection    |
+| Claude  | Conversation context |
+
+---
+
+## ⚠️ Tradeoffs
+
+### Rule-Based
+
+- ✅ Fast (no LLM call)
+- ❌ Limited patterns
+
+### LLM-Based
+
+- ✅ Handles complex cases
+- ❌ Adds latency (+200ms)
+- ❌ Cost per query
+
+---
+
+## Related Challenges
+
+- `query-expansion` - Expand with synonyms
+- `hyde-implementation` - Generate hypothetical answers
+- `intent-classification` - Understand query type
+

@@ -1,0 +1,284 @@
+---
+title: "Modular RAG Architecture"
+description: "Design flexible, composable RAG systems with swappable components."
+order: 1
+estimatedMinutes: 30
+stage: production-ops
+prereqs:
+  - phase: phase-2
+    slug: cost-optimization
+next:
+  phase: phase-3
+  slug: self-rag
+outcomes:
+  - "Understand the evolution from Naive → Advanced → Modular RAG."
+  - "Design systems with swappable retrieval, reranking, and generation."
+  - "Know when modularity is worth the complexity."
+tags: ["modular-rag", "architecture", "design-patterns"]
+sources:
+  - title: "Modular RAG Survey (Gao et al., 2024)"
+    url: "https://arxiv.org/abs/2407.21059"
+    type: "paper"
+    year: 2024
+  - title: "RAG vs Fine-tuning (Yang et al., 2024)"
+    url: "https://arxiv.org/abs/2403.01432"
+    type: "paper"
+    year: 2024
+  - title: "LlamaIndex: Module Guides"
+    url: "https://docs.llamaindex.ai/en/stable/module_guides/"
+    type: "docs"
+---
+
+## Goals
+
+- Understand the evolution of RAG architectures.
+- Design modular systems that can evolve with your needs.
+- Know the tradeoffs of modularity vs simplicity.
+
+## Prereqs
+
+- Complete Phase 2 (you understand individual RAG components).
+
+## Core idea
+
+### RAG evolution
+
+```
+Naive RAG (2020-2022)
+├── Simple retrieve → generate
+├── Fixed components
+└── Limited quality
+
+Advanced RAG (2022-2024)
+├── Query transforms
+├── Reranking
+├── Context optimization
+└── Better quality, still linear
+
+Modular RAG (2024+)
+├── Swappable modules
+├── Conditional flows
+├── Training-aware
+└── Production-grade
+```
+
+### From linear to modular
+
+**Naive RAG**: Fixed pipeline
+```
+Query → Embed → Retrieve → Generate → Answer
+```
+
+**Advanced RAG**: Enhanced pipeline
+```
+Query → Transform → Embed → Retrieve → Rerank → Compress → Generate → Answer
+```
+
+**Modular RAG**: Conditional, composable flows
+```
+Query → Router → [Strategy A | Strategy B | Strategy C] → Merge → Generate → Verify → Answer
+                     ↓           ↓           ↓
+                  Dense      Hybrid     Knowledge
+                  Search     Search      Graph
+```
+
+### Modular RAG components
+
+```python
+from abc import ABC, abstractmethod
+from typing import List, Dict, Any
+
+# Base interfaces
+class Retriever(ABC):
+    @abstractmethod
+    def retrieve(self, query: str, k: int = 10) -> List[Dict]:
+        pass
+
+class Reranker(ABC):
+    @abstractmethod
+    def rerank(self, query: str, docs: List[Dict], k: int = 5) -> List[Dict]:
+        pass
+
+class Generator(ABC):
+    @abstractmethod
+    def generate(self, query: str, context: str) -> str:
+        pass
+
+# Concrete implementations
+class DenseRetriever(Retriever):
+    def retrieve(self, query: str, k: int = 10) -> List[Dict]:
+        embedding = self.embed(query)
+        return self.vector_db.search(embedding, k)
+
+class HybridRetriever(Retriever):
+    def __init__(self, dense: DenseRetriever, sparse: BM25Retriever):
+        self.dense = dense
+        self.sparse = sparse
+    
+    def retrieve(self, query: str, k: int = 10) -> List[Dict]:
+        dense_results = self.dense.retrieve(query, k=50)
+        sparse_results = self.sparse.retrieve(query, k=50)
+        return rrf_fusion([dense_results, sparse_results])[:k]
+
+class CrossEncoderReranker(Reranker):
+    def rerank(self, query: str, docs: List[Dict], k: int = 5) -> List[Dict]:
+        pairs = [[query, d["text"]] for d in docs]
+        scores = self.model.predict(pairs)
+        ranked = sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)
+        return [d for d, s in ranked[:k]]
+```
+
+### The modular RAG pipeline
+
+```python
+class ModularRAGPipeline:
+    def __init__(
+        self,
+        router: QueryRouter,
+        retrievers: Dict[str, Retriever],
+        rerankers: Dict[str, Reranker],
+        generators: Dict[str, Generator],
+        verifier: Optional[Verifier] = None,
+    ):
+        self.router = router
+        self.retrievers = retrievers
+        self.rerankers = rerankers
+        self.generators = generators
+        self.verifier = verifier
+    
+    def answer(self, query: str) -> Dict:
+        """
+        Execute modular RAG pipeline.
+        """
+        # 1. Route query to strategy
+        route = self.router.route(query)
+        
+        # 2. Retrieve with selected strategy
+        retriever = self.retrievers[route.retriever]
+        docs = retriever.retrieve(query, k=route.retrieve_k)
+        
+        # 3. Rerank (if specified)
+        if route.reranker:
+            reranker = self.rerankers[route.reranker]
+            docs = reranker.rerank(query, docs, k=route.rerank_k)
+        
+        # 4. Build context
+        context = self.build_context(docs, route.context_config)
+        
+        # 5. Generate
+        generator = self.generators[route.generator]
+        answer = generator.generate(query, context)
+        
+        # 6. Verify (optional)
+        if self.verifier and route.verify:
+            verification = self.verifier.verify(query, answer, docs)
+            if not verification.passed:
+                # Fallback strategy
+                answer = self.fallback(query, verification)
+        
+        return {
+            "answer": answer,
+            "sources": docs,
+            "route": route,
+        }
+```
+
+### Configuration-driven pipelines
+
+Define pipelines in config:
+
+```yaml
+# rag_config.yaml
+pipelines:
+  default:
+    retriever: hybrid
+    reranker: cross_encoder
+    generator: gpt4o_mini
+    context:
+      max_tokens: 4000
+      ordering: relevance_first_last
+    verify: false
+
+  high_stakes:
+    retriever: hybrid
+    reranker: llm_reranker
+    generator: gpt4o
+    context:
+      max_tokens: 6000
+      ordering: relevance_first_last
+    verify: true
+    verifier: citation_check
+
+  fast:
+    retriever: dense
+    reranker: null  # Skip reranking
+    generator: gpt4o_mini
+    context:
+      max_tokens: 2000
+    verify: false
+
+routing:
+  rules:
+    - condition: "query.contains('urgent') or query.contains('critical')"
+      pipeline: high_stakes
+    - condition: "query.word_count < 5"
+      pipeline: fast
+    - default: default
+```
+
+### End-to-end training
+
+The frontier of modular RAG: train components together:
+
+```python
+class TrainableRAGPipeline:
+    """
+    End-to-end trainable RAG with differentiable retrieval.
+    """
+    def forward(self, query: str, gold_answer: str) -> torch.Tensor:
+        # Retriever produces soft scores
+        retrieval_scores = self.retriever.forward(query)  # Differentiable
+        
+        # Attention over retrieved documents
+        context = self.attention_over_docs(retrieval_scores)
+        
+        # Generation loss
+        gen_loss = self.generator.forward(query, context, gold_answer)
+        
+        # Retrieval loss (reward signal from generation)
+        ret_loss = self.retrieval_loss(retrieval_scores, gen_loss)
+        
+        return gen_loss + self.lambda_ret * ret_loss
+```
+
+<Callout title="Research frontier" variant="info">
+  End-to-end training of RAG is still an active research area. Most production systems use separately trained components.
+</Callout>
+
+## Failure modes
+
+1. **Over-engineering**: Simple problems don't need modular systems.
+2. **Abstraction leakage**: Modules that don't cleanly separate concerns.
+3. **Configuration explosion**: Too many knobs to tune.
+4. **Testing complexity**: Hard to test all module combinations.
+
+## Production defaults
+
+- **Start simple**: Naive/Advanced RAG for most use cases.
+- **Modularize when**: You need multiple strategies for different query types.
+- **Interface first**: Define clean interfaces before building modules.
+- **Config-driven**: Make pipeline composition configurable, not hardcoded.
+
+## Do next
+
+<ChallengeLinks slugs={["modular-rag-pipeline", "rag-router-config", "pipeline-composer"]} />
+
+<Card className="mt-4 p-4">
+  <p className="text-sm font-medium">Next: Self-correcting RAG:</p>
+  <Link
+    href="/learn/phase-3/self-rag"
+    className="mt-2 inline-flex text-xs font-medium text-blue-700 hover:text-blue-500 dark:text-blue-400"
+  >
+    Next: Self-RAG →
+  </Link>
+</Card>

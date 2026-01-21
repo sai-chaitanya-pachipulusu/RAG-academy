@@ -1,0 +1,27 @@
+﻿---
+title: "Multi-Modal Retrieval (CLIP)"
+description: "Implement retrieval of relevant images for text queries using a shared embedding space."
+---
+
+# Multi-Modal Retrieval (CLIP)
+
+Modern RAG isn't limited to text. Multi-modal models like **CLIP** (Contrastive Language-Image Pre-training) allow us to embed both images and text into the **same vector space**.
+
+### The Magic of Shared Space
+
+Because the text "a golden retriever in a park" and an actual image of a golden retriever in a park are mapped to similar vectors, we can search for images using text queries (and vice versa).
+
+### Your Task
+
+Implement a similarity search that:
+
+1.  Takes a **text query** vector.
+2.  Compares it against a set of **image vectors**.
+3.  Returns the index of the most similar image.
+
+### Use Cases
+
+- **E-commerce**: Finding products based on visual descriptions.
+- **Digital Asset Management**: Searching through millions of stock photos with natural language.
+- **Advanced RAG**: Creating reports that combine text facts with relevant visual evidence.
+

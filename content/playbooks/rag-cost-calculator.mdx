@@ -1,0 +1,279 @@
+﻿---
+title: "RAG Cost Calculator"
+description: "Estimate and optimize costs for your RAG system"
+---
+
+# RAG Cost Calculator
+
+Understanding RAG costs is crucial for sustainable deployments. This guide breaks down every cost component.
+
+---
+
+## Cost Components
+
+```
+Total RAG Cost = Embedding + Storage + Retrieval + Generation + Infrastructure
+```
+
+| Component        | % of Total | Optimization Lever           |
+| ---------------- | ---------- | ---------------------------- |
+| Generation (LLM) | 60-80%     | Context length, model choice |
+| Embedding        | 5-15%      | Model choice, caching        |
+| Storage          | 5-10%      | Quantization, pruning        |
+| Retrieval        | 2-5%       | Approximation, caching       |
+| Infrastructure   | 5-10%      | Serverless, scaling          |
+
+---
+
+## Embedding Cost Calculator
+
+### OpenAI Pricing (per 1M tokens)
+
+| Model   | Cost  | Tokens per Page | Cost per 10K Pages |
+| ------- | ----- | --------------- | ------------------ |
+| ada-002 | $0.10 | ~750            | $0.75              |
+| 3-small | $0.02 | ~750            | $0.15              |
+| 3-large | $0.13 | ~750            | $0.98              |
+
+### Formula
+
+```python
+def calculate_embedding_cost(
+    num_documents: int,
+    avg_tokens_per_doc: int,
+    price_per_million: float
+) -> float:
+    """Calculate embedding cost."""
+    total_tokens = num_documents * avg_tokens_per_doc
+    return (total_tokens / 1_000_000) * price_per_million
+
+# Example: 100K documents, 500 tokens each, text-embedding-3-small
+cost = calculate_embedding_cost(100_000, 500, 0.02)
+# = $1.00 to embed 100K documents!
+```
+
+---
+
+## Storage Cost Calculator
+
+### Vector Storage
+
+| Vector DB | Free Tier      | Paid Starting |
+| --------- | -------------- | ------------- |
+| Pinecone  | 100K vectors   | $70/month     |
+| Qdrant    | Self-host free | $25/month     |
+| Weaviate  | Self-host free | $25/month     |
+| Chroma    | Self-host free | -             |
+| Supabase  | 500K vectors   | $25/month     |
+
+### Storage Formula
+
+```python
+def calculate_storage_bytes(
+    num_vectors: int,
+    dimensions: int,
+    bytes_per_float: int = 4  # float32
+) -> int:
+    """Calculate raw vector storage."""
+    return num_vectors * dimensions * bytes_per_float
+
+# Example: 1M vectors, 1536 dimensions
+storage = calculate_storage_bytes(1_000_000, 1536)
+# = 6.1 GB raw (before indexes, metadata)
+```
+
+### Quantization Savings
+
+| Quantization | Bits | Storage Reduction | Quality Loss |
+| ------------ | ---- | ----------------- | ------------ |
+| float32      | 32   | Baseline          | None         |
+| float16      | 16   | 50%               | <1%          |
+| int8         | 8    | 75%               | 1-3%         |
+| binary       | 1    | 97%               | 5-10%        |
+
+---
+
+## Retrieval Cost Calculator
+
+### Managed Services
+
+| Service      | Cost per 1K queries |
+| ------------ | ------------------- |
+| Pinecone     | ~$0.001             |
+| Qdrant Cloud | ~$0.0005            |
+| Supabase     | ~$0.0003            |
+
+### Self-Hosted Cost
+
+```python
+def self_hosted_cost_per_query(
+    monthly_server_cost: float,
+    queries_per_month: int
+) -> float:
+    return monthly_server_cost / queries_per_month
+
+# Example: $200/month server, 1M queries
+cost_per_query = 200 / 1_000_000
+# = $0.0002 per query
+```
+
+---
+
+## Generation Cost Calculator
+
+### LLM Pricing (per 1K tokens)
+
+| Model             | Input    | Output   |
+| ----------------- | -------- | -------- |
+| GPT-4-turbo       | $0.01    | $0.03    |
+| GPT-4o            | $0.005   | $0.015   |
+| GPT-3.5-turbo     | $0.0005  | $0.0015  |
+| Claude-3-Sonnet   | $0.003   | $0.015   |
+| Claude-3-Haiku    | $0.00025 | $0.00125 |
+| Llama-3-70B (API) | $0.0009  | $0.0009  |
+
+### RAG Generation Formula
+
+```python
+def calculate_generation_cost(
+    num_queries: int,
+    avg_context_tokens: int,  # Retrieved chunks
+    avg_query_tokens: int,
+    avg_output_tokens: int,
+    input_price_per_k: float,
+    output_price_per_k: float
+) -> float:
+    """Calculate total generation cost."""
+    input_tokens = num_queries * (avg_context_tokens + avg_query_tokens)
+    output_tokens = num_queries * avg_output_tokens
+
+    input_cost = (input_tokens / 1000) * input_price_per_k
+    output_cost = (output_tokens / 1000) * output_price_per_k
+
+    return input_cost + output_cost
+
+# Example: 10K queries, 800 context tokens, 50 query tokens, 200 output
+# Using GPT-4o
+cost = calculate_generation_cost(10_000, 800, 50, 200, 0.005, 0.015)
+# = $42.50 + $30.00 = $72.50
+```
+
+---
+
+## Monthly Cost Estimation
+
+### Scenario: Small Startup (10K docs, 100K queries/month)
+
+| Component           | Monthly Cost     |
+| ------------------- | ---------------- |
+| Initial Embedding   | $0.15 (one-time) |
+| Storage (Pinecone)  | $0 (free tier)   |
+| Retrieval           | ~$0.10           |
+| Generation (GPT-4o) | ~$500            |
+| **Total**           | **~$500/month**  |
+
+### Scenario: Mid-size Company (1M docs, 1M queries/month)
+
+| Component           | Monthly Cost      |
+| ------------------- | ----------------- |
+| Embedding (updates) | ~$100             |
+| Storage (Pinecone)  | ~$200             |
+| Retrieval           | ~$10              |
+| Generation (GPT-4o) | ~$7,500           |
+| **Total**           | **~$7,800/month** |
+
+### Scenario: Enterprise (10M docs, 10M queries/month)
+
+| Component                 | Monthly Cost       |
+| ------------------------- | ------------------ |
+| Embedding                 | ~$500              |
+| Storage (self-hosted)     | ~$2,000            |
+| Retrieval                 | ~$50               |
+| Generation (Claude Haiku) | ~$4,500            |
+| Infrastructure            | ~$5,000            |
+| **Total**                 | **~$12,000/month** |
+
+---
+
+## Cost Optimization Strategies
+
+### 1. Context Compression (50-70% savings on generation)
+
+```python
+# Instead of 2000 tokens of context, compress to 500
+compressed_context = llm_summarize(chunks)
+# Saves ~$0.0075 per query with GPT-4o
+```
+
+### 2. Caching (80%+ savings on repeated queries)
+
+```python
+cache = {}
+def cached_rag(query):
+    key = hash(query)
+    if key in cache:
+        return cache[key]  # No LLM cost!
+    result = rag_pipeline(query)
+    cache[key] = result
+    return result
+```
+
+### 3. Model Tiering
+
+```python
+def choose_model(query_complexity):
+    if is_simple(query):
+        return "gpt-3.5-turbo"  # 10x cheaper
+    else:
+        return "gpt-4o"
+```
+
+### 4. Quantization
+
+```python
+# Reduce storage by 75%
+embeddings = quantize_to_int8(embeddings)
+```
+
+---
+
+## ROI Calculator
+
+```python
+def calculate_rag_roi(
+    manual_query_cost: float,  # Cost of human answering
+    rag_cost_per_query: float,
+    queries_per_month: int,
+    accuracy_rate: float  # % of queries RAG handles correctly
+) -> dict:
+    """Calculate ROI of RAG implementation."""
+
+    manual_total = manual_query_cost * queries_per_month
+    rag_total = rag_cost_per_query * queries_per_month
+
+    # Queries still needing human = (1 - accuracy) * queries
+    human_escalation = (1 - accuracy_rate) * queries_per_month * manual_query_cost
+
+    total_with_rag = rag_total + human_escalation
+    savings = manual_total - total_with_rag
+    roi = (savings / rag_total) * 100
+
+    return {
+        "monthly_savings": savings,
+        "roi_percent": roi,
+        "break_even_queries": rag_total / (manual_query_cost - rag_cost_per_query)
+    }
+
+# Example: $5/query manual, $0.05/query RAG, 10K queries, 90% accuracy
+roi = calculate_rag_roi(5.0, 0.05, 10_000, 0.90)
+# Monthly savings: ~$44,500, ROI: ~8,900%
+```
+
+---
+
+## Related Challenges
+
+- `token-budget-packing` - Optimize context tokens
+- `semantic-caching` - Cache repeated queries
+- `quantization-deep-dive` - Reduce storage costs
+- `embedding-cache` - Reduce embedding costs

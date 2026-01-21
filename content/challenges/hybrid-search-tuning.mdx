@@ -1,0 +1,30 @@
+﻿---
+title: "Hybrid Search Weight Optimization"
+description: "Tune the balance between BM25 and dense retrieval for optimal results"
+difficulty: "medium"
+xpReward: 100
+---
+
+# Hybrid Search Weight Optimization
+
+## Overview
+
+Hybrid search combines keyword (BM25) and semantic (dense) retrieval. The optimal balance varies significantly by domain—legal docs might need 70% BM25, while conversational queries might need 70% dense.
+
+## Why This Matters
+
+- **Domain Optimization**: One size doesn't fit all
+- **Quality Improvement**: 10-30% recall gains with proper tuning
+- **A/B Testing**: Data-driven approach to search quality
+
+## Key Concepts
+
+- Grid search for weight optimization
+- Evaluation metrics (recall, MRR, NDCG)
+- Domain-specific tuning strategies
+- Bayesian optimization for large search spaces
+
+## Real-World Applications
+
+Pinecone, Weaviate, and Elasticsearch all provide hybrid search. Tuning is essential for production quality.
+

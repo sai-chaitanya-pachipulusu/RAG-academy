@@ -1,0 +1,49 @@
+﻿<Callout title="Goal" variant="info">
+  Implement Normalized Discounted Cumulative Gain (nDCG) for graded relevance
+  ranking.
+</Callout>
+
+## The "Golden Standard" of Search Evaluation
+
+While Recall and MRR assume binary relevance (correct/incorrect), **nDCG** handles **graded relevance** (e.g., Perfect=3, Good=2, Fair=1, Bad=0).
+
+## The formulas
+
+### DCG (Discounted Cumulative Gain)
+
+```
+DCG@K = Σᵢ₌₁ᴷ (relevanceᵢ / log₂(i + 1))
+```
+
+The logarithm creates a **position discount**: relevant results at the top matter more than those at the bottom.
+
+### IDCG (Ideal DCG)
+
+The DCG you'd get if results were perfectly sorted by relevance (best first).
+
+### nDCG (Normalized)
+
+```
+nDCG@K = DCG@K / IDCG@K
+```
+
+This gives a score between 0 and 1, where **1.0 = perfect ranking**.
+
+## Example
+
+| Rank | Relevance   | Discount (log₂(rank+1)) | Contribution |
+| ---- | ----------- | ----------------------- | ------------ |
+| 1    | 3 (Perfect) | 1.00                    | 3.00         |
+| 2    | 2 (Good)    | 1.58                    | 1.26         |
+| 3    | 0 (Bad)     | 2.00                    | 0.00         |
+| 4    | 1 (Fair)    | 2.32                    | 0.43         |
+
+DCG@4 = 3.00 + 1.26 + 0.00 + 0.43 = **4.69**
+
+## When to use nDCG vs Recall
+
+- **Recall@K**: "Did we find it?" (binary)
+- **nDCG@K**: "How well did we rank it?" (graded)
+
+For RAG, use Recall@K for retrieval debugging and nDCG for reranker evaluation.
+

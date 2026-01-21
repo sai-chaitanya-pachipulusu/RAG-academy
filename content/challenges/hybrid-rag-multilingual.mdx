@@ -1,0 +1,33 @@
+---
+title: "Hybrid RAG Multilingual"
+description: "Implement cross-lingual retrieval and generation"
+---
+
+# Hybrid RAG Multilingual
+
+Implement a multilingual RAG system that can retrieve from any language and generate in the query language.
+
+## Requirements
+
+1. Index documents in multiple languages
+2. Cross-lingual retrieval
+3. Translation-aware ranking
+4. Generate in query language
+
+## Starter Code
+
+```python
+class MultilingualRAG:
+    def __init__(self, multilingual_encoder, translator):
+        self.encoder = multilingual_encoder
+        self.translator = translator
+        self.index = []
+    
+    def index_document(self, doc: str, language: str):
+        """Index document with language metadata."""
+        pass
+    
+    def query(self, query: str, target_language: str = None) -> dict:
+        """Cross-lingual query and generation."""
+        pass
+```

@@ -1,0 +1,22 @@
+﻿<Callout title="Goal" variant="info">
+  Build a **stable retrieval cache key** so your caching is correct, deterministic, and safe across filter order changes.
+</Callout>
+
+## Why this matters
+
+Retrieval results are a perfect cache target — but only if your key is correct.
+
+In production you must include:
+
+- query (normalized)
+- filters (normalized, order-insensitive)
+- index version (so reindexing doesn’t serve stale results)
+
+## Common pitfalls
+
+- Using raw JSON without stable key ordering → cache misses (or collisions).
+- Forgetting `index_version` → serving old retrieval results after ingestion updates.
+- Treating `None` and `{}` differently → pointless duplicate caches.
+
+
+

@@ -1,0 +1,23 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Implement top-k vector search — the core of every RAG retrieval system.
+</Callout>
+
+## Why this matters in production
+
+Top-k search is what every vector database does: find the k most similar documents to a query. This exact pattern runs millions of times per day at Pinecone, Weaviate, and Qdrant.
+
+## What you're implementing
+
+- Compute similarity between query and all documents.
+- Sort by similarity score (descending).
+- Return the top k results with scores.
+
+## Common pitfalls
+
+- Sorting in wrong order (ascending vs descending).
+- Not handling `k > documents.length`.
+
+## After you pass
+
+Try **BM25 Scoring** to add keyword search, then **RRF Fusion** to combine them.
+

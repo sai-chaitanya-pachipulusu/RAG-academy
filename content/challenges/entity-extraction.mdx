@@ -1,0 +1,18 @@
+﻿<Callout title="Goal" variant="info">
+  Extract structured triples to build the foundation of a Knowledge Graph.
+</Callout>
+
+## Beyond Vector Search
+
+Vector search is great at finding "similar" text, but it fails at complex reasoning like _"Which company does Alice work for and what do they produce?"_ if the information is spread across multiple chunks.
+
+**GraphRAG** solves this by:
+
+1.  Extracting **Entities** (Alice, Apple, Company).
+2.  Extracting **Relations** (Alice -> WORKS_AT -> Apple).
+3.  Querying the resulting graph.
+
+## Task
+
+Implement a basic triple extractor that identifies relationships based on predefined sentential patterns.
+

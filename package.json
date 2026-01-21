@@ -1,0 +1,42 @@
+{
+  "name": "rag-academy",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm run build:search-index && next dev --disable-source-maps",
+    "dev:webpack": "next dev --webpack",
+    "validate:content": "node scripts/validate-content.mjs",
+    "validate:challenges": "node scripts/validate-challenges.mjs",
+    "validate:next-env": "node scripts/validate-next-env.mjs",
+    "build:search-index": "node scripts/build-search-index.mjs",
+    "build": "npm run validate:next-env && npm run validate:content && npm run validate:challenges && npm run build:search-index && next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@lemonsqueezy/lemonsqueezy.js": "^4.0.0",
+    "@monaco-editor/react": "^4.7.0",
+    "@supabase/ssr": "^0.8.0",
+    "@supabase/supabase-js": "^2.89.0",
+    "gray-matter": "^4.0.3",
+    "monaco-editor": "^0.55.1",
+    "next": "16.0.10",
+    "next-mdx-remote": "^5.0.0",
+    "react": "19.2.1",
+    "react-dom": "19.2.1",
+    "remark-gfm": "^4.0.1",
+    "resend": "^6.6.0",
+    "rss-parser": "^3.13.0",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.0.10",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

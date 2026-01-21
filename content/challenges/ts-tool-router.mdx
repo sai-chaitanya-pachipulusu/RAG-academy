@@ -1,0 +1,23 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Implement a tool router for agentic RAG — decide which tool to call based on query.
+</Callout>
+
+## Why this matters in production
+
+Agentic RAG systems need to decide: search documents? Calculate something? Search the web? Tool routing is the first step in every agent loop.
+
+## What you're implementing
+
+- Match query against tool descriptions and keywords.
+- Return the best-matching tool with confidence.
+- Provide reasoning for the routing decision.
+
+## Common pitfalls
+
+- Over-matching on common words.
+- Not having a default/fallback tool.
+
+## After you pass
+
+Build a full **ReAct Loop** using this router.
+

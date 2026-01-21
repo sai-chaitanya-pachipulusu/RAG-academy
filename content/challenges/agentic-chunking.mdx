@@ -1,0 +1,107 @@
+﻿---
+title: "Agentic Chunking: LLM-Guided Boundaries"
+description: "Use LLM reasoning to determine optimal chunk boundaries based on content understanding"
+difficulty: "hard"
+timeEstimate: "45-60 min"
+xpReward: 150
+prerequisites: ["semantic-chunking"]
+---
+
+# Agentic Chunking: LLM-Guided Boundaries
+
+## Beyond Rules and Metrics
+
+Semantic chunking uses embedding similarity - a simple metric. But meaning is more nuanced:
+
+```
+"Machine learning requires large datasets. For example, GPT was trained on web text."
+```
+
+A simple similarity metric might split here. But an LLM would UNDERSTAND that the second sentence is an **example** supporting the first claim.
+
+---
+
+## The Agentic Insight
+
+What if we could ask an LLM:
+
+> "Should these two passages be in the same chunk?"
+
+The LLM can reason about:
+
+- Continuation ("For example...")
+- Contrast ("However...")
+- Topic shift ("Moving on to...")
+- Support ("This demonstrates...")
+
+---
+
+## The Approach
+
+```python
+CONTINUE_SIGNALS = ["for example", "for instance", "specifically",
+                    "this shows", "in other words"]
+
+BOUNDARY_SIGNALS = ["however", "in contrast", "moving on",
+                    "on another note", "separately"]
+
+def should_chunk_here(sent1, sent2):
+    # In production: call LLM
+    # Here: use heuristic signals
+
+    if any(signal in sent2.lower() for signal in BOUNDARY_SIGNALS):
+        return True  # New chunk
+    if any(signal in sent2.lower() for signal in CONTINUE_SIGNALS):
+        return False  # Same chunk
+
+    return cosine_similarity(embed(sent1), embed(sent2)) < threshold
+```
+
+---
+
+## ⚖️ Tradeoffs
+
+### Pros
+
+- ✅ Understands nuanced relationships
+- ✅ Handles complex document structures
+- ✅ Can provide reasoning for each split
+
+### Cons
+
+- ❌ Expensive (LLM call per boundary decision)
+- ❌ Slower (seconds per document vs milliseconds)
+- ❌ Requires careful prompt engineering
+
+---
+
+## Real-World Usage
+
+**When it's worth the cost**:
+
+- High-value knowledge bases (executive briefings)
+- Legal documents (argument structure matters)
+- Research papers (methodology sections)
+
+**Research**:
+
+- Greg Kamradt's semantic chunking experiments
+- Anthropic's contextual retrieval research
+- LlamaIndex's agentic document processing
+
+---
+
+## Key Insight
+
+Agentic chunking teaches us:
+
+> "When rules aren't enough, use reasoning. LLMs can understand document intent."
+
+---
+
+## Related Challenges
+
+- `semantic-chunking` - Simpler metric-based approach
+- `section-based-chunking` - Use structure when available
+- `hierarchical-chunking` - Alternative for multi-level understanding
+

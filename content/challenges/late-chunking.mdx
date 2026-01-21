@@ -1,0 +1,29 @@
+﻿<Callout title="Goal" variant="info">
+  Implement "Late Chunking" to preserve long-range semantic dependencies using
+  global document context.
+</Callout>
+
+## The "Pronoun" Problem
+
+Standard chunking embeds each segment in isolation. If a document says: _"The Tesla Model 3 is an electric car. It has a range of 300 miles."_
+Conventional chunking might split this into:
+
+1. `{"text": "The Tesla Model 3 is an electric car.", "vec": [...]}`
+2. `{"text": "It has a range of 300 miles.", "vec": [...]}`
+
+The second chunk's embedding will be "blind" to what "It" refers to, leading to poor retrieval quality.
+
+## How Late Chunking Works (Jina AI)
+
+Late Chunking (introduced by Jina AI) changes the order of operations:
+
+1.  **Embed** the entire document first (getting hidden states for every token).
+2.  **Chunk** the document after embedding.
+3.  **Pool** (average) the token vectors within each chunk.
+
+Because every token was "aware" of the surrounding document during the initial embedding pass, the "It" in the second chunk now contains information about "Tesla Model 3".
+
+## Implementation
+
+In this simulation, you will implement a heuristic that weights local chunk vectors based on global document frequencies.
+

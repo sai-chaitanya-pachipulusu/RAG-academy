@@ -1,0 +1,276 @@
+---
+title: "Query Transformation Patterns"
+description: "Boost recall with HyDE, multi-query, step-back, and decomposition."
+order: 4
+estimatedMinutes: 25
+stage: query-transforms
+prereqs:
+  - phase: phase-1
+    slug: query-transforms
+next:
+  phase: phase-2
+  slug: context-window-optimization
+outcomes:
+  - "Implement 4+ query transformation techniques."
+  - "Know when each technique helps vs hurts."
+  - "Build a query transformation router."
+tags: ["query-transforms", "hyde", "multi-query", "step-back"]
+sources:
+  - title: "HyDE: Precise Zero-Shot Dense Retrieval (Gao et al., 2022)"
+    url: "https://arxiv.org/abs/2212.10496"
+    type: "paper"
+    year: 2022
+  - title: "Step-Back Prompting (Zheng et al., 2023)"
+    url: "https://arxiv.org/abs/2310.06117"
+    type: "paper"
+    year: 2023
+  - title: "Query2Doc: Query Expansion with LLMs (Ma et al., 2023)"
+    url: "https://arxiv.org/abs/2303.07678"
+    type: "paper"
+    year: 2023
+  - title: "LangChain: Query Transformations"
+    url: "https://python.langchain.com/docs/how_to/#query-analysis"
+    type: "docs"
+---
+
+## Goals
+
+- Master the 4 main query transformation patterns.
+- Build intuition for when to use each.
+- Implement a router that picks the right technique.
+
+## Prereqs
+
+- Read: **Query Transforms** (basic concepts from Phase 1).
+- Challenge: `hyde-search` (implement HyDE).
+
+## Core idea
+
+### The query-document mismatch problem
+
+Users write **queries**. Your corpus has **documents**. They speak different languages:
+
+| Query | What the document says |
+|-------|------------------------|
+| "make it faster" | "Performance optimization: implement caching..." |
+| "renew secrets" | "API key rotation policy: rotate every 90 days..." |
+| "what went wrong" | "Error handling: NullPointerException occurs when..." |
+
+Query transforms bridge this gap.
+
+### The 4 main patterns
+
+```
+Query Transformation Patterns
+├── Expansion (add information)
+│   ├── HyDE (generate hypothetical answer)
+│   ├── Query2Doc (expand with related terms)
+│   └── Multi-query (generate variations)
+├── Abstraction (zoom out)
+│   └── Step-back (ask broader question first)
+├── Decomposition (break down)
+│   └── Sub-questions (split multi-hop queries)
+└── Normalization (clean up)
+    ├── Rewrite (fix typos, remove fluff)
+    └── Conversation condense (resolve coreferences)
+```
+
+### 1. HyDE (Hypothetical Document Embeddings)
+
+From [Gao et al., 2022](https://arxiv.org/abs/2212.10496):
+
+```python
+def hyde_search(query: str, k: int = 10) -> List[str]:
+    """
+    HyDE: Generate hypothetical answer, embed THAT, retrieve.
+    """
+    # Generate hypothetical answer
+    prompt = f"""Write a passage that would answer this question:
+    
+Question: {query}
+
+Passage:"""
+    hypothetical = llm.generate(prompt)
+    
+    # Embed the hypothetical (NOT the query)
+    embedding = embed(hypothetical)
+    
+    # Retrieve using hypothetical embedding
+    return vector_search(embedding, k=k)
+```
+
+**When HyDE helps:**
+- Short queries (1-3 words)
+- Vague queries ("make it better")
+- Domain vocabulary mismatch
+
+**When to skip:**
+- Already specific queries
+- Keyword searches (use BM25)
+- Latency-critical paths (adds 200-500ms)
+
+### 2. Multi-query generation
+
+Generate query variations to improve recall:
+
+```python
+def multi_query_search(query: str, k: int = 10) -> List[str]:
+    """
+    Generate multiple query variations, retrieve for each, fuse.
+    """
+    prompt = f"""Generate 3 different versions of this question:
+    
+Original: {query}
+
+Variations:
+1."""
+    variations = llm.generate(prompt).split('\n')
+    variations = [query] + variations[:3]  # Include original
+    
+    # Retrieve for each variation
+    all_results = []
+    for q in variations:
+        results = retrieve(q, k=50)
+        all_results.append(results)
+    
+    # Fuse with RRF
+    return rrf_fusion(all_results, k=60)[:k]
+```
+
+### 3. Step-back prompting
+
+From [Zheng et al., 2023](https://arxiv.org/abs/2310.06117):
+
+```python
+def step_back_search(query: str, k: int = 10) -> List[str]:
+    """
+    Step-back: Ask a broader question first for context.
+    """
+    # Generate step-back question
+    prompt = f"""What is a more general question that would help answer this specific question?
+
+Specific: {query}
+
+General:"""
+    broad_query = llm.generate(prompt)
+    
+    # Retrieve for both
+    broad_results = retrieve(broad_query, k=30)
+    specific_results = retrieve(query, k=30)
+    
+    # Combine
+    return rrf_fusion([broad_results, specific_results])[:k]
+```
+
+**Example:**
+- Specific: "Why did my Python 3.9 async code fail on AWS Lambda?"
+- Step-back: "What are the limitations of async in AWS Lambda?"
+
+### 4. Query decomposition
+
+For multi-hop questions:
+
+```python
+def decompose_and_retrieve(query: str) -> Dict:
+    """
+    Decompose complex query into sub-questions.
+    """
+    prompt = f"""Break this question into simpler sub-questions:
+
+Question: {query}
+
+Sub-questions:
+1."""
+    sub_questions = parse_list(llm.generate(prompt))
+    
+    # Retrieve for each sub-question
+    context = {}
+    for i, sub_q in enumerate(sub_questions):
+        results = retrieve(sub_q, k=5)
+        context[f'sub_{i}'] = {
+            'question': sub_q,
+            'evidence': results
+        }
+    
+    return context
+```
+
+**Example:**
+- Original: "How does Company A's RAG system compare to Company B's?"
+- Sub-questions:
+  1. "What is Company A's RAG architecture?"
+  2. "What is Company B's RAG architecture?"
+  3. "What metrics should be used to compare RAG systems?"
+
+### Query transformation router
+
+Not every query needs transformation. Build a router:
+
+```python
+def route_query(query: str) -> str:
+    """
+    Decide which transformation (if any) to apply.
+    """
+    # Short query → HyDE
+    if len(query.split()) < 4:
+        return "hyde"
+    
+    # Multi-hop indicator → decompose
+    if any(w in query.lower() for w in ["compare", "vs", "difference", "both"]):
+        return "decompose"
+    
+    # Broad question → step-back
+    if query.lower().startswith(("why", "how does", "explain")):
+        return "step_back"
+    
+    # Complex or unclear → multi-query
+    if "?" in query and len(query) > 100:
+        return "multi_query"
+    
+    # Default: no transformation
+    return "none"
+```
+
+## Failure modes
+
+1. **Over-transformation**: Adding latency for simple queries.
+2. **HyDE hallucinations**: The hypothetical may be wrong (but often still helps!).
+3. **Too many sub-queries**: Decomposition can explode complexity.
+4. **Ignoring original query**: Always include original alongside transforms.
+
+## Production defaults
+
+- **Default**: No transformation (direct retrieval).
+- **Short/vague queries**: HyDE.
+- **Multi-hop**: Decomposition.
+- **Always**: Log which transform was used for debugging.
+
+```python
+# Production pattern
+transform = route_query(query)
+log_transform(query, transform)
+
+if transform == "hyde":
+    results = hyde_search(query)
+elif transform == "multi_query":
+    results = multi_query_search(query)
+elif transform == "decompose":
+    context = decompose_and_retrieve(query)
+    # Handle multi-context generation
+else:
+    results = retrieve(query)
+```
+
+## Do next
+
+<ChallengeLinks slugs={["hyde-search", "multi-query-fusion", "step-back-prompting", "query-decomposition"]} />
+
+<Card className="mt-4 p-4">
+  <p className="text-sm font-medium">Next: optimize the context window:</p>
+  <Link
+    href="/learn/phase-2/context-window-optimization"
+    className="mt-2 inline-flex text-xs font-medium text-blue-700 hover:text-blue-500 dark:text-blue-400"
+  >
+    Next: Context Window Optimization →
+  </Link>
+</Card>

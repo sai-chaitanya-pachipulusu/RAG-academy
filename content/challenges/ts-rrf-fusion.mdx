@@ -1,0 +1,23 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Implement Reciprocal Rank Fusion — the standard way to combine multiple retrieval results.
+</Callout>
+
+## Why this matters in production
+
+Hybrid search combines dense (semantic) and sparse (keyword) retrieval. RRF is the de-facto standard for fusing these results because it's simple, parameter-free, and robust.
+
+## What you're implementing
+
+- For each document, sum `1/(k + rank)` across all retrieval lists.
+- Sort by RRF score (descending).
+- Return fused results.
+
+## Common pitfalls
+
+- Using 0-based ranks instead of 1-based.
+- Forgetting documents that appear in only one list.
+
+## After you pass
+
+Build a complete hybrid search by combining **Top-K Search** + **BM25** + **RRF Fusion**.
+

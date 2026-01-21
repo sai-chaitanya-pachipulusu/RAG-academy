@@ -1,0 +1,36 @@
+﻿---
+title: "Multi-Judge Consensus Voting"
+description: "Aggregate multiple LLM judges with weighted voting."
+---
+
+# Multi-Judge Consensus Voting
+
+Single LLM judges are inconsistent. **Ensembling** 3+ judges reduces evaluation noise by 40%.
+
+### Why Ensemble?
+
+| Scenario  | Single Judge    | Multi-Judge           |
+| --------- | --------------- | --------------------- |
+| Easy case | Correct         | Correct               |
+| Edge case | 50% correct     | 80% correct           |
+| Bias      | One perspective | Multiple perspectives |
+
+### Voting Strategies
+
+- **Majority vote**: >50% agree = pass.
+- **Weighted average**: Weight by judge quality.
+- **Unanimous**: All must agree (high precision, low recall).
+
+### Your Task
+
+1. Implement weighted score averaging.
+2. Implement majority decision with confidence.
+
+### Weights
+
+| Judge  | Weight | Reason                   |
+| ------ | ------ | ------------------------ |
+| GPT-4  | 2.0    | Most capable             |
+| Claude | 1.0    | Balanced                 |
+| Llama  | 0.5    | Faster but less accurate |
+

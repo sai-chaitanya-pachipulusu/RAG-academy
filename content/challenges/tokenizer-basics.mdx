@@ -1,0 +1,36 @@
+﻿<Callout title="Goal" variant="info">
+  Build a tiny tokenizer + token counter so you stop thinking in characters and start thinking in tokens.
+</Callout>
+
+## Why this matters in production
+
+Token budgets drive almost every critical RAG decision:
+
+- chunk size
+- candidate top‑k vs final top‑k
+- prompt templates and safety instructions
+
+If you can’t estimate tokens, you can’t reason about latency/cost/quality tradeoffs.
+
+## What you’re implementing
+
+A simple tokenization rule:
+
+- lowercase
+- keep sequences of `[a-z0-9]+`
+- treat punctuation as separators
+
+This is **not** a real tokenizer (BPE etc), but it builds the habit.
+
+## Common pitfalls
+
+- Not lowercasing consistently.
+- Returning empty tokens.
+- Trying to “preserve punctuation” (the lab explicitly treats it as separators).
+
+## After you pass
+
+Use token counting when implementing chunking and context packing.
+
+
+

@@ -1,0 +1,370 @@
+﻿---
+title: "RAG Learning Paths"
+description: "Curated learning journeys from beginner to production expert"
+---
+
+# RAG Learning Paths
+
+Choose your learning path based on your goals and experience level.
+
+---
+
+## Path 1: Beginner to Practitioner (2-3 weeks)
+
+Perfect for developers new to RAG who want to build their first working system.
+
+### Week 1: Foundations & Data Layer
+
+```
+📚 Foundation Challenges (Complete in order):
+   1. dot-product → 2. cosine-similarity → 3. euclidean-distance
+   4. dense-vector-class → 5. vector-normalization
+
+📄 Data Layer Challenges:
+   1. simple-chunking → 2. overlap-chunking → 3. metadata-tagging
+   4. stable-chunk-ids → 5. sentence-chunking
+```
+
+### Week 2: Retrieval & Reranking
+
+```
+🔍 Retrieval Challenges:
+   1. basic-retrieval → 2. embed-and-search → 3. bm25-from-scratch
+   4. similarity-threshold → 5. rrf-fusion
+
+📊 Reranking Challenges:
+   1. rerank-cascade → 2. mmr-diversity → 3. exact-dedup
+```
+
+### Week 3: End-to-End Pipeline
+
+```
+🔗 Pipeline Challenges:
+   1. prompt-template → 2. citation-range-validator
+   3. refusal-policy → 4. rag-pipeline-generator
+
+📖 Playbooks to Read:
+   - Chunking Strategies Deep Dive
+   - Embedding Selection Guide
+```
+
+**Outcome:** You can build a complete RAG pipeline from scratch.
+
+---
+
+## Path 2: Practitioner to Production (3-4 weeks)
+
+For developers who understand RAG basics and want production-ready skills.
+
+### Week 1: Advanced Retrieval
+
+```
+🎯 Prerequisites: Complete Beginner Path or equivalent
+
+🔍 Advanced Challenges:
+   1. parent-document-tokenizer → 2. recursive-retrieval
+   3. hyde-search → 4. multi-query-fusion
+   5. colbert-maxsim
+```
+
+### Week 2: Production Engineering
+
+```
+⚙️ Production Challenges:
+   1. rate-limiter → 2. embedding-cache → 3. audit-logger
+   4. index-sharding → 5. cost-aware-router
+
+🔐 Security Challenges:
+   1. prompt-injection-defense → 2. pii-filtering
+   3. acl-filter-enforcement → 4. output-safety-filter
+```
+
+### Week 3: Evaluation & Monitoring
+
+```
+📊 Evaluation Challenges:
+   1. retrieval-metrics → 2. evaluator-recall-at-k
+   3. evaluator-mrr → 4. train-only-retrieval-guard
+   5. faithfulness-judge
+
+📖 Playbooks to Read:
+   - Production Deployment Checklist
+   - RAG Anti-Patterns
+```
+
+### Week 4: Optimization
+
+```
+⚡ Optimization Challenges:
+   1. product-quantization → 2. token-budget-packing
+   3. lost-in-the-middle-ordering → 4. recency-boost
+   5. contextual-compression-llm
+```
+
+**Outcome:** You can deploy and maintain production RAG systems.
+
+---
+
+## Path 3: SOTA Specialist (4-6 weeks)
+
+For engineers who want to implement cutting-edge RAG architectures.
+
+### Prerequisites
+
+- Complete Beginner + Production paths
+- Strong Python skills
+- Understanding of transformer architectures
+
+### Module 1: Advanced Architectures
+
+```
+🏗️ SOTA Challenges:
+   1. raptor-tree → 2. self-rag-grader → 3. corrective-rag
+   4. speculative-rag → 5. graphrag-knowledge-graph
+```
+
+### Module 2: Multi-Modal RAG
+
+```
+🖼️ Multi-Modal Challenges:
+   1. table-parsing → 2. json-schema-parser
+   3. pdf-layout-detector → 4. audio-transcript-chunking
+   5. multimodal-retrieval
+```
+
+### Module 3: Agentic RAG
+
+```
+🤖 Agentic Challenges:
+   1. tool-use-basics → 2. react-implementation
+   3. self-correction-loop → 4. agent-long-term-memory
+   5. agentic-rag-workflows
+```
+
+### Module 4: Fine-Tuning
+
+```
+🎛️ Fine-Tuning Challenges:
+   1. synthetic-data-gen → 2. dataset-tokenization
+   3. embedding-finetuning → 4. lora-adapter
+   5. ranker-distillation
+```
+
+### Module 5: Benchmarking & Evaluation
+
+```
+📊 Benchmarking Challenges:
+   1. beir-evaluation-setup → 2. mteb-evaluation
+   3. custom-eval-dataset → 4. retrieval-benchmarking-pipeline
+
+📖 Playbooks to Read:
+   - RAG Evaluation Suite
+   - Tool Comparison Matrix
+```
+
+**Outcome:** You can implement and evaluate SOTA RAG techniques.
+
+---
+
+## Path 4: Advanced Architect (4-6 weeks)
+
+For engineers who want to build production-grade, real-time RAG systems with analytics.
+
+### Prerequisites
+
+- Complete Beginner + Production + SOTA paths
+- Experience with async programming
+- Understanding of monitoring/observability
+
+### Module 1: Real-time RAG
+
+```
+🌐 Real-time Challenges:
+   1. websocket-streaming-rag → 2. live-index-updates
+
+📖 Key Concepts:
+   - Token-by-token streaming
+   - Version-based upserts
+   - Thread-safe indexing
+```
+
+### Module 2: RAG Analytics & Monitoring
+
+```
+📊 Analytics Challenges:
+   1. rag-usage-dashboard → 2. rag-cost-tracker
+
+📖 Playbooks to Read:
+   - Production Deployment Checklist
+   - RAG Troubleshooting Guide
+```
+
+### Module 3: Agentic Workflows
+
+```
+🤖 Agentic Challenges:
+   1. multi-step-reasoning → 2. tool-orchestration
+
+🔗 Builds on:
+   - tool-use-basics, react-implementation
+   - self-correction-loop
+```
+
+**Outcome:** You can build enterprise-grade RAG systems with real-time capabilities and full observability.
+
+---
+
+## Path 5: Specialist Tracks (4-6 weeks each)
+
+Choose a specialization based on your domain needs.
+
+### Track A: Multimodal RAG
+
+```
+🖼️ Image & Document Processing:
+   1. pdf-table-extraction → 2. document-hierarchy-parser
+   3. ocr-rag-pipeline → 4. image-embedding-rag
+
+📖 Key Concepts:
+   - Table extraction strategies
+   - Hierarchical document parsing
+   - CLIP/SigLIP embeddings
+   - Cross-modal retrieval
+```
+
+### Track B: Conversational RAG
+
+```
+💬 Conversation Memory:
+   1. conversation-buffer-memory → 2. entity-memory
+   3. summary-memory → 4. multi-step-reasoning
+
+🔗 Prerequisites:
+   - prompt-template
+   - tool-use-basics
+```
+
+### Track C: RAG Quality & Testing
+
+```
+🧪 Testing Framework:
+   1. rag-unit-tests → 2. retrieval-regression-tests
+   3. recall-at-k → 4. precision-at-k
+
+📖 Playbooks to Read:
+   - RAG Evaluation Suite
+   - RAG Troubleshooting Guide
+```
+
+### Track D: Graph & Knowledge RAG
+
+```
+🔗 Knowledge Graphs:
+   1. graphrag-knowledge-graph → 2. graph-traversal-rag
+   3. multi-hop queries → 4. entity extraction
+
+📖 Build on:
+   - recursive-retrieval
+   - entity-memory
+```
+
+**Outcome:** Deep expertise in your chosen RAG specialization.
+
+---
+
+## Quick Reference: Challenge Dependencies
+
+```
+FOUNDATIONS (No prerequisites)
+├── dot-product
+├── cosine-similarity ← dot-product
+├── euclidean-distance ← dot-product
+└── dense-vector-class ← cosine-similarity
+
+DATA LAYER
+├── simple-chunking
+├── overlap-chunking ← simple-chunking
+├── metadata-tagging ← overlap-chunking
+├── stable-chunk-ids ← metadata-tagging
+├── sentence-chunking ← overlap-chunking
+├── recursive-splitter ← sentence-chunking
+├── pdf-table-extraction ← simple-chunking
+└── document-hierarchy-parser ← markdown-header-chunking
+
+RETRIEVAL
+├── basic-retrieval ← dense-vector-class
+├── embed-and-search ← basic-retrieval
+├── bm25-from-scratch
+├── similarity-threshold ← basic-retrieval
+├── rrf-fusion ← bm25-from-scratch, embed-and-search
+├── hyde-search ← basic-retrieval, embed-and-search
+└── hybrid-search-tuning ← rrf-fusion
+
+RERANKING
+├── rerank-cascade ← basic-retrieval
+├── mmr-diversity ← cosine-similarity
+├── exact-dedup
+└── llm-reranker ← rerank-cascade
+
+PRODUCTION
+├── rate-limiter
+├── embedding-cache ← embed-and-search
+├── audit-logger
+├── cost-aware-router ← rate-limiter
+└── multi-tenant-rag ← metadata-filtering
+
+EVALUATION
+├── rag-unit-tests ← rag-pipeline-generator
+├── retrieval-regression-tests ← rag-unit-tests
+├── recall-at-k
+└── precision-at-k
+
+MULTIMODAL
+├── image-embedding-rag ← basic-retrieval
+└── ocr-rag-pipeline ← pdf-table-extraction
+
+AGENTIC
+├── tool-use-basics
+├── react-implementation ← tool-use-basics
+├── self-correction-loop ← react-implementation
+├── agent-long-term-memory ← self-correction-loop
+├── conversation-buffer-memory ← prompt-template
+├── entity-memory ← conversation-buffer-memory
+└── summary-memory ← conversation-buffer-memory
+
+GRAPH RAG
+├── graphrag-knowledge-graph
+└── graph-traversal-rag ← graphrag-knowledge-graph
+```
+
+---
+
+## Interactive Skill Tree
+
+Visit the **Challenges** page and filter by:
+
+- **Phase** to see progression within each domain
+- **Difficulty** to find challenges at your level
+- **XP Reward** to focus on high-value challenges
+
+---
+
+## Tracking Your Progress
+
+Each completed challenge awards XP:
+
+- **Easy:** 25-50 XP
+- **Medium:** 50-100 XP
+- **Hard:** 100-150 XP
+
+Milestones:
+
+- 🥉 **Bronze RAG Developer:** 500 XP
+- 🥈 **Silver RAG Engineer:** 1500 XP
+- 🥇 **Gold RAG Architect:** 3000 XP
+- 💎 **Diamond RAG Expert:** 5000 XP
+
+---
+
+_Start with Path 1 and progress through the levels. Each path builds on the previous one!_
+

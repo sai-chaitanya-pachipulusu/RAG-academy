@@ -1,0 +1,98 @@
+﻿---
+title: "Query Decomposition"
+description: "Break complex queries into simpler sub-queries for comprehensive retrieval"
+difficulty: "hard"
+timeEstimate: "35-45 min"
+xpReward: 100
+prerequisites: ["query-expansion"]
+---
+
+# Multi-Step Query Decomposition
+
+## The Problem with Complex Queries
+
+**Query**: "Compare Python and JavaScript for web development"
+
+A single retrieval might find documents about:
+
+- Python (missing JavaScript)
+- JavaScript (missing Python)
+- Web development (missing both languages)
+
+You need information about **BOTH** entities!
+
+---
+
+## The Decomposition Insight
+
+Break the query into sub-queries:
+
+```python
+"Compare Python and JavaScript" →
+[
+    "What is Python?",
+    "What is JavaScript?",
+    "Python vs JavaScript comparison"
+]
+```
+
+Retrieve for EACH sub-query, then synthesize.
+
+---
+
+## Decomposition Patterns
+
+### Comparison Queries
+
+```
+"Compare X and Y" → ["What is X?", "What is Y?", "X vs Y"]
+```
+
+### Pros/Cons Queries
+
+```
+"Pros and cons of X" → ["Advantages of X", "Disadvantages of X"]
+```
+
+### Causation Queries
+
+```
+"How does X affect Y?" → ["What is X?", "What is Y?", "X's effect on Y"]
+```
+
+---
+
+## Implementation Flow
+
+```
+1. Detect query type (comparison, pros/cons, etc.)
+   ↓
+2. Parse entities (X, Y)
+   ↓
+3. Generate sub-queries
+   ↓
+4. Retrieve for each sub-query
+   ↓
+5. Merge and deduplicate results
+   ↓
+6. Generate comprehensive answer
+```
+
+---
+
+## Real-World Usage
+
+| Product       | Implementation            |
+| ------------- | ------------------------- |
+| LangChain     | `MultiQueryRetriever`     |
+| LlamaIndex    | `SubQuestionQueryEngine`  |
+| Google Search | Multiple internal queries |
+
+---
+
+## Related Challenges
+
+- `query-expansion` - Simpler query enhancement
+- `hyde-implementation` - Generate hypothetical answers
+- `intent-classification` - Detect query patterns
+

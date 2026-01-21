@@ -1,0 +1,33 @@
+﻿<Callout title="Goal" variant="info">
+  Implement dot product — the primitive behind cosine similarity and a huge amount of vector search.
+</Callout>
+
+## Why this matters in production
+
+Vector databases ultimately reduce “retrieval” to **scoring** candidates.
+
+Dot product shows up everywhere:
+
+- cosine similarity (dot + norms)
+- maximum inner product search (MIPS)
+- attention (query · key)
+
+If you can’t implement this correctly, you can’t debug retrieval quality.
+
+## What you’re implementing
+
+- Validate equal lengths (raise `ValueError` if not).
+- Handle empty vectors (`dot([], []) == 0.0`).
+- Return a `float`.
+
+## Common pitfalls
+
+- Forgetting length checks (silently truncating via `zip`).
+- Returning `int` instead of `float` (tests may still pass sometimes — don’t rely on it).
+
+## After you pass
+
+Do **Cosine Similarity**, then implement **Top‑K retrieval**.
+
+
+

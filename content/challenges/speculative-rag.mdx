@@ -1,0 +1,18 @@
+﻿<Callout title="Goal" variant="info">
+  Optimize RAG performance by using a small model to draft and a large model to
+  verify.
+</Callout>
+
+## The "Latency vs. Quality" Tradeoff
+
+Users want GPT-4 quality but don't want to wait 10 seconds for a response.
+
+**Speculative RAG** uses a two-step process:
+
+1.  **Draft**: A small, fast model (e.g., Llama-1B) generates a first pass answer using the retrieved context.
+2.  **Verify**: A larger model (e.g., Llama-70B or GPT-4) checks the draft for hallucinations or errors. If the draft is correct, it's accepted instantly.
+
+## Task
+
+Implement the logic to verify a candidate "draft" answer against the "truth" found in the retrieved context chunks.
+

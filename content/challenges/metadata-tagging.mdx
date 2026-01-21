@@ -1,0 +1,33 @@
+﻿<Callout title="Goal" variant="info">
+  Attach metadata to chunks so retrieval is debuggable and safe.
+</Callout>
+
+## Why this matters in production
+
+Metadata is how you:
+
+- cite sources (`doc_id`, `chunk_id`, page/section)
+- filter (`tenant_id`, `doc_type`, time windows)
+- debug failures (“why did this chunk show up?”)
+
+RAG systems without metadata are not production systems — they are demos.
+
+## What you’re implementing
+
+Transform `["chunk0","chunk1",...]` into:
+
+- `(chunk_text, { source: "...", chunk_index: i })`
+
+This tiny primitive shows up everywhere in indexing pipelines.
+
+## Common pitfalls
+
+- Forgetting stable indices.
+- Mutating chunk text (breaks dedup and stable IDs later).
+
+## After you pass
+
+Do **Stable Chunk IDs**, then implement **metadata filtering** at retrieval time.
+
+
+

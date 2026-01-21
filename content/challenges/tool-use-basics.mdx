@@ -1,0 +1,35 @@
+﻿<Callout title="Goal" variant="info">
+  Build a router component to decide when to call an external tool vs answering
+  directly.
+</Callout>
+
+## Agentic RAG
+
+Classic RAG is a straight line: `Retriever -> Reranker -> LLM`.
+
+**Agentic RAG** is a loop. The system can:
+
+1.  **Reason**: "I need to search for the weather."
+2.  **Act**: Call a weather API.
+3.  **Observe**: Read the API result.
+4.  **Loop**: Generate the final answer.
+
+The simplest agent is a **Router**. It classifies the user's intent to pick the right path.
+
+## Why this matters in production
+
+You don't want to RAG everything.
+
+- **Small talk ("Hi")**: RAG is wasteful/slow.
+- **Math ("25 \* 4")**: LLMs are bad at math; use a calculator.
+- **Fact ("Who is the CEO?")**: RAG or Search is essential.
+
+## Implementation details
+
+In this challenge, you will implement a simple classification heuristic.
+In production, you would use:
+
+- **Zero-shot classification** (ask the LLM to pick).
+- **Fine-tuned classifier** (BERT/distil-bert) for latency sensitive routing.
+- **Function calling** (OpenAI/Anthropic tool use API).
+

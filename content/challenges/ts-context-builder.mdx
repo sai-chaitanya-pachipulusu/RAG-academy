@@ -1,0 +1,24 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Build a context window manager that respects token limits and orders chunks optimally.
+</Callout>
+
+## Why this matters in production
+
+Context window management directly impacts RAG quality. The "lost in the middle" paper showed that LLMs pay less attention to middle context — ordering matters!
+
+## What you're implementing
+
+- Select chunks within token budget.
+- Reserve tokens for the response.
+- Apply ordering strategy (e.g., best at start and end).
+- Track whether truncation occurred.
+
+## Common pitfalls
+
+- Forgetting to reserve space for the response.
+- Not accounting for prompt template tokens.
+
+## After you pass
+
+Implement the "lost in the middle" mitigation strategy.
+

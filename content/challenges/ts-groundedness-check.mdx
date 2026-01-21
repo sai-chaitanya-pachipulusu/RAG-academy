@@ -1,0 +1,24 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Build a groundedness checker to verify LLM claims against sources.
+</Callout>
+
+## Why this matters in production
+
+Groundedness checking prevents hallucinations by verifying that LLM claims are supported by retrieved context. This is how production RAG systems build trust.
+
+## What you're implementing
+
+- Split response into individual claims.
+- Check each claim against source documents.
+- Calculate overall groundedness score.
+- List unsupported claims for review.
+
+## Common pitfalls
+
+- Splitting on punctuation inside quotes.
+- Setting similarity threshold too high (false negatives).
+
+## After you pass
+
+Use this in your RAG pipeline to flag potentially hallucinated content.
+

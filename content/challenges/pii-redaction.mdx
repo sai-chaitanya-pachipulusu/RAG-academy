@@ -1,0 +1,22 @@
+﻿<Callout title="Goal" variant="warning">
+  Redact common PII patterns from context **before** sending anything to an LLM.
+</Callout>
+
+## Why this matters in production
+
+Even if a user is authorized, you often need to avoid sending raw PII to third-party model providers.
+
+This lab implements a basic deterministic redactor for:
+
+- emails
+- phone numbers
+- SSN-like patterns
+
+## Production extensions (optional)
+
+- use a dedicated PII detector (Microsoft Presidio) for higher recall
+- domain-specific patterns (account numbers, IBAN, PAN, health IDs)
+- reversible redaction for internal-only providers (tokenization + secure vault)
+
+
+

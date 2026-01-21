@@ -1,0 +1,45 @@
+﻿---
+title: "RAG Cost Tracker"
+description: "Track API costs with budget alerts"
+difficulty: "medium"
+xpReward: 100
+prerequisites: ["rag-usage-dashboard"]
+---
+
+# RAG Cost Tracker
+
+Build a cost tracking system for RAG API usage.
+
+## Why This Matters
+
+LLM costs can explode unexpectedly. Real-time cost visibility and budget alerts prevent overruns.
+
+## What You'll Learn
+
+- Token-based pricing models
+- Budget management patterns
+- Alert thresholds
+- Cost allocation
+
+## Real-World Application
+
+**Companies:** Helicone, Langfuse, OpenMeter, Portkey
+**Use Cases:** Budget management, Cost allocation, Usage optimization
+
+## Key Concepts
+
+### Pricing Tiers
+
+```python
+PRICING = {
+    "gpt-4": PricingTier("gpt-4", 0.03, 0.06),  # per 1K tokens
+    "gpt-3.5-turbo": PricingTier("gpt-3.5-turbo", 0.0005, 0.0015),
+}
+```
+
+### Budget Alerts
+
+- `ok` - Under 80% of budget
+- `warning` - 80-99% of budget
+- `exceeded` - Over 100% of budget
+

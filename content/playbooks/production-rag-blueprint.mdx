@@ -1,0 +1,211 @@
+﻿---
+title: "Production RAG Blueprint (Decision-First)"
+description: "A practical, production-ready RAG architecture with why/when tradeoffs, safety, caching, and evaluation."
+order: 0
+tags: ["production", "rag", "retrieval", "evaluation", "security", "caching"]
+sources:
+  - title: "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks (Lewis et al., 2020)"
+    url: "https://arxiv.org/abs/2005.11401"
+    type: "paper"
+    year: 2020
+  - title: "DPR: Dense Passage Retrieval (Karpukhin et al., 2020)"
+    url: "https://arxiv.org/abs/2004.04906"
+    type: "paper"
+    year: 2020
+  - title: "RAGAS docs (RAG evaluation)"
+    url: "https://docs.ragas.io/en/stable/"
+    type: "docs"
+  - title: "OWASP Top 10 for LLM Applications"
+    url: "https://owasp.org/www-project-top-10-for-large-language-model-applications/"
+    type: "docs"
+  - title: "Pinecone: Chunking strategies"
+    url: "https://www.pinecone.io/learn/chunking-strategies/"
+    type: "blog"
+---
+
+<Callout title="How to use this playbook" variant="info">
+  This is the “default architecture” you can ship. Each section explains **why**, **when**, and **what to measure**.
+</Callout>
+
+## The baseline architecture (ship this first)
+
+### The RAG pipeline: two phases (offline vs online)
+
+Even though you’ll hear “RAG” described as “retrieve then generate”, production systems split cleanly into **offline indexing** and **online query time**:
+
+```
+📦 OFFLINE (Preprocessing)          🔍 ONLINE (Query Time)
+─────────────────────────           ─────────────────────
+1. Load documents                   1. User sends query
+2. Chunk into pieces                2. Embed query → vector
+3. Embed chunks → vectors           3. Find similar chunks (top-k)
+4. Store in vector database         4. (Optional) Rerank results
+                                    5. Send chunks + query to LLM
+                                    6. Generate answer with citations
+```
+
+<Callout title="Why this matters" variant="info">
+  Most “RAG failures” are not LLM failures — they’re either **ingestion problems** (bad parsing/chunking/metadata) or **retrieval problems** (wrong evidence in top-k).
+</Callout>
+
+### The core architecture: parametric vs non-parametric memory
+
+**The fundamental problem:** LLMs are **parametric memory** systems — they compress knowledge into weights.
+
+- **Knowledge cutoff**: training data becomes stale.
+- **Hallucination**: they can be confidently wrong.
+- **Privacy**: they can’t see your internal data unless you provide it.
+
+**The RAG solution:** treat retrieval as **non-parametric memory** (external, updatable, permissionable).
+
+The minimal loop:
+
+1. **Retrieval** (the library): find candidate evidence
+2. **Augmentation** (the context): format the evidence for the model
+3. **Generation** (the synthesis): answer using *only* provided evidence
+
+In 2025, production “RAG” is usually closer to:
+
+> Query translation → routing → retrieval → reranking → context shaping → generation → citation
+
+### Critical decisions (where teams get stuck)
+
+| Decision | Wrong choice | Impact | Fix / where to look |
+| --- | --- | --- | --- |
+| **Chunk size** | Too small (100 tokens) | Loses context, retrieves fragments | Prefer structure-aware chunking; start 300–600 tokens |
+| **Chunk size** | Too large (2000 tokens) | Dilutes relevance, wastes tokens | Keep chunks “about one idea”; add parent/child if you need more context |
+| **Top‑k value** | k=1–2 | Misses relevant info | Retrieve 20–50 candidates, then rerank |
+| **Top‑k value** | k=20+ into the prompt | Context rot; “lost in the middle” | Rerank + keep 5–10; order best evidence first/last |
+| **No reranking** | Skip it | Wrong docs in final context | Cross‑encoder rerank top‑20/50 → keep top‑5/10 |
+| **No evaluation** | “Looks good” | Silent failures in production | Golden set + Recall@k + groundedness checks |
+
+### Technique categories (mental model)
+
+Use this to place any technique in the pipeline. Optimize **upstream** first (data quality + retrieval), then downstream (prompting/verification).
+
+```
+📄 YOUR DOCUMENTS
+  ↓
+🔵 PRE‑RETRIEVAL (offline): parse → chunk → metadata → embed → store
+  ↓
+🟢 RETRIEVAL (online): analyze/transform → search → top‑k candidates
+  ↓
+🟠 POST‑RETRIEVAL (online): rerank → filter → compress → reorder
+  ↓
+🔴 GENERATION (online): answer → verify → cite → refuse safely
+  ↓
+🟣 AGENTIC (optional): plan → tool use → iterate → synthesize
+```
+
+1. **Ingest**
+   - Parse documents (PDF/HTML/MD)
+   - Chunk + metadata (traceability: doc_id, chunk_id, offsets)
+   - Embed + store (vector DB + optionally sparse index)
+2. **Retrieve**
+   - Query analysis + optional rewrite/transforms
+   - Hybrid retrieval (dense + BM25) when recall matters
+   - **Filter first** (tenant/doc_type/date) before ANN search when possible
+3. **Rerank**
+   - Cross-encoder reranker for precision (top 20 → top 5)
+4. **Generate**
+   - Grounded prompt + citations
+   - Answer policy (refuse if not supported)
+5. **Evaluate + Observe**
+   - Offline eval set + regression tests
+   - Traces + retrieval diagnostics
+6. **Cache**
+   - Embedding cache
+   - Semantic response cache (careful invalidation)
+7. **Secure**
+   - Prompt injection defenses
+   - PII redaction rules
+
+## Decision guide (when to use which strategy)
+
+### Retrieval strategy
+
+- **Dense-only**: best when your corpus is clean, semantic, and you can tolerate occasional recall misses.
+- **Hybrid (BM25 + dense)**: best when you need recall on proper nouns, IDs, exact phrases, and “needle in haystack”.
+- **Metadata filters first**: best when the user’s query clearly scopes a subset (tenant, product, region).
+
+### Reranking
+
+- **No rerank**: small corpora, low stakes, tight latency budgets.
+- **Cross-encoder rerank**: high precision requirement (legal/medical/finance), moderate latency budget.
+- **LLM rerank**: rare; expensive and inconsistent. Use when you need reasoning over candidate relevance.
+
+### Chunking
+
+- **Fixed + overlap**: safe baseline.
+- **Semantic chunking**: when documents are long and structured, and you can afford extra complexity.
+- **Parent/child retrieval**: when you need both precise match and larger context window.
+
+## Production defaults (recommended starting values)
+
+- **Chunk size**: start **300–600 tokens** with **10–20% overlap** (prefer structure-aware splits).
+- **Retrieve candidates**: **20–50** (often for reranking).
+- **Keep final**: **5–10** chunks (aim for “just enough evidence”).
+- **RRF k**: **60** (a robust default).
+- **Timeouts**: hard timeouts on retrieval + generation; fail gracefully.
+- **Logging**: log query, retrieved doc ids, scores, and final citations.
+
+## Evaluation (what “good” looks like)
+
+- **Recall@K** (retrieval): did we retrieve the right evidence?
+- **Context relevance**: are retrieved chunks relevant?
+- **Groundedness**: is the answer supported by the retrieved context?
+- **Answer relevance**: does it answer the question?
+
+## Safety & security (non-negotiable)
+
+- Treat retrieved text as **untrusted input**.
+- Defend against:
+  - prompt injection
+  - data exfiltration via tool calls
+  - cross-tenant leakage (RLS + filters)
+  - PII leakage (redaction / allowlist)
+
+## Caching (what to cache and when)
+
+- **Embedding cache**: key by (model, text hash). Huge savings.
+- **Semantic cache**: only when you have:
+  - stable knowledge base versioning
+  - safe invalidation
+  - tight latency budgets
+
+## Reference code (Python + TypeScript)
+
+<Tabs>
+  <Tab label="Python (FastAPI style)">
+
+```python
+# PSEUDOCODE: production RAG request handler
+def answer(question: str, tenant_id: str):
+    q = rewrite(question)  # optional
+    candidates = retrieve(q, tenant_id=tenant_id, k=20, hybrid=True)
+    top = rerank(q, candidates, k=5)
+    prompt = build_prompt(question, top, cite=True)
+    out = llm_generate(prompt)
+    return enforce_policy(out, top)
+```
+
+  </Tab>
+  <Tab label="TypeScript (Node API style)">
+
+```ts
+// PSEUDOCODE: production RAG request handler
+export async function answer(question: string, tenantId: string) {
+  const q = await rewrite(question); // optional
+  const candidates = await retrieve(q, { tenantId, k: 20, hybrid: true });
+  const top = await rerank(q, candidates, 5);
+  const prompt = buildPrompt(question, top, { cite: true });
+  const out = await llmGenerate(prompt);
+  return enforcePolicy(out, top);
+}
+```
+
+  </Tab>
+</Tabs>
+
+
+

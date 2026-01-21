@@ -1,0 +1,37 @@
+﻿---
+title: "Sentence-based Chunking"
+description: "Chunk text by sentences instead of characters."
+---
+
+# Sentence-based Chunking
+
+Character-based chunking can split words and sentences in half. **Sentence-based chunking** preserves complete thoughts.
+
+### The Problem with Character Chunking
+
+```
+"Dr. Smith works at NASA. He leads the AI team."
+# Character split at position 25:
+Chunk 1: "Dr. Smith works at NASA."
+Chunk 2: " He leads the AI team."
+```
+
+This is fine, but:
+
+```
+# Character split at position 20:
+Chunk 1: "Dr. Smith works at N"
+Chunk 2: "ASA. He leads the AI team."
+```
+
+This is broken!
+
+### Your Task
+
+1. Split text into sentences using `.!?` as delimiters.
+2. Group sentences into chunks of `max_sentences`.
+
+### Why It Matters
+
+LlamaIndex's `SentenceSplitter` uses this approach. It ensures that each chunk represents a complete, coherent idea—improving embedding quality and retrieval relevance.
+

@@ -1,0 +1,384 @@
+﻿<Callout title="Goal" variant="info">
+  Build multi-tenant RAG systems — isolate data and queries across different
+  users, organizations, and access levels.
+</Callout>
+
+## Multi-Tenancy Challenges
+
+Enterprise RAG must handle:
+
+- **Data isolation**: Tenant A can't see Tenant B's data
+- **Access control**: Users see only authorized documents
+- **Resource fairness**: One tenant can't monopolize resources
+- **Performance**: Scale without cross-tenant impact
+
+## Tenancy Models
+
+### 1. Separate Collections (Strong Isolation)
+
+```python
+class SeparateCollectionMultiTenant:
+    """Each tenant gets their own vector collection."""
+
+    def __init__(self, vector_db_client):
+        self.client = vector_db_client
+
+    def get_collection(self, tenant_id: str) -> str:
+        """Get or create collection for tenant."""
+        collection_name = f"tenant_{tenant_id}"
+
+        if not self.client.collection_exists(collection_name):
+            self.client.create_collection(
+                name=collection_name,
+                vectors_config=VectorParams(size=768, distance="Cosine")
+            )
+
+        return collection_name
+
+    def index(self, tenant_id: str, documents: list[dict]):
+        """Index documents for tenant."""
+        collection = self.get_collection(tenant_id)
+        self.client.upsert(collection, documents)
+
+    def search(self, tenant_id: str, query_vector: list[float], k: int = 10):
+        """Search within tenant's collection only."""
+        collection = self.get_collection(tenant_id)
+        return self.client.search(collection, query_vector, limit=k)
+
+# Pros: Strong isolation, easy deletion, per-tenant scaling
+# Cons: More resources, can't search across tenants
+```
+
+### 2. Shared Collection with Metadata Filter
+
+```python
+class FilteredMultiTenant:
+    """Single collection with tenant_id metadata filter."""
+
+    def __init__(self, vector_db_client, collection_name: str = "shared"):
+        self.client = vector_db_client
+        self.collection = collection_name
+
+    def index(self, tenant_id: str, documents: list[dict]):
+        """Index documents with tenant metadata."""
+        for doc in documents:
+            doc["metadata"]["tenant_id"] = tenant_id
+
+        self.client.upsert(self.collection, documents)
+
+    def search(self, tenant_id: str, query_vector: list[float], k: int = 10):
+        """Search with mandatory tenant filter."""
+        return self.client.search(
+            collection=self.collection,
+            query_vector=query_vector,
+            limit=k,
+            filter={"tenant_id": tenant_id}  # Critical!
+        )
+
+    def delete_tenant_data(self, tenant_id: str):
+        """Delete all data for a tenant."""
+        self.client.delete(
+            collection=self.collection,
+            filter={"tenant_id": tenant_id}
+        )
+
+# Pros: Efficient resources, simpler management
+# Cons: Weaker isolation, filter bugs = data leak
+```
+
+### 3. Hybrid: Shared Small, Separate Large
+
+```python
+class HybridMultiTenant:
+    """Small tenants share, large tenants get dedicated."""
+
+    THRESHOLD_DOCS = 100_000
+
+    def __init__(self, client):
+        self.client = client
+        self.tenant_sizes = {}
+
+    def get_search_target(self, tenant_id: str) -> tuple[str, bool]:
+        """Determine if tenant uses shared or dedicated collection."""
+        doc_count = self.tenant_sizes.get(tenant_id, 0)
+
+        if doc_count > self.THRESHOLD_DOCS:
+            return f"tenant_{tenant_id}", False  # Dedicated
+        else:
+            return "shared", True  # Uses filter
+
+    def search(self, tenant_id: str, query_vector: list, k: int = 10):
+        collection, needs_filter = self.get_search_target(tenant_id)
+
+        if needs_filter:
+            return self.client.search(
+                collection, query_vector, limit=k,
+                filter={"tenant_id": tenant_id}
+            )
+        else:
+            return self.client.search(
+                collection, query_vector, limit=k
+            )
+```
+
+## Access Control (ACL)
+
+### Document-Level ACL
+
+```python
+@dataclass
+class AccessControl:
+    owner_id: str
+    tenant_id: str
+    visibility: str  # "public", "private", "group"
+    allowed_users: list[str] = field(default_factory=list)
+    allowed_groups: list[str] = field(default_factory=list)
+
+def check_access(user: User, doc_acl: AccessControl) -> bool:
+    """Check if user can access document."""
+    # Same tenant first
+    if user.tenant_id != doc_acl.tenant_id:
+        return False
+
+    # Owner always has access
+    if user.id == doc_acl.owner_id:
+        return True
+
+    # Public docs accessible to all in tenant
+    if doc_acl.visibility == "public":
+        return True
+
+    # Check explicit user permission
+    if user.id in doc_acl.allowed_users:
+        return True
+
+    # Check group membership
+    if any(g in doc_acl.allowed_groups for g in user.groups):
+        return True
+
+    return False
+```
+
+### Pre-filter vs Post-filter
+
+```python
+class ACLRetriever:
+    def search_with_prefilter(self, user: User, query: str, k: int = 10):
+        """Filter during retrieval (preferred)."""
+        # Build filter expression
+        acl_filter = {
+            "tenant_id": user.tenant_id,
+            "$or": [
+                {"visibility": "public"},
+                {"owner_id": user.id},
+                {"allowed_users": {"$contains": user.id}},
+                {"allowed_groups": {"$in": user.groups}},
+            ]
+        }
+
+        return self.vector_db.search(
+            query_vector=self.embed(query),
+            filter=acl_filter,
+            limit=k
+        )
+
+    def search_with_postfilter(self, user: User, query: str, k: int = 10):
+        """Filter after retrieval (less efficient)."""
+        # Retrieve more to account for filtering
+        candidates = self.vector_db.search(
+            query_vector=self.embed(query),
+            filter={"tenant_id": user.tenant_id},
+            limit=k * 3
+        )
+
+        # Post-filter for ACL
+        accessible = [
+            doc for doc in candidates
+            if check_access(user, doc.acl)
+        ]
+
+        return accessible[:k]
+```
+
+## Rate Limiting by Tenant
+
+```python
+import time
+from collections import defaultdict
+
+class TenantRateLimiter:
+    def __init__(self, requests_per_minute: int = 100):
+        self.rpm = requests_per_minute
+        self.tenant_requests = defaultdict(list)
+
+    def check_limit(self, tenant_id: str) -> bool:
+        """Check if tenant is within rate limit."""
+        now = time.time()
+        window_start = now - 60
+
+        # Clean old requests
+        self.tenant_requests[tenant_id] = [
+            t for t in self.tenant_requests[tenant_id]
+            if t > window_start
+        ]
+
+        # Check limit
+        if len(self.tenant_requests[tenant_id]) >= self.rpm:
+            return False
+
+        # Record request
+        self.tenant_requests[tenant_id].append(now)
+        return True
+
+    def wait_time(self, tenant_id: str) -> float:
+        """How long until request allowed."""
+        if self.check_limit(tenant_id):
+            return 0
+
+        oldest = min(self.tenant_requests[tenant_id])
+        return max(0, oldest + 60 - time.time())
+```
+
+## Token Budget by Tenant
+
+```python
+class TenantTokenBudget:
+    def __init__(self, db_connection):
+        self.db = db_connection
+
+    def get_remaining_tokens(self, tenant_id: str) -> int:
+        """Get remaining tokens for this billing period."""
+        usage = self.db.get_usage(tenant_id, period="current_month")
+        limit = self.db.get_limit(tenant_id)
+        return max(0, limit - usage)
+
+    def consume_tokens(self, tenant_id: str, tokens: int):
+        """Record token usage."""
+        self.db.increment_usage(tenant_id, tokens)
+
+    def enforce_limit(self, tenant_id: str, estimated_tokens: int) -> bool:
+        """Check if request can proceed."""
+        remaining = self.get_remaining_tokens(tenant_id)
+        if estimated_tokens > remaining:
+            raise QuotaExceededError(
+                f"Token quota exceeded. Remaining: {remaining}"
+            )
+        return True
+```
+
+## Multi-Tenant RAG Pipeline
+
+```python
+class MultiTenantRAG:
+    def __init__(self, retriever, generator, rate_limiter, budget):
+        self.retriever = retriever
+        self.generator = generator
+        self.rate_limiter = rate_limiter
+        self.budget = budget
+
+    def query(self, user: User, query: str) -> dict:
+        tenant_id = user.tenant_id
+
+        # Check rate limit
+        if not self.rate_limiter.check_limit(tenant_id):
+            wait = self.rate_limiter.wait_time(tenant_id)
+            return {"error": f"Rate limited. Wait {wait:.0f}s"}
+
+        # Check token budget
+        estimated_tokens = estimate_tokens(query)
+        try:
+            self.budget.enforce_limit(tenant_id, estimated_tokens)
+        except QuotaExceededError as e:
+            return {"error": str(e)}
+
+        # Retrieve with ACL
+        docs = self.retriever.search_with_acl(user, query)
+
+        # Generate
+        response = self.generator.generate(query, docs)
+
+        # Track usage
+        actual_tokens = count_tokens(response)
+        self.budget.consume_tokens(tenant_id, actual_tokens)
+
+        return {
+            "response": response,
+            "tokens_used": actual_tokens,
+            "sources": [d.id for d in docs]
+        }
+```
+
+## Data Isolation Testing
+
+```python
+def test_tenant_isolation():
+    """Critical: Verify tenants can't access each other's data."""
+    # Setup
+    tenant_a = create_tenant("A")
+    tenant_b = create_tenant("B")
+
+    # Index private data
+    index_for_tenant(tenant_a, [{"text": "Secret A data", "id": "doc_a"}])
+    index_for_tenant(tenant_b, [{"text": "Secret B data", "id": "doc_b"}])
+
+    # Tenant A searches
+    user_a = create_user(tenant_a)
+    results_a = search(user_a, "Secret")
+
+    # Verify A only sees A's data
+    assert "doc_a" in [r.id for r in results_a]
+    assert "doc_b" not in [r.id for r in results_a]
+
+    # Tenant B searches
+    user_b = create_user(tenant_b)
+    results_b = search(user_b, "Secret")
+
+    # Verify B only sees B's data
+    assert "doc_b" in [r.id for r in results_b]
+    assert "doc_a" not in [r.id for r in results_b]
+```
+
+## Tenant Data Lifecycle
+
+```python
+class TenantLifecycle:
+    def onboard_tenant(self, tenant_id: str, config: dict):
+        """Initialize new tenant."""
+        # Create collection/namespace
+        self.storage.create_tenant_space(tenant_id)
+
+        # Set quotas
+        self.quotas.set_limits(tenant_id, config["plan"])
+
+        # Initialize metadata
+        self.db.create_tenant(tenant_id, config)
+
+    def offboard_tenant(self, tenant_id: str):
+        """Clean up tenant data (GDPR/compliance)."""
+        # Delete all vectors
+        self.storage.delete_tenant_space(tenant_id)
+
+        # Delete metadata
+        self.db.delete_tenant_data(tenant_id)
+
+        # Audit log
+        self.audit.log(f"Tenant {tenant_id} offboarded")
+
+    def export_tenant_data(self, tenant_id: str) -> bytes:
+        """Data export for portability."""
+        all_docs = self.storage.get_all_tenant_docs(tenant_id)
+        return json.dumps(all_docs).encode()
+```
+
+## Production Checklist
+
+- [ ] Choose tenancy model (separate vs shared)
+- [ ] Implement mandatory tenant filtering
+- [ ] Add document-level ACL
+- [ ] Set up rate limiting per tenant
+- [ ] Track token/cost by tenant
+- [ ] Write isolation tests
+- [ ] Plan tenant onboarding/offboarding
+- [ ] Audit logging for compliance
+- [ ] Monitor per-tenant metrics
+

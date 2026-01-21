@@ -1,0 +1,25 @@
+﻿<Callout title="Goal" variant="info">
+  Prepend document-level context to every chunk to prevent "semantic drift"
+  during retrieval.
+</Callout>
+
+## The "Context Blindness" Problem
+
+When you split a document into 50 chunks, **Chunk #23** might say: _"The revenue grew by 20%."_
+Without knowing that Chunk #23 belongs to the _"2024 Apple Inc. Annual Report"_, a search for _"Apple revenue 2024"_ might completely miss this chunk because the words "Apple" and "2024" only appeared in the document title, not in Chunk #23.
+
+## The Anthropic Solution
+
+Anthropic's "Contextual Retrieval" technique solves this by prepending a structured header to every single chunk during ingestion:
+
+```text
+[Document: 2024 Apple Annual Report]
+[Section: Financial Highlights]
+---
+The revenue grew by 20%...
+```
+
+## Task
+
+Implement a template-based header injector that wraps raw chunks in a structured document context.
+

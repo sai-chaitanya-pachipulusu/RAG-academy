@@ -1,0 +1,172 @@
+﻿---
+title: "Recursive Chunking: The Production Standard"
+description: "The industry-standard algorithm that balances size consistency with semantic preservation"
+difficulty: "hard"
+timeEstimate: "40-50 min"
+xpReward: 100
+prerequisites: ["paragraph-based-chunking"]
+---
+
+# Recursive Chunking: The Production Standard
+
+## The Problem with All Previous Methods
+
+| Method     | Problem                 |
+| ---------- | ----------------------- |
+| Fixed-size | Cuts mid-word           |
+| Overlap    | Still cuts mid-sentence |
+| Sentence   | Variable sizes          |
+| Paragraph  | Even more variable      |
+
+What if we could have BOTH consistent sizes AND semantic boundaries?
+
+---
+
+## The Recursive Insight
+
+Documents have **hierarchy**: Sections > Paragraphs > Sentences > Words
+
+**Strategy**: Try to split at the highest (most meaningful) level first. Only fall back to lower levels if chunks are still too big.
+
+---
+
+## The Algorithm
+
+```python
+def recursive_chunk(text, size, separators=['\n\n', '\n', '. ', ' ', '']):
+    """
+    1. Try first separator (paragraphs)
+    2. If any piece > size, recursively split with next separator
+    3. Continue until using character splits as last resort
+    """
+    sep = separators[0]
+    remaining = separators[1:]
+
+    pieces = text.split(sep) if sep else list(text)
+
+    chunks = []
+    current = ""
+
+    for piece in pieces:
+        if len(current) + len(piece) < size:
+            current += piece + sep
+        else:
+            if current:
+                chunks.append(current)
+            if len(piece) > size and remaining:
+                # Recursively split with next separator
+                chunks.extend(recursive_chunk(piece, size, remaining))
+            else:
+                current = piece
+
+    return chunks
+```
+
+---
+
+## Why It's the Standard
+
+**LangChain** (most popular RAG framework):
+
+```python
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+splitter = RecursiveCharacterTextSplitter(
+    chunk_size=500,
+    chunk_overlap=100,
+    separators=["\n\n", "\n", ". ", " ", ""]
+)
+```
+
+**LlamaIndex**:
+
+```python
+from llama_index.node_parser import SentenceSplitter
+
+parser = SentenceSplitter(
+    chunk_size=512,
+    chunk_overlap=50
+)
+```
+
+---
+
+## The Separator Hierarchy
+
+| Separator | Meaning    | Best Case                  |
+| --------- | ---------- | -------------------------- |
+| `\n\n`    | Paragraph  | Natural thematic break     |
+| `\n`      | Line break | Code, lists                |
+| `. `      | Sentence   | Narrative text             |
+| ` `       | Word       | Last resort for long words |
+| ``        | Character  | Emergency fallback         |
+
+---
+
+## ⚖️ Tradeoffs
+
+### Pros
+
+- ✅ Respects natural boundaries when possible
+- ✅ Maintains size consistency
+- ✅ Works on any text
+- ✅ Battle-tested in production
+
+### Cons
+
+- ❌ More complex to implement
+- ❌ Separator order matters
+- ❌ May still cut at sub-optimal points
+
+---
+
+## Custom Separators
+
+For **code**:
+
+```python
+code_separators = [
+    "\nclass ", "\ndef ", "\n\n", "\n", " ", ""
+]
+```
+
+For **Markdown**:
+
+```python
+md_separators = [
+    "\n## "\n### "\n\n", "\n", ". ", " "
+]
+```
+
+---
+
+## Who Uses This
+
+**Everyone in production**:
+
+- OpenAI Cookbook examples
+- Anthropic's Claude demos
+- Pinecone tutorials
+- Weaviate guides
+- Chroma examples
+
+If you're not sure which chunking to use, use recursive.
+
+---
+
+## Key Insight
+
+Recursive chunking teaches us:
+
+> "Good defaults + graceful degradation = robust systems"
+
+Start with the best option, fall back systematically.
+
+---
+
+## Related Challenges
+
+- `section-based-chunking` - When you have explicit structure
+- `semantic-chunking` - When you need AI-detected boundaries
+- `hierarchical-chunking` - When you need multiple resolutions
+

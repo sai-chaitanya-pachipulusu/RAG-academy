@@ -1,0 +1,29 @@
+﻿---
+title: "Recursive Character Splitter"
+description: "Implement the hierarchical splitting strategy used by LangChain."
+---
+
+# Recursive Character Splitter
+
+This is the **default chunking strategy in LangChain** and for good reason: it's robust for any document type.
+
+### The Strategy
+
+1. Try to split by paragraph (`\n\n`).
+2. If a chunk is still too long, split by newline (`\n`).
+3. If still too long, split by sentence (`. `).
+4. If still too long, split by word (` `).
+5. As a last resort, split by character.
+
+### Why It Works
+
+A legal contract might have 10-page paragraphs. A code file might have no paragraphs but many newlines. The recursive approach adapts to whatever structure the document has.
+
+### Your Task
+
+Implement `recursive_split()` that takes a text, a maximum chunk size, and a list of separators. It should recursively split until all chunks fit.
+
+### Real-World Impact
+
+This is the algorithm that powers most production RAG systems. Understanding it deeply will help you debug chunking issues in LangChain, LlamaIndex, or your custom pipeline.
+

@@ -1,0 +1,167 @@
+﻿<Callout title="Goal" variant="info">
+  Implement HyDE: generate a hypothetical answer → embed *that* → retrieve for
+  better recall on vague/short queries.
+</Callout>
+
+## The Query-Document Mismatch Problem
+
+Dense retrieval compares query embeddings to document embeddings. But queries and documents live in different "language spaces":
+
+| Query             | Actual Document                                                     |
+| ----------------- | ------------------------------------------------------------------- |
+| "renew secrets"   | "API key rotation policy: Keys should be rotated every 90 days..."  |
+| "make it faster"  | "Performance optimization: Consider implementing caching layers..." |
+| "what went wrong" | "Error handling: The system throws a NullPointerException when..."  |
+
+Queries are **short, vague, incomplete**. Documents are **long, specific, detailed**.
+
+## How HyDE Works
+
+**HyDE** (Hypothetical Document Embeddings) bridges this gap:
+
+1. **Generate** a hypothetical answer to the query (using an LLM)
+2. **Embed** the hypothetical answer (not the query!)
+3. **Retrieve** using the hypothetical answer's embedding
+
+The hypothetical answer is closer to document language → better retrieval.
+
+## When HyDE Helps Most
+
+| Scenario                  | Improvement    |
+| ------------------------- | -------------- |
+| Short queries (1-3 words) | +15-25% Recall |
+| Vague/ambiguous queries   | +10-20% Recall |
+| Domain jargon mismatch    | +10-15% Recall |
+| Already specific queries  | ~0% (may hurt) |
+
+## When to Skip HyDE
+
+- **Keyword queries**: User searching for exact term (use BM25)
+- **Already long queries**: Little vocabulary mismatch
+- **High latency sensitivity**: Adds ~200-500ms per query
+- **High volume, low stakes**: Cost may not justify improvement
+
+## Algorithm
+
+```python
+def hyde_search(query: str, docs: List[str], k: int) -> List[str]:
+    # Step 1: Generate hypothetical answer
+    prompt = f"""Answer this question in 2-3 sentences as if you had perfect knowledge:
+
+    Question: {query}
+
+    Answer:"""
+
+    hypothetical = llm.generate(prompt)
+
+    # Step 2: Embed the hypothetical (NOT the query)
+    hyde_embedding = embed(hypothetical)
+
+    # Step 3: Retrieve using hypothetical embedding
+    results = vector_search(hyde_embedding, docs, k=k)
+
+    return results
+```
+
+## Prompt Engineering for HyDE
+
+### Basic Prompt
+
+```
+Answer this question: {query}
+```
+
+### Better Prompt (domain-specific)
+
+```
+You are a technical documentation expert. Write a 2-3 sentence passage that would directly answer this question:
+
+Question: {query}
+
+Passage:
+```
+
+### Best Prompt (with format hints)
+
+```
+Write a passage from a technical document that answers this question. Include specific terminology and details.
+
+Question: {query}
+
+Passage:
+```
+
+## Edge Cases
+
+| Scenario                   | Handling                                                  |
+| -------------------------- | --------------------------------------------------------- |
+| LLM generates wrong answer | Still often works! The vocabulary/style matches documents |
+| LLM refuses to answer      | Fall back to direct query embedding                       |
+| Very long hypothetical     | Truncate to model's context limit                         |
+| Empty query                | Skip HyDE, return empty results                           |
+| LLM timeout                | Fall back to direct query with lower latency              |
+
+## HyDE + Hybrid Search (Production Pattern)
+
+```python
+def production_search(query: str, k: int = 10) -> List[str]:
+    # Parallel retrieval for speed
+    results = []
+
+    # 1. Direct dense retrieval
+    direct_dense = dense_search(embed(query), k=50)
+
+    # 2. BM25 for exact matches
+    bm25 = bm25_search(query, k=50)
+
+    # 3. HyDE for semantic expansion (only for short queries)
+    hyde_results = []
+    if len(query.split()) < 5:
+        hypothetical = generate_hypothetical(query)
+        hyde_results = dense_search(embed(hypothetical), k=50)
+
+    # Fuse all results
+    fused = rrf_fusion([direct_dense, bm25, hyde_results], k=60)
+
+    # Rerank
+    return rerank(query, fused[:20])[:k]
+```
+
+## Latency Considerations
+
+| Component      | Latency    | Notes                   |
+| -------------- | ---------- | ----------------------- |
+| LLM generation | 200-500ms  | Dominates HyDE cost     |
+| Embedding      | 20-50ms    | Fast                    |
+| Vector search  | 5-20ms     | Very fast               |
+| **Total HyDE** | ~250-600ms | 3-5x slower than direct |
+
+**Optimization**: Cache HyDE results for repeated/similar queries.
+
+## Evaluation Metrics for HyDE
+
+Compare against direct embedding:
+
+- **Recall@10**: Primary metric
+- **MRR**: Did relevant doc move up?
+- **Latency P50/P99**: What's the cost?
+
+## Common Mistakes
+
+1. **Embedding the query AND hypothetical**: Just embed the hypothetical
+2. **Too long hypotheticals**: 2-3 sentences is optimal
+3. **Using HyDE for all queries**: Route only short/vague queries
+4. **Ignoring hallucinated content**: HyDE works even when the answer is wrong
+5. **Not A/B testing**: Always measure impact on YOUR data
+
+## Production Extensions
+
+- **Multi-HyDE**: Generate multiple hypotheticals, retrieve for each, fuse
+- **Conditional HyDE**: Use a classifier to decide when to apply HyDE
+- **Cached HyDE**: Cache hypotheticals for common query patterns
+- **HyDE + Rerank**: HyDE for recall, reranker for precision
+
+## After you pass
+
+Combine HyDE with hybrid retrieval and reranking for production-grade recall.
+

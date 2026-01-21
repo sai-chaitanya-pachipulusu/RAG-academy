@@ -1,0 +1,353 @@
+---
+title: "Model Context Protocol (MCP)"
+description: "Connect agents to external tools and data sources using MCP."
+order: 6
+estimatedMinutes: 25
+stage: agentic-rag
+prereqs:
+  - phase: phase-5
+    slug: agent-memory
+next:
+  phase: phase-6
+  slug: observability
+outcomes:
+  - "Understand MCP architecture and capabilities."
+  - "Build MCP servers to expose tools and resources."
+  - "Connect LLMs to MCP servers for tool use."
+tags: ["mcp", "tools", "integration", "protocol"]
+sources:
+  - title: "Model Context Protocol Specification"
+    url: "https://modelcontextprotocol.io/docs"
+    type: "docs"
+  - title: "MCP GitHub Repository"
+    url: "https://github.com/modelcontextprotocol"
+    type: "repo"
+  - title: "Anthropic: MCP Introduction"
+    url: "https://www.anthropic.com/news/model-context-protocol"
+    type: "blog"
+---
+
+## Goals
+
+- Understand what MCP is and why it matters.
+- Build MCP servers to expose your tools.
+- Connect agents to MCP for standardized tool use.
+
+## Prereqs
+
+- Read: **Agent Memory Systems** (understand agent capabilities).
+
+## Core idea
+
+### What is MCP?
+
+Model Context Protocol (MCP) is an open standard for connecting LLMs to external tools and data sources.
+
+Think of it as "USB for AI":
+- **Before MCP**: Each tool needs custom integration code
+- **With MCP**: Standard protocol, plug-and-play tools
+
+```
+Without MCP:
+LLM → Custom code → Tool A
+LLM → Custom code → Tool B
+LLM → Custom code → Tool C
+
+With MCP:
+LLM → MCP Client → MCP Server A (Database)
+                 → MCP Server B (Web Search)
+                 → MCP Server C (File System)
+```
+
+### MCP architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│                 MCP HOST                         │
+│  (Claude Desktop, VS Code, Your App)            │
+├─────────────────────────────────────────────────┤
+│              MCP CLIENT                          │
+│  Connects to servers, manages tool calls        │
+└─────────────────────────────────────────────────┘
+           ↓ MCP Protocol ↓
+┌─────────────────────────────────────────────────┐
+│             MCP SERVER                           │
+│  Exposes: Tools, Resources, Prompts             │
+├─────────────────────────────────────────────────┤
+│         Your Data / Services                    │
+│  (Database, API, File System, etc.)             │
+└─────────────────────────────────────────────────┘
+```
+
+### MCP primitives
+
+| Primitive | Description | Example |
+|-----------|-------------|---------|
+| **Tools** | Functions the LLM can call | search_docs, run_query |
+| **Resources** | Data the LLM can read | files, database records |
+| **Prompts** | Pre-built prompts/templates | "Summarize this document" |
+
+### Building an MCP server
+
+```python
+# mcp_server.py
+from mcp.server import Server
+from mcp.server.stdio import stdio_server
+from mcp.types import Tool, Resource, TextContent
+
+# Create server
+server = Server("rag-academy-mcp")
+
+# Define tools
+@server.tool()
+async def search_knowledge_base(query: str) -> str:
+    """
+    Search the RAG Academy knowledge base.
+    
+    Args:
+        query: The search query
+    
+    Returns:
+        Relevant content from the knowledge base
+    """
+    results = await vector_search(query, k=5)
+    return format_results(results)
+
+@server.tool()
+async def get_lesson(phase: str, slug: str) -> str:
+    """
+    Get the content of a specific lesson.
+    
+    Args:
+        phase: The phase (e.g., "phase-0")
+        slug: The lesson slug (e.g., "chunking-101")
+    
+    Returns:
+        The lesson content
+    """
+    lesson = await load_lesson(phase, slug)
+    return lesson.content
+
+@server.tool()
+async def run_evaluation(
+    query: str,
+    expected_sources: list[str],
+    retrieved_sources: list[str],
+) -> dict:
+    """
+    Run retrieval evaluation metrics.
+    
+    Args:
+        query: The test query
+        expected_sources: List of expected source IDs
+        retrieved_sources: List of retrieved source IDs
+    
+    Returns:
+        Evaluation metrics (recall, precision, etc.)
+    """
+    metrics = compute_metrics(expected_sources, retrieved_sources)
+    return metrics
+
+# Define resources
+@server.resource("lessons/{phase}/{slug}")
+async def get_lesson_resource(phase: str, slug: str) -> Resource:
+    """Expose lessons as readable resources."""
+    lesson = await load_lesson(phase, slug)
+    return Resource(
+        uri=f"lessons/{phase}/{slug}",
+        name=lesson.title,
+        mimeType="text/markdown",
+        content=TextContent(text=lesson.content),
+    )
+
+# Run server
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(stdio_server(server))
+```
+
+### MCP server configuration
+
+```json
+{
+  "mcpServers": {
+    "rag-academy": {
+      "command": "python",
+      "args": ["mcp_server.py"],
+      "env": {
+        "VECTOR_DB_URL": "...",
+        "API_KEY": "..."
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/docs"]
+    },
+    "postgres": {
+      "command": "npx", 
+      "args": ["-y", "@modelcontextprotocol/server-postgres"],
+      "env": {
+        "DATABASE_URL": "postgresql://..."
+      }
+    }
+  }
+}
+```
+
+### Connecting agents to MCP
+
+```python
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+
+async def create_mcp_agent():
+    """Create an agent connected to MCP servers."""
+    
+    # Connect to MCP server
+    server_params = StdioServerParameters(
+        command="python",
+        args=["mcp_server.py"],
+    )
+    
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            # Initialize connection
+            await session.initialize()
+            
+            # List available tools
+            tools = await session.list_tools()
+            
+            # Create agent with MCP tools
+            agent = Agent(
+                llm=llm,
+                tools=convert_mcp_tools(tools),
+                call_tool=lambda name, args: session.call_tool(name, args),
+            )
+            
+            return agent
+
+
+def convert_mcp_tools(mcp_tools) -> List[Tool]:
+    """Convert MCP tools to agent tool format."""
+    return [
+        Tool(
+            name=t.name,
+            description=t.description,
+            parameters=t.inputSchema,
+        )
+        for t in mcp_tools
+    ]
+```
+
+### Building a RAG MCP server
+
+```python
+# rag_mcp_server.py
+"""MCP server exposing RAG capabilities."""
+
+from mcp.server import Server
+from mcp.server.stdio import stdio_server
+
+server = Server("rag-tools")
+
+@server.tool()
+async def hybrid_search(
+    query: str,
+    k: int = 10,
+    filters: dict | None = None,
+) -> list[dict]:
+    """
+    Perform hybrid search (dense + sparse).
+    
+    Args:
+        query: Search query
+        k: Number of results
+        filters: Optional metadata filters
+    
+    Returns:
+        List of relevant documents with scores
+    """
+    dense_results = await dense_search(query, k=k*2)
+    sparse_results = await sparse_search(query, k=k*2)
+    fused = rrf_fusion([dense_results, sparse_results])
+    
+    if filters:
+        fused = apply_filters(fused, filters)
+    
+    return fused[:k]
+
+@server.tool()
+async def rerank(
+    query: str,
+    documents: list[str],
+    k: int = 5,
+) -> list[dict]:
+    """
+    Rerank documents using cross-encoder.
+    
+    Args:
+        query: The query
+        documents: List of document texts
+        k: Number of top documents to return
+    
+    Returns:
+        Reranked documents with scores
+    """
+    scores = cross_encoder.predict([[query, doc] for doc in documents])
+    ranked = sorted(zip(documents, scores), key=lambda x: x[1], reverse=True)
+    return [{"text": doc, "score": score} for doc, score in ranked[:k]]
+
+@server.tool()
+async def chunk_document(
+    content: str,
+    strategy: str = "recursive",
+    chunk_size: int = 500,
+    overlap: int = 50,
+) -> list[str]:
+    """
+    Chunk a document using specified strategy.
+    
+    Args:
+        content: Document content
+        strategy: Chunking strategy (recursive, semantic, markdown)
+        chunk_size: Target chunk size in tokens
+        overlap: Overlap between chunks
+    
+    Returns:
+        List of chunks
+    """
+    chunker = get_chunker(strategy)
+    return chunker.chunk(content, chunk_size=chunk_size, overlap=overlap)
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(stdio_server(server))
+```
+
+## Failure modes
+
+1. **Server crashes**: MCP server fails mid-request.
+2. **Schema mismatch**: Tool input doesn't match expected schema.
+3. **Timeout**: Long-running tools time out.
+4. **Auth issues**: Server can't access required resources.
+
+## Production defaults
+
+- **Timeout**: 30 seconds per tool call.
+- **Retries**: 2 retries on transient failures.
+- **Validation**: Validate inputs against schema before calling.
+- **Logging**: Log all tool calls for debugging.
+
+## Do next
+
+<ChallengeLinks slugs={["mcp-server", "mcp-tool-registry", "mcp-resource-provider"]} />
+
+<Card className="mt-4 p-4">
+  <p className="text-sm font-medium">Next phase: Production</p>
+  <Link
+    href="/learn/phase-6/observability"
+    className="mt-2 inline-flex text-xs font-medium text-blue-700 hover:text-blue-500 dark:text-blue-400"
+  >
+    Phase 6: Observability →
+  </Link>
+</Card>

@@ -1,0 +1,23 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Implement an LRU cache — essential for embedding and API response caching.
+</Callout>
+
+## Why this matters in production
+
+LRU caches are everywhere: embedding caches, API caches, query result caches. Understanding this data structure helps you optimize RAG latency and cost.
+
+## What you're implementing
+
+- Get: retrieve value, mark as recently used.
+- Set: add value, evict LRU if at capacity.
+- Efficient O(1) operations using Map (preserves insertion order).
+
+## Common pitfalls
+
+- Not updating recency on get().
+- Evicting wrong item (newest instead of oldest).
+
+## After you pass
+
+Build a **Semantic Cache** on top of LRU for intelligent caching.
+

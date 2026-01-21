@@ -1,0 +1,36 @@
+﻿---
+title: "PDF Layout Detection"
+description: "Detect and separate headers, paragraphs, and sidebars from PDF text."
+---
+
+# PDF Layout Detection
+
+Raw PDF extraction mixes everything together: headers, body text, footnotes, sidebars. This ruins chunking.
+
+### Why Layout Matters
+
+```
+CHAPTER 1: INTRODUCTION
+This is the body text...
+*Figure 1: A diagram*
+Page 1
+```
+
+Without layout detection, "CHAPTER 1" and "Page 1" become part of the same chunk as body text.
+
+### Heuristics
+
+- **Large font + bold** → Header
+- **Medium font + bold** → Subheader
+- **Small font** → Caption/footnote
+- **Regular font** → Paragraph
+
+### Your Task
+
+1. Classify text blocks by formatting.
+2. Group paragraphs under their headers for structured chunking.
+
+### Real-World Tools
+
+Unstructured.io, LlamaParse, and Adobe's PDF Services all provide layout-aware parsing.
+

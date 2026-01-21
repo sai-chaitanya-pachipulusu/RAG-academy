@@ -1,0 +1,85 @@
+---
+title: "Chunking 101"
+description: "Turn documents into retrievable units while preserving meaning."
+order: 4
+estimatedMinutes: 25
+stage: pre-retrieval
+prereqs:
+  - phase: phase-0
+    slug: tokenizers-and-context
+next:
+  phase: phase-0
+  slug: your-first-rag
+outcomes:
+  - "Explain why chunking dominates retrieval quality in most RAG systems."
+  - "Choose a baseline chunking strategy and know when overlap helps."
+  - "Recognize common chunking failure modes and how to debug them."
+tags: ["foundations", "chunking", "retrieval"]
+sources:
+  - title: "Pinecone: Chunking strategies for RAG (blog)"
+    url: "https://www.pinecone.io/learn/chunking-strategies/"
+    type: "blog"
+  - title: "LangChain: Text splitters documentation"
+    url: "https://python.langchain.com/docs/concepts/text_splitters/"
+    type: "docs"
+  - title: "LlamaIndex: Ingestion & chunking concepts"
+    url: "https://docs.llamaindex.ai/en/stable/module_guides/loading/ingestion_pipeline/"
+    type: "docs"
+---
+
+## Goals
+
+- Understand why chunking exists (and why it’s so often the root cause).
+- Learn two baseline chunking strategies you can ship.
+- Learn how to spot “bad chunking” in logs when retrieval fails.
+
+## Prereqs
+
+- Read: **Tokenizers & Context Windows** (token budgets drive chunk size decisions).
+
+## Core idea
+
+### Why chunking matters
+
+In RAG you don’t retrieve entire documents—you retrieve **chunks**.
+
+Good chunking:
+
+- keeps semantic units together
+- stays within token budgets
+- makes retrieval precise
+
+Bad chunking:
+
+- splits definitions from the thing they define
+- mixes multiple topics
+- causes “almost relevant” context that confuses the model
+
+### Two simple strategies
+
+1. **Fixed-size chunking**: easiest to implement, often “good enough” to start.
+2. **Overlap**: reduces boundary loss (but increases index size).
+
+## Failure modes
+
+- **Too small**: definitions split from what they define → fragments get retrieved.
+- **Too large**: irrelevant text dilutes relevance → context rot + token waste.
+- **Wrong boundaries**: splitting in the middle of a table, list, or code block.
+- **No traceability**: missing chunk IDs / source mapping → impossible to debug.
+
+## Production defaults
+
+- Start with **300–600 tokens** per chunk, **10–20% overlap**.
+- Prefer structure-aware splitting when you have headings (Markdown/PDF sections).
+- Always store: `doc_id`, stable `chunk_id`, section/page metadata.
+
+Canonical reference:
+
+- [Production RAG Blueprint](/playbooks/production-rag-blueprint)
+- [RAG Techniques Encyclopedia](/playbooks/rag-techniques-encyclopedia)
+
+## Do next
+
+<ChallengeLinks slugs={["simple-chunking", "overlap-chunking", "markdown-header-chunking"]} />
+
+

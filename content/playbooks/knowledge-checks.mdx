@@ -1,0 +1,475 @@
+---
+title: "RAG Knowledge Checks"
+description: "Test your understanding at each phase with these self-assessments."
+order: 26
+tags: ["quiz", "assessment", "self-test", "learning"]
+---
+
+# RAG Knowledge Checks
+
+Test your understanding after completing each phase. Aim for 80%+ before moving on.
+
+---
+
+## Phase 0: Foundations
+
+### Questions
+
+<details>
+<summary>**Q1**: Why does RAG exist? What problem does it solve?</summary>
+
+**Answer**: RAG (Retrieval-Augmented Generation) solves three core LLM limitations:
+1. **Knowledge cutoff**: LLMs can't know information after their training date
+2. **Hallucination**: LLMs confidently make up facts
+3. **Privacy**: You can't put proprietary data in the LLM's training
+
+RAG grounds LLM responses in your actual documents, reducing hallucinations and keeping data fresh.
+
+</details>
+
+<details>
+<summary>**Q2**: What's the difference between dense and sparse retrieval?</summary>
+
+**Answer**:
+- **Sparse (BM25)**: Keyword matching using term frequency. Fast, exact matches, no semantic understanding.
+- **Dense (embeddings)**: Neural networks map text to vectors. Captures meaning, handles synonyms, but can miss exact matches.
+
+**Best practice**: Use both (hybrid retrieval) with RRF fusion.
+
+</details>
+
+<details>
+<summary>**Q3**: What determines good chunk size?</summary>
+
+**Answer**: Chunk size balances:
+- **Too small**: Loses context, fragments sentences
+- **Too large**: Dilutes relevance, wastes tokens
+
+**Rules of thumb**:
+- Start with 512 tokens, 10-20% overlap
+- Match chunk size to expected query granularity
+- Test with your actual queries
+
+</details>
+
+<details>
+<summary>**Q4**: What is cosine similarity and why do we use it?</summary>
+
+**Answer**: Cosine similarity measures the angle between two vectors:
+- **1.0**: Identical direction (same meaning)
+- **0.0**: Orthogonal (unrelated)
+- **-1.0**: Opposite direction
+
+We use it because:
+1. It's scale-invariant (vector magnitude doesn't matter)
+2. It's fast to compute
+3. It works well with normalized embeddings
+
+</details>
+
+<details>
+<summary>**Q5**: What's the "RAG triad" for evaluation?</summary>
+
+**Answer**: The three metrics that matter:
+1. **Context Relevance**: Are the retrieved chunks relevant to the question?
+2. **Faithfulness**: Is the answer grounded in the context (no hallucination)?
+3. **Answer Relevance**: Does the answer actually address the question?
+
+</details>
+
+### Self-Assessment
+
+- [ ] I can explain why RAG is better than fine-tuning for knowledge updates
+- [ ] I understand dense vs sparse retrieval tradeoffs
+- [ ] I can chunk documents with appropriate size and overlap
+- [ ] I can calculate cosine similarity between vectors
+- [ ] I know the RAG evaluation triad
+
+**Score yourself**: ___/5 (need 4+ to continue)
+
+---
+
+## Phase 1: Core RAG
+
+### Questions
+
+<details>
+<summary>**Q1**: Why is retrieval quality more important than generation quality?</summary>
+
+**Answer**: "Garbage in, garbage out." If the right information isn't retrieved:
+- The LLM can't magically know the answer
+- Better prompts won't help
+- You'll get hallucinations or refusals
+
+**Debug order**: Always check retrieval first.
+
+</details>
+
+<details>
+<summary>**Q2**: What is query transformation and when should you use it?</summary>
+
+**Answer**: Query transformation rewrites the user's query to improve retrieval:
+
+| Technique | When to use |
+|-----------|-------------|
+| **HyDE** | Vague queries, cold-start |
+| **Multi-query** | Ambiguous queries |
+| **Step-back** | Complex reasoning questions |
+| **Query rewrite** | Conversational queries with context |
+
+Use when retrieval recall is low despite good documents existing.
+
+</details>
+
+<details>
+<summary>**Q3**: How does reranking improve RAG?</summary>
+
+**Answer**: Reranking uses a cross-encoder to re-score retrieved documents:
+- **Stage 1 (retrieval)**: Fast, gets many candidates (top-50)
+- **Stage 2 (rerank)**: Slow, accurate, selects final set (top-5)
+
+Cross-encoders see query AND document together, catching relevance that bi-encoders miss.
+
+**Typical lift**: 10-25% improvement in precision.
+
+</details>
+
+<details>
+<summary>**Q4**: What's the "lost in the middle" problem?</summary>
+
+**Answer**: LLMs pay more attention to the beginning and end of context, often missing information in the middle.
+
+**Mitigations**:
+1. Put most relevant chunks first and last
+2. Use fewer, higher-quality chunks
+3. Summarize middle sections
+4. Explicitly reference chunk positions in prompt
+
+</details>
+
+<details>
+<summary>**Q5**: How do you build a golden evaluation set?</summary>
+
+**Answer**: A golden set has:
+1. **Queries**: Representative of real user questions
+2. **Expected chunks**: Which documents should be retrieved
+3. **Expected answers**: What the correct answer should be
+
+**Size**: Start with 50-100 examples, covering edge cases.
+
+**Process**:
+1. Sample real queries from logs
+2. Have experts label expected results
+3. Include hard negatives (similar but wrong)
+4. Version control your golden set
+
+</details>
+
+### Self-Assessment
+
+- [ ] I can explain why retrieval debugging comes first
+- [ ] I know when to apply different query transforms
+- [ ] I understand two-stage retrieval (retrieve → rerank)
+- [ ] I can mitigate the lost-in-the-middle problem
+- [ ] I can create a golden evaluation set
+
+**Score yourself**: ___/5 (need 4+ to continue)
+
+---
+
+## Phase 2: Production Optimization
+
+### Questions
+
+<details>
+<summary>**Q1**: What is hybrid retrieval and why use it?</summary>
+
+**Answer**: Hybrid retrieval combines:
+- **Dense**: Semantic similarity (embeddings)
+- **Sparse**: Exact matching (BM25)
+
+**Why both?**
+- Dense catches synonyms: "car" ↔ "automobile"
+- Sparse catches exact terms: "XK-4507", "COVID-19"
+
+**Fusion**: Use RRF (Reciprocal Rank Fusion) to combine rankings.
+
+</details>
+
+<details>
+<summary>**Q2**: How do you optimize RAG costs?</summary>
+
+**Answer**: Cost levers:
+1. **Model routing**: Use cheap models for simple queries
+2. **Semantic caching**: Return cached answers for similar queries
+3. **Context compression**: Send fewer/shorter chunks
+4. **Embedding caching**: Don't re-embed identical text
+5. **Batch processing**: Reduce API call overhead
+
+**Target**: <$0.01 per query at scale.
+
+</details>
+
+<details>
+<summary>**Q3**: What metadata should you store with chunks?</summary>
+
+**Answer**: Essential metadata:
+- `doc_id`: Link back to source
+- `chunk_index`: Position in document
+- `source`: File name/URL
+- `created_at`: When indexed
+
+Domain-specific:
+- `department`, `category`: For filtering
+- `author`, `permissions`: For access control
+- `confidence`, `quality`: For ranking boosts
+
+</details>
+
+<details>
+<summary>**Q4**: When should you use native RAG (Claude/Gemini) vs custom RAG?</summary>
+
+**Answer**: 
+
+**Use native RAG when**:
+- Small document set (<100 docs)
+- Need quick prototype/MVP
+- Want built-in citations
+- Real-time web info needed (Gemini)
+
+**Build custom RAG when**:
+- Large corpus (>10K docs)
+- Need custom chunking
+- Cost optimization critical
+- Multi-source retrieval needed
+
+</details>
+
+<details>
+<summary>**Q5**: What are the key latency bottlenecks in RAG?</summary>
+
+**Answer**: Typical latency breakdown:
+| Stage | Time | % Total |
+|-------|------|---------|
+| Embedding query | 50-100ms | 5% |
+| Vector search | 50-200ms | 10% |
+| Reranking | 100-500ms | 20% |
+| LLM generation | 500-2000ms | 65% |
+
+**Optimizations**:
+- Cache embeddings for common queries
+- Use approximate search (ANN)
+- Parallel retrieval from multiple indexes
+- Stream LLM responses
+
+</details>
+
+### Self-Assessment
+
+- [ ] I can implement hybrid retrieval with RRF fusion
+- [ ] I know 5 cost optimization techniques
+- [ ] I design metadata schemas for my use case
+- [ ] I can choose between native and custom RAG
+- [ ] I can profile and optimize RAG latency
+
+**Score yourself**: ___/5 (need 4+ to continue)
+
+---
+
+## Phase 3-4: Advanced Techniques
+
+### Questions
+
+<details>
+<summary>**Q1**: When should you use Adaptive RAG?</summary>
+
+**Answer**: Adaptive RAG dynamically selects strategy based on query complexity:
+
+| Query Type | Strategy | Why |
+|------------|----------|-----|
+| Simple lookup | Single retrieval | Fast path |
+| Complex reasoning | Multi-step RAG | Needs iteration |
+| Ambiguous | Query rewrite first | Clarify intent |
+| LLM-answerable | Skip retrieval | No docs needed |
+
+**Benefit**: 40% latency reduction by not over-engineering simple queries.
+
+</details>
+
+<details>
+<summary>**Q2**: What is Self-RAG and when to use it?</summary>
+
+**Answer**: Self-RAG trains the LLM to:
+1. Decide if retrieval is needed
+2. Critique retrieved passages
+3. Verify its own answer against sources
+
+**When to use**:
+- High-stakes applications (medical, legal)
+- When hallucination is costly
+- When you can fine-tune a model
+
+</details>
+
+<details>
+<summary>**Q3**: How does GraphRAG differ from vector RAG?</summary>
+
+**Answer**: 
+
+| Aspect | Vector RAG | GraphRAG |
+|--------|------------|----------|
+| **Structure** | Flat chunks | Entities + relationships |
+| **Queries** | Similarity-based | Traversal + reasoning |
+| **Good for** | Semantic lookup | Multi-hop, relational |
+| **Examples** | "What's the return policy?" | "Who reports to the CEO?" |
+
+**Use GraphRAG** when questions involve relationships between entities.
+
+</details>
+
+<details>
+<summary>**Q4**: What is CRAG (Corrective RAG)?</summary>
+
+**Answer**: CRAG adds a verification step:
+1. Retrieve documents
+2. **Grade** retrieved docs (relevant/irrelevant/ambiguous)
+3. If **irrelevant**: Try web search or refined query
+4. If **ambiguous**: Retrieve more
+5. If **relevant**: Generate answer
+
+**Benefit**: Automatically corrects retrieval failures.
+
+</details>
+
+<details>
+<summary>**Q5**: When should you use multimodal RAG?</summary>
+
+**Answer**: Use multimodal RAG when:
+- Documents contain tables, charts, diagrams
+- Questions reference visual elements
+- PDFs with complex layouts
+
+**Approaches**:
+1. **ColPali**: Embed page images directly
+2. **Vision LLM**: Parse → extract → embed
+3. **Hybrid**: Text + image embeddings
+
+</details>
+
+### Self-Assessment
+
+- [ ] I can implement Adaptive RAG query routing
+- [ ] I understand Self-RAG's self-verification
+- [ ] I know when GraphRAG beats vector RAG
+- [ ] I can implement CRAG's correction loop
+- [ ] I know multimodal RAG approaches
+
+**Score yourself**: ___/5 (need 4+ to continue)
+
+---
+
+## Phase 5-6: Production & Agentic
+
+### Questions
+
+<details>
+<summary>**Q1**: What is the ReAct pattern for agents?</summary>
+
+**Answer**: ReAct = **Re**asoning + **Act**ing:
+
+```
+1. THINK: "I need to find X to answer this"
+2. ACT: Call tool (retrieve, search, calculate)
+3. OBSERVE: Process tool result
+4. THINK: "Now I have X, but still need Y"
+5. ACT: Call another tool
+... repeat until answer ready ...
+6. ANSWER: Final response
+```
+
+**Key insight**: Explicit reasoning between actions improves tool use.
+
+</details>
+
+<details>
+<summary>**Q2**: How do you handle RAG security?</summary>
+
+**Answer**: Security layers:
+
+1. **Input validation**: Detect prompt injection attempts
+2. **Access control**: Filter docs by user permissions
+3. **Output filtering**: Remove PII, block harmful content
+4. **Audit logging**: Track all queries and retrievals
+5. **Rate limiting**: Prevent abuse
+
+**Critical**: Never trust user input in prompts.
+
+</details>
+
+<details>
+<summary>**Q3**: What observability do you need for production RAG?</summary>
+
+**Answer**: Track:
+
+| Level | Metrics |
+|-------|---------|
+| **System** | Latency p50/p95/p99, error rate, throughput |
+| **Retrieval** | Recall, precision, cache hit rate |
+| **Generation** | Token usage, cost, faithfulness |
+| **Business** | User satisfaction, deflection rate |
+
+**Tools**: LangSmith, Arize Phoenix, custom logging.
+
+</details>
+
+<details>
+<summary>**Q4**: How do you scale RAG to millions of documents?</summary>
+
+**Answer**: Scaling strategies:
+
+1. **Index sharding**: Split by tenant/category
+2. **ANN algorithms**: HNSW, IVF for faster search
+3. **Caching**: Query cache, embedding cache
+4. **Async processing**: Background indexing
+5. **Horizontal scaling**: Multiple retrieval workers
+
+**Vector DB choice matters**: Pinecone, Weaviate, Qdrant all have different scaling characteristics.
+
+</details>
+
+<details>
+<summary>**Q5**: What are the key RAG evaluation metrics in production?</summary>
+
+**Answer**: 
+
+**Offline metrics** (from golden set):
+- Recall@k, MRR, nDCG
+- Faithfulness, answer relevance
+
+**Online metrics** (from real users):
+- User satisfaction (thumbs up/down)
+- Query abandonment rate
+- Follow-up question rate
+- Time to resolution
+
+**A/B testing**: Always measure against baseline.
+
+</details>
+
+### Self-Assessment
+
+- [ ] I can implement ReAct agent pattern
+- [ ] I know the 5 RAG security layers
+- [ ] I can set up RAG observability
+- [ ] I can scale RAG to millions of docs
+- [ ] I track both offline and online metrics
+
+**Score yourself**: ___/5 (need 4+ to continue)
+
+---
+
+## 🎯 Final Assessment
+
+**Complete all phase checks above with 80%+ accuracy.**
+
+Ready for certification? Complete a [Capstone Project](/playbooks/capstone-projects).

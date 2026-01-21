@@ -1,0 +1,19 @@
+﻿<Callout title="Goal" variant="info">
+  Build an automated "Faithfulness Judge" to detect hallucinations in RAG
+  responses.
+</Callout>
+
+## The "Hallucination" Problem
+
+LLMs are prone to "hallucinating"—generating facts that sound plausible but aren't supported by the retrieved context. Verifying every response manually is impossible at scale.
+
+**Faithfulness Evaluation** (a core part of the RAGAS framework) uses an LLM to:
+
+1.  Break the answer down into individual claims.
+2.  Check if each claim is supported by the context.
+3.  Calculate a score (Claims Supported / Total Claims).
+
+## Task
+
+Implement a heuristic-based judge that checks for "alignment" between an answer's claims and the provided context.
+

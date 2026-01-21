@@ -1,0 +1,58 @@
+﻿---
+title: "MTEB Leaderboard Metrics"
+description: "Implement MTEB evaluation metrics for embedding model comparison"
+difficulty: "hard"
+xpReward: 125
+prerequisites: ["beir-evaluation-setup", "evaluator-ndcg"]
+---
+
+# MTEB Leaderboard Metrics
+
+Implement MTEB (Massive Text Embedding Benchmark) evaluation metrics — the definitive standard for ranking embedding models.
+
+## Why This Matters
+
+MTEB is how the AI community compares embedding models. The [MTEB Leaderboard](https://huggingface.co/spaces/mteb/leaderboard) drives embedding model development.
+
+## What You'll Learn
+
+- Multi-task embedding evaluation
+- Retrieval, STS, and clustering metrics
+- Spearman/Pearson correlation
+- V-measure for clustering
+
+## Real-World Application
+
+**Companies:** Hugging Face, Cohere, Anthropic, Voyage AI, OpenAI
+**Use Cases:** Embedding model selection, Fine-tuning evaluation, Research
+
+## The Challenge
+
+Build an MTEBEvaluator class that can evaluate embeddings across:
+
+- **Retrieval tasks**: nDCG, Recall, MRR
+- **STS tasks**: Spearman and Pearson correlation
+- **Clustering tasks**: V-measure, homogeneity, completeness
+
+## Key Concepts
+
+### Multi-Task Evaluation
+
+```python
+class MTEBEvaluator:
+    def __init__(self, embed_fn):
+        self.embed_fn = embed_fn
+
+    def evaluate_retrieval(self, queries, corpus, qrels, k) -> Dict
+    def evaluate_sts(self, s1, s2, scores) -> Dict
+    def evaluate_clustering(self, texts, labels, n_clusters) -> Dict
+```
+
+### Semantic Textual Similarity (STS)
+
+Compare embedding similarity with human judgments using correlation metrics.
+
+### Clustering Evaluation
+
+Use K-means on embeddings and compare to ground truth labels with V-measure.
+

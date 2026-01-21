@@ -1,0 +1,409 @@
+---
+title: "KV-Cache Optimization for RAG"
+description: |
+  Optimize RAG latency by reusing KV-cache across similar queries.
+difficulty: advanced
+estimatedMinutes: 35
+topics: ["optimization", "caching", "latency", "production"]
+language: python
+prerequisites:
+  - embedding-cache
+  - semantic-cache
+xp: 160
+---
+
+# KV-Cache Optimization for RAG
+
+LLMs compute key-value pairs for each token in the context. For RAG, we often send the same context prefix repeatedly. KV-cache optimization reuses these computations.
+
+**Your task**: Build a system that maximizes KV-cache hits for RAG queries.
+
+## Concept
+
+```
+Traditional RAG (no KV-cache reuse):
+  Query 1: [System Prompt][Context Chunk 1][Context Chunk 2][Question 1] → Full compute
+  Query 2: [System Prompt][Context Chunk 1][Context Chunk 2][Question 2] → Full compute
+  
+With KV-Cache Optimization:
+  Query 1: [System Prompt][Context Chunk 1][Context Chunk 2][Question 1] → Full compute, cache prefix
+  Query 2: [System Prompt][Context Chunk 1][Context Chunk 2][Question 2] → Reuse prefix cache!
+  
+Latency reduction: 40-60% for similar queries
+```
+
+## Setup
+
+```python
+from dataclasses import dataclass, field
+from typing import List, Dict, Optional, Tuple
+import hashlib
+import time
+
+@dataclass
+class CacheEntry:
+    prefix_hash: str
+    prefix_tokens: List[str]  # Simplified: list of strings
+    kv_cache: Dict  # Simulated KV-cache
+    created_at: float
+    hits: int = 0
+
+@dataclass
+class GenerationResult:
+    text: str
+    latency_ms: float
+    cache_hit: bool
+    prefix_reused_tokens: int
+    total_tokens: int
+
+# Simulated documents
+DOCUMENTS = [
+    "TechCorp Q3 2024: Revenue $15M, up 25% YoY. Key growth from APAC expansion.",
+    "TechCorp Product Roadmap: SmartFind launch Q1 2025, Mobile app Q2 2025.",
+    "Company Policy: Remote work 3 days/week. Equipment allowance $1,500.",
+    "Engineering Team: 45 engineers, Python/React stack, 99.9% uptime SLA.",
+]
+
+# Test scenarios
+TEST_SCENARIOS = [
+    # Same context, different questions (should hit cache)
+    {
+        "name": "Same context queries",
+        "context": [DOCUMENTS[0], DOCUMENTS[1]],
+        "questions": [
+            "What was Q3 revenue?",
+            "What products are launching?",
+            "When is SmartFind launching?",
+        ],
+        "expected_cache_hits": 2  # First miss, next 2 hit
+    },
+    # Different context (should miss cache)
+    {
+        "name": "Different context queries",
+        "context_variations": [
+            [DOCUMENTS[0]],
+            [DOCUMENTS[0], DOCUMENTS[1]],
+            [DOCUMENTS[2], DOCUMENTS[3]],
+        ],
+        "question": "Tell me about this.",
+        "expected_cache_hits": 0  # All different contexts
+    },
+    # Reordered context (should miss - order matters)
+    {
+        "name": "Reordered context",
+        "context_variations": [
+            [DOCUMENTS[0], DOCUMENTS[1]],
+            [DOCUMENTS[1], DOCUMENTS[0]],  # Same docs, different order
+        ],
+        "question": "Summarize this.",
+        "expected_cache_hits": 0  # Order matters
+    },
+]
+```
+
+## Your Task
+
+Implement the `KVCacheOptimizedRAG` class:
+
+```python
+class KVCacheOptimizedRAG:
+    def __init__(
+        self, 
+        max_cache_entries: int = 100,
+        cache_ttl_seconds: float = 300.0
+    ):
+        """
+        Initialize KV-cache optimized RAG.
+        
+        Args:
+            max_cache_entries: Maximum cached prefixes
+            cache_ttl_seconds: Cache entry time-to-live
+        """
+        self.cache: Dict[str, CacheEntry] = {}
+        self.max_cache_entries = max_cache_entries
+        self.cache_ttl = cache_ttl_seconds
+        
+        # Stats
+        self.total_queries = 0
+        self.cache_hits = 0
+    
+    def compute_prefix_hash(
+        self, 
+        system_prompt: str, 
+        context: List[str]
+    ) -> str:
+        """
+        Compute hash of the prompt prefix (system + context).
+        
+        This is what we can reuse across queries.
+        
+        Returns:
+            Hash string identifying the prefix
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def get_cached_prefix(self, prefix_hash: str) -> Optional[CacheEntry]:
+        """
+        Retrieve cached KV values for prefix if available.
+        
+        Also handles TTL expiration and updates hit count.
+        
+        Returns:
+            CacheEntry if cache hit, None if miss
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def store_prefix_cache(
+        self, 
+        prefix_hash: str, 
+        prefix_tokens: List[str],
+        kv_cache: Dict
+    ):
+        """
+        Store computed KV-cache for future reuse.
+        
+        Handles cache eviction if at capacity.
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def simulate_generation(
+        self, 
+        prefix_tokens: List[str],
+        question_tokens: List[str],
+        cached_kv: Optional[Dict]
+    ) -> Tuple[str, float]:
+        """
+        Simulate LLM generation with or without cache.
+        
+        With cache: Only compute KV for question tokens
+        Without cache: Compute KV for all tokens
+        
+        Returns:
+            (generated_text, latency_ms)
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def generate(
+        self, 
+        system_prompt: str,
+        context: List[str],
+        question: str
+    ) -> GenerationResult:
+        """
+        Generate answer with KV-cache optimization.
+        
+        Steps:
+        1. Compute prefix hash (system + context)
+        2. Check cache for prefix
+        3. If hit: reuse KV, only compute for question
+        4. If miss: compute all, store in cache
+        
+        Returns:
+            GenerationResult with latency and cache info
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def get_stats(self) -> Dict:
+        """
+        Get cache performance statistics.
+        
+        Returns:
+            {
+                "total_queries": int,
+                "cache_hits": int,
+                "hit_rate": float,
+                "cache_size": int,
+                "avg_latency_reduction": float
+            }
+        """
+        # YOUR CODE HERE
+        pass
+```
+
+## Requirements
+
+1. **Prefix-based caching**: Cache based on system prompt + context
+2. **TTL expiration**: Expire old entries
+3. **LRU eviction**: Remove least-used when at capacity
+4. **Accurate stats**: Track hit rate and latency savings
+
+## Example Usage
+
+```python
+rag = KVCacheOptimizedRAG()
+
+system = "You are a helpful assistant. Answer based on the provided context."
+context = [DOCUMENTS[0], DOCUMENTS[1]]
+
+# First query - cache miss
+result1 = rag.generate(system, context, "What was Q3 revenue?")
+print(f"Query 1: {result1.latency_ms:.0f}ms, cache_hit={result1.cache_hit}")
+# Query 1: 500ms, cache_hit=False
+
+# Second query, same context - cache hit!
+result2 = rag.generate(system, context, "What products are launching?")
+print(f"Query 2: {result2.latency_ms:.0f}ms, cache_hit={result2.cache_hit}")
+# Query 2: 200ms, cache_hit=True (60% faster!)
+
+# Third query, different context - cache miss
+result3 = rag.generate(system, [DOCUMENTS[2]], "What's the remote policy?")
+print(f"Query 3: {result3.latency_ms:.0f}ms, cache_hit={result3.cache_hit}")
+# Query 3: 400ms, cache_hit=False
+```
+
+## Hints
+
+<details>
+<summary>Hint 1: Prefix hash</summary>
+
+Concatenate and hash the stable parts:
+
+```python
+def compute_prefix_hash(self, system_prompt: str, context: List[str]) -> str:
+    # Combine system prompt and context (order matters!)
+    prefix_text = system_prompt + "|||" + "|||".join(context)
+    return hashlib.sha256(prefix_text.encode()).hexdigest()[:16]
+```
+
+</details>
+
+<details>
+<summary>Hint 2: Simulated latency</summary>
+
+Model latency as proportional to tokens computed:
+
+```python
+def simulate_generation(self, prefix_tokens, question_tokens, cached_kv):
+    MS_PER_TOKEN = 10  # Simulated: 10ms per token
+    
+    if cached_kv:
+        # Only compute question tokens
+        compute_tokens = len(question_tokens)
+    else:
+        # Compute all tokens
+        compute_tokens = len(prefix_tokens) + len(question_tokens)
+    
+    latency = compute_tokens * MS_PER_TOKEN
+    
+    # Add some generation time
+    latency += len(question_tokens) * 5  # 5ms per output token
+    
+    return "Generated response...", latency
+```
+
+</details>
+
+<details>
+<summary>Hint 3: LRU eviction</summary>
+
+Track access order, evict oldest:
+
+```python
+def store_prefix_cache(self, prefix_hash, prefix_tokens, kv_cache):
+    # Evict if at capacity (LRU)
+    if len(self.cache) >= self.max_cache_entries:
+        # Find entry with oldest access (fewest hits or oldest)
+        oldest_key = min(
+            self.cache.keys(),
+            key=lambda k: (self.cache[k].hits, self.cache[k].created_at)
+        )
+        del self.cache[oldest_key]
+    
+    self.cache[prefix_hash] = CacheEntry(
+        prefix_hash=prefix_hash,
+        prefix_tokens=prefix_tokens,
+        kv_cache=kv_cache,
+        created_at=time.time()
+    )
+```
+
+</details>
+
+## Test Your Solution
+
+```python
+def test_kv_cache():
+    rag = KVCacheOptimizedRAG()
+    system = "You are a helpful assistant."
+    
+    for scenario in TEST_SCENARIOS:
+        print(f"\n{'='*60}")
+        print(f"Scenario: {scenario['name']}")
+        
+        cache_hits = 0
+        
+        if "context_variations" in scenario:
+            # Different contexts
+            for ctx in scenario["context_variations"]:
+                result = rag.generate(system, ctx, scenario["question"])
+                if result.cache_hit:
+                    cache_hits += 1
+                print(f"  Context size {len(ctx)}: "
+                      f"{'HIT' if result.cache_hit else 'MISS'} "
+                      f"({result.latency_ms:.0f}ms)")
+        else:
+            # Same context, different questions
+            for q in scenario["questions"]:
+                result = rag.generate(system, scenario["context"], q)
+                if result.cache_hit:
+                    cache_hits += 1
+                print(f"  '{q[:30]}...': "
+                      f"{'HIT' if result.cache_hit else 'MISS'} "
+                      f"({result.latency_ms:.0f}ms)")
+        
+        expected = scenario["expected_cache_hits"]
+        status = "✓" if cache_hits == expected else "✗"
+        print(f"{status} Cache hits: {cache_hits} (expected {expected})")
+    
+    # Print overall stats
+    stats = rag.get_stats()
+    print(f"\n{'='*60}")
+    print(f"Overall Stats:")
+    print(f"  Total queries: {stats['total_queries']}")
+    print(f"  Cache hit rate: {stats['hit_rate']:.0%}")
+    
+    print("\n✓ All tests completed!")
+
+test_kv_cache()
+```
+
+## Real-World Implementation Notes
+
+In production, KV-cache optimization requires:
+
+1. **Model support**: vLLM, TensorRT-LLM, or custom inference
+2. **Prefix caching**: Some providers (e.g., Anthropic) offer this natively
+3. **Careful ordering**: Context order must be consistent
+4. **Memory management**: KV-caches are large (GB scale)
+
+```python
+# Anthropic prompt caching example
+response = client.messages.create(
+    model="claude-3-5-sonnet-20241022",
+    messages=[{
+        "role": "user",
+        "content": [
+            {
+                "type": "text",
+                "text": long_context,
+                "cache_control": {"type": "ephemeral"}  # Cache this
+            },
+            {
+                "type": "text", 
+                "text": question  # Don't cache this
+            }
+        ]
+    }]
+)
+```
+
+## Resources
+
+- [vLLM PagedAttention](https://docs.vllm.ai/en/latest/)
+- [Anthropic Prompt Caching](https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching)
+- [KV-Cache in Transformers](https://huggingface.co/docs/transformers/kv_cache)

@@ -1,0 +1,33 @@
+﻿---
+title: "Corrective RAG (CRAG) Evaluator"
+description: "Grade document relevance and trigger fallbacks for bad retrievals."
+---
+
+# Corrective RAG (CRAG) Evaluator
+
+Retrieved documents aren't always relevant. CRAG adds a **grading step** before generation.
+
+### The CRAG Pipeline
+
+1. Retrieve top-K documents.
+2. **Grade each document**: Relevant / Ambiguous / Irrelevant.
+3. If all irrelevant → **Fallback** (web search, refuse, etc.).
+4. If some relevant → Use only the relevant ones.
+
+### Document Grades
+
+| Grade      | Action                  |
+| ---------- | ----------------------- |
+| Relevant   | Use in context          |
+| Ambiguous  | Maybe use, lower weight |
+| Irrelevant | Discard                 |
+
+### Your Task
+
+1. Implement a document grader (keyword overlap heuristic).
+2. Filter documents and detect when fallback is needed.
+
+### Why It Matters
+
+Without CRAG, bad retrievals = bad answers. With CRAG, the system can self-heal by recognizing failure.
+

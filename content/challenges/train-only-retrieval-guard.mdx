@@ -1,0 +1,25 @@
+﻿<Callout title="Goal" variant="info">
+  Implement a **train-only retrieval guard** so evaluation doesn’t leak by accidentally retrieving validation/test items as context.
+</Callout>
+
+## Why this matters (honest evaluation)
+
+If your few-shot selector or retrieval system can pull from validation/test, your scores get inflated.
+You’ll ship changes that “look good” offline but fail in production.
+
+## What you’ll implement
+
+- A **train-only index builder**:
+  - keep `split == "train"`
+  - de-dup by `question_hash`
+- A **few-shot selector** with hard guards:
+  - only train items allowed
+  - block the current item’s `question_hash` (and other blocked hashes)
+
+## Production pattern
+
+- Store `split`, `question_hash`, and IDs in metadata.
+- Hard-assert invariants (train-only) in code, not in docs.
+
+
+

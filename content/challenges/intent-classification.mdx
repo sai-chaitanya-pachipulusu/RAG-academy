@@ -1,0 +1,89 @@
+﻿---
+title: "Query Intent Classification"
+description: "Classify user queries by intent type to enable optimal routing and handling"
+difficulty: "medium"
+timeEstimate: "20-25 min"
+xpReward: 75
+prerequisites: []
+---
+
+# Query Intent Classification
+
+## The Problem
+
+Not all queries are created equal:
+
+| Query Type     | Example                       | Optimal Handling        |
+| -------------- | ----------------------------- | ----------------------- |
+| **Factual**    | "What is machine learning?"   | Direct retrieval        |
+| **Procedural** | "How do I reset my password?" | Step-by-step generation |
+| **Opinion**    | "Should I use PyTorch?"       | Balanced consideration  |
+| **Comparison** | "Python vs JavaScript"        | Multi-entity retrieval  |
+
+Treating them all the same misses optimization opportunities.
+
+---
+
+## The Solution
+
+Classify intent BEFORE retrieval, then route accordingly:
+
+```python
+def handle_query(query):
+    intent = classify_intent(query)
+
+    if intent == "factual":
+        return factual_retrieval(query)
+    elif intent == "procedural":
+        return procedural_chain(query)
+    elif intent == "comparison":
+        entities = extract_entities(query)
+        return multi_retrieval(entities)
+    else:
+        return default_rag(query)
+```
+
+---
+
+## Intent Patterns
+
+### Factual
+
+- "What is..." → Definition lookup
+- "Who is..." → Person lookup
+- "When did..." → Date/event lookup
+
+### Procedural
+
+- "How to..." → Step-by-step instructions
+- "How do I..." → Tutorial content
+
+### Comparison
+
+- "X vs Y" → Need info about both
+- "Difference between..." → Contrast retrieval
+
+### Opinion
+
+- "Should I..." → Pros/cons, recommendations
+- "Is it worth..." → Evaluation content
+
+---
+
+## Real-World Applications
+
+| Use Case         | Intent-Based Routing        |
+| ---------------- | --------------------------- |
+| Customer Support | Procedural → KB articles    |
+| Search Engine    | Factual → Quick answers     |
+| Product Search   | Comparison → Feature tables |
+| Advisory AI      | Opinion → Balanced analysis |
+
+---
+
+## Related Challenges
+
+- `query-expansion` - Expand query terms
+- `query-decomposition` - Break complex queries
+- `conversational-query-rewrite` - Handle follow-ups
+

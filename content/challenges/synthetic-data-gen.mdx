@@ -1,0 +1,28 @@
+﻿---
+title: "Synthetic Question Generation"
+description: "Use an LLM to generate high-quality (Question, Context, Answer) triplets from raw text."
+---
+
+# Synthetic Question Generation
+
+Training and evaluating RAG systems requires large amounts of labeled data: **(Question, Context, Answer)** triplets. Manually creating these is slow and expensive.
+
+### The Solution: LLM-as-a-Data-Labeler
+
+We can use a strong model (like GPT-4 or Claude 3) to "read" a chunk of text and generate:
+
+1.  A question that can be answered using _only_ that chunk.
+2.  A gold-standard answer derived from that chunk.
+
+### Your Task
+
+Implement a basic generator that:
+
+- Extracts key information from a context chunk.
+- Formulates a plausible question.
+- Returns the full triplet.
+
+### Why it Matters
+
+Synthetic data is the primary way modern RAG systems are benchmarked. Frameworks like **RAGAS** use this exact technique to generate evaluation datasets in minutes rather than weeks.
+

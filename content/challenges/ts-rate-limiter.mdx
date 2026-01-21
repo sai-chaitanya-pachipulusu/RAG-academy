@@ -1,0 +1,23 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Implement a token bucket rate limiter for API cost control.
+</Callout>
+
+## Why this matters in production
+
+Rate limiting is essential for cost control and fair usage. Without it, a single user can exhaust your API budget or degrade service for others.
+
+## What you're implementing
+
+- Token bucket: holds up to maxTokens, refills over time.
+- tryAcquire: check and deduct if available.
+- acquire: wait until tokens available.
+
+## Common pitfalls
+
+- Not refilling based on elapsed time.
+- Integer overflow on long-running systems.
+
+## After you pass
+
+Apply rate limiting to your RAG API endpoints.
+

@@ -1,0 +1,138 @@
+﻿<Callout title="Goal" variant="info">
+  Implement Mean Average Precision (MAP) — the gold standard for
+  multi-relevant-document retrieval evaluation.
+</Callout>
+
+## When Precision@K Isn't Enough
+
+Precision@K treats all positions equally. But in search, **rank matters**:
+
+- Relevant doc at position 1 is better than at position 5
+- We want to reward systems that return relevant docs earlier
+
+**MAP** combines precision at every relevant position, then averages.
+
+## The Formulas
+
+### Average Precision (AP) for a single query
+
+```
+AP = (1/R) × Σᵢ (Precision@i × rel(i))
+```
+
+Where:
+
+- `R` = total number of relevant documents
+- `Precision@i` = precision at position i
+- `rel(i)` = 1 if document at position i is relevant, 0 otherwise
+
+### Mean Average Precision (MAP) across queries
+
+```
+MAP = (1/|Q|) × Σⱼ AP(qⱼ)
+```
+
+## Worked Example
+
+**Query**: "HNSW algorithm complexity"
+**Relevant docs**: {A, C, E} (R=3)
+**Retrieved order**: [A, B, C, D, E, F, G, H, I, J]
+
+| Position | Doc | Relevant? | Precision@i | Contribution |
+| -------- | --- | --------- | ----------- | ------------ |
+| 1        | A   | ✅ Yes    | 1/1 = 1.00  | 1.00         |
+| 2        | B   | ❌ No     | 1/2 = 0.50  | 0.00         |
+| 3        | C   | ✅ Yes    | 2/3 = 0.67  | 0.67         |
+| 4        | D   | ❌ No     | 2/4 = 0.50  | 0.00         |
+| 5        | E   | ✅ Yes    | 3/5 = 0.60  | 0.60         |
+| 6-10     | ... | ❌ No     | ...         | 0.00         |
+
+**AP = (1.00 + 0.67 + 0.60) / 3 = 0.757**
+
+## Edge Cases (Critical for Implementation)
+
+| Scenario                         | Handling                            |
+| -------------------------------- | ----------------------------------- |
+| No relevant docs in corpus (R=0) | AP = 0.0 (avoid division by zero)   |
+| Relevant doc not retrieved       | Contributes 0 to AP sum             |
+| Empty retrieval list             | AP = 0.0                            |
+| All retrieved docs relevant      | AP = 1.0                            |
+| Relevant docs at end of list     | Low AP (penalized for late ranking) |
+
+## MAP vs Other Metrics
+
+| Metric      | Multi-relevant? | Position-aware? | Best for                          |
+| ----------- | --------------- | --------------- | --------------------------------- |
+| Recall@K    | ✅              | ❌              | "Did we find them?"               |
+| Precision@K | ✅              | ❌              | "How clean is top-K?"             |
+| MRR         | ❌ (first only) | ✅              | Single-answer QA                  |
+| nDCG        | ✅ (graded)     | ✅              | Graded relevance                  |
+| **MAP**     | ✅ (binary)     | ✅              | Binary relevance, ranking quality |
+
+## When to Use MAP in RAG
+
+1. **Reranker evaluation**: Does the reranker put all relevant chunks near the top?
+2. **Embedding model comparison**: Which model finds more relevant chunks earlier?
+3. **Chunk size experiments**: Does smaller/larger chunks improve relevance ranking?
+
+## Implementation
+
+```python
+def average_precision(retrieved: List[str], relevant: Set[str]) -> float:
+    """
+    Compute Average Precision for a single query.
+
+    Args:
+        retrieved: Ordered list of retrieved doc IDs
+        relevant: Set of relevant doc IDs
+
+    Returns:
+        AP score (0.0 to 1.0)
+    """
+    if not relevant:
+        return 0.0
+
+    score = 0.0
+    relevant_count = 0
+
+    for i, doc_id in enumerate(retrieved, start=1):
+        if doc_id in relevant:
+            relevant_count += 1
+            precision_at_i = relevant_count / i
+            score += precision_at_i
+
+    return score / len(relevant)
+
+
+def mean_average_precision(queries: List[Tuple[List[str], Set[str]]]) -> float:
+    """
+    Compute MAP across multiple queries.
+
+    Args:
+        queries: List of (retrieved_docs, relevant_docs) tuples
+
+    Returns:
+        MAP score (0.0 to 1.0)
+    """
+    if not queries:
+        return 0.0
+
+    return sum(average_precision(r, rel) for r, rel in queries) / len(queries)
+```
+
+## Production Benchmarks
+
+| System            | MAP on MS MARCO | Notes                |
+| ----------------- | --------------- | -------------------- |
+| BM25 baseline     | ~0.18           | Lexical only         |
+| Dense (DPR)       | ~0.31           | Semantic             |
+| Hybrid + rerank   | ~0.38-0.42      | Production default   |
+| ColBERT v2        | ~0.40           | Late interaction     |
+| Fine-tuned domain | ~0.45-0.55      | Domain-specific data |
+
+## Common Mistakes
+
+1. **Forgetting unjudged docs**: In real evals, some docs are "unjudged" — handle them consistently
+2. **Truncating before all relevant found**: If you cut off at K, unfound relevant docs still count against you
+3. **Confusing with R-Precision**: R-Precision is Precision@R where R = number of relevant docs
+

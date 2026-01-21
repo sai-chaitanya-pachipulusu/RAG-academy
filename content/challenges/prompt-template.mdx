@@ -1,0 +1,33 @@
+﻿<Callout title="Goal" variant="info">
+  Build a grounded RAG prompt that forces citations and refuses when evidence is missing.
+</Callout>
+
+## Why this matters in production
+
+Prompt templates are *not* “prompt engineering fluff” in RAG.
+
+They are:
+
+- a **contract** for grounding (“only use provided context”)
+- a **format** for traceability (citations like `[1]`)
+- the first line of defense against hallucination
+
+## What you’re implementing
+
+A plain string template that contains:
+
+- the question
+- numbered context chunks `[1]`, `[2]`, …
+- explicit instruction to cite sources
+
+## Common pitfalls
+
+- Forgetting to number chunks (no stable citation mapping).
+- Not explicitly instructing citation format.
+
+## After you pass
+
+Next: add citation validation + refusal policy + prompt-injection sanitization.
+
+
+

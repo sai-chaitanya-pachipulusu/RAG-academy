@@ -1,0 +1,463 @@
+﻿---
+title: "RAG Troubleshooting Guide"
+description: "A comprehensive guide to diagnosing and fixing common RAG system issues"
+---
+
+# RAG Troubleshooting Guide
+
+<Callout title="Purpose" variant="info">
+  A comprehensive guide to diagnosing and fixing common RAG system issues.
+</Callout>
+
+## Quick Diagnosis Flowchart
+
+```
+Problem: Bad RAG answers
+         │
+         ├─→ Check: Are relevant docs being retrieved?
+         │   ├─ NO → Retrieval Problem
+         │   │       ├─ Check embedding quality
+         │   │       ├─ Check chunk size
+         │   │       └─ Try hybrid search
+         │   │
+         │   └─ YES → Check: Is context being used?
+         │           ├─ NO → Grounding Problem
+         │           │       ├─ Improve prompt
+         │           │       └─ Add citations
+         │           │
+         │           └─ YES → Generation Problem
+         │                   ├─ Switch model
+         │                   └─ Reduce context noise
+```
+
+## Issue 1: Retrieval Returns Irrelevant Documents
+
+### Symptoms
+
+- Retrieved docs don't match query intent
+- Low retrieval scores
+- High user dissatisfaction despite good generation
+
+### Diagnosis Checklist
+
+```python
+def diagnose_retrieval(query: str, docs: list[dict], expected_doc_ids: list[str]):
+    """Check retrieval quality."""
+    issues = []
+
+    # Check if expected docs are retrieved
+    retrieved_ids = [d["id"] for d in docs]
+    missing = [eid for eid in expected_doc_ids if eid not in retrieved_ids]
+    if missing:
+        issues.append(f"Missing expected docs: {missing}")
+
+    # Check scores
+    top_score = docs[0]["score"] if docs else 0
+    if top_score < 0.5:
+        issues.append(f"Low top score: {top_score:.2f}")
+
+    # Check score distribution
+    scores = [d["score"] for d in docs]
+    if all(s < 0.3 for s in scores):
+        issues.append("All scores below 0.3 - possible vocabulary mismatch")
+
+    return issues
+```
+
+### Solutions
+
+| Cause                 | Solution                         |
+| --------------------- | -------------------------------- |
+| Vocabulary mismatch   | Add BM25/hybrid search           |
+| Too few results       | Increase k                       |
+| Wrong embedding model | Try domain-specific model        |
+| Chunks too large      | Reduce chunk size (300-500)      |
+| Chunks too small      | Increase chunk size, add overlap |
+| No metadata filtering | Add date/category filters        |
+
+### Quick Fixes
+
+```python
+# Fix 1: Add hybrid search
+def hybrid_retrieve(query, k=10):
+    dense_results = dense_search(query, k=k)
+    sparse_results = bm25_search(query, k=k)
+    return rrf_merge(dense_results, sparse_results)
+
+# Fix 2: Query expansion
+def expand_query(query):
+    expansion_prompt = f"Generate 3 alternative phrasings for: {query}"
+    alternatives = llm.generate(expansion_prompt)
+    all_queries = [query] + alternatives.split("\n")
+
+    all_results = []
+    for q in all_queries:
+        all_results.extend(retrieve(q))
+    return dedupe_and_rank(all_results)
+```
+
+---
+
+## Issue 2: Hallucinations / Ungrounded Answers
+
+### Symptoms
+
+- Answers contain facts not in documents
+- Wrong statistics or dates
+- Plausible-sounding but incorrect claims
+
+### Diagnosis Checklist
+
+```python
+def diagnose_grounding(response: str, context: str):
+    """Check if response is grounded in context."""
+    claims = extract_claims(response)
+
+    issues = []
+    for claim in claims:
+        if not find_support_in_context(claim, context):
+            issues.append(f"Ungrounded claim: {claim}")
+
+    return issues
+```
+
+### Solutions
+
+| Cause                 | Solution                            |
+| --------------------- | ----------------------------------- |
+| Weak grounding prompt | Add explicit grounding instructions |
+| No citations          | Require inline citations            |
+| Context too noisy     | Improve retrieval / reranking       |
+| Model too confident   | Use lower temperature               |
+| No refusal policy     | Add "I don't know" handling         |
+
+### Quick Fixes
+
+```python
+# Fix 1: Explicit grounding
+GROUNDED_PROMPT = """Answer ONLY using the provided context.
+If the answer isn't in the context, say "I don't have that information."
+
+Context:
+{context}
+
+Question: {query}
+"""
+
+# Fix 2: Require citations
+CITATION_PROMPT = """Answer using ONLY the numbered sources.
+For every fact, add [1], [2], etc.
+
+Sources:
+{numbered_sources}
+
+Question: {query}
+"""
+
+# Fix 3: Lower temperature
+response = llm.generate(prompt, temperature=0.1)
+```
+
+---
+
+## Issue 3: Slow Response Times
+
+### Symptoms
+
+- Responses take 3+ seconds
+- Users abandon before answer
+- High P95 latency
+
+### Diagnosis
+
+```python
+def profile_latency():
+    """Profile each step."""
+    timings = {}
+
+    start = time.time()
+    embedding = embed(query)
+    timings["embed"] = time.time() - start
+
+    start = time.time()
+    docs = retrieve(embedding)
+    timings["retrieve"] = time.time() - start
+
+    start = time.time()
+    reranked = rerank(query, docs)
+    timings["rerank"] = time.time() - start
+
+    start = time.time()
+    response = generate(query, reranked)
+    timings["generate"] = time.time() - start
+
+    return timings
+```
+
+### Typical Breakdown
+
+| Step     | Typical Time | If Slow                             |
+| -------- | ------------ | ----------------------------------- |
+| Embed    | 20-50ms      | Check model, batch if possible      |
+| Retrieve | 5-20ms       | Check index type, add caching       |
+| Rerank   | 50-200ms     | Reduce candidates, use faster model |
+| Generate | 500-2000ms   | Use faster model, reduce context    |
+
+### Quick Fixes
+
+```python
+# Fix 1: Cache embeddings
+@lru_cache(maxsize=10000)
+def cached_embed(query: str):
+    return embed(query)
+
+# Fix 2: Use faster reranker
+# Instead of cross-encoder, use bi-encoder with similarity
+def fast_rerank(docs, query):
+    query_emb = embed(query)
+    return sorted(docs, key=lambda d: similarity(query_emb, d["emb"]), reverse=True)
+
+# Fix 3: Reduce context
+def faster_generate(query, docs):
+    # Use fewer, shorter docs
+    top_docs = docs[:3]  # Not 10
+    compressed = [compress(d, max_tokens=300) for d in top_docs]
+    return generate(query, compressed)
+```
+
+---
+
+## Issue 4: High Costs
+
+### Symptoms
+
+- Monthly LLM bill > expected
+- Cost per query too high
+- Unsustainable growth trajectory
+
+### Diagnosis
+
+```python
+def analyze_costs(logs: list[dict]) -> dict:
+    """Analyze cost breakdown."""
+    by_component = {"embed": 0, "rerank": 0, "generate": 0}
+
+    for log in logs:
+        by_component["embed"] += log.get("embed_cost", 0)
+        by_component["rerank"] += log.get("rerank_cost", 0)
+        by_component["generate"] += log.get("generate_cost", 0)
+
+    total = sum(by_component.values())
+    percentages = {k: v/total*100 for k, v in by_component.items()}
+
+    return {
+        "total": total,
+        "by_component": by_component,
+        "percentages": percentages,
+        "queries": len(logs),
+        "per_query": total / len(logs)
+    }
+```
+
+### Cost Drivers
+
+| Component  | Typical Share | Optimization                      |
+| ---------- | ------------- | --------------------------------- |
+| Generation | 60-80%        | Use cheaper model, reduce context |
+| Reranking  | 10-20%        | Use open-source reranker          |
+| Embedding  | 5-10%         | Cache, batch, use cheaper model   |
+
+### Quick Fixes
+
+```python
+# Fix 1: Model routing
+def route_model(query, complexity):
+    if complexity == "simple":
+        return "gpt-4o-mini"  # 20x cheaper
+    return "gpt-4o"
+
+# Fix 2: Semantic caching
+def cached_query(query):
+    similar = cache.find_similar(query, threshold=0.95)
+    if similar:
+        return similar["response"]
+    response = generate(query)
+    cache.store(query, response)
+    return response
+
+# Fix 3: Reduce tokens
+def trim_context(docs, max_tokens=2000):
+    """Aggressively limit context."""
+    total = 0
+    trimmed = []
+    for doc in docs:
+        doc_tokens = count_tokens(doc)
+        if total + doc_tokens <= max_tokens:
+            trimmed.append(doc)
+            total += doc_tokens
+        else:
+            break
+    return trimmed
+```
+
+---
+
+## Issue 5: Empty or "I Don't Know" Responses
+
+### Symptoms
+
+- Too many refusals
+- Users feel system is unhelpful
+- Simple questions get no answer
+
+### Diagnosis
+
+```python
+def diagnose_refusals(logs: list[dict]):
+    """Analyze refusal patterns."""
+    refusals = [l for l in logs if is_refusal(l["response"])]
+
+    # Check retrieval for refusals
+    refusal_scores = [l["top_retrieval_score"] for l in refusals]
+
+    return {
+        "refusal_rate": len(refusals) / len(logs),
+        "avg_retrieval_score_at_refusal": np.mean(refusal_scores),
+        "sample_refusal_queries": [l["query"] for l in refusals[:5]]
+    }
+```
+
+### Solutions
+
+| Cause              | Solution                      |
+| ------------------ | ----------------------------- |
+| Threshold too high | Lower retrieval threshold     |
+| Prompt too strict  | Soften grounding instructions |
+| Missing data       | Add to knowledge base         |
+| Query phrasing     | Add query rewriting           |
+
+### Quick Fixes
+
+```python
+# Fix 1: Lower threshold
+MIN_RETRIEVAL_SCORE = 0.3  # Down from 0.5
+
+# Fix 2: Fallback to general knowledge
+FLEXIBLE_PROMPT = """Answer using the context when possible.
+If the context doesn't help, you may use general knowledge
+but clearly indicate: "Based on general knowledge..."
+
+Context: {context}
+Question: {query}
+"""
+
+# Fix 3: Query rewriting
+def rewrite_query(original_query):
+    prompt = f"""Rewrite this query to be more searchable:
+Original: {original_query}
+Rewritten:"""
+    return llm.generate(prompt)
+```
+
+---
+
+## Issue 6: Inconsistent Quality
+
+### Symptoms
+
+- Some queries work great, others fail
+- Hard to predict when it will work
+- User experience varies wildly
+
+### Diagnosis
+
+```python
+def analyze_consistency(logs: list[dict]):
+    """Find patterns in failures."""
+    # Group by query type
+    by_type = {}
+    for log in logs:
+        qtype = classify_query(log["query"])
+        if qtype not in by_type:
+            by_type[qtype] = {"success": 0, "fail": 0}
+        if log["rating"] >= 4:
+            by_type[qtype]["success"] += 1
+        else:
+            by_type[qtype]["fail"] += 1
+
+    # Calculate success rates
+    for qtype, counts in by_type.items():
+        total = counts["success"] + counts["fail"]
+        counts["success_rate"] = counts["success"] / total if total else 0
+
+    return by_type
+```
+
+### Solutions
+
+| Pattern               | Solution                 |
+| --------------------- | ------------------------ |
+| Fails on comparisons  | Add multi-doc retrieval  |
+| Fails on numbers      | Improve table extraction |
+| Fails on recent data  | Add freshness weighting  |
+| Fails on long queries | Add query decomposition  |
+
+---
+
+## Debug Mode Template
+
+```python
+class DebugRAG:
+    def query_with_debug(self, query: str) -> dict:
+        debug = {"query": query, "steps": []}
+
+        # Step 1: Embed
+        embedding = self.embed(query)
+        debug["steps"].append({
+            "name": "embed",
+            "output_shape": embedding.shape,
+            "duration_ms": self.last_duration
+        })
+
+        # Step 2: Retrieve
+        docs = self.retrieve(embedding)
+        debug["steps"].append({
+            "name": "retrieve",
+            "num_docs": len(docs),
+            "top_scores": [d["score"] for d in docs[:5]],
+            "duration_ms": self.last_duration
+        })
+
+        # Step 3: Rerank
+        reranked = self.rerank(query, docs)
+        debug["steps"].append({
+            "name": "rerank",
+            "score_changes": self.score_diff(docs, reranked),
+            "duration_ms": self.last_duration
+        })
+
+        # Step 4: Generate
+        context = self.build_context(reranked)
+        response = self.generate(query, context)
+        debug["steps"].append({
+            "name": "generate",
+            "context_tokens": count_tokens(context),
+            "response_tokens": count_tokens(response),
+            "duration_ms": self.last_duration
+        })
+
+        debug["response"] = response
+        debug["total_duration_ms"] = sum(s["duration_ms"] for s in debug["steps"])
+
+        return debug
+```
+
+## When to Escalate
+
+| Symptom                   | Action                       |
+| ------------------------- | ---------------------------- |
+| New bug after deployment  | Rollback immediately         |
+| Quality degradation > 10% | Stop experiment, investigate |
+| Latency P99 > 5s          | Scale/optimize urgently      |
+| Cost spike > 2x           | Pause and audit              |
+| Security incident         | Full system review           |

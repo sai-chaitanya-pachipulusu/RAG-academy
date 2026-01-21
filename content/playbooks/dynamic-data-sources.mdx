@@ -1,0 +1,250 @@
+---
+title: "Dynamic Data Sources for RAG"
+description: "Moving beyond static datasets to real-time, API-connected, and user-contributed data."
+stage: production-ops
+estimatedMinutes: 25
+tags: ["production", "data", "real-time", "apis"]
+---
+
+## Why dynamic data matters
+
+Static datasets are great for learning and benchmarking, but production RAG systems need:
+- **Real-time updates**: News, stock prices, documentation changes
+- **User-specific data**: Personal notes, company files, private repositories
+- **Multi-tenant isolation**: Each customer sees only their data
+
+<Callout title="Static vs Dynamic" variant="info">
+**Static datasets** (like our challenge datasets) are perfect for learning algorithms and measuring quality. **Dynamic data sources** are what you'll use in production.
+</Callout>
+
+## Data source patterns
+
+### 1. Periodic Sync (Most Common)
+
+```
+Schedule → Fetch new/updated docs → Re-embed → Upsert to vector DB
+```
+
+**Best for**: Documentation, knowledge bases, internal wikis
+
+```typescript
+// Example: Sync Notion pages every hour
+async function syncNotionToVectorDB() {
+  const lastSync = await getLastSyncTimestamp();
+  
+  // Fetch only changed pages
+  const pages = await notion.databases.query({
+    database_id: NOTION_DB_ID,
+    filter: {
+      property: "last_edited_time",
+      date: { after: lastSync }
+    }
+  });
+  
+  // Process and embed
+  for (const page of pages.results) {
+    const content = await extractPageContent(page);
+    const chunks = chunkDocument(content);
+    const embeddings = await embedChunks(chunks);
+    
+    // Upsert with metadata for filtering
+    await vectorDB.upsert({
+      id: page.id,
+      vectors: embeddings,
+      metadata: {
+        source: "notion",
+        updated_at: page.last_edited_time,
+        workspace_id: page.workspace_id,  // For multi-tenant
+      }
+    });
+  }
+  
+  await updateLastSyncTimestamp();
+}
+
+// Run every hour via cron or serverless scheduler
+```
+
+### 2. Real-Time Webhooks
+
+```
+Source change → Webhook → Process → Update vector DB immediately
+```
+
+**Best for**: Git repositories, CRM updates, support tickets
+
+```typescript
+// Example: GitHub webhook for code changes
+app.post("/webhooks/github", async (req, res) => {
+  const event = req.headers["x-github-event"];
+  
+  if (event === "push") {
+    const { commits, repository } = req.body;
+    
+    for (const commit of commits) {
+      // Fetch changed files
+      for (const file of [...commit.added, ...commit.modified]) {
+        const content = await fetchFileContent(repository, file, commit.id);
+        
+        // Re-embed and update
+        const chunks = chunkCode(content, file);
+        await updateVectorDB(repository.id, file, chunks);
+      }
+      
+      // Remove deleted files
+      for (const file of commit.removed) {
+        await deleteFromVectorDB(repository.id, file);
+      }
+    }
+  }
+  
+  res.status(200).send("OK");
+});
+```
+
+### 3. Query-Time Retrieval (Agentic)
+
+```
+User query → Agent decides → Fetch from API → Process → Return
+```
+
+**Best for**: Search engines, live data (weather, stocks), external APIs
+
+```typescript
+// Example: Real-time API retrieval
+const tools = [
+  {
+    name: "search_documentation",
+    description: "Search internal docs",
+    execute: async (query) => vectorDB.search(query)
+  },
+  {
+    name: "get_live_data",
+    description: "Fetch current stock price or weather",
+    execute: async (params) => {
+      // No pre-indexing needed - fetch on demand
+      const data = await externalAPI.fetch(params);
+      return formatForContext(data);
+    }
+  },
+  {
+    name: "search_web",
+    description: "Search the internet for recent information",
+    execute: async (query) => {
+      const results = await webSearch(query);
+      return results.map(r => ({
+        title: r.title,
+        snippet: r.snippet,
+        url: r.url
+      }));
+    }
+  }
+];
+```
+
+## Multi-tenant data isolation
+
+Critical for SaaS RAG applications:
+
+```typescript
+// BAD: No isolation
+const results = await vectorDB.search(query);
+
+// GOOD: Filter by tenant
+const results = await vectorDB.search(query, {
+  filter: {
+    tenant_id: { $eq: currentUser.tenantId }
+  }
+});
+
+// BEST: Namespace per tenant (physical isolation)
+const results = await vectorDB
+  .namespace(`tenant_${currentUser.tenantId}`)
+  .search(query);
+```
+
+## User-contributed datasets
+
+Allow users to upload their own data:
+
+```typescript
+// User data upload flow
+async function handleUserUpload(userId: string, files: File[]) {
+  const userNamespace = `user_${userId}`;
+  
+  for (const file of files) {
+    // Validate file type and size
+    if (!ALLOWED_TYPES.includes(file.type)) continue;
+    if (file.size > MAX_FILE_SIZE) continue;
+    
+    // Process and embed
+    const content = await parseFile(file);
+    const chunks = chunkDocument(content, {
+      metadata: {
+        user_id: userId,
+        filename: file.name,
+        uploaded_at: new Date().toISOString(),
+      }
+    });
+    
+    // Store in user's namespace
+    await vectorDB.namespace(userNamespace).upsert(chunks);
+    
+    // Track usage for billing
+    await trackDataUsage(userId, chunks.length);
+  }
+}
+```
+
+## Hybrid: Static + Dynamic
+
+Combine curated datasets with user data:
+
+```typescript
+async function hybridSearch(query: string, userId: string) {
+  // Search global curated data
+  const globalResults = await vectorDB
+    .namespace("global_knowledge")
+    .search(query, { topK: 5 });
+  
+  // Search user's personal data
+  const userResults = await vectorDB
+    .namespace(`user_${userId}`)
+    .search(query, { topK: 5 });
+  
+  // Combine and rerank
+  const combined = [...globalResults, ...userResults];
+  const reranked = await reranker.rank(query, combined);
+  
+  return reranked.slice(0, 5);
+}
+```
+
+## Our challenge datasets
+
+Our static datasets serve specific purposes:
+
+| Dataset | Purpose | Real-World Equivalent |
+|---------|---------|----------------------|
+| Tech Support | Learn log retrieval | Zendesk, Intercom |
+| E-commerce | Product search | Amazon, Shopify |
+| Legal | Contract analysis | Westlaw, Harvey |
+| Medical | Clinical Q&A | UpToDate, Mayo |
+| Codebase | Code search | GitHub, Sourcegraph |
+| Research | Paper retrieval | Semantic Scholar |
+
+These are **educational** — real production uses dynamic versions!
+
+## Production recommendations
+
+1. **Start with static data** for prototyping
+2. **Add periodic sync** when you need updates
+3. **Move to webhooks** when freshness matters
+4. **Add user uploads** for personalization
+5. **Implement multi-tenancy** before going live
+
+## Related resources
+
+- [Challenge: Metadata Filtering](/challenges/ts-metadata-filter)
+- [Challenge: Async Batcher](/challenges/ts-async-batcher)
+- [Lesson: Multi-Tenancy](/lessons/phase-5/multi-tenancy)

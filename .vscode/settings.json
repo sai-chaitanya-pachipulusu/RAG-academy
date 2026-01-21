@@ -1,0 +1,14 @@
+{
+  // Force the editor to use the project's TypeScript version.
+  // This fixes false TS errors with React 19 + "moduleResolution": "bundler".
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+
+  // Tailwind v4 uses custom at-rules like @theme and @apply. The built-in VS Code
+  // CSS linter doesn't understand them, so we silence "unknownAtRules" warnings.
+  "css.lint.unknownAtRules": "ignore",
+  "scss.lint.unknownAtRules": "ignore",
+  "less.lint.unknownAtRules": "ignore"
+}
+
+

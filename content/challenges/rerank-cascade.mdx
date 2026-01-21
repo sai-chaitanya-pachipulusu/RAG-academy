@@ -1,0 +1,44 @@
+---
+title: "Reranker Cascade"
+description: "Implement cascading reranking for efficiency"
+---
+
+# Reranker Cascade
+
+Implement a cascading reranking system that uses cheap models first, then expensive models only on top candidates.
+
+## Requirements
+
+1. Stage 1: Fast cross-encoder on all candidates
+2. Stage 2: Expensive model on top-N from stage 1
+3. Configurable cutoffs per stage
+4. Measure latency/quality tradeoff
+
+## Starter Code
+
+```python
+def cascade_rerank(
+    query: str,
+    candidates: list[dict],
+    stage1_model,
+    stage2_model,
+    stage1_top_n: int = 20,
+    final_top_n: int = 5
+) -> list[dict]:
+    """
+    Cascade reranking: cheap model first, expensive model on survivors.
+    
+    Args:
+        query: User query
+        candidates: Retrieved candidates with text
+        stage1_model: Fast reranker (e.g., MiniLM)
+        stage2_model: Expensive reranker (e.g., Cohere)
+        stage1_top_n: How many to pass to stage 2
+        final_top_n: Final number of results
+    
+    Returns:
+        Reranked candidates with scores from each stage
+    """
+    # Your implementation here
+    pass
+```

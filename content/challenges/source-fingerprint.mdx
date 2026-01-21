@@ -1,0 +1,44 @@
+﻿---
+title: "Source Fingerprinting (GDPR Deletion)"
+description: "Track chunk sources for targeted data deletion compliance."
+---
+
+# Source Fingerprinting (GDPR Deletion)
+
+GDPR's "Right to be Forgotten" means that when a user requests deletion, **all** their data must be removed—including from your vector index.
+
+### The Problem
+
+Without source tracking:
+
+1. User requests deletion of "contract_123.pdf".
+2. You have 50,000 chunks in your index.
+3. Which chunks came from that contract? 🤷
+
+### The Solution: Source Fingerprinting
+
+Maintain a bidirectional mapping:
+
+- `source_id -> [chunk_ids]`
+- `chunk_id -> source_id`
+
+When a deletion request comes:
+
+```python
+chunks_to_delete = tracker.delete_source("contract_123")
+# Returns: ["chunk_001", "chunk_002", ..., "chunk_050"]
+# Now delete these from your vector DB.
+```
+
+### Your Task
+
+Implement a `SourceTracker` class that:
+
+- Registers chunks with their source.
+- Retrieves all chunks for a source.
+- Deletes a source and returns affected chunk IDs.
+
+### Compliance Reality
+
+Without this, GDPR deletion requires a **full re-index** of your entire database. With fingerprinting, it's a targeted O(1) lookup.
+

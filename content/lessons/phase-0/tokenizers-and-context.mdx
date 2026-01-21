@@ -1,0 +1,76 @@
+---
+title: "Tokenizers & Context Windows"
+description: "Why chunking exists: models read tokens, not characters."
+order: 3
+estimatedMinutes: 20
+stage: foundations
+prereqs:
+  - phase: phase-0
+    slug: embedding-fundamentals
+next:
+  phase: phase-0
+  slug: chunking-101
+outcomes:
+  - "Explain why tokens (not characters) determine context limits and cost."
+  - "Recognize why chunking is necessary even with long-context models."
+  - "Adopt the production habit: measure tokens, don’t guess."
+tags: ["foundations", "tokenization", "context-window"]
+sources:
+  - title: "Byte Pair Encoding (BPE) for Subword Segmentation (Sennrich et al., 2016)"
+    url: "https://arxiv.org/abs/1508.07909"
+    type: "paper"
+    year: 2016
+  - title: "OpenAI tiktoken (tokenizer library)"
+    url: "https://github.com/openai/tiktoken"
+    type: "repo"
+  - title: "Anthropic: Prompt engineering & context windows (docs)"
+    url: "https://docs.anthropic.com/"
+    type: "docs"
+    note: "Search for context window / tokens"
+---
+
+## Goals
+
+- Understand what a token is (and why it’s not a word).
+- Know how context windows constrain chunk size and “top‑k into prompt”.
+- Build the habit of token budgeting early.
+
+## Prereqs
+
+- Read: **Embedding Fundamentals**.
+
+## Core idea
+
+### Tokens ≠ words
+
+LLMs operate on **tokens**. A token is *not* always a word:
+
+- `"hello"` might be 1 token
+- `"unbelievable"` might be multiple tokens
+- punctuation and whitespace matter
+
+That’s why prompt length and chunk size matter.
+
+<Callout title="Practical rule" variant="info">
+  Use a token counter in production. “~4 chars per token” is a rough heuristic, not a guarantee.
+</Callout>
+
+## Failure modes
+
+- **Character counting**: using char length instead of tokens → unpredictable truncation and cost.
+- **Over-retrieval**: retrieving too many chunks because you didn’t budget tokens.
+- **Ignoring formatting**: code/tables can token-bloat and crowd out useful context.
+
+## Production defaults
+
+- Always compute token counts for:
+  - chunk sizes
+  - retrieved context size
+  - system prompt + instructions
+- Prefer “retrieve candidates → rerank → keep 5–10” over “dump everything”.
+
+## Do next
+
+<ChallengeLinks slugs={["tokenizer-basics"]} />
+
+

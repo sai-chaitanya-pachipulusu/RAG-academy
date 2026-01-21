@@ -1,0 +1,324 @@
+---
+title: "Query Complexity Classifier"
+description: |
+  Build a classifier that determines query complexity to optimize RAG pipeline routing.
+difficulty: beginner
+estimatedMinutes: 25
+topics: ["classification", "routing", "optimization", "adaptive-rag"]
+language: python
+prerequisites:
+  - basic-retrieval
+xp: 100
+---
+
+# Query Complexity Classifier
+
+Not all queries need the same treatment. Simple lookups, complex reasoning, and ambiguous questions each need different handling.
+
+**Your task**: Build a query classifier that categorizes questions by complexity.
+
+## Setup
+
+```python
+from enum import Enum
+from dataclasses import dataclass
+from typing import List, Tuple
+import re
+
+class QueryComplexity(Enum):
+    NO_RETRIEVAL = "no_retrieval"  # LLM can answer directly
+    SIMPLE = "simple"               # Single retrieval pass
+    COMPLEX = "complex"             # Multi-step reasoning needed
+    AMBIGUOUS = "ambiguous"         # Needs clarification
+
+@dataclass
+class ClassificationResult:
+    complexity: QueryComplexity
+    confidence: float
+    reasoning: str
+
+# Training examples with labels
+TRAINING_EXAMPLES = [
+    # NO_RETRIEVAL - LLM can answer
+    ("What is 2 + 2?", QueryComplexity.NO_RETRIEVAL),
+    ("Hello!", QueryComplexity.NO_RETRIEVAL),
+    ("What is the capital of France?", QueryComplexity.NO_RETRIEVAL),
+    ("Explain what a variable is in programming", QueryComplexity.NO_RETRIEVAL),
+    ("Hi, how are you?", QueryComplexity.NO_RETRIEVAL),
+    ("What does HTTP stand for?", QueryComplexity.NO_RETRIEVAL),
+    
+    # SIMPLE - Single retrieval
+    ("What is our return policy?", QueryComplexity.SIMPLE),
+    ("How do I reset my password?", QueryComplexity.SIMPLE),
+    ("What was Q3 revenue?", QueryComplexity.SIMPLE),
+    ("Who is the CEO?", QueryComplexity.SIMPLE),
+    ("When does the office close?", QueryComplexity.SIMPLE),
+    ("What's the pricing for the Pro plan?", QueryComplexity.SIMPLE),
+    
+    # COMPLEX - Multi-step reasoning
+    ("Compare Q1 and Q2 performance and explain the trends", QueryComplexity.COMPLEX),
+    ("Analyze the factors that led to revenue growth", QueryComplexity.COMPLEX),
+    ("What are the pros and cons of our pricing strategy?", QueryComplexity.COMPLEX),
+    ("How does our churn rate compare to industry average and why?", QueryComplexity.COMPLEX),
+    ("Summarize all customer complaints from the past month and identify patterns", QueryComplexity.COMPLEX),
+    ("Explain the relationship between our marketing spend and customer acquisition", QueryComplexity.COMPLEX),
+    
+    # AMBIGUOUS - Needs clarification
+    ("thing", QueryComplexity.AMBIGUOUS),
+    ("it", QueryComplexity.AMBIGUOUS),
+    ("more", QueryComplexity.AMBIGUOUS),
+    ("the document", QueryComplexity.AMBIGUOUS),
+    ("tell me", QueryComplexity.AMBIGUOUS),
+    ("what about that", QueryComplexity.AMBIGUOUS),
+]
+
+# Test examples (not in training)
+TEST_EXAMPLES = [
+    ("Calculate 15% of 200", QueryComplexity.NO_RETRIEVAL),
+    ("What are our shipping options?", QueryComplexity.SIMPLE),
+    ("Why did sales drop in Q2 and what can we do about it?", QueryComplexity.COMPLEX),
+    ("stuff", QueryComplexity.AMBIGUOUS),
+    ("How do I contact support?", QueryComplexity.SIMPLE),
+    ("Compare all our products and recommend one for small businesses", QueryComplexity.COMPLEX),
+    ("hey", QueryComplexity.NO_RETRIEVAL),
+    ("that thing from before", QueryComplexity.AMBIGUOUS),
+]
+```
+
+## Your Task
+
+Implement the `QueryClassifier` class:
+
+```python
+class QueryClassifier:
+    def __init__(self):
+        """
+        Initialize classifier with rules and patterns.
+        """
+        # Define patterns for each complexity level
+        self.no_retrieval_patterns: List[str] = []
+        self.complex_patterns: List[str] = []
+        self.ambiguous_patterns: List[str] = []
+        
+        self._build_patterns()
+    
+    def _build_patterns(self):
+        """
+        Build regex patterns for classification.
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def classify(self, query: str) -> ClassificationResult:
+        """
+        Classify query complexity.
+        
+        Args:
+            query: User's question
+            
+        Returns:
+            ClassificationResult with complexity, confidence, and reasoning
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def _check_no_retrieval(self, query: str) -> Tuple[bool, float, str]:
+        """
+        Check if query can be answered without retrieval.
+        
+        Returns:
+            (is_no_retrieval, confidence, reasoning)
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def _check_complex(self, query: str) -> Tuple[bool, float, str]:
+        """
+        Check if query requires complex multi-step reasoning.
+        
+        Returns:
+            (is_complex, confidence, reasoning)
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def _check_ambiguous(self, query: str) -> Tuple[bool, float, str]:
+        """
+        Check if query is ambiguous and needs clarification.
+        
+        Returns:
+            (is_ambiguous, confidence, reasoning)
+        """
+        # YOUR CODE HERE
+        pass
+```
+
+## Requirements
+
+1. **Accuracy**: At least 80% correct on test examples
+2. **Confidence scores**: Return meaningful confidence (0.0-1.0)
+3. **Reasoning**: Explain why each classification was made
+4. **Rule-based**: Use patterns (no ML model needed)
+
+## Classification Guidelines
+
+### NO_RETRIEVAL
+- Math operations (`\d+ [+\-*/] \d+`)
+- Greetings (`^(hi|hello|hey)`)
+- General knowledge (capitals, definitions)
+- Common acronym expansions
+
+### SIMPLE
+- Single entity lookup ("What is X?", "Who is Y?")
+- Direct questions about one topic
+- "How do I..." questions with clear subject
+
+### COMPLEX
+- Comparisons ("compare", "vs", "difference between")
+- Analysis ("analyze", "explain why", "factors")
+- Multi-part questions ("and", "also")
+- Trends and patterns ("over time", "trends")
+- Pros/cons evaluations
+
+### AMBIGUOUS
+- Very short (< 3 words) without clear meaning
+- Pronouns without context ("it", "that", "this")
+- Vague references ("the thing", "the document")
+
+## Hints
+
+<details>
+<summary>Hint 1: Pattern building</summary>
+
+```python
+def _build_patterns(self):
+    # NO_RETRIEVAL patterns
+    self.no_retrieval_patterns = [
+        r"^\d+\s*[+\-*/]\s*\d+",       # Math
+        r"^(hi|hello|hey|greetings)",  # Greetings
+        r"what (is|does) .+ stand for", # Acronyms
+        r"^(what is|define|explain) (a|an|the)? ?\w+$",  # Simple definitions
+    ]
+    
+    # COMPLEX patterns
+    self.complex_patterns = [
+        r"compare|comparison|versus|vs\.?",
+        r"analyze|analysis|explain why",
+        r"(pros? and cons?|advantages? and disadvantages?)",
+        r"(trends?|patterns?|over time)",
+        r"(factors?|reasons?|causes?) .*(led to|behind|for)",
+        r"summarize .* and .*(identify|find)",
+    ]
+    
+    # AMBIGUOUS patterns
+    self.ambiguous_patterns = [
+        r"^(it|this|that|those|these)$",
+        r"^.{1,3}$",  # Very short
+        r"^(the |that |this )?(thing|stuff|document|one)s?$",
+    ]
+```
+
+</details>
+
+<details>
+<summary>Hint 2: Classification logic</summary>
+
+```python
+def classify(self, query: str) -> ClassificationResult:
+    query = query.strip()
+    query_lower = query.lower()
+    
+    # Check ambiguous first (short queries)
+    is_amb, amb_conf, amb_reason = self._check_ambiguous(query)
+    if is_amb and amb_conf > 0.7:
+        return ClassificationResult(
+            QueryComplexity.AMBIGUOUS, amb_conf, amb_reason
+        )
+    
+    # Check no_retrieval
+    is_no_ret, no_ret_conf, no_ret_reason = self._check_no_retrieval(query)
+    if is_no_ret and no_ret_conf > 0.6:
+        return ClassificationResult(
+            QueryComplexity.NO_RETRIEVAL, no_ret_conf, no_ret_reason
+        )
+    
+    # Check complex
+    is_complex, complex_conf, complex_reason = self._check_complex(query)
+    if is_complex and complex_conf > 0.5:
+        return ClassificationResult(
+            QueryComplexity.COMPLEX, complex_conf, complex_reason
+        )
+    
+    # Default to simple
+    return ClassificationResult(
+        QueryComplexity.SIMPLE, 0.7, "Default classification for clear questions"
+    )
+```
+
+</details>
+
+## Test Your Solution
+
+```python
+def test_classifier():
+    classifier = QueryClassifier()
+    
+    # Test on training examples
+    print("Training Examples:")
+    train_correct = 0
+    for query, expected in TRAINING_EXAMPLES:
+        result = classifier.classify(query)
+        correct = result.complexity == expected
+        train_correct += correct
+        symbol = "✓" if correct else "✗"
+        print(f"  {symbol} '{query[:40]}...' → {result.complexity.value} "
+              f"(expected {expected.value}, conf={result.confidence:.2f})")
+    
+    train_acc = train_correct / len(TRAINING_EXAMPLES)
+    print(f"\nTraining accuracy: {train_acc:.0%}")
+    
+    # Test on held-out examples
+    print("\nTest Examples:")
+    test_correct = 0
+    for query, expected in TEST_EXAMPLES:
+        result = classifier.classify(query)
+        correct = result.complexity == expected
+        test_correct += correct
+        symbol = "✓" if correct else "✗"
+        print(f"  {symbol} '{query[:40]}...' → {result.complexity.value} "
+              f"(expected {expected.value})")
+        print(f"      Reason: {result.reasoning}")
+    
+    test_acc = test_correct / len(TEST_EXAMPLES)
+    print(f"\nTest accuracy: {test_acc:.0%}")
+    
+    assert test_acc >= 0.8, f"Test accuracy {test_acc:.0%} below 80% threshold"
+    print("\n✓ All tests passed!")
+
+test_classifier()
+```
+
+## Bonus: LLM-Based Classifier
+
+For higher accuracy, use an LLM as a fallback:
+
+```python
+def classify_with_llm_fallback(self, query: str) -> ClassificationResult:
+    """
+    Use rules first, fall back to LLM for uncertain cases.
+    """
+    result = self.classify(query)
+    
+    # If confidence is low, use LLM
+    if result.confidence < 0.6:
+        llm_result = self._llm_classify(query)
+        if llm_result.confidence > result.confidence:
+            return llm_result
+    
+    return result
+```
+
+## Resources
+
+- [Query Classification for IR](https://www.microsoft.com/en-us/research/publication/query-classification/)
+- [Adaptive-RAG Paper](https://arxiv.org/abs/2403.14403)

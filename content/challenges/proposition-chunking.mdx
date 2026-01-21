@@ -1,0 +1,22 @@
+﻿<Callout title="Goal" variant="info">
+  Break text into atomic factual propositions to maximize retrieval precision.
+</Callout>
+
+## The "Mixing Facts" Problem
+
+Standard chunking often splits paragraphs in ways that leave facts fragmented or contextually ambiguous. A single paragraph might contain three different facts about three different subjects.
+
+**Proposition Chunking** (popularized by researchers at Tongji University) involves:
+
+1.  Identifying every independent factual claim in a text.
+2.  Rewriting these claims into self-contained sentences (propositions).
+3.  Indexing these atomic nodes individually.
+
+## Why it works
+
+By retrieving the exact "proposition" that answers a query, you minimize the amount of irrelevant "filler" text sent to the LLM, reducing noise and improving grounding.
+
+## Implementation
+
+In this lab, you'll implement a heuristic-based proposition parser that splits complex sentences into atomic factual units.
+

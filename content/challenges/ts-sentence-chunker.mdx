@@ -1,0 +1,23 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Implement a sentence-aware chunker that respects sentence boundaries.
+</Callout>
+
+## Why this matters in production
+
+Cutting text mid-sentence creates chunks with incomplete ideas. Sentence-aware chunking produces more coherent chunks that embed better and retrieve more accurately.
+
+## What you're implementing
+
+- Split text into sentences (by `.`, `!`, `?`).
+- Group sentences into chunks of `maxSentences`.
+- Support sentence-level overlap for context.
+
+## Common pitfalls
+
+- Splitting on `.` inside abbreviations (e.g., "Dr. Smith").
+- Creating single-sentence chunks that are too small.
+
+## After you pass
+
+Explore semantic chunking, which groups by meaning rather than sentence count.
+

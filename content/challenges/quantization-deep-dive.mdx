@@ -1,0 +1,276 @@
+﻿<Callout title="Goal" variant="info">
+  Master vector quantization — reduce memory by 10-50x while maintaining
+  retrieval quality.
+</Callout>
+
+## Why Quantization Matters
+
+Vector embeddings are memory-hungry:
+
+| Vectors | Dimensions | FP32 Memory | INT8 Memory | Binary |
+| ------- | ---------- | ----------- | ----------- | ------ |
+| 1M      | 768        | 3 GB        | 768 MB      | 96 MB  |
+| 10M     | 768        | 30 GB       | 7.5 GB      | 960 MB |
+| 100M    | 1536       | 600 GB      | 150 GB      | 19 GB  |
+| 1B      | 1536       | 6 TB        | 1.5 TB      | 192 GB |
+
+Quantization trades precision for memory, with surprisingly small quality loss.
+
+## Quantization Types
+
+### 1. Scalar Quantization (INT8)
+
+Map each float to an 8-bit integer:
+
+```python
+import numpy as np
+
+def scalar_quantize(vector: np.ndarray) -> tuple[np.ndarray, float, float]:
+    """Quantize FP32 vector to INT8."""
+    v_min, v_max = vector.min(), vector.max()
+
+    # Scale to 0-255 range
+    scale = (v_max - v_min) / 255
+    quantized = ((vector - v_min) / scale).astype(np.uint8)
+
+    return quantized, v_min, scale
+
+def scalar_dequantize(quantized: np.ndarray, v_min: float, scale: float) -> np.ndarray:
+    """Dequantize INT8 back to FP32."""
+    return quantized.astype(np.float32) * scale + v_min
+
+# Usage
+original = np.random.randn(768).astype(np.float32)
+quantized, v_min, scale = scalar_quantize(original)
+reconstructed = scalar_dequantize(quantized, v_min, scale)
+
+# Memory: 768 * 4 bytes → 768 * 1 byte + 8 bytes overhead = 4x reduction
+print(f"Error: {np.mean(np.abs(original - reconstructed)):.6f}")  # ~0.001
+```
+
+**Compression**: 4x
+**Quality loss**: <1% recall
+
+### 2. Product Quantization (PQ)
+
+Split vector into subvectors, quantize each to a codebook entry:
+
+```python
+from sklearn.cluster import KMeans
+import numpy as np
+
+class ProductQuantizer:
+    def __init__(self, n_subvectors: int = 8, n_centroids: int = 256):
+        self.n_subvectors = n_subvectors
+        self.n_centroids = n_centroids
+        self.codebooks = []
+
+    def fit(self, vectors: np.ndarray):
+        """Train codebooks on vector data."""
+        dim = vectors.shape[1]
+        subvector_dim = dim // self.n_subvectors
+
+        for i in range(self.n_subvectors):
+            start = i * subvector_dim
+            end = (i + 1) * subvector_dim
+            subvectors = vectors[:, start:end]
+
+            # Cluster subvectors
+            kmeans = KMeans(n_clusters=self.n_centroids, random_state=42)
+            kmeans.fit(subvectors)
+            self.codebooks.append(kmeans.cluster_centers_)
+
+    def encode(self, vectors: np.ndarray) -> np.ndarray:
+        """Encode vectors to PQ codes."""
+        dim = vectors.shape[1]
+        subvector_dim = dim // self.n_subvectors
+        codes = np.zeros((vectors.shape[0], self.n_subvectors), dtype=np.uint8)
+
+        for i in range(self.n_subvectors):
+            start = i * subvector_dim
+            end = (i + 1) * subvector_dim
+            subvectors = vectors[:, start:end]
+
+            # Find nearest centroid for each subvector
+            distances = np.linalg.norm(
+                subvectors[:, np.newaxis] - self.codebooks[i], axis=2
+            )
+            codes[:, i] = np.argmin(distances, axis=1)
+
+        return codes
+
+    def decode(self, codes: np.ndarray) -> np.ndarray:
+        """Decode PQ codes back to approximate vectors."""
+        reconstructed = []
+        for i in range(self.n_subvectors):
+            subvectors = self.codebooks[i][codes[:, i]]
+            reconstructed.append(subvectors)
+        return np.hstack(reconstructed)
+
+# 768-dim vector → 8 bytes (vs 3072 bytes for FP32)
+# Compression: 384x!
+```
+
+**Compression**: 32-128x
+**Quality loss**: 5-15% recall (tunable)
+
+### 3. Binary Quantization
+
+Each dimension becomes a single bit:
+
+```python
+def binary_quantize(vector: np.ndarray) -> np.ndarray:
+    """Convert to binary: positive → 1, negative → 0."""
+    return (vector > 0).astype(np.uint8)
+
+def binary_distance(a: np.ndarray, b: np.ndarray) -> int:
+    """Hamming distance between binary vectors."""
+    return np.sum(a != b)
+
+# 768-dim → 768 bits = 96 bytes
+# Compression: 32x
+# Very fast: XOR + popcount
+```
+
+**Compression**: 32x
+**Quality loss**: 10-30% (use as first-stage filter)
+
+### 4. Matryoshka Representation Learning (MRL)
+
+Train embeddings that work at multiple dimensions:
+
+```
+Full:    [d0, d1, d2, ..., d1023]  → 1024 dims
+Medium:  [d0, d1, d2, ..., d511]   → 512 dims (still useful!)
+Small:   [d0, d1, d2, ..., d255]   → 256 dims (still useful!)
+Tiny:    [d0, d1, d2, ..., d63]    → 64 dims (still useful!)
+```
+
+Models like `text-embedding-3-small` and `nomic-embed-text-v1.5` support this.
+
+```python
+# OpenAI example
+from openai import OpenAI
+client = OpenAI()
+
+response = client.embeddings.create(
+    input="Hello world",
+    model="text-embedding-3-small",
+    dimensions=256  # Request fewer dimensions (default: 1536)
+)
+
+# Same quality at 256 dims as dedicated 256-dim models!
+```
+
+## FAISS Quantization Options
+
+```python
+import faiss
+import numpy as np
+
+# Sample data
+dim = 768
+n_vectors = 1_000_000
+vectors = np.random.randn(n_vectors, dim).astype('float32')
+faiss.normalize_L2(vectors)
+
+# Option 1: Flat (no quantization, baseline)
+index_flat = faiss.IndexFlatIP(dim)
+# Memory: n_vectors * dim * 4 bytes = 3 GB
+
+# Option 2: IVF + Scalar Quantization
+nlist = 1000
+quantizer = faiss.IndexFlatIP(dim)
+index_ivf_sq = faiss.IndexIVFScalarQuantizer(
+    quantizer, dim, nlist,
+    faiss.ScalarQuantizer.QT_8bit
+)
+index_ivf_sq.train(vectors)
+# Memory: ~768 MB
+
+# Option 3: IVF + Product Quantization
+m = 32  # Number of subvectors
+nbits = 8  # Bits per subvector
+index_ivf_pq = faiss.IndexIVFPQ(quantizer, dim, nlist, m, nbits)
+index_ivf_pq.train(vectors)
+# Memory: ~32 MB (!!)
+
+# Option 4: IVF + PQ + Scalar pre-quantization (OPQ)
+index_ivf_opq = faiss.index_factory(dim, "OPQ32,IVF1000,PQ32")
+index_ivf_opq.train(vectors)
+# Memory: ~32 MB, better quality than plain PQ
+```
+
+## Quality vs Compression Tradeoffs
+
+| Method          | Compression | Recall@10 | Speed |
+| --------------- | ----------- | --------- | ----- |
+| FP32 (baseline) | 1x          | 100%      | 1x    |
+| FP16            | 2x          | 99.9%     | 1.1x  |
+| INT8 (Scalar)   | 4x          | 98-99%    | 1.5x  |
+| PQ (m=32)       | 96x         | 85-92%    | 3x    |
+| PQ (m=64)       | 48x         | 90-95%    | 2x    |
+| Binary          | 32x         | 70-85%    | 10x   |
+| Matryoshka 256d | 4-6x        | 95-98%    | 2x    |
+
+## When to Use Each Method
+
+| Scenario                       | Recommended                          |
+| ------------------------------ | ------------------------------------ |
+| <10M vectors, quality critical | FP32 or FP16                         |
+| 10M-100M vectors               | INT8 or Matryoshka                   |
+| 100M-1B vectors                | PQ with high m                       |
+| >1B vectors                    | Binary first-stage + PQ second-stage |
+| Cost-sensitive API             | Matryoshka (reduce dimensions)       |
+
+## Two-Stage Retrieval with Quantization
+
+```python
+def two_stage_search(query: np.ndarray, k: int = 10) -> list:
+    """
+    Stage 1: Fast binary search → 1000 candidates
+    Stage 2: Accurate PQ search → k results
+    """
+    # Stage 1: Binary (very fast)
+    query_binary = binary_quantize(query)
+    candidates = binary_index.search(query_binary, k=1000)
+
+    # Stage 2: PQ on candidates only
+    candidate_vectors = pq_index.reconstruct_batch(candidates)
+    scores = query @ candidate_vectors.T
+    top_k = np.argsort(scores)[-k:]
+
+    return [candidates[i] for i in top_k]
+```
+
+## Quantization-Aware Training
+
+For best results, train embeddings with quantization in mind:
+
+```python
+# FlagEmbedding with quantization
+from FlagEmbedding import BGEM3FlagModel
+
+model = BGEM3FlagModel('BAAI/bge-m3', use_fp16=True)
+
+# Encode with reduced precision
+embeddings = model.encode(
+    texts,
+    return_dense=True,
+    return_sparse=False,
+    batch_size=32
+)
+
+# Model is trained to be robust to quantization
+```
+
+## Production Checklist
+
+- [ ] Benchmark on YOUR data, not just MTEB
+- [ ] Test multiple compression levels
+- [ ] Measure recall@K at each compression level
+- [ ] Calculate memory savings vs quality loss
+- [ ] Consider two-stage retrieval for extreme scale
+- [ ] Monitor quality in production (A/B test)
+- [ ] Have fallback to higher precision if needed
+

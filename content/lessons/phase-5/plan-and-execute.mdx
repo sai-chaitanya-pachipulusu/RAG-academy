@@ -1,0 +1,313 @@
+---
+title: "Plan-and-Execute Agents"
+description: "Separate planning from execution for complex multi-step tasks."
+order: 3
+estimatedMinutes: 25
+stage: agentic-rag
+prereqs:
+  - phase: phase-5
+    slug: react-agents
+next:
+  phase: phase-5
+  slug: multi-agent-systems
+outcomes:
+  - "Understand when plan-and-execute beats ReAct."
+  - "Implement a planner that creates step-by-step plans."
+  - "Build executors that follow plans with adaptation."
+tags: ["planning", "agents", "multi-step"]
+sources:
+  - title: "Plan-and-Solve Prompting (Wang et al., 2023)"
+    url: "https://arxiv.org/abs/2305.04091"
+    type: "paper"
+    year: 2023
+  - title: "LangGraph: Plan-and-Execute"
+    url: "https://langchain-ai.github.io/langgraph/tutorials/plan-and-execute/plan-and-execute/"
+    type: "docs"
+---
+
+## Goals
+
+- Understand the plan-then-execute paradigm.
+- Build planners that create actionable step sequences.
+- Handle plan revision when execution diverges.
+
+## Prereqs
+
+- Read: **ReAct Agents** (understand basic agent patterns).
+
+## Core idea
+
+### ReAct vs Plan-and-Execute
+
+| Aspect | ReAct | Plan-and-Execute |
+|--------|-------|------------------|
+| Planning | Interleaved with execution | Upfront, before any action |
+| Adaptability | High (re-plans each step) | Lower (follows plan) |
+| Efficiency | More LLM calls | Fewer LLM calls |
+| Coherence | Can lose track | Maintains global view |
+| Best for | Exploratory tasks | Structured multi-step |
+
+### When to use Plan-and-Execute
+
+✓ **Use Plan-and-Execute when:**
+- Task has clear subtasks
+- Order of steps matters
+- You want predictable behavior
+- Task is complex (5+ steps)
+
+✗ **Use ReAct when:**
+- Task is exploratory
+- Outcomes are unpredictable
+- Need real-time adaptation
+
+### The Plan-and-Execute pattern
+
+```
+┌────────────────────────────────────┐
+│            PLANNER                  │
+│  Query → Decompose → Ordered Steps │
+└────────────────────────────────────┘
+                 ↓
+         [Step 1] → [Step 2] → [Step 3] → ...
+                 ↓
+┌────────────────────────────────────┐
+│           EXECUTOR                  │
+│  For each step: Execute + Observe  │
+└────────────────────────────────────┘
+                 ↓
+┌────────────────────────────────────┐
+│           SYNTHESIZER              │
+│  Combine results → Final Answer    │
+└────────────────────────────────────┘
+```
+
+### Implementation
+
+```python
+class PlanAndExecuteAgent:
+    def __init__(
+        self,
+        planner_llm,
+        executor_llm,
+        tools: Dict[str, Tool],
+        max_replans: int = 2,
+    ):
+        self.planner_llm = planner_llm
+        self.executor_llm = executor_llm
+        self.tools = tools
+        self.max_replans = max_replans
+    
+    def run(self, query: str) -> AgentResult:
+        """
+        Plan, then execute each step.
+        """
+        # Phase 1: Create plan
+        plan = self.create_plan(query)
+        
+        # Phase 2: Execute plan
+        results = []
+        for i, step in enumerate(plan.steps):
+            result = self.execute_step(step, results)
+            results.append(result)
+            
+            # Check if we need to replan
+            if result.needs_replan and self.max_replans > 0:
+                remaining_query = self.get_remaining_query(query, results)
+                new_plan = self.create_plan(remaining_query)
+                plan.steps = plan.steps[:i+1] + new_plan.steps
+                self.max_replans -= 1
+        
+        # Phase 3: Synthesize final answer
+        return self.synthesize(query, results)
+    
+    def create_plan(self, query: str) -> Plan:
+        """
+        Create a step-by-step plan for the query.
+        """
+        tools_desc = self.format_tools()
+        
+        prompt = f"""Create a step-by-step plan to answer this question.
+
+Available tools:
+{tools_desc}
+
+Question: {query}
+
+Create a plan with clear, actionable steps. Each step should:
+1. Be specific and executable
+2. Use one of the available tools
+3. Build on previous steps
+
+Plan:
+Step 1: [action]
+Step 2: [action]
+...
+
+Output your plan:"""
+        
+        response = self.planner_llm.generate(prompt)
+        return self.parse_plan(response)
+    
+    def execute_step(self, step: PlanStep, previous_results: List) -> StepResult:
+        """
+        Execute a single step from the plan.
+        """
+        context = self.format_previous_results(previous_results)
+        
+        prompt = f"""Execute this step from a plan.
+
+Previous results:
+{context}
+
+Current step: {step.description}
+
+Available tools:
+{self.format_tools()}
+
+Choose a tool and provide input to execute this step.
+
+Thought: [your reasoning]
+Tool: [tool name]
+Input: [tool input]"""
+        
+        response = self.executor_llm.generate(prompt)
+        action = self.parse_action(response)
+        
+        # Execute the tool
+        observation = self.tools[action.tool].execute(action.input)
+        
+        return StepResult(
+            step=step,
+            action=action,
+            observation=observation,
+            needs_replan=self.check_needs_replan(step, observation),
+        )
+    
+    def check_needs_replan(self, step: PlanStep, observation: str) -> bool:
+        """
+        Check if the observation indicates we need to replan.
+        """
+        # Signs that we need to replan:
+        # - Error in execution
+        # - Unexpected result
+        # - Missing information
+        
+        if "Error" in observation:
+            return True
+        
+        if "not found" in observation.lower():
+            return True
+        
+        return False
+    
+    def synthesize(self, query: str, results: List[StepResult]) -> AgentResult:
+        """
+        Synthesize final answer from all step results.
+        """
+        context = "\n\n".join([
+            f"Step {i+1}: {r.step.description}\nResult: {r.observation}"
+            for i, r in enumerate(results)
+        ])
+        
+        prompt = f"""Based on the following executed plan, provide a final answer.
+
+Original question: {query}
+
+Executed steps and results:
+{context}
+
+Final answer:"""
+        
+        answer = self.executor_llm.generate(prompt)
+        
+        return AgentResult(
+            answer=answer,
+            steps=results,
+            success=True,
+        )
+    
+    def parse_plan(self, response: str) -> Plan:
+        """
+        Parse LLM response into structured plan.
+        """
+        steps = []
+        for line in response.split("\n"):
+            if line.strip().startswith("Step"):
+                # Extract step description
+                parts = line.split(":", 1)
+                if len(parts) > 1:
+                    steps.append(PlanStep(
+                        number=len(steps) + 1,
+                        description=parts[1].strip(),
+                    ))
+        
+        return Plan(steps=steps)
+```
+
+### Adaptive replanning
+
+```python
+class AdaptivePlanAndExecute(PlanAndExecuteAgent):
+    def run(self, query: str) -> AgentResult:
+        """
+        Plan-and-execute with adaptive replanning.
+        """
+        plan = self.create_plan(query)
+        results = []
+        current_step = 0
+        
+        while current_step < len(plan.steps):
+            step = plan.steps[current_step]
+            result = self.execute_step(step, results)
+            results.append(result)
+            
+            # Evaluate if plan is still valid
+            if not self.is_plan_valid(plan, results):
+                # Replan from current point
+                remaining_query = self.formulate_remaining_query(query, results)
+                new_plan = self.create_plan(remaining_query)
+                
+                # Replace remaining steps
+                plan.steps = plan.steps[:current_step+1] + new_plan.steps
+            
+            current_step += 1
+        
+        return self.synthesize(query, results)
+    
+    def is_plan_valid(self, plan: Plan, results: List[StepResult]) -> bool:
+        """
+        Check if the remaining plan is still valid given results so far.
+        """
+        if not results:
+            return True
+        
+        last_result = results[-1]
+        
+        # Check for errors
+        if "Error" in last_result.observation:
+            return False
+        
+        # Check for unexpected outcomes
+        if self.outcome_diverges(last_result):
+            return False
+        
+        return True
+```
+
+## Failure modes
+
+1. **Bad plans**: Planner creates impossible/wrong steps.
+2. **Rigid execution**: Fails to adapt to unexpected results.
+3. **Lost context**: Executor forgets the overall goal.
+4. **Replan loops**: Keeps replanning without progress.
+
+## Production defaults
+
+- **Max steps**: 7-10 in initial plan.
+- **Max replans**: 2-3 (prevent infinite replanning).
+- **Step validation**: Validate each step before execution.
+- **Context passing**: Include relevant previous results, not all.
+
+## Do next
+
+<ChallengeLinks slugs={["plan-and-execute", "adaptive-planner", "plan-validation"]} />

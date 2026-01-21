@@ -1,0 +1,372 @@
+﻿<Callout title="Goal" variant="info">
+  Detect and prevent hallucinations in RAG systems — verify that generated
+  content is grounded in retrieved context.
+</Callout>
+
+## The Hallucination Problem
+
+Hallucinations in RAG are answers that:
+
+- Claim facts not in the retrieved documents
+- Misrepresent information from documents
+- Add plausible-sounding but incorrect details
+- Fail to cite sources properly
+
+## Types of RAG Hallucinations
+
+| Type               | Example                          | Cause                    |
+| ------------------ | -------------------------------- | ------------------------ |
+| **Fabrication**    | Inventing statistics not in docs | Model knowledge override |
+| **Misattribution** | Wrong source cited               | Context confusion        |
+| **Exaggeration**   | "Always" vs "Sometimes"          | Generalization           |
+| **Contradiction**  | Opposite of doc content          | Poor grounding           |
+| **Conflation**     | Mixing info from different docs  | Context merging          |
+
+## Detection Strategies
+
+### 1. Claim Extraction + Verification
+
+Extract claims from the response, then verify each against context:
+
+```python
+def extract_claims(response: str) -> list[str]:
+    """Extract factual claims from a response."""
+    prompt = f"""Extract all factual claims from this response.
+Each claim should be a single, verifiable statement.
+
+Response:
+{response}
+
+Claims (one per line):"""
+
+    result = llm.generate(prompt)
+    return [c.strip() for c in result.split("\n") if c.strip()]
+
+def verify_claim(claim: str, context: str) -> dict:
+    """Verify if a claim is supported by context."""
+    prompt = f"""Determine if this claim is supported by the context.
+
+Claim: {claim}
+
+Context:
+{context}
+
+Answer with one of:
+- SUPPORTED: The claim is directly supported by the context
+- CONTRADICTED: The claim contradicts the context
+- NOT_FOUND: The claim cannot be verified from the context
+
+Verdict:"""
+
+    verdict = llm.generate(prompt).strip()
+
+    return {
+        "claim": claim,
+        "verdict": verdict,
+        "grounded": verdict == "SUPPORTED"
+    }
+
+def detect_hallucinations(response: str, context: str) -> dict:
+    """Full hallucination detection pipeline."""
+    claims = extract_claims(response)
+
+    results = []
+    for claim in claims:
+        result = verify_claim(claim, context)
+        results.append(result)
+
+    grounded_count = sum(1 for r in results if r["grounded"])
+    total = len(results)
+
+    return {
+        "claims": results,
+        "grounded_ratio": grounded_count / total if total > 0 else 1.0,
+        "has_hallucination": any(r["verdict"] == "CONTRADICTED" for r in results),
+        "unverified_claims": [r["claim"] for r in results if not r["grounded"]]
+    }
+```
+
+### 2. NLI-based Detection
+
+Use Natural Language Inference models:
+
+```python
+from transformers import pipeline
+
+# Load NLI model
+nli = pipeline("text-classification", model="roberta-large-mnli")
+
+def nli_grounding_check(claim: str, context: str) -> dict:
+    """Check if context entails the claim."""
+    # Format: premise (context) -> hypothesis (claim)
+    result = nli(f"{context} </s></s> {claim}")
+
+    label = result[0]["label"]
+    score = result[0]["score"]
+
+    return {
+        "claim": claim,
+        "entailment": label,  # ENTAILMENT, CONTRADICTION, NEUTRAL
+        "confidence": score,
+        "grounded": label == "ENTAILMENT" and score > 0.7
+    }
+
+def check_all_claims(claims: list[str], context: str) -> list[dict]:
+    """Check all claims against context."""
+    return [nli_grounding_check(claim, context) for claim in claims]
+```
+
+### 3. Quote Matching
+
+Require and verify inline quotations:
+
+```python
+import re
+
+def extract_quotes(response: str) -> list[str]:
+    """Extract quoted text from response."""
+    # Match text in quotes
+    pattern = r'"([^"]+)"'
+    return re.findall(pattern, response)
+
+def verify_quotes(response: str, context: str) -> dict:
+    """Verify all quotes exist in context."""
+    quotes = extract_quotes(response)
+
+    verified = []
+    unverified = []
+
+    for quote in quotes:
+        # Fuzzy match (handle minor variations)
+        if quote.lower() in context.lower():
+            verified.append(quote)
+        else:
+            unverified.append(quote)
+
+    return {
+        "total_quotes": len(quotes),
+        "verified": verified,
+        "unverified": unverified,
+        "quote_accuracy": len(verified) / len(quotes) if quotes else 1.0
+    }
+```
+
+### 4. Self-Consistency Check
+
+Generate multiple answers and check consistency:
+
+```python
+def self_consistency_check(query: str, context: str, n: int = 3) -> dict:
+    """Generate multiple answers and check for consistency."""
+    responses = []
+
+    for _ in range(n):
+        response = generate_with_temperature(query, context, temperature=0.7)
+        responses.append(response)
+
+    # Check pairwise consistency
+    consistencies = []
+    for i in range(len(responses)):
+        for j in range(i + 1, len(responses)):
+            is_consistent = check_semantic_similarity(responses[i], responses[j])
+            consistencies.append(is_consistent)
+
+    consistency_rate = sum(consistencies) / len(consistencies) if consistencies else 1.0
+
+    return {
+        "responses": responses,
+        "consistency_rate": consistency_rate,
+        "likely_hallucinating": consistency_rate < 0.7
+    }
+```
+
+## Prevention Strategies
+
+### 1. Grounding Instructions
+
+```python
+GROUNDED_PROMPT = """Answer the question based ONLY on the provided context.
+
+Rules:
+1. Only use information explicitly stated in the context
+2. If the context doesn't contain the answer, say "I don't have enough information"
+3. Do not add information from your training data
+4. Quote the context when making specific claims
+
+Context:
+{context}
+
+Question: {query}
+
+Answer (grounded in context only):"""
+```
+
+### 2. Citation Requirements
+
+```python
+CITATION_PROMPT = """Answer the question using the provided sources.
+
+For EVERY factual claim, cite the source using [Source N] format.
+
+Sources:
+{sources}
+
+Question: {query}
+
+Answer with citations:"""
+
+def validate_citations(response: str, num_sources: int) -> dict:
+    """Validate all citations are valid."""
+    # Extract citations
+    citations = re.findall(r'\[Source (\d+)\]', response)
+
+    # Check validity
+    invalid = [c for c in citations if int(c) > num_sources or int(c) < 1]
+
+    # Check coverage (sentences without citations)
+    sentences = response.split('.')
+    uncited = [s for s in sentences if s.strip() and '[Source' not in s]
+
+    return {
+        "total_citations": len(citations),
+        "invalid_citations": invalid,
+        "uncited_sentences": len(uncited),
+        "citation_density": len(citations) / len(sentences) if sentences else 0
+    }
+```
+
+### 3. Confidence Scoring
+
+```python
+def generate_with_confidence(query: str, context: str) -> dict:
+    """Generate response with confidence estimate."""
+    prompt = f"""Answer the question based on the context.
+Also rate your confidence (0-100) in the answer being correct.
+
+Context: {context}
+
+Question: {query}
+
+Provide your response in this format:
+Answer: [your answer]
+Confidence: [0-100]
+Reasoning: [why this confidence level]"""
+
+    response = llm.generate(prompt)
+
+    # Parse structured response
+    answer, confidence, reasoning = parse_confidence_response(response)
+
+    return {
+        "answer": answer,
+        "confidence": confidence,
+        "reasoning": reasoning,
+        "should_verify": confidence < 70
+    }
+```
+
+### 4. Retrieval Quality Gate
+
+```python
+def retrieval_quality_gate(query: str, docs: list[dict], threshold: float = 0.5) -> dict:
+    """Gate generation based on retrieval quality."""
+    if not docs:
+        return {
+            "proceed": False,
+            "reason": "No documents retrieved",
+            "fallback": "I couldn't find relevant information."
+        }
+
+    top_score = docs[0]["score"]
+
+    if top_score < threshold:
+        return {
+            "proceed": False,
+            "reason": f"Low retrieval confidence ({top_score:.2f})",
+            "fallback": "I'm not confident I have the right information to answer this."
+        }
+
+    return {"proceed": True, "top_score": top_score}
+```
+
+## Full Anti-Hallucination Pipeline
+
+```python
+class AntiHallucinationRAG:
+    def __init__(self, retriever, generator, verifier):
+        self.retriever = retriever
+        self.generator = generator
+        self.verifier = verifier
+
+    def query(self, query: str) -> dict:
+        # 1. Retrieve
+        docs = self.retriever.search(query)
+
+        # 2. Quality gate
+        gate = retrieval_quality_gate(query, docs)
+        if not gate["proceed"]:
+            return {"response": gate["fallback"], "grounded": True}
+
+        # 3. Generate with grounding instructions
+        context = "\n".join([d["text"] for d in docs[:5]])
+        response = self.generator.generate(
+            GROUNDED_PROMPT.format(context=context, query=query)
+        )
+
+        # 4. Verify grounding
+        verification = self.verifier.verify(response, context)
+
+        # 5. Handle hallucinations
+        if verification["has_hallucination"]:
+            # Option A: Retry with stricter prompt
+            # Option B: Remove ungrounded claims
+            # Option C: Return with warning
+            response = self.remove_ungrounded_claims(
+                response, verification["unverified_claims"]
+            )
+
+        return {
+            "response": response,
+            "grounded": not verification["has_hallucination"],
+            "verification": verification,
+            "sources": docs[:5]
+        }
+```
+
+## Metrics
+
+| Metric             | Formula                        | Target |
+| ------------------ | ------------------------------ | ------ |
+| Grounding Rate     | grounded_claims / total_claims | >90%   |
+| Quote Accuracy     | verified_quotes / total_quotes | >95%   |
+| Contradiction Rate | contradictions / total_claims  | <5%    |
+| Refusal Rate       | refused / total_queries        | 5-15%  |
+
+## Cost Considerations
+
+| Approach                        | Extra Latency | Extra Cost    |
+| ------------------------------- | ------------- | ------------- |
+| Claim extraction + verification | +500ms        | +$0.005/query |
+| NLI model                       | +50ms         | Free (local)  |
+| Quote matching                  | +10ms         | Free          |
+| Self-consistency (3x)           | +2000ms       | +$0.03/query  |
+
+## When to Use Each Strategy
+
+| Scenario                     | Strategy                |
+| ---------------------------- | ----------------------- |
+| High-stakes (legal, medical) | Full claim verification |
+| Cost-sensitive               | NLI + quote matching    |
+| Speed-critical               | Quote matching only     |
+| Research/analysis            | Self-consistency        |
+
+## Production Checklist
+
+- [ ] Add grounding instructions to prompts
+- [ ] Implement retrieval quality gate
+- [ ] Choose verification strategy based on risk
+- [ ] Track grounding metrics
+- [ ] Set up alerts for high hallucination rates
+- [ ] Create human review queue for flagged responses
+- [ ] A/B test verification strategies
+

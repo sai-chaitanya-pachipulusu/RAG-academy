@@ -1,0 +1,45 @@
+﻿<Callout title="Goal" variant="info">
+  Implement the "MaxSim" operator used in ColBERT for token-level retrieval.
+</Callout>
+
+## The "Dense Bottleneck" Problem
+
+Single-vector embeddings (like OpenAI's) compress an entire document into one vector. This loses granular detail — a 10-page document and a 10-word document both become a single 1536-dim vector.
+
+## ColBERT's Solution: Late Interaction
+
+**ColBERT** (Contextualized Late Interaction over BERT) represents every token in a document as its own vector. Scoring uses the **MaxSim** operator:
+
+### The MaxSim Formula
+
+```
+Score(Q, D) = Σᵢ maxⱼ (qᵢ · dⱼ)
+```
+
+For each query token `qᵢ`, find the document token `dⱼ` it is most similar to, then sum all those maximum similarities.
+
+## Algorithm
+
+1. For each token in the query, compute similarity to ALL document tokens
+2. Keep only the maximum similarity (hence "MaxSim")
+3. Sum all maxima to get the final relevance score
+
+## Why it works
+
+- **Fine-grained matching**: Part numbers, acronyms, and specific terms match exactly
+- **Soft matching**: Related terms still contribute (unlike exact keyword match)
+- **Position-agnostic**: Order doesn't matter (unlike sequence models)
+
+## Complexity tradeoff
+
+| Aspect     | Single-Vector | ColBERT (MaxSim)         |
+| ---------- | ------------- | ------------------------ |
+| Index size | 1 vector/doc  | ~128 vectors/doc         |
+| Query time | O(1) ANN      | O(Q × D) per candidate   |
+| Recall     | Good          | Excellent                |
+| Use case   | General       | High-precision retrieval |
+
+## Production usage
+
+ColBERT is typically used as a **reranker** (score top-100 candidates) rather than first-stage retrieval, because storing per-token vectors is expensive at scale.
+

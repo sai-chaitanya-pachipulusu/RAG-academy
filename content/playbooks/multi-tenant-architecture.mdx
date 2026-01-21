@@ -1,0 +1,273 @@
+﻿---
+title: "Multi-Tenant RAG Architecture"
+description: "Design patterns for building RAG systems that serve multiple organizations"
+---
+
+# Multi-Tenant RAG Architecture
+
+Building RAG for multiple customers requires careful architecture to ensure security, performance, and cost isolation.
+
+---
+
+## Core Challenges
+
+| Challenge                 | Risk                              | Solution                |
+| ------------------------- | --------------------------------- | ----------------------- |
+| **Data Isolation**        | Customer A sees Customer B's data | Tenant-level filtering  |
+| **Performance Isolation** | Noisy neighbor                    | Resource quotas         |
+| **Cost Allocation**       | Fair billing                      | Per-tenant metering     |
+| **Scaling**               | Growing customers                 | Horizontal partitioning |
+
+---
+
+## 🏗️ Architecture Patterns
+
+### Pattern 1: Filter-Based Isolation (Simplest)
+
+```python
+# All tenants share one index, filter by tenant_id
+def search(tenant_id: str, query: str, k: int = 5):
+    embedding = embed(query)
+    results = vector_db.search(
+        embedding,
+        filter={"tenant_id": tenant_id},  # Critical!
+        top_k=k
+    )
+    return results
+```
+
+**Pros**: Simple, cost-effective  
+**Cons**: Filter pushdown depends on DB, potential leakage bugs
+
+### Pattern 2: Namespace/Collection Isolation
+
+```python
+# Each tenant gets their own namespace
+def search(tenant_id: str, query: str, k: int = 5):
+    namespace = f"tenant_{tenant_id}"
+    embedding = embed(query)
+    results = vector_db.search(
+        embedding,
+        namespace=namespace,  # Logical isolation
+        top_k=k
+    )
+    return results
+```
+
+**Pros**: Stronger isolation, easy to delete  
+**Cons**: Namespace limits, some overhead
+
+### Pattern 3: Database-Per-Tenant
+
+```python
+# Each tenant gets their own database/index
+def search(tenant_id: str, query: str, k: int = 5):
+    db = get_tenant_db(tenant_id)  # Returns tenant's DB connection
+    embedding = embed(query)
+    results = db.search(embedding, top_k=k)
+    return results
+```
+
+**Pros**: Complete isolation, easy compliance  
+**Cons**: Operational complexity, higher cost
+
+---
+
+## Security Implementation
+
+### Mandatory Tenant Check
+
+```python
+from functools import wraps
+
+def require_tenant(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        tenant_id = get_current_tenant()
+        if not tenant_id:
+            raise AuthenticationError("No tenant context")
+        return func(tenant_id, *args, **kwargs)
+    return wrapper
+
+@require_tenant
+def search(tenant_id, query):
+    # tenant_id is guaranteed to be present
+    return vector_db.search(query, filter={"tenant_id": tenant_id})
+```
+
+### Request Context
+
+```python
+from contextvars import ContextVar
+
+tenant_context: ContextVar[str] = ContextVar('tenant_id')
+
+class TenantMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, request, call_next):
+        # Extract tenant from JWT, header, or subdomain
+        tenant_id = extract_tenant(request)
+        tenant_context.set(tenant_id)
+        return await call_next(request)
+```
+
+---
+
+## Data Model
+
+### Chunk Schema
+
+```python
+{
+    "chunk_id": "abc123",
+    "tenant_id": "tenant_456",  # REQUIRED for multi-tenant
+    "text": "...",
+    "embedding": [...],
+    "metadata": {
+        "source": "...",
+        "created_at": "...",
+        "access_level": "internal",
+        "allowed_users": ["user_1", "user_2"]  # Row-level security
+    }
+}
+```
+
+### Index Strategy
+
+```sql
+-- For filter-based isolation
+CREATE INDEX idx_tenant_vector ON chunks (tenant_id, embedding);
+
+-- For namespace isolation (Pinecone example)
+# Each namespace is automatically indexed
+```
+
+---
+
+## Performance Optimization
+
+### Connection Pooling
+
+```python
+# Share connections across tenants, but track per-tenant
+class TenantAwarePool:
+    def __init__(self, max_connections: int = 100):
+        self.pool = ConnectionPool(max_connections)
+        self.tenant_usage = defaultdict(int)
+
+    def get_connection(self, tenant_id: str):
+        # Rate limit per tenant
+        if self.tenant_usage[tenant_id] > MAX_PER_TENANT:
+            raise RateLimitError(f"Tenant {tenant_id} exceeded connection limit")
+
+        conn = self.pool.get()
+        self.tenant_usage[tenant_id] += 1
+        return conn
+```
+
+### Query Caching
+
+```python
+def cached_search(tenant_id: str, query: str):
+    cache_key = f"{tenant_id}:{hash(query)}"
+
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+
+    results = search(tenant_id, query)
+    cache.set(cache_key, results, ttl=3600)
+    return results
+```
+
+---
+
+## Cost Allocation
+
+### Per-Tenant Metering
+
+```python
+class UsageTracker:
+    def __init__(self):
+        self.metrics = defaultdict(lambda: {
+            "embeddings": 0,
+            "retrievals": 0,
+            "tokens_in": 0,
+            "tokens_out": 0
+        })
+
+    def track_embedding(self, tenant_id: str, num_tokens: int):
+        self.metrics[tenant_id]["embeddings"] += 1
+        self.metrics[tenant_id]["tokens_in"] += num_tokens
+
+    def track_query(self, tenant_id: str, tokens_in: int, tokens_out: int):
+        self.metrics[tenant_id]["retrievals"] += 1
+        self.metrics[tenant_id]["tokens_in"] += tokens_in
+        self.metrics[tenant_id]["tokens_out"] += tokens_out
+
+    def get_monthly_cost(self, tenant_id: str) -> float:
+        usage = self.metrics[tenant_id]
+        return (
+            usage["embeddings"] * EMBEDDING_COST +
+            usage["retrievals"] * RETRIEVAL_COST +
+            usage["tokens_in"] * INPUT_TOKEN_COST +
+            usage["tokens_out"] * OUTPUT_TOKEN_COST
+        )
+```
+
+---
+
+## Tenant Lifecycle
+
+### Onboarding
+
+```python
+async def onboard_tenant(tenant_id: str, initial_docs: List[str]):
+    # 1. Create namespace/collection
+    vector_db.create_namespace(f"tenant_{tenant_id}")
+
+    # 2. Index initial documents
+    for doc in initial_docs:
+        chunks = chunk_document(doc)
+        embeddings = embed_batch([c.text for c in chunks])
+
+        for chunk, embedding in zip(chunks, embeddings):
+            vector_db.upsert(
+                id=chunk.id,
+                vector=embedding,
+                metadata={**chunk.metadata, "tenant_id": tenant_id},
+                namespace=f"tenant_{tenant_id}"
+            )
+
+    # 3. Initialize usage tracking
+    usage_tracker.init_tenant(tenant_id)
+```
+
+### Offboarding
+
+```python
+async def offboard_tenant(tenant_id: str):
+    # 1. Export data (if required)
+    await export_tenant_data(tenant_id)
+
+    # 2. Delete all vectors
+    vector_db.delete_namespace(f"tenant_{tenant_id}")
+
+    # 3. Clear caches
+    cache.delete_pattern(f"{tenant_id}:*")
+
+    # 4. Archive usage data
+    await archive_usage(tenant_id)
+```
+
+---
+
+## Related Challenges
+
+- `metadata-filtering` - Core isolation technique
+- `acl-filter-enforcement` - Access control
+- `multi-tenant-rag` - Hands-on implementation
+- `retrieval-cache-key` - Tenant-aware caching
+

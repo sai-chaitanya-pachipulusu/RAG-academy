@@ -1,0 +1,252 @@
+﻿---
+title: "RAG Evaluation Suite"
+description: "Complete framework for evaluating RAG system quality"
+---
+
+# RAG Evaluation Suite
+
+Comprehensive metrics and tools for measuring RAG quality across retrieval, generation, and end-to-end performance.
+
+---
+
+## Evaluation Dimensions
+
+```
+RAG Evaluation
+├── Retrieval Quality
+│   ├── Recall@K
+│   ├── Precision@K
+│   ├── MRR (Mean Reciprocal Rank)
+│   └── NDCG
+├── Generation Quality
+│   ├── Faithfulness (grounding)
+│   ├── Relevance
+│   ├── Coherence
+│   └── Fluency
+└── End-to-End
+    ├── Answer Correctness
+    ├── Latency
+    └── Cost per Query
+```
+
+---
+
+## Retrieval Metrics
+
+### Recall@K
+
+_"Did we find all the relevant documents?"_
+
+```python
+def recall_at_k(retrieved: Set[str], relevant: Set[str]) -> float:
+    """
+    Recall = |retrieved ∩ relevant| / |relevant|
+    """
+    if not relevant:
+        return 1.0
+    return len(retrieved & relevant) / len(relevant)
+
+# Example
+retrieved = {"doc1", "doc2", "doc3"}
+relevant = {"doc1", "doc4"}
+print(recall_at_k(retrieved, relevant))  # 0.5
+```
+
+### Precision@K
+
+_"Are our retrieved documents actually relevant?"_
+
+```python
+def precision_at_k(retrieved: List[str], relevant: Set[str]) -> float:
+    """
+    Precision = |retrieved ∩ relevant| / |retrieved|
+    """
+    if not retrieved:
+        return 0.0
+    return len(set(retrieved) & relevant) / len(retrieved)
+```
+
+### MRR (Mean Reciprocal Rank)
+
+_"How high does the first relevant document rank?"_
+
+```python
+def mrr(rankings: List[List[str]], relevants: List[Set[str]]) -> float:
+    """
+    MRR = (1/|Q|) * Σ (1/rank_i)
+    """
+    total = 0.0
+    for ranking, relevant in zip(rankings, relevants):
+        for i, doc_id in enumerate(ranking, 1):
+            if doc_id in relevant:
+                total += 1.0 / i
+                break
+    return total / len(rankings)
+```
+
+### NDCG (Normalized Discounted Cumulative Gain)
+
+_"How good is the overall ranking quality?"_
+
+```python
+import math
+
+def dcg(relevances: List[float], k: int) -> float:
+    return sum(rel / math.log2(i + 2) for i, rel in enumerate(relevances[:k]))
+
+def ndcg_at_k(predicted: List[float], ideal: List[float], k: int) -> float:
+    return dcg(predicted, k) / dcg(sorted(ideal, reverse=True), k)
+```
+
+---
+
+## Generation Metrics
+
+### Faithfulness (Grounding)
+
+_"Is the answer supported by the retrieved context?"_
+
+```python
+def faithfulness_score(answer: str, contexts: List[str]) -> float:
+    """
+    Check if claims in answer are supported by contexts.
+
+    Production: Use NLI models or LLM-as-judge
+    """
+    answer_claims = extract_claims(answer)
+    supported = 0
+
+    for claim in answer_claims:
+        if any(supports(ctx, claim) for ctx in contexts):
+            supported += 1
+
+    return supported / len(answer_claims) if answer_claims else 1.0
+```
+
+### Answer Relevance
+
+_"Does the answer address the question?"_
+
+```python
+def answer_relevance(question: str, answer: str) -> float:
+    """
+    Semantic similarity between question and answer.
+
+    Production: Use embedding similarity or LLM grading
+    """
+    q_emb = embed(question)
+    a_emb = embed(answer)
+    return cosine_similarity(q_emb, a_emb)
+```
+
+---
+
+## RAGAS Framework
+
+RAGAS provides production-ready metrics:
+
+```python
+from ragas import evaluate
+from ragas.metrics import (
+    faithfulness,
+    answer_relevancy,
+    context_precision,
+    context_recall
+)
+
+# Prepare dataset
+dataset = {
+    "question": ["What is RAG?"],
+    "answer": ["RAG is Retrieval Augmented Generation..."],
+    "contexts": [["Context about RAG..."]],
+    "ground_truth": ["RAG combines retrieval with generation..."]
+}
+
+# Evaluate
+results = evaluate(
+    dataset,
+    metrics=[
+        faithfulness,
+        answer_relevancy,
+        context_precision,
+        context_recall
+    ]
+)
+
+print(results)  # {'faithfulness': 0.95, 'answer_relevancy': 0.88, ...}
+```
+
+---
+
+## Evaluation Checklist
+
+### Before Launch
+
+- [ ] Curate 50+ golden QA pairs from real users
+- [ ] Establish baseline metrics on golden set
+- [ ] Set regression thresholds (e.g., recall drop > 5% = block)
+- [ ] Implement automated testing in CI/CD
+
+### After Launch
+
+- [ ] Monitor retrieval hit rate daily
+- [ ] Sample 10% of queries for human review weekly
+- [ ] Track latency P50, P95, P99
+- [ ] Alert on metric degradation
+
+---
+
+## Benchmark Datasets
+
+| Dataset               | Size        | Domain    | Use Case              |
+| --------------------- | ----------- | --------- | --------------------- |
+| **MS MARCO**          | 1M          | Web       | General retrieval     |
+| **Natural Questions** | 100K        | Wikipedia | Open-domain QA        |
+| **BEIR**              | 18 datasets | Multiple  | Benchmark suite       |
+| **MTEB**              | 8 tasks     | Multiple  | Embedding quality     |
+| **SQuAD**             | 100K        | Wikipedia | Reading comprehension |
+
+---
+
+## 🛠️ Tools & Libraries
+
+| Tool          | Purpose               | Notes             |
+| ------------- | --------------------- | ----------------- |
+| **RAGAS**     | Full RAG evaluation   | LLM-based metrics |
+| **DeepEval**  | Unit testing for LLMs | CI/CD integration |
+| **TruLens**   | Observability         | Traces & metrics  |
+| **LangSmith** | Debugging             | LangChain native  |
+| **Phoenix**   | Embeddings analysis   | Arize's tool      |
+
+---
+
+## Tracking & Monitoring
+
+### Key Metrics Dashboard
+
+```
+┌─────────────────────────────────────┐
+│ RAG Quality Dashboard               │
+├─────────────────────────────────────┤
+│ Retrieval Recall@5: 87% (↑2%)       │
+│ Answer Faithfulness: 94% (→)        │
+│ Avg Latency: 1.2s (↓100ms)          │
+│ Cost/Query: $0.003 (→)              │
+│                                     │
+│ [!] Context Precision: 72% (↓5%)    │
+└─────────────────────────────────────┘
+```
+
+### Alert Thresholds
+
+| Metric       | Warning | Critical |
+| ------------ | ------- | -------- |
+| Recall@5     | < 80%   | < 70%    |
+| Faithfulness | < 90%   | < 80%    |
+| Latency P95  | > 3s    | > 5s     |
+| Error Rate   | > 1%    | > 5%     |
+
+---
+
+_Measure twice, deploy once. Evaluation is the key to production RAG quality._
+

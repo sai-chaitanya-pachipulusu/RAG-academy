@@ -1,0 +1,23 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Route queries to different retrieval strategies based on intent.
+</Callout>
+
+## Why this matters in production
+
+Not all queries need the same retrieval strategy. Keyword queries → BM25. Semantic queries → dense search. Complex queries → hybrid. Smart routing optimizes both quality and cost.
+
+## What you're implementing
+
+- Detect query intent: semantic, keyword, hybrid, none.
+- Calculate confidence in routing decision.
+- Provide reasoning for explainability.
+
+## Common pitfalls
+
+- Over-routing to expensive strategies.
+- Not having a default for ambiguous queries.
+
+## After you pass
+
+Integrate routing into a multi-retriever RAG pipeline.
+

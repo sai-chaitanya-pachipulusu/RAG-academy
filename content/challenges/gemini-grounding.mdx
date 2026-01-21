@@ -1,0 +1,362 @@
+---
+title: "Gemini Grounding"
+description: |
+  Use Gemini's native grounding with Google Search to get real-time, factual responses.
+difficulty: intermediate
+estimatedMinutes: 25
+topics: ["native-rag", "grounding", "gemini", "google"]
+language: python
+prerequisites:
+  - basic-retrieval
+  - prompt-template
+xp: 120
+---
+
+# Gemini Grounding
+
+Gemini 2.0 can automatically ground responses in Google Search results, providing real-time information without building your own RAG pipeline.
+
+**Your task**: Build a grounded Q&A system using Gemini's native grounding features.
+
+## Setup
+
+```python
+from dataclasses import dataclass
+from typing import List, Dict, Optional
+
+@dataclass
+class GroundingChunk:
+    uri: str
+    title: str
+    snippet: str
+
+@dataclass
+class GroundedResponse:
+    text: str
+    grounding_chunks: List[GroundingChunk]
+    search_queries_used: List[str]
+
+# Simulated grounding results (for testing without API key)
+MOCK_SEARCH_RESULTS = {
+    "latest RAG developments 2025": [
+        GroundingChunk(
+            uri="https://arxiv.org/abs/2403.14403",
+            title="Adaptive-RAG: Learning to Adapt Retrieval-Augmented LLMs",
+            snippet="We propose Adaptive-RAG, a method that dynamically selects the most suitable RAG strategy..."
+        ),
+        GroundingChunk(
+            uri="https://www.anthropic.com/news/contextual-retrieval",
+            title="Contextual Retrieval - Anthropic",
+            snippet="We introduce contextual retrieval, which dramatically improves retrieval accuracy..."
+        ),
+    ],
+    "OpenAI GPT-4o features": [
+        GroundingChunk(
+            uri="https://openai.com/index/hello-gpt-4o/",
+            title="Hello GPT-4o | OpenAI",
+            snippet="GPT-4o is our newest flagship model that can reason across audio, vision, and text in real time..."
+        ),
+    ],
+    "vector database comparison 2025": [
+        GroundingChunk(
+            uri="https://www.pinecone.io/learn/vector-database/",
+            title="What is a Vector Database? - Pinecone",
+            snippet="A vector database indexes and stores vector embeddings for fast retrieval and similarity search..."
+        ),
+        GroundingChunk(
+            uri="https://weaviate.io/blog/vector-database-comparison",
+            title="Vector Database Comparison 2025",
+            snippet="We compare Pinecone, Weaviate, Qdrant, Milvus, and Chroma across performance metrics..."
+        ),
+    ],
+}
+
+# Test queries
+TEST_QUERIES = [
+    {
+        "query": "What are the latest RAG developments in 2025?",
+        "expected_sources": ["arxiv.org", "anthropic.com"],
+        "expected_topics": ["Adaptive-RAG", "contextual retrieval"]
+    },
+    {
+        "query": "What are GPT-4o's main features?",
+        "expected_sources": ["openai.com"],
+        "expected_topics": ["audio", "vision", "text", "real time"]
+    },
+    {
+        "query": "Compare vector databases for RAG",
+        "expected_sources": ["pinecone.io", "weaviate.io"],
+        "expected_topics": ["Pinecone", "Weaviate", "Qdrant"]
+    },
+]
+```
+
+## Your Task
+
+Implement the `GeminiGroundedRAG` class:
+
+```python
+class GeminiGroundedRAG:
+    def __init__(self, mock_mode: bool = True):
+        """
+        Initialize Gemini grounding system.
+        
+        Args:
+            mock_mode: Use mock results for testing (no API key needed)
+        """
+        self.mock_mode = mock_mode
+        self.search_cache: Dict[str, List[GroundingChunk]] = {}
+    
+    def extract_search_queries(self, user_query: str) -> List[str]:
+        """
+        Extract search queries from user question.
+        
+        For complex questions, may generate multiple queries.
+        
+        Returns:
+            List of search queries
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def search(self, query: str) -> List[GroundingChunk]:
+        """
+        Perform grounded search (mock or real).
+        
+        Returns:
+            List of grounding chunks from search
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def synthesize_grounded_response(
+        self, 
+        user_query: str, 
+        grounding_chunks: List[GroundingChunk]
+    ) -> str:
+        """
+        Generate response grounded in search results.
+        
+        Must:
+        - Only state facts found in grounding chunks
+        - Include inline citations [Source Title]
+        - Acknowledge when information is limited
+        
+        Returns:
+            Grounded response with citations
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def answer(self, query: str) -> GroundedResponse:
+        """
+        Main entry point: grounded answer with metadata.
+        
+        Returns:
+            GroundedResponse with text, sources, and queries used
+        """
+        # YOUR CODE HERE
+        pass
+```
+
+## Requirements
+
+1. **Grounded facts**: Only state facts from search results
+2. **Source citations**: Include `[Source Title]` for each claim
+3. **Multi-query**: Handle complex questions with multiple searches
+4. **Transparency**: Return sources used for verification
+
+## Example Output
+
+```python
+rag = GeminiGroundedRAG(mock_mode=True)
+
+result = rag.answer("What are the latest RAG developments in 2025?")
+
+print(result.text)
+# "Recent RAG developments include Adaptive-RAG, which dynamically selects 
+#  the most suitable retrieval strategy based on query complexity 
+#  [Adaptive-RAG Paper]. Additionally, Anthropic introduced contextual 
+#  retrieval, which dramatically improves retrieval accuracy by adding 
+#  context to chunks before embedding [Contextual Retrieval - Anthropic]."
+
+print(result.grounding_chunks)
+# [GroundingChunk(uri="https://arxiv.org/...", title="Adaptive-RAG...", ...),
+#  GroundingChunk(uri="https://anthropic.com/...", title="Contextual...", ...)]
+
+print(result.search_queries_used)
+# ["latest RAG developments 2025"]
+```
+
+## Hints
+
+<details>
+<summary>Hint 1: Query extraction</summary>
+
+For simple questions, use the query directly. For complex ones, decompose:
+
+```python
+def extract_search_queries(self, user_query: str) -> List[str]:
+    # Simple heuristic: if query has "and" or multiple topics, split
+    query_lower = user_query.lower()
+    
+    # Check for comparison patterns
+    if "compare" in query_lower or " vs " in query_lower:
+        # Extract entities to compare
+        # e.g., "Compare Pinecone vs Weaviate" → ["Pinecone features", "Weaviate features"]
+        pass
+    
+    # Check for multi-part questions
+    if " and " in query_lower:
+        # May need multiple queries
+        pass
+    
+    # Default: use query as-is (cleaned up)
+    return [user_query.strip()]
+```
+
+</details>
+
+<details>
+<summary>Hint 2: Mock search</summary>
+
+Match queries to mock results using keyword overlap:
+
+```python
+def search(self, query: str) -> List[GroundingChunk]:
+    if self.mock_mode:
+        # Find best matching mock result
+        query_terms = set(query.lower().split())
+        best_match = None
+        best_score = 0
+        
+        for mock_query, results in MOCK_SEARCH_RESULTS.items():
+            mock_terms = set(mock_query.lower().split())
+            score = len(query_terms & mock_terms)
+            if score > best_score:
+                best_score = score
+                best_match = results
+        
+        return best_match or []
+    else:
+        # Real Gemini API call
+        return self._real_gemini_search(query)
+```
+
+</details>
+
+<details>
+<summary>Hint 3: Grounded synthesis</summary>
+
+Build response strictly from sources:
+
+```python
+def synthesize_grounded_response(self, user_query: str, chunks: List[GroundingChunk]) -> str:
+    if not chunks:
+        return "I couldn't find relevant information to answer this question."
+    
+    # Extract key facts from snippets
+    facts = []
+    for chunk in chunks:
+        facts.append(f"{chunk.snippet} [{chunk.title}]")
+    
+    # Combine facts into coherent response
+    response_parts = []
+    for fact in facts:
+        response_parts.append(fact)
+    
+    return " ".join(response_parts)
+```
+
+</details>
+
+## Test Your Solution
+
+```python
+def test_gemini_grounding():
+    rag = GeminiGroundedRAG(mock_mode=True)
+    
+    for test in TEST_QUERIES:
+        print(f"\n{'='*60}")
+        print(f"Query: {test['query']}")
+        
+        result = rag.answer(test["query"])
+        
+        print(f"Answer: {result.text[:300]}...")
+        print(f"Sources: {len(result.grounding_chunks)}")
+        
+        # Check expected sources
+        source_urls = [c.uri for c in result.grounding_chunks]
+        for expected in test["expected_sources"]:
+            found = any(expected in url for url in source_urls)
+            status = "✓" if found else "✗"
+            print(f"  {status} Source contains '{expected}'")
+        
+        # Check expected topics in response
+        for topic in test["expected_topics"]:
+            found = topic.lower() in result.text.lower()
+            status = "✓" if found else "✗"
+            print(f"  {status} Mentions '{topic}'")
+        
+        # Check citations present
+        assert "[" in result.text, "Missing citations"
+    
+    print("\n✓ All tests passed!")
+
+test_gemini_grounding()
+```
+
+## Bonus: Real Gemini API
+
+If you have a Google AI API key:
+
+```python
+import google.generativeai as genai
+
+def real_gemini_grounded_search(query: str) -> GroundedResponse:
+    genai.configure(api_key="YOUR_API_KEY")
+    model = genai.GenerativeModel("gemini-2.0-flash")
+    
+    response = model.generate_content(
+        query,
+        tools=[{
+            "google_search_retrieval": {
+                "dynamic_retrieval_config": {
+                    "mode": "MODE_DYNAMIC",
+                    "dynamic_threshold": 0.3
+                }
+            }
+        }]
+    )
+    
+    # Extract grounding metadata
+    chunks = []
+    if response.candidates[0].grounding_metadata:
+        for chunk in response.candidates[0].grounding_metadata.grounding_chunks:
+            chunks.append(GroundingChunk(
+                uri=chunk.web.uri,
+                title=chunk.web.title,
+                snippet=chunk.web.snippet
+            ))
+    
+    return GroundedResponse(
+        text=response.text,
+        grounding_chunks=chunks,
+        search_queries_used=[query]
+    )
+```
+
+## When to Use Gemini Grounding vs Custom RAG
+
+| Use Case | Gemini Grounding | Custom RAG |
+|----------|-----------------|------------|
+| Real-time info (news, prices) | ✅ | ❌ |
+| Your private documents | ❌ | ✅ |
+| Public knowledge questions | ✅ | 🟡 |
+| Cost-sensitive high volume | ❌ | ✅ |
+| No infrastructure | ✅ | ❌ |
+
+## Resources
+
+- [Gemini API Grounding Documentation](https://ai.google.dev/gemini-api/docs/grounding)
+- [Google AI Studio](https://aistudio.google.com/)

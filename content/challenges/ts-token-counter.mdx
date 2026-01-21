@@ -1,0 +1,23 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Implement a token counter for context window management.
+</Callout>
+
+## Why this matters in production
+
+Token counting is essential for context window management. Every RAG system needs to track tokens to avoid truncation and manage costs.
+
+## What you're implementing
+
+- Word-based estimation: count words.
+- Character-based estimation: ~4 chars per token.
+- Handle punctuation as additional tokens.
+
+## Common pitfalls
+
+- Underestimating tokens for code/technical content.
+- Not accounting for prompt template overhead.
+
+## After you pass
+
+Use this in your **Context Builder** for accurate budget management.
+

@@ -1,0 +1,405 @@
+﻿<Callout title="Goal" variant="info">
+  Combine RAG with autonomous agents — build systems that retrieve, reason, act,
+  and iterate.
+</Callout>
+
+## RAG + Agents: The Power Combo
+
+Traditional RAG: **Retrieve → Generate → Done**
+
+Agentic RAG: **Retrieve → Reason → Act → Maybe Retrieve Again → Generate**
+
+## Why Agents Need RAG
+
+Agents without RAG:
+
+- Hallucinate when they don't know
+- Can't access current information
+- Limited to training data
+
+RAG-powered agents:
+
+- Ground decisions in documents
+- Access external knowledge
+- Verify before acting
+
+## Agentic RAG Patterns
+
+### Pattern 1: ReAct + RAG
+
+```python
+class ReActRAGAgent:
+    """Combine ReAct reasoning with RAG retrieval."""
+
+    def __init__(self, retriever, tools: list):
+        self.retriever = retriever
+        self.tools = {t.name: t for t in tools}
+
+        # Add search as a tool
+        self.tools["search_knowledge"] = Tool(
+            name="search_knowledge",
+            description="Search the knowledge base for relevant information",
+            fn=self.retriever.search
+        )
+
+    def run(self, query: str, max_steps: int = 5) -> str:
+        """Execute ReAct loop with RAG."""
+        thought_action_history = []
+
+        for step in range(max_steps):
+            # Think
+            thought = self.think(query, thought_action_history)
+
+            if thought.startswith("FINAL ANSWER:"):
+                return thought.replace("FINAL ANSWER:", "").strip()
+
+            # Decide action
+            action, action_input = self.parse_action(thought)
+
+            # Act
+            if action == "search_knowledge":
+                observation = self.retriever.search(action_input)
+                observation = self.format_docs(observation)
+            elif action in self.tools:
+                observation = self.tools[action].fn(action_input)
+            else:
+                observation = "Unknown action"
+
+            thought_action_history.append({
+                "thought": thought,
+                "action": action,
+                "action_input": action_input,
+                "observation": observation
+            })
+
+        return "Could not complete in max steps"
+
+    def think(self, query: str, history: list) -> str:
+        """Generate next thought/action."""
+        prompt = self.build_react_prompt(query, history)
+        return llm.generate(prompt)
+```
+
+### Pattern 2: Self-Correcting RAG
+
+```python
+class SelfCorrectingRAG:
+    """Retrieve, verify, retry if needed."""
+
+    def __init__(self, retriever, verifier):
+        self.retriever = retriever
+        self.verifier = verifier
+
+    def query(self, question: str, max_attempts: int = 3) -> str:
+        attempts = []
+
+        for attempt in range(max_attempts):
+            # Retrieve
+            if attempts:
+                # Modify query based on previous failure
+                question = self.refine_query(question, attempts[-1])
+
+            docs = self.retriever.search(question)
+
+            # Generate
+            response = self.generate(question, docs)
+
+            # Verify
+            verification = self.verifier.check(question, response, docs)
+
+            if verification["is_valid"]:
+                return response
+
+            attempts.append({
+                "response": response,
+                "verification": verification,
+                "docs": docs
+            })
+
+        # Return best attempt
+        return self.select_best_attempt(attempts)
+
+    def refine_query(self, original: str, failed_attempt: dict) -> str:
+        """Refine query based on what went wrong."""
+        prompt = f"""The original query didn't get good results.
+
+Original query: {original}
+Issue: {failed_attempt['verification']['reason']}
+
+Rewrite the query to get better results:"""
+
+        return llm.generate(prompt)
+```
+
+### Pattern 3: Multi-Step Research Agent
+
+```python
+class ResearchAgent:
+    """Iteratively research a complex question."""
+
+    def __init__(self, retriever, web_search=None):
+        self.retriever = retriever
+        self.web_search = web_search
+
+    def research(self, question: str) -> dict:
+        # Step 1: Decompose question
+        sub_questions = self.decompose(question)
+
+        # Step 2: Research each sub-question
+        findings = {}
+        for sq in sub_questions:
+            # Try local knowledge first
+            docs = self.retriever.search(sq)
+
+            if self.has_answer(docs, sq):
+                findings[sq] = self.extract_answer(docs, sq)
+            elif self.web_search:
+                # Fall back to web search
+                web_results = self.web_search.search(sq)
+                findings[sq] = self.extract_answer(web_results, sq)
+            else:
+                findings[sq] = "Could not find answer"
+
+        # Step 3: Synthesize
+        final_answer = self.synthesize(question, findings)
+
+        return {
+            "answer": final_answer,
+            "sub_questions": sub_questions,
+            "findings": findings
+        }
+
+    def decompose(self, question: str) -> list[str]:
+        """Break down complex question."""
+        prompt = f"""Break this question into smaller, searchable sub-questions:
+
+Question: {question}
+
+Sub-questions (one per line):"""
+
+        result = llm.generate(prompt)
+        return [q.strip() for q in result.split("\n") if q.strip()]
+```
+
+## Tool Integration
+
+### RAG as a Tool
+
+```python
+from langchain.tools import Tool
+
+def create_rag_tool(retriever, name: str = "search_docs"):
+    """Create a RAG tool for agent use."""
+
+    def search_and_summarize(query: str) -> str:
+        docs = retriever.search(query, k=5)
+
+        if not docs:
+            return "No relevant documents found."
+
+        # Format results
+        results = []
+        for i, doc in enumerate(docs):
+            results.append(f"[{i+1}] {doc['text'][:500]}...")
+
+        return "\n\n".join(results)
+
+    return Tool(
+        name=name,
+        description="Search internal documents for information. Use for questions about company policies, products, or procedures.",
+        func=search_and_summarize
+    )
+```
+
+### Multiple Knowledge Bases
+
+```python
+class MultiSourceAgent:
+    """Agent with access to multiple RAG sources."""
+
+    def __init__(self):
+        self.sources = {
+            "policies": PolicyRetriever(),
+            "products": ProductRetriever(),
+            "support": SupportRetriever(),
+            "web": WebSearchRetriever(),
+        }
+
+    def route_and_retrieve(self, query: str) -> list[dict]:
+        """Route query to appropriate source."""
+        # Classify query
+        source_type = self.classify_source(query)
+
+        # Retrieve from appropriate source
+        retriever = self.sources[source_type]
+        return retriever.search(query)
+
+    def classify_source(self, query: str) -> str:
+        """Determine which knowledge source to use."""
+        prompt = f"""Classify which knowledge source is best for this query:
+
+Query: {query}
+
+Options:
+- policies: Company policies, HR, legal
+- products: Product information, features, specs
+- support: Technical support, troubleshooting
+- web: Current events, general knowledge
+
+Source:"""
+
+        return llm.generate(prompt).strip().lower()
+```
+
+## Agentic Workflows
+
+### Workflow: Customer Support
+
+```python
+class SupportAgent:
+    def handle_ticket(self, ticket: str) -> dict:
+        # Step 1: Classify issue
+        issue_type = self.classify(ticket)
+
+        # Step 2: Retrieve relevant docs
+        docs = self.retrieve_by_type(ticket, issue_type)
+
+        # Step 3: Check if we can auto-resolve
+        if self.can_auto_resolve(ticket, docs):
+            resolution = self.generate_resolution(ticket, docs)
+            return {"action": "auto_resolve", "response": resolution}
+
+        # Step 4: Prepare for human handoff
+        summary = self.summarize_for_agent(ticket, docs)
+        return {"action": "escalate", "summary": summary, "docs": docs}
+```
+
+### Workflow: Document Analysis
+
+```python
+class DocumentAnalysisAgent:
+    def analyze(self, document: str, questions: list[str]) -> dict:
+        results = {}
+
+        # Index document temporarily
+        self.temp_index.add(document)
+
+        for question in questions:
+            # Retrieve relevant sections
+            sections = self.temp_index.search(question)
+
+            # Answer question
+            answer = self.answer_question(question, sections)
+
+            # Verify answer
+            if self.needs_verification(answer):
+                answer = self.verify_and_refine(question, answer, document)
+
+            results[question] = answer
+
+        return results
+```
+
+## Memory and State
+
+### Long-Term Memory
+
+```python
+class AgentMemory:
+    """Persistent memory for agent learning."""
+
+    def __init__(self, memory_index):
+        self.index = memory_index
+        self.short_term = []  # Current session
+
+    def remember(self, interaction: dict):
+        """Store interaction for future retrieval."""
+        # Add to short-term
+        self.short_term.append(interaction)
+
+        # Index for long-term
+        self.index.add({
+            "text": f"Q: {interaction['query']} A: {interaction['response']}",
+            "metadata": {
+                "timestamp": time.time(),
+                "success": interaction.get("success", True)
+            }
+        })
+
+    def recall(self, query: str, k: int = 3) -> list[dict]:
+        """Recall relevant past interactions."""
+        return self.index.search(query, k=k)
+
+    def get_recent(self, n: int = 5) -> list[dict]:
+        """Get recent short-term memories."""
+        return self.short_term[-n:]
+```
+
+### Action History
+
+```python
+class ActionTracker:
+    """Track agent actions for debugging and learning."""
+
+    def __init__(self):
+        self.actions = []
+
+    def log_action(self, action: dict):
+        self.actions.append({
+            **action,
+            "timestamp": time.time()
+        })
+
+    def get_trace(self) -> list[dict]:
+        """Get full action trace."""
+        return self.actions
+
+    def summarize(self) -> str:
+        """Summarize what happened."""
+        steps = []
+        for i, a in enumerate(self.actions):
+            steps.append(f"{i+1}. {a['type']}: {a.get('description', '')}")
+        return "\n".join(steps)
+```
+
+## Error Handling
+
+```python
+class RobustAgent:
+    def execute_with_fallback(self, query: str) -> str:
+        try:
+            # Try primary strategy
+            return self.primary_strategy(query)
+        except RetrievalError:
+            # Fall back to web search
+            return self.web_fallback(query)
+        except GenerationError:
+            # Fall back to simpler model
+            return self.simple_fallback(query)
+        except Exception as e:
+            # Log and gracefully fail
+            self.log_error(e)
+            return "I encountered an issue processing your request."
+```
+
+## Metrics
+
+| Metric                 | Description                      | Target |
+| ---------------------- | -------------------------------- | ------ |
+| Task Completion Rate   | % of queries fully resolved      | >80%   |
+| Avg Steps to Complete  | Number of reasoning steps        | <5     |
+| Retrieval Success Rate | Times RAG provided useful info   | >90%   |
+| Self-Correction Rate   | Times agent refined its approach | 10-20% |
+
+## Production Checklist
+
+- [ ] Implement ReAct or similar reasoning loop
+- [ ] Add RAG as a first-class tool
+- [ ] Handle multi-step queries
+- [ ] Add self-correction capability
+- [ ] Implement fallback strategies
+- [ ] Track action history
+- [ ] Add memory for learning
+- [ ] Monitor agent performance
+- [ ] Set guardrails on actions
+

@@ -1,0 +1,35 @@
+﻿<Callout title="Goal" variant="info">
+  Implement MMR to select a diverse context set (less redundancy, better evidence coverage).
+</Callout>
+
+## Why this matters in production
+
+Retrieval often returns **near-duplicates**:
+
+- the same paragraph repeated across pages
+- boilerplate policy headers/footers
+- multiple chunks from the same section saying the same thing
+
+If you feed redundant chunks into the LLM, you get:
+
+- wasted tokens (cost)
+- worse attention (“lost in the middle”)
+- lower factual coverage
+
+MMR helps pick a set that’s still relevant **but more diverse**.
+
+## The rule (greedy selection)
+
+At each step, pick the doc \(d\) that maximizes:
+
+\[
+\lambda\cdot rel(d) - (1-\lambda)\cdot \max_{s\in selected} sim(d,s)
+\]
+
+## Practical advice
+
+- Use MMR after you have candidates (e.g., retrieve 50 → pick final 8).
+- Combine with dedup (exact hash) and metadata filters first.
+
+
+

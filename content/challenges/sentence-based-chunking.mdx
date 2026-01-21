@@ -1,0 +1,129 @@
+﻿---
+title: "Sentence-Based Chunking: Respecting Language"
+description: "Chunk at natural linguistic boundaries for better semantic coherence"
+difficulty: "medium"
+timeEstimate: "20-25 min"
+xpReward: 50
+prerequisites: ["overlapping-chunking-explained"]
+---
+
+# Sentence-Based Chunking: Respecting Language
+
+## The Linguistic Insight
+
+Characters and words are arbitrary. **Sentences** are the smallest complete thoughts in language.
+
+```
+Bad chunk:  "Machine learning is"     ← incomplete thought
+Good chunk: "Machine learning is a subset of AI."  ← complete thought
+```
+
+---
+
+## Why Sentences Matter for Embeddings
+
+Embeddings capture **meaning**. A sentence like "The cat sat on the mat" has clear meaning.
+
+But "The cat sat on the" is meaningless - the embedding will be noisy and unreliable.
+
+---
+
+## The Algorithm
+
+```python
+import re
+
+def sentence_chunk(text: str, max_sentences: int = 3) -> List[str]:
+    # Split on sentence boundaries
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+
+    # Group into chunks of N sentences
+    chunks = []
+    for i in range(0, len(sentences), max_sentences):
+        chunk = ' '.join(sentences[i:i + max_sentences])
+        chunks.append(chunk)
+    return chunks
+```
+
+---
+
+## ⚖️ Tradeoffs
+
+### Pros
+
+- ✅ Complete thoughts preserved
+- ✅ Better embedding quality
+- ✅ More natural for human review
+
+### Cons
+
+- ❌ Highly variable chunk sizes
+- ❌ One sentence might be 10 words or 100 words
+- ❌ Complex sentences with semicolons are tricky
+
+---
+
+## Handling Edge Cases
+
+Real-world sentence detection is harder than you think:
+
+```
+"Dr. Smith works at Inc. Corp. He is an expert."
+```
+
+A naive regex would split at "Dr." and "Inc." incorrectly.
+
+**Solutions**:
+
+- Use spaCy's `sentencizer`
+- Use NLTK's `sent_tokenize`
+- Custom rules for abbreviations
+
+---
+
+## Real-World Usage
+
+**Best for**:
+
+- Customer support transcripts
+- Email bodies
+- Narrative content (articles, stories)
+- News articles
+
+**Companies**:
+
+- Grammarly (writing analysis)
+- Medium (article search)
+- Intercom (support RAG)
+
+---
+
+## Variable Size Problem
+
+| Content Type    | Avg Sentence Length |
+| --------------- | ------------------- |
+| Tweets          | 15-20 words         |
+| News articles   | 20-25 words         |
+| Academic papers | 30-40 words         |
+| Legal documents | 50+ words           |
+
+You may need to combine with size limits to handle outliers.
+
+---
+
+## Key Insight
+
+Sentence chunking teaches us:
+
+> "Linguistic boundaries > Arbitrary character counts"
+
+Language has natural structure. Respect it.
+
+---
+
+## Related Challenges
+
+- `paragraph-based-chunking` - Even larger linguistic units
+- `recursive-chunking` - Combines sentence + paragraph awareness
+- `semantic-chunking` - AI-detected topic boundaries
+

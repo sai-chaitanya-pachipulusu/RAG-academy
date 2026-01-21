@@ -1,0 +1,27 @@
+﻿---
+title: "Long-term Conversational Memory"
+description: "Implement a memory manager that summarizes and prunes conversational history to stay within context limits."
+---
+
+# Long-term Conversational Memory
+
+In long-running conversations, the history of messages can quickly exceed the LLM's **context window**. If you simply pass everything, the model will eventually crash or "forget" the earlier parts of the talk.
+
+### The Strategy: Summarization + Truncation
+
+Modern agents use a "Sliding Window" approach combined with "Recursive Summarization":
+
+1.  **Keep the context**: Keep the most recent `N` messages in full detail.
+2.  **Summarize the past**: For messages older than `N`, create a concise summary and prepend it to the context.
+3.  **Manage Budget**: Ensure the total tokens (summary + recent messages) stay within a safe limit.
+
+### Your Task
+
+Implement a `MemoryManager` that:
+
+- Stores message history.
+- Has a `get_context()` method that returns a string.
+- If the history exceeds a `max_tokens` threshold, it should prioritize keeping the **most recent** messages.
+
+> **Pro Tip**: In a real system, you would call an LLM to generate the summary of the older messages. For this lab, you can simulate this by keeping only the recent ones or using a placeholder summary.
+

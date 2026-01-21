@@ -1,0 +1,23 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Implement Recall@K — the fundamental metric for RAG retrieval quality.
+</Callout>
+
+## Why this matters in production
+
+Recall@K answers: "Of all relevant documents, what fraction did we retrieve in the top K?" It's the primary metric for RAG because if you don't retrieve relevant context, the LLM can't use it.
+
+## What you're implementing
+
+- Count relevant documents in top K results.
+- Divide by total relevant documents.
+- Return recall score (0 to 1).
+
+## Common pitfalls
+
+- Dividing by retrieved count instead of relevant count.
+- Not handling empty relevant set (division by zero).
+
+## After you pass
+
+Implement **MRR** and **nDCG** for more nuanced retrieval evaluation.
+

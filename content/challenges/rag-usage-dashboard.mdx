@@ -1,0 +1,51 @@
+﻿---
+title: "RAG Usage Dashboard"
+description: "Build metrics collection for RAG observability"
+difficulty: "medium"
+xpReward: 100
+prerequisites: ["retrieval-metrics"]
+---
+
+# RAG Usage Dashboard Metrics
+
+Build metrics collection for a RAG usage dashboard.
+
+## Why This Matters
+
+"What gets measured gets managed." Visibility into cost, latency, and quality enables optimization.
+
+## What You'll Learn
+
+- Metrics aggregation patterns
+- Percentile calculations (P95)
+- Cost estimation
+- Time-series analysis
+
+## Real-World Application
+
+**Companies:** Datadog, New Relic, Langfuse, Helicone
+**Use Cases:** Cost optimization, Performance monitoring, SLA tracking
+
+## Key Concepts
+
+### RAG Metrics
+
+```python
+@dataclass
+class RAGMetrics:
+    retrieval_latency_ms: float
+    generation_latency_ms: float
+    tokens_in: int
+    tokens_out: int
+    model: str
+    success: bool
+```
+
+### Summary Statistics
+
+- Total requests
+- Success rate
+- Avg/P95 latency
+- Token usage
+- Estimated cost
+

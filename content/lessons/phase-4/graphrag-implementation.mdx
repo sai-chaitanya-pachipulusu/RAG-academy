@@ -1,0 +1,355 @@
+---
+title: "GraphRAG Implementation"
+description: "Build Microsoft's GraphRAG with community detection and hierarchical summarization."
+order: 2
+estimatedMinutes: 35
+stage: graph-rag
+prereqs:
+  - phase: phase-4
+    slug: knowledge-graphs-intro
+next:
+  phase: phase-4
+  slug: graph-queries
+outcomes:
+  - "Implement Microsoft's GraphRAG pipeline."
+  - "Understand community detection and hierarchical summarization."
+  - "Build global and local search over knowledge graphs."
+tags: ["graphrag", "community-detection", "summarization"]
+sources:
+  - title: "GraphRAG: Unlocking LLM Discovery (Microsoft, 2024)"
+    url: "https://arxiv.org/abs/2404.16130"
+    type: "paper"
+    year: 2024
+  - title: "GraphRAG GitHub Repository"
+    url: "https://github.com/microsoft/graphrag"
+    type: "repo"
+  - title: "Leiden Algorithm for Community Detection"
+    url: "https://www.nature.com/articles/s41598-019-41695-z"
+    type: "paper"
+    year: 2019
+---
+
+## Goals
+
+- Understand the full GraphRAG pipeline from Microsoft.
+- Implement community detection and hierarchical summarization.
+- Build both global (summarization) and local (traversal) search.
+
+## Prereqs
+
+- Read: **Knowledge Graphs for RAG** (understand graph fundamentals).
+
+## Core idea
+
+### What makes GraphRAG different?
+
+Standard knowledge graphs store entities and relationships. GraphRAG adds:
+
+1. **Community detection**: Groups related entities into communities.
+2. **Hierarchical summarization**: Summaries at multiple levels of abstraction.
+3. **Dual search modes**: Global (across communities) and local (entity-centric).
+
+```
+Text Corpus
+     ↓
+Entity & Relationship Extraction
+     ↓
+Knowledge Graph Construction
+     ↓
+Community Detection (Leiden algorithm)
+     ↓
+Hierarchical Summarization
+     ↓
+[Global Search] ←→ [Local Search]
+```
+
+### The GraphRAG pipeline
+
+```python
+class GraphRAGPipeline:
+    def __init__(self, llm, graph_store):
+        self.llm = llm
+        self.graph_store = graph_store
+    
+    def build_index(self, documents: List[Document]):
+        """
+        Build the full GraphRAG index.
+        """
+        # Step 1: Extract entities and relationships
+        entities, relationships = self.extract_all(documents)
+        
+        # Step 2: Build graph
+        self.graph_store.add_entities(entities)
+        self.graph_store.add_relationships(relationships)
+        
+        # Step 3: Detect communities
+        communities = self.detect_communities()
+        
+        # Step 4: Generate hierarchical summaries
+        self.generate_summaries(communities)
+        
+        return {
+            "entities": len(entities),
+            "relationships": len(relationships),
+            "communities": len(communities),
+        }
+    
+    def extract_all(self, documents: List[Document]) -> Tuple[List, List]:
+        """
+        Extract entities and relationships from all documents.
+        """
+        all_entities = []
+        all_relationships = []
+        
+        for doc in documents:
+            # Chunk the document
+            chunks = self.chunk_document(doc)
+            
+            for chunk in chunks:
+                entities, relationships = self.extract_from_chunk(chunk)
+                all_entities.extend(entities)
+                all_relationships.extend(relationships)
+        
+        # Deduplicate and merge entities
+        merged_entities = self.merge_entities(all_entities)
+        
+        return merged_entities, all_relationships
+    
+    def detect_communities(self) -> List[Community]:
+        """
+        Detect communities using Leiden algorithm.
+        """
+        # Get graph as adjacency structure
+        graph = self.graph_store.to_networkx()
+        
+        # Run Leiden community detection
+        import leidenalg as la
+        import igraph as ig
+        
+        # Convert to igraph
+        ig_graph = ig.Graph.from_networkx(graph)
+        
+        # Run Leiden at multiple resolutions for hierarchy
+        communities = []
+        for resolution in [1.0, 0.5, 0.25]:  # Different granularities
+            partition = la.find_partition(
+                ig_graph,
+                la.RBConfigurationVertexPartition,
+                resolution_parameter=resolution,
+            )
+            
+            level_communities = [
+                Community(
+                    level=resolution,
+                    entity_ids=[ig_graph.vs[i]["name"] for i in community],
+                )
+                for community in partition
+            ]
+            communities.extend(level_communities)
+        
+        return communities
+    
+    def generate_summaries(self, communities: List[Community]):
+        """
+        Generate hierarchical summaries for communities.
+        """
+        for community in communities:
+            # Get entities in community
+            entities = self.graph_store.get_entities(community.entity_ids)
+            
+            # Get relationships within community
+            relationships = self.graph_store.get_internal_relationships(
+                community.entity_ids
+            )
+            
+            # Generate summary
+            prompt = f"""Summarize this community of related entities.
+
+Entities:
+{self.format_entities(entities)}
+
+Relationships:
+{self.format_relationships(relationships)}
+
+Write a comprehensive summary of this community, including:
+1. What the community is about
+2. Key entities and their roles
+3. Important relationships
+
+Summary:"""
+            
+            summary = self.llm.generate(prompt, max_tokens=500)
+            community.summary = summary
+            
+            # Store summary
+            self.graph_store.update_community(community)
+```
+
+### Global search (summarization-based)
+
+For broad questions that span the entire corpus:
+
+```python
+class GlobalSearch:
+    def __init__(self, graph_store, llm):
+        self.graph_store = graph_store
+        self.llm = llm
+    
+    def search(self, query: str, level: float = 0.5) -> str:
+        """
+        Global search using community summaries.
+        """
+        # Get communities at specified level
+        communities = self.graph_store.get_communities(level=level)
+        
+        # Map-reduce over communities
+        intermediate_answers = []
+        
+        for community in communities:
+            # Check if community is relevant
+            if self.is_relevant(query, community.summary):
+                # Generate partial answer from community
+                answer = self.generate_from_community(query, community)
+                intermediate_answers.append({
+                    "community_id": community.id,
+                    "answer": answer,
+                    "summary": community.summary,
+                })
+        
+        # Reduce: combine intermediate answers
+        final_answer = self.reduce_answers(query, intermediate_answers)
+        
+        return final_answer
+    
+    def is_relevant(self, query: str, summary: str) -> bool:
+        """
+        Quick relevance check using embedding similarity.
+        """
+        query_emb = self.embed(query)
+        summary_emb = self.embed(summary)
+        return cosine_similarity(query_emb, summary_emb) > 0.3
+    
+    def generate_from_community(self, query: str, community: Community) -> str:
+        """
+        Generate answer from a single community.
+        """
+        prompt = f"""Based on this community summary, answer the question if relevant.
+
+Community Summary:
+{community.summary}
+
+Question: {query}
+
+Answer (or "Not relevant" if the community doesn't help):"""
+        
+        return self.llm.generate(prompt, max_tokens=200)
+    
+    def reduce_answers(self, query: str, answers: List[Dict]) -> str:
+        """
+        Combine intermediate answers into final answer.
+        """
+        if not answers:
+            return "I couldn't find relevant information to answer this question."
+        
+        prompt = f"""Combine these partial answers into a comprehensive response.
+
+Question: {query}
+
+Partial answers from different knowledge areas:
+{chr(10).join(f'- {a["answer"]}' for a in answers if "Not relevant" not in a["answer"])}
+
+Comprehensive answer:"""
+        
+        return self.llm.generate(prompt, max_tokens=500)
+```
+
+### Local search (entity-centric)
+
+For specific queries about entities and their relationships:
+
+```python
+class LocalSearch:
+    def __init__(self, graph_store, vector_store, llm):
+        self.graph_store = graph_store
+        self.vector_store = vector_store
+        self.llm = llm
+    
+    def search(self, query: str) -> Dict:
+        """
+        Local search starting from entities in the query.
+        """
+        # Step 1: Extract entities from query
+        query_entities = self.extract_entities(query)
+        
+        # Step 2: Find matching entities in graph
+        matched_entities = []
+        for entity in query_entities:
+            matches = self.graph_store.find_entities(entity, threshold=0.8)
+            matched_entities.extend(matches)
+        
+        # Step 3: Traverse graph from matched entities
+        context = self.build_context(matched_entities, depth=2)
+        
+        # Step 4: Augment with vector search
+        vector_results = self.vector_store.search(query, k=5)
+        
+        # Step 5: Generate answer
+        answer = self.generate_answer(query, context, vector_results)
+        
+        return {
+            "answer": answer,
+            "entities": matched_entities,
+            "context": context,
+        }
+    
+    def build_context(self, entities: List[Entity], depth: int) -> str:
+        """
+        Build context by traversing from entities.
+        """
+        context_parts = []
+        visited = set()
+        
+        def traverse(entity, current_depth):
+            if current_depth > depth or entity.id in visited:
+                return
+            
+            visited.add(entity.id)
+            
+            # Add entity info
+            context_parts.append(f"Entity: {entity.name} ({entity.type})")
+            
+            # Get relationships
+            relationships = self.graph_store.get_relationships(entity.id)
+            for rel in relationships:
+                context_parts.append(
+                    f"  - {rel.type} → {rel.target_name}"
+                )
+                
+                # Traverse to related entity
+                target = self.graph_store.get_entity(rel.target_id)
+                if target:
+                    traverse(target, current_depth + 1)
+        
+        for entity in entities:
+            traverse(entity, 0)
+        
+        return "\n".join(context_parts)
+```
+
+## Failure modes
+
+1. **Community granularity**: Wrong resolution misses important groupings.
+2. **Summary quality**: Bad summaries → bad global search.
+3. **Entity resolution**: Failing to merge duplicate entities.
+4. **Stale summaries**: Graph changes but summaries don't update.
+
+## Production defaults
+
+- **Community detection**: Use Leiden with multiple resolutions (1.0, 0.5, 0.25).
+- **Summary length**: 300-500 tokens per community.
+- **Traversal depth**: 2 hops for local search.
+- **Hybrid**: Combine global + local based on query type.
+
+## Do next
+
+<ChallengeLinks slugs={["graphrag-community-detection", "hierarchical-summarization", "global-search"]} />

@@ -1,0 +1,23 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Implement HyDE — generate hypothetical answers to improve retrieval.
+</Callout>
+
+## Why this matters in production
+
+HyDE (Hypothetical Document Embeddings) was shown to improve zero-shot retrieval by 40%+. It's especially effective for vague queries where the user doesn't know the exact terminology.
+
+## What you're implementing
+
+- Take a user question.
+- Generate a hypothetical answer (as if you had the knowledge).
+- Use the hypothetical answer as the retrieval query.
+
+## Common pitfalls
+
+- Making hypotheticals too short (loses embedding information).
+- Not preserving the original query for context.
+
+## After you pass
+
+Combine HyDE with **Query Decomposition** for complex questions.
+

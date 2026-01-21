@@ -1,0 +1,48 @@
+﻿---
+title: "Live Index Updates"
+description: "Real-time index updates without downtime"
+difficulty: "hard"
+xpReward: 150
+prerequisites: ["embedding-cache"]
+---
+
+# Live Index Updates
+
+Implement real-time index updates without service downtime.
+
+## Why This Matters
+
+Data changes constantly (news, docs, tickets). Live updates keep RAG current without rebuilding entire index.
+
+## What You'll Learn
+
+- Thread-safe data structures
+- Version-based deduplication
+- Concurrent read/write patterns
+- Real-time indexing
+
+## Real-World Application
+
+**Companies:** Pinecone, Weaviate, Qdrant, Milvus
+**Use Cases:** News RAG, Support ticketing, Real-time docs
+
+## Key Concepts
+
+### Version Tracking
+
+```python
+@dataclass
+class Document:
+    id: str
+    content: str
+    version: int = 1
+```
+
+### Thread Safety
+
+Use `threading.RLock()` for safe concurrent access.
+
+### Upsert Pattern
+
+Only update if new_version > current_version.
+

@@ -1,0 +1,34 @@
+---
+title: "Bidirectional RAG"
+description: "Implement bidirectional retrieval-generation flow"
+---
+
+# Bidirectional RAG
+
+Implement a bidirectional RAG system where generation can trigger additional retrieval rounds based on what's needed.
+
+## Requirements
+
+1. Initial retrieval based on query
+2. Generate partial answer
+3. Identify missing information
+4. Retrieve more context
+5. Complete generation
+
+## Starter Code
+
+```python
+def bidirectional_rag(query: str, retriever, generator) -> dict:
+    """
+    Bidirectional RAG with iterative retrieval.
+    
+    Returns:
+        {
+            "answer": str,
+            "retrieval_rounds": int,
+            "all_sources": list[str]
+        }
+    """
+    # Your implementation here
+    pass
+```

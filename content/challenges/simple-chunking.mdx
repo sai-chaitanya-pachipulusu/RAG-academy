@@ -1,0 +1,33 @@
+﻿<Callout title="Goal" variant="info">
+  Implement your first chunker: fixed-size chunking (baseline).
+</Callout>
+
+## Why this matters in production
+
+Chunking quality dominates retrieval quality for most RAG systems.
+
+Even if you later use:
+
+- header-aware chunking
+- semantic chunking
+- proposition chunking
+
+…you still need a rock-solid baseline to compare against.
+
+## What you’re implementing
+
+- Split raw text into contiguous slices of size `chunk_size`
+- Preserve text exactly (no trimming)
+- Validate parameters (`chunk_size > 0`)
+
+## Common pitfalls
+
+- Off-by-one errors at the end of the string.
+- Accidentally trimming whitespace (this changes hashes/traceability later).
+
+## After you pass
+
+Add **overlap** (next lab), then add stable IDs and metadata.
+
+
+

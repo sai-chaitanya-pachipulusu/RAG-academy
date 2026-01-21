@@ -1,0 +1,281 @@
+---
+title: "Corrective RAG (CRAG)"
+description: "Dynamically correct retrieval failures with web search and knowledge refinement."
+order: 3
+estimatedMinutes: 20
+stage: retrieval
+prereqs:
+  - phase: phase-3
+    slug: self-rag
+next:
+  phase: phase-3
+  slug: rag-fusion-advanced
+outcomes:
+  - "Understand the CRAG framework for correcting retrieval."
+  - "Implement retrieval evaluators and corrective actions."
+  - "Know when to fall back to web search."
+tags: ["crag", "corrective-rag", "retrieval-correction", "web-search"]
+sources:
+  - title: "Corrective RAG (Yan et al., 2024)"
+    url: "https://arxiv.org/abs/2401.15884"
+    type: "paper"
+    year: 2024
+  - title: "LangGraph: CRAG Implementation"
+    url: "https://langchain-ai.github.io/langgraph/tutorials/rag/langgraph_crag/"
+    type: "docs"
+---
+
+## Goals
+
+- Understand how CRAG evaluates and corrects retrieval.
+- Implement the three corrective actions: Correct, Incorrect, Ambiguous.
+- Build fallback to web search for retrieval failures.
+
+## Prereqs
+
+- Read: **Self-RAG** (understand self-reflection patterns).
+
+## Core idea
+
+### What is Corrective RAG?
+
+From [Yan et al., 2024](https://arxiv.org/abs/2401.15884): CRAG adds a **retrieval evaluator** that triggers corrective actions:
+
+```
+Query
+  ↓
+Retrieve Documents
+  ↓
+Evaluate Retrieval Quality
+  ↓
+┌─────────────────────────────────────────────┐
+│ Correct      │ Ambiguous    │ Incorrect    │
+│ (confident)  │ (uncertain)  │ (failed)     │
+├─────────────────────────────────────────────┤
+│ Use docs     │ Refine +     │ Web search   │
+│ as-is        │ supplement   │ fallback     │
+└─────────────────────────────────────────────┘
+  ↓
+Knowledge Refinement
+  ↓
+Generate Answer
+```
+
+### The CRAG pipeline
+
+```python
+class CorrectiveRAG:
+    def __init__(
+        self,
+        retriever,
+        generator,
+        evaluator,
+        web_searcher,
+        refiner,
+    ):
+        self.retriever = retriever
+        self.generator = generator
+        self.evaluator = evaluator
+        self.web_searcher = web_searcher
+        self.refiner = refiner
+    
+    def answer(self, query: str) -> Dict:
+        """
+        Corrective RAG pipeline.
+        """
+        # Step 1: Initial retrieval
+        docs = self.retriever.retrieve(query, k=10)
+        
+        # Step 2: Evaluate retrieval quality
+        evaluation = self.evaluator.evaluate(query, docs)
+        
+        # Step 3: Corrective action based on evaluation
+        if evaluation.action == "correct":
+            # High confidence: use docs as-is
+            refined_docs = docs
+        
+        elif evaluation.action == "ambiguous":
+            # Medium confidence: refine + supplement
+            refined_docs = self.refiner.refine(query, docs)
+            supplemental = self.web_searcher.search(query, k=3)
+            refined_docs = self.merge(refined_docs, supplemental)
+        
+        elif evaluation.action == "incorrect":
+            # Low confidence: web search fallback
+            refined_docs = self.web_searcher.search(query, k=5)
+        
+        # Step 4: Knowledge refinement
+        context = self.build_context(refined_docs)
+        
+        # Step 5: Generate
+        answer = self.generator.generate(query, context)
+        
+        return {
+            "answer": answer,
+            "sources": refined_docs,
+            "evaluation": evaluation,
+        }
+```
+
+### Implementing the retrieval evaluator
+
+```python
+class RetrievalEvaluator:
+    def __init__(self, threshold_correct: float = 0.8, threshold_ambiguous: float = 0.5):
+        self.threshold_correct = threshold_correct
+        self.threshold_ambiguous = threshold_ambiguous
+    
+    def evaluate(self, query: str, docs: List[Dict]) -> Evaluation:
+        """
+        Evaluate retrieval quality and decide corrective action.
+        """
+        if not docs:
+            return Evaluation(
+                action="incorrect",
+                confidence=0.0,
+                reason="No documents retrieved"
+            )
+        
+        # Score each document for relevance
+        relevance_scores = []
+        for doc in docs:
+            score = self.score_relevance(query, doc["text"])
+            relevance_scores.append(score)
+        
+        # Aggregate score
+        top_scores = sorted(relevance_scores, reverse=True)[:3]
+        avg_top_score = sum(top_scores) / len(top_scores)
+        
+        # Decide action
+        if avg_top_score >= self.threshold_correct:
+            return Evaluation(
+                action="correct",
+                confidence=avg_top_score,
+                reason="High relevance documents found"
+            )
+        elif avg_top_score >= self.threshold_ambiguous:
+            return Evaluation(
+                action="ambiguous",
+                confidence=avg_top_score,
+                reason="Moderate relevance, needs refinement"
+            )
+        else:
+            return Evaluation(
+                action="incorrect",
+                confidence=avg_top_score,
+                reason="Low relevance, retrieval likely failed"
+            )
+    
+    def score_relevance(self, query: str, doc: str) -> float:
+        """
+        Score document relevance to query (0-1).
+        Can use: cross-encoder, LLM judge, or heuristics.
+        """
+        # Option 1: Cross-encoder
+        return self.cross_encoder.predict([[query, doc]])[0]
+        
+        # Option 2: LLM judge
+        # prompt = f"Rate relevance of this document to the query (0-10)..."
+        # return float(llm.generate(prompt)) / 10
+```
+
+### Web search fallback
+
+```python
+class WebSearchFallback:
+    def __init__(self, search_api: str = "serper"):
+        self.search_api = search_api
+    
+    def search(self, query: str, k: int = 5) -> List[Dict]:
+        """
+        Search the web when corpus retrieval fails.
+        """
+        # Call web search API
+        results = self.call_search_api(query, num_results=k * 2)
+        
+        # Extract and clean content
+        docs = []
+        for result in results[:k]:
+            content = self.extract_content(result["url"])
+            if content:
+                docs.append({
+                    "text": content[:2000],  # Truncate
+                    "url": result["url"],
+                    "title": result["title"],
+                    "source": "web",
+                })
+        
+        return docs
+    
+    def call_search_api(self, query: str, num_results: int) -> List[Dict]:
+        """
+        Call external search API.
+        """
+        if self.search_api == "serper":
+            response = requests.post(
+                "https://google.serper.dev/search",
+                json={"q": query, "num": num_results},
+                headers={"X-API-KEY": os.environ["SERPER_API_KEY"]}
+            )
+            return response.json().get("organic", [])
+        # Add other APIs as needed
+```
+
+### Knowledge refinement
+
+```python
+class KnowledgeRefiner:
+    def refine(self, query: str, docs: List[Dict]) -> List[Dict]:
+        """
+        Refine documents to extract most relevant information.
+        """
+        refined = []
+        
+        for doc in docs:
+            # Extract relevant sentences
+            sentences = split_sentences(doc["text"])
+            relevant_sentences = []
+            
+            for sent in sentences:
+                if self.is_relevant(query, sent):
+                    relevant_sentences.append(sent)
+            
+            if relevant_sentences:
+                refined.append({
+                    **doc,
+                    "text": " ".join(relevant_sentences),
+                    "original_length": len(doc["text"]),
+                    "refined_length": sum(len(s) for s in relevant_sentences),
+                })
+        
+        return refined
+    
+    def is_relevant(self, query: str, sentence: str) -> bool:
+        """
+        Check if sentence is relevant to query.
+        """
+        # Simple: keyword overlap
+        query_terms = set(query.lower().split())
+        sent_terms = set(sentence.lower().split())
+        overlap = len(query_terms & sent_terms) / len(query_terms)
+        return overlap > 0.2
+```
+
+## Failure modes
+
+1. **Evaluator too strict**: Always falls back to web search.
+2. **Evaluator too lenient**: Never corrects bad retrieval.
+3. **Web search noise**: Web results may be less reliable than corpus.
+4. **Latency**: Multiple retrieval attempts add latency.
+5. **Cost**: Web search APIs cost money.
+
+## Production defaults
+
+- **Thresholds**: Start with correct=0.8, ambiguous=0.5.
+- **Web fallback**: Enable only for important queries.
+- **Caching**: Cache web search results.
+- **Monitoring**: Track evaluation distribution to tune thresholds.
+
+## Do next
+
+<ChallengeLinks slugs={["crag-evaluator", "web-search-fallback", "knowledge-refiner"]} />

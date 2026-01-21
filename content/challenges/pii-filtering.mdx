@@ -1,0 +1,46 @@
+---
+title: "PII Filtering"
+description: "Implement PII detection and redaction"
+---
+
+# PII Filtering
+
+Implement a PII detection and redaction system for RAG pipelines to protect sensitive information.
+
+## Requirements
+
+1. Detect PII entities (emails, SSN, phone, names)
+2. Redact before indexing
+3. Redact in generated responses
+4. Log redactions for audit
+
+## Starter Code
+
+```python
+import re
+
+def detect_pii(text: str) -> list[dict]:
+    """
+    Detect PII entities in text.
+    
+    Returns:
+        List of {type, value, start, end}
+    """
+    # Your implementation here
+    pass
+
+def redact_pii(text: str, pii_entities: list[dict]) -> str:
+    """
+    Redact PII entities from text.
+    
+    Replace each entity with [REDACTED:{type}]
+    """
+    # Your implementation here
+    pass
+
+# Example patterns to detect:
+# - Email: xxx@xxx.xxx
+# - Phone: (XXX) XXX-XXXX or XXX-XXX-XXXX
+# - SSN: XXX-XX-XXXX
+# - Credit card: XXXX-XXXX-XXXX-XXXX
+```

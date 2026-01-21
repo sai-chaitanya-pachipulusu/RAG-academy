@@ -1,0 +1,383 @@
+---
+title: "Evaluation in Production"
+description: "Continuously measure and improve RAG quality with production data."
+order: 2
+estimatedMinutes: 25
+stage: evaluation-ops
+prereqs:
+  - phase: phase-6
+    slug: observability
+next:
+  phase: phase-6
+  slug: scaling-rag
+outcomes:
+  - "Implement online evaluation with real user queries."
+  - "Build golden sets from production data."
+  - "Set up automated regression testing."
+tags: ["evaluation", "production", "testing", "quality"]
+sources:
+  - title: "Ragas: RAG Evaluation"
+    url: "https://docs.ragas.io/"
+    type: "docs"
+  - title: "DeepEval: LLM Testing"
+    url: "https://docs.confident-ai.com/"
+    type: "docs"
+  - title: "LangSmith: Evaluation"
+    url: "https://docs.smith.langchain.com/evaluation"
+    type: "docs"
+---
+
+## Goals
+
+- Understand online vs offline evaluation.
+- Build evaluation pipelines from production data.
+- Implement automated quality checks before deployment.
+
+## Prereqs
+
+- Read: **RAG Observability** (have tracing in place).
+
+## Core idea
+
+### Online vs offline evaluation
+
+| Type | When | Data | Speed |
+|------|------|------|-------|
+| **Offline** | Before deploy | Curated golden set | Slow, thorough |
+| **Online** | In production | Real user queries | Fast, continuous |
+
+### Online evaluation patterns
+
+```python
+class OnlineEvaluator:
+    def __init__(self, llm_judge):
+        self.llm_judge = llm_judge
+        self.scores = []
+    
+    async def evaluate_response(
+        self,
+        query: str,
+        context: List[str],
+        response: str,
+    ) -> Dict:
+        """
+        Evaluate a single response (async, non-blocking).
+        """
+        # Run evaluations in parallel
+        scores = await asyncio.gather(
+            self.evaluate_groundedness(context, response),
+            self.evaluate_relevance(query, response),
+            self.evaluate_coherence(response),
+        )
+        
+        result = {
+            "groundedness": scores[0],
+            "relevance": scores[1],
+            "coherence": scores[2],
+            "timestamp": datetime.now(),
+        }
+        
+        self.scores.append(result)
+        return result
+    
+    async def evaluate_groundedness(self, context: List[str], response: str) -> float:
+        """
+        Is the response grounded in the context?
+        """
+        prompt = f"""Rate how well the response is supported by the context.
+Score from 0 (not supported) to 1 (fully supported).
+
+Context:
+{chr(10).join(context[:3])}
+
+Response: {response}
+
+Score (0-1):"""
+        
+        score_text = await self.llm_judge.generate_async(prompt, max_tokens=10)
+        return self.parse_score(score_text)
+    
+    async def evaluate_relevance(self, query: str, response: str) -> float:
+        """
+        Is the response relevant to the query?
+        """
+        prompt = f"""Rate how relevant the response is to the query.
+Score from 0 (irrelevant) to 1 (highly relevant).
+
+Query: {query}
+Response: {response}
+
+Score (0-1):"""
+        
+        score_text = await self.llm_judge.generate_async(prompt, max_tokens=10)
+        return self.parse_score(score_text)
+
+
+# Integrate with RAG pipeline
+class RAGWithOnlineEval:
+    def __init__(self, rag, evaluator: OnlineEvaluator, sample_rate: float = 0.1):
+        self.rag = rag
+        self.evaluator = evaluator
+        self.sample_rate = sample_rate
+    
+    async def answer(self, query: str) -> Dict:
+        result = await self.rag.answer(query)
+        
+        # Sample for evaluation
+        if random.random() < self.sample_rate:
+            asyncio.create_task(
+                self.evaluator.evaluate_response(
+                    query,
+                    result["context"],
+                    result["answer"],
+                )
+            )
+        
+        return result
+```
+
+### Building golden sets from production
+
+```python
+class GoldenSetBuilder:
+    def __init__(self, storage):
+        self.storage = storage
+    
+    def add_from_feedback(
+        self,
+        query: str,
+        response: str,
+        sources: List[Dict],
+        feedback: str,  # "positive" or "negative"
+        user_correction: str = None,
+    ):
+        """
+        Add to golden set based on user feedback.
+        """
+        if feedback == "positive":
+            # Good response → add as golden example
+            self.storage.add({
+                "query": query,
+                "expected_answer": response,
+                "expected_sources": [s["id"] for s in sources],
+                "source": "user_feedback",
+                "confidence": "high",
+            })
+        
+        elif feedback == "negative" and user_correction:
+            # User provided correction → even better signal
+            self.storage.add({
+                "query": query,
+                "expected_answer": user_correction,
+                "expected_sources": [],  # Need manual review
+                "source": "user_correction",
+                "confidence": "medium",
+            })
+    
+    def add_from_evaluation(
+        self,
+        query: str,
+        response: str,
+        sources: List[Dict],
+        eval_scores: Dict,
+    ):
+        """
+        Add high-quality responses to golden set.
+        """
+        if (
+            eval_scores.get("groundedness", 0) > 0.9 and
+            eval_scores.get("relevance", 0) > 0.9 and
+            eval_scores.get("coherence", 0) > 0.8
+        ):
+            self.storage.add({
+                "query": query,
+                "expected_answer": response,
+                "expected_sources": [s["id"] for s in sources],
+                "source": "auto_evaluation",
+                "confidence": "high",
+                "scores": eval_scores,
+            })
+    
+    def export_golden_set(self, min_confidence: str = "medium") -> List[Dict]:
+        """
+        Export golden set for offline evaluation.
+        """
+        confidence_order = {"low": 0, "medium": 1, "high": 2}
+        min_conf = confidence_order[min_confidence]
+        
+        return [
+            item for item in self.storage.get_all()
+            if confidence_order.get(item.get("confidence", "low"), 0) >= min_conf
+        ]
+```
+
+### Automated regression testing
+
+```python
+class RAGRegressionTests:
+    def __init__(self, rag, golden_set: List[Dict]):
+        self.rag = rag
+        self.golden_set = golden_set
+    
+    def run_retrieval_tests(self) -> Dict:
+        """
+        Test retrieval quality against golden set.
+        """
+        metrics = {
+            "recall_at_5": [],
+            "recall_at_10": [],
+            "mrr": [],
+        }
+        
+        for item in self.golden_set:
+            query = item["query"]
+            expected = set(item.get("expected_sources", []))
+            
+            if not expected:
+                continue
+            
+            # Get retrieval results
+            results = self.rag.retriever.retrieve(query, k=10)
+            retrieved = [r["id"] for r in results]
+            
+            # Calculate metrics
+            metrics["recall_at_5"].append(
+                len(expected & set(retrieved[:5])) / len(expected)
+            )
+            metrics["recall_at_10"].append(
+                len(expected & set(retrieved[:10])) / len(expected)
+            )
+            
+            # MRR
+            for i, doc_id in enumerate(retrieved):
+                if doc_id in expected:
+                    metrics["mrr"].append(1 / (i + 1))
+                    break
+            else:
+                metrics["mrr"].append(0)
+        
+        return {
+            k: sum(v) / len(v) if v else 0
+            for k, v in metrics.items()
+        }
+    
+    def run_generation_tests(self, evaluator: OnlineEvaluator) -> Dict:
+        """
+        Test generation quality against golden set.
+        """
+        scores = {
+            "groundedness": [],
+            "relevance": [],
+            "answer_similarity": [],
+        }
+        
+        for item in self.golden_set:
+            query = item["query"]
+            expected_answer = item.get("expected_answer")
+            
+            # Generate answer
+            result = self.rag.answer(query)
+            
+            # Evaluate
+            eval_result = evaluator.evaluate_response(
+                query,
+                result["context"],
+                result["answer"],
+            )
+            
+            scores["groundedness"].append(eval_result["groundedness"])
+            scores["relevance"].append(eval_result["relevance"])
+            
+            # Compare to expected (if available)
+            if expected_answer:
+                similarity = self.compute_similarity(
+                    result["answer"],
+                    expected_answer,
+                )
+                scores["answer_similarity"].append(similarity)
+        
+        return {
+            k: sum(v) / len(v) if v else 0
+            for k, v in scores.items()
+        }
+    
+    def run_all(self, evaluator: OnlineEvaluator) -> Dict:
+        """
+        Run all regression tests.
+        """
+        retrieval = self.run_retrieval_tests()
+        generation = self.run_generation_tests(evaluator)
+        
+        # Check for regressions
+        passed = True
+        issues = []
+        
+        if retrieval["recall_at_10"] < 0.8:
+            passed = False
+            issues.append(f"Recall@10 dropped to {retrieval['recall_at_10']:.2f}")
+        
+        if generation["groundedness"] < 0.85:
+            passed = False
+            issues.append(f"Groundedness dropped to {generation['groundedness']:.2f}")
+        
+        return {
+            "passed": passed,
+            "retrieval": retrieval,
+            "generation": generation,
+            "issues": issues,
+        }
+```
+
+### CI/CD integration
+
+```python
+# ci_evaluation.py
+"""Run RAG evaluation in CI/CD pipeline."""
+
+def main():
+    # Load golden set
+    golden_set = load_golden_set("golden_set.json")
+    
+    # Initialize RAG
+    rag = initialize_rag()
+    evaluator = OnlineEvaluator(llm_judge)
+    
+    # Run tests
+    tests = RAGRegressionTests(rag, golden_set)
+    results = tests.run_all(evaluator)
+    
+    # Output results
+    print(f"Retrieval Recall@10: {results['retrieval']['recall_at_10']:.2%}")
+    print(f"Generation Groundedness: {results['generation']['groundedness']:.2%}")
+    
+    # Fail CI if regression detected
+    if not results["passed"]:
+        print("FAILED: Regressions detected")
+        for issue in results["issues"]:
+            print(f"  - {issue}")
+        sys.exit(1)
+    
+    print("PASSED: All metrics within threshold")
+    sys.exit(0)
+
+if __name__ == "__main__":
+    main()
+```
+
+## Failure modes
+
+1. **Evaluation bias**: LLM judge has blind spots.
+2. **Golden set drift**: Production queries change, golden set doesn't.
+3. **Slow feedback**: Takes too long to detect issues.
+4. **Over-reliance on metrics**: Miss qualitative issues.
+
+## Production defaults
+
+- **Online sampling**: 10-20% of requests.
+- **Golden set size**: 100-500 queries (diverse).
+- **CI thresholds**: Recall@10 > 0.8, Groundedness > 0.85.
+- **Refresh golden set**: Monthly from production data.
+
+## Do next
+
+<ChallengeLinks slugs={["online-evaluator", "golden-set-builder", "regression-tests"]} />

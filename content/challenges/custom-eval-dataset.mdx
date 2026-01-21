@@ -1,0 +1,63 @@
+﻿---
+title: "Build Custom Evaluation Dataset"
+description: "Create domain-specific evaluation datasets for your RAG system"
+difficulty: "medium"
+xpReward: 100
+prerequisites: ["beir-evaluation-setup"]
+---
+
+# Build Custom Evaluation Dataset
+
+Create a domain-specific evaluation dataset for your RAG system.
+
+## Why This Matters
+
+Generic benchmarks (BEIR, MTEB) don't capture your domain's specific challenges. Production RAG systems need custom evaluation suites.
+
+## What You'll Learn
+
+- Evaluation dataset design patterns
+- Query-relevance mapping
+- Dataset validation
+- JSON serialization for portability
+
+## Real-World Application
+
+**Companies:** Every enterprise RAG deployment, Legal tech, Healthcare AI
+**Use Cases:** Domain-specific RAG, Quality assurance, Regression testing
+
+## The Challenge
+
+Build an `EvalDatasetBuilder` class that:
+
+1. Adds documents to a corpus
+2. Creates query-relevance examples
+3. Validates dataset integrity
+4. Exports to JSON format
+
+## Key Concepts
+
+### Builder Pattern
+
+```python
+builder = EvalDatasetBuilder("legal_rag_eval", "legal")
+builder.add_document("doc1", "Contract law governs...")
+builder.add_example(
+    query="What happens if someone breaks a contract?",
+    relevant_doc_ids=["doc1"],
+    difficulty="easy",
+    tags=["contract"]
+)
+dataset = builder.build()
+```
+
+### Dataset Validation
+
+- All referenced doc_ids must exist
+- Each example must have at least one relevant doc
+- No duplicate queries
+
+### Statistics Computation
+
+Track difficulty distribution, tag frequencies, and coverage metrics.
+

@@ -1,0 +1,51 @@
+﻿<Callout title="Goal" variant="info">
+  Implement Mean Reciprocal Rank (MRR) to measure the average rank of the
+  correct result.
+</Callout>
+
+## The "Rank Matters" Problem
+
+Recall@K is binary: it's either in the list or not. But in RAG, getting the correct document at **Position #1** is much better than getting it at **Position #10**, because LLMs focus most on the beginning and end of context ("lost in the middle" problem).
+
+## MRR Formula
+
+```
+MRR = (1/|Q|) × Σᵢ (1 / rankᵢ)
+```
+
+Where `rankᵢ` is the position of the first relevant document for query `i`.
+
+### Per-query Reciprocal Rank
+
+| First relevant doc at | Score (1/rank) |
+| --------------------- | -------------- |
+| Position 1            | 1.000          |
+| Position 2            | 0.500          |
+| Position 3            | 0.333          |
+| Position 5            | 0.200          |
+| Position 10           | 0.100          |
+| Not found             | 0.000          |
+
+## Example calculation
+
+| Query              | First relevant at | Reciprocal Rank |
+| ------------------ | ----------------- | --------------- |
+| "RAG architecture" | #1                | 1.00            |
+| "HNSW complexity"  | #3                | 0.33            |
+| "token budget"     | #2                | 0.50            |
+
+MRR = (1.00 + 0.33 + 0.50) / 3 = **0.61**
+
+## When to use MRR
+
+- **Chatbots**: When users see only the top result
+- **QA systems**: When the first relevant document is critical
+- **Comparing retrieval changes**: MRR is more sensitive than Recall@K
+
+## MRR vs Recall@K
+
+| Metric   | Cares about position? | Use case                      |
+| -------- | --------------------- | ----------------------------- |
+| Recall@K | No (binary)           | "Did we find it?"             |
+| MRR      | Yes (rank matters)    | "How quickly did we find it?" |
+

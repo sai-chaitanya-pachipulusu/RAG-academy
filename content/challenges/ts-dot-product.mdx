@@ -1,0 +1,25 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Implement the dot product in TypeScript — the fundamental operation for embedding similarity.
+</Callout>
+
+## Why this matters in production
+
+The dot product is the core operation behind every embedding similarity computation. When you use OpenAI embeddings or any vector database, dot products power the similarity scores.
+
+This TypeScript version helps you understand the algorithm in a language commonly used for RAG API development.
+
+## What you're implementing
+
+- Validate equal vector lengths (throw Error if not).
+- Handle empty vectors (`dot([], []) === 0`).
+- Return a number representing the sum of element-wise products.
+
+## Common pitfalls
+
+- Forgetting to check for length mismatch before computing.
+- Off-by-one errors when iterating.
+
+## After you pass
+
+Move on to **Cosine Similarity (TypeScript)**, then try **Top-K Search**.
+

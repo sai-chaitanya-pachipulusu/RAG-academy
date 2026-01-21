@@ -1,0 +1,286 @@
+---
+title: "Self-RAG: Self-Correcting Retrieval"
+description: "Build RAG systems that critique and improve their own outputs."
+order: 2
+estimatedMinutes: 25
+stage: post-retrieval
+prereqs:
+  - phase: phase-3
+    slug: modular-rag-architecture
+next:
+  phase: phase-3
+  slug: corrective-rag
+outcomes:
+  - "Understand the Self-RAG framework and its components."
+  - "Implement retrieval and generation self-reflection."
+  - "Know when self-correction is worth the latency cost."
+tags: ["self-rag", "self-correction", "reflection", "quality"]
+sources:
+  - title: "Self-RAG: Self-Reflective RAG (Asai et al., 2023)"
+    url: "https://arxiv.org/abs/2310.11511"
+    type: "paper"
+    year: 2023
+  - title: "Self-Refine (Madaan et al., 2023)"
+    url: "https://arxiv.org/abs/2303.17651"
+    type: "paper"
+    year: 2023
+  - title: "LangChain: Self-Query"
+    url: "https://python.langchain.com/docs/how_to/self_query/"
+    type: "docs"
+---
+
+## Goals
+
+- Understand Self-RAG's critique tokens and adaptive retrieval.
+- Implement self-reflection at retrieval and generation stages.
+- Balance quality improvement vs latency cost.
+
+## Prereqs
+
+- Read: **Modular RAG Architecture** (understand modular components).
+
+## Core idea
+
+### What is Self-RAG?
+
+From [Asai et al., 2023](https://arxiv.org/abs/2310.11511): Self-RAG trains the LLM to generate **special reflection tokens** that critique its own outputs:
+
+```
+Standard RAG:
+  Query → Retrieve → Generate → Answer
+
+Self-RAG:
+  Query → [Retrieve?] → Generate → [IsSupported?] → [IsUseful?] → Answer
+              ↓              ↓              ↓
+          Decision       Critique       Critique
+```
+
+### The four reflection tokens
+
+| Token | Question | Values |
+|-------|----------|--------|
+| `[Retrieve]` | "Do I need to retrieve?" | yes, no, continue |
+| `[IsRel]` | "Is this passage relevant?" | relevant, irrelevant |
+| `[IsSup]` | "Is my claim supported?" | fully, partially, no |
+| `[IsUse]` | "Is my answer useful?" | 5, 4, 3, 2, 1 |
+
+### Implementing Self-RAG (simplified)
+
+```python
+class SelfRAG:
+    def __init__(self, retriever, generator, critic):
+        self.retriever = retriever
+        self.generator = generator
+        self.critic = critic
+    
+    def answer(self, query: str) -> Dict:
+        """
+        Self-RAG: retrieve adaptively, generate with self-critique.
+        """
+        # Step 1: Decide if retrieval is needed
+        needs_retrieval = self.should_retrieve(query)
+        
+        context = ""
+        sources = []
+        
+        if needs_retrieval:
+            # Step 2: Retrieve and filter relevant passages
+            candidates = self.retriever.retrieve(query, k=10)
+            relevant = self.filter_relevant(query, candidates)
+            
+            if not relevant:
+                # No relevant passages found
+                return self.generate_without_context(query)
+            
+            context = self.build_context(relevant)
+            sources = relevant
+        
+        # Step 3: Generate with self-critique
+        answer = self.generate_with_critique(query, context)
+        
+        return {
+            "answer": answer,
+            "sources": sources,
+            "needed_retrieval": needs_retrieval,
+        }
+    
+    def should_retrieve(self, query: str) -> bool:
+        """
+        Decide if retrieval is needed for this query.
+        """
+        prompt = f"""Should I retrieve external information to answer this query?
+
+Query: {query}
+
+Answer yes if:
+- The query asks about specific facts, dates, or details
+- The query is about a topic that requires up-to-date information
+- The query cannot be answered from general knowledge
+
+Answer no if:
+- The query is about general knowledge or common sense
+- The query is asking for an opinion or creative content
+
+Decision (yes/no):"""
+        
+        response = self.generator.generate(prompt, max_tokens=10)
+        return "yes" in response.lower()
+    
+    def filter_relevant(self, query: str, candidates: List[Dict]) -> List[Dict]:
+        """
+        Filter retrieved passages for relevance.
+        """
+        relevant = []
+        
+        for candidate in candidates:
+            prompt = f"""Is this passage relevant to the query?
+
+Query: {query}
+
+Passage: {candidate['text'][:500]}
+
+Relevance (relevant/irrelevant):"""
+            
+            response = self.critic.generate(prompt, max_tokens=10)
+            if "relevant" in response.lower() and "irrelevant" not in response.lower():
+                relevant.append(candidate)
+        
+        return relevant
+    
+    def generate_with_critique(self, query: str, context: str) -> str:
+        """
+        Generate answer with self-critique loop.
+        """
+        # Initial generation
+        answer = self.generator.generate(
+            self.build_prompt(query, context)
+        )
+        
+        # Self-critique
+        critique = self.critique_answer(query, context, answer)
+        
+        if critique["supported"] == "fully" and critique["useful"] >= 4:
+            return answer
+        
+        # Refine if needed
+        if critique["supported"] != "fully":
+            answer = self.refine_for_support(query, context, answer, critique)
+        
+        if critique["useful"] < 4:
+            answer = self.refine_for_usefulness(query, answer, critique)
+        
+        return answer
+    
+    def critique_answer(self, query: str, context: str, answer: str) -> Dict:
+        """
+        Critique the generated answer.
+        """
+        support_prompt = f"""Is this answer fully supported by the context?
+
+Context: {context[:1000]}
+
+Answer: {answer}
+
+Support level (fully/partially/no):"""
+        
+        useful_prompt = f"""How useful is this answer for the query?
+
+Query: {query}
+Answer: {answer}
+
+Score (1-5, where 5 is most useful):"""
+        
+        support = self.critic.generate(support_prompt, max_tokens=20)
+        useful = self.critic.generate(useful_prompt, max_tokens=10)
+        
+        return {
+            "supported": self.parse_support(support),
+            "useful": self.parse_score(useful),
+        }
+```
+
+### Adaptive retrieval patterns
+
+```python
+class AdaptiveRetriever:
+    """
+    Retrieve only when needed, with the right strategy.
+    """
+    def retrieve_adaptive(self, query: str, context: str = "") -> List[Dict]:
+        """
+        Decide retrieval strategy based on query and existing context.
+        """
+        # Already have good context?
+        if context and self.context_is_sufficient(query, context):
+            return []  # No retrieval needed
+        
+        # Factual query?
+        if self.is_factual_query(query):
+            return self.retriever.retrieve(query, k=10)
+        
+        # Multi-hop query?
+        if self.is_multi_hop(query):
+            return self.iterative_retrieve(query)
+        
+        # Default: single retrieval
+        return self.retriever.retrieve(query, k=5)
+    
+    def iterative_retrieve(self, query: str) -> List[Dict]:
+        """
+        Multi-hop retrieval for complex queries.
+        """
+        all_docs = []
+        current_query = query
+        
+        for _ in range(3):  # Max 3 hops
+            docs = self.retriever.retrieve(current_query, k=5)
+            all_docs.extend(docs)
+            
+            # Check if we have enough
+            if self.have_sufficient_info(query, all_docs):
+                break
+            
+            # Generate follow-up query
+            current_query = self.generate_followup(query, all_docs)
+            if not current_query:
+                break
+        
+        return deduplicate(all_docs)
+```
+
+### When to use Self-RAG
+
+| Scenario | Use Self-RAG? | Why |
+|----------|---------------|-----|
+| High-stakes (legal, medical) | ✓ Yes | Quality > latency |
+| Factual accuracy critical | ✓ Yes | Need verification |
+| High volume, simple queries | ✗ No | Latency too high |
+| Creative/open-ended | ✗ No | No ground truth |
+| Real-time chat | ✗ No | User expects speed |
+
+## Failure modes
+
+1. **Over-retrieval**: Retrieving when not needed adds latency.
+2. **Harsh critic**: Rejecting good answers, causing loops.
+3. **Lenient critic**: Accepting bad answers, defeating the purpose.
+4. **Infinite loops**: Refine → critique → refine → ...
+5. **Cost explosion**: Each critique = more LLM calls.
+
+## Production defaults
+
+- **Enable for**: High-stakes queries, factual accuracy requirements.
+- **Disable for**: High-volume, latency-sensitive, creative queries.
+- **Max iterations**: 2 refinement cycles max.
+- **Fast path**: Skip critique if retrieval confidence is high.
+
+```python
+# Production pattern
+if query.is_high_stakes or query.requires_accuracy:
+    answer = self_rag.answer(query)
+else:
+    answer = standard_rag.answer(query)  # Faster path
+```
+
+## Do next
+
+<ChallengeLinks slugs={["self-rag-retrieve-decision", "self-rag-critique", "adaptive-retrieval"]} />

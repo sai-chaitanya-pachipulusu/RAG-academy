@@ -1,0 +1,40 @@
+﻿---
+title: "Index Warmup / Cache Preload"
+description: "Preload frequently-accessed vectors for low-latency search."
+---
+
+# Index Warmup / Cache Preload
+
+Cold indexes have **10x higher latency** than warm ones. The first query after a pod starts might take 500ms instead of 50ms.
+
+### The Cold Start Problem
+
+Vector databases store data on disk. Loading into memory takes time:
+
+- First query: Load from disk → 500ms
+- Subsequent queries: In memory → 50ms
+
+### The Solution: Warmup
+
+Pre-load frequently accessed vectors at startup:
+
+```python
+index.warmup(["popular_doc_1", "popular_doc_2", ...])
+```
+
+### Identifying Hot Data
+
+Track access patterns to find candidates:
+
+- Most frequently accessed docs.
+- Docs accessed by VIP users.
+- Common query patterns.
+
+### Your Task
+
+Implement a `WarmableIndex` that:
+
+- Stores vectors on "disk" (cold storage).
+- Warms specific vectors into memory cache.
+- Tracks access counts to identify hot data.
+

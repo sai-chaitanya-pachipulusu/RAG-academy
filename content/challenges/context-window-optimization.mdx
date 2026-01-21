@@ -1,0 +1,344 @@
+﻿<Callout title="Goal" variant="info">
+  Optimize context window usage — maximize information density while staying
+  within token limits.
+</Callout>
+
+## The Context Window Challenge
+
+LLMs have limited context windows:
+
+| Model       | Context Window | ~Words | Cost Impact |
+| ----------- | -------------- | ------ | ----------- |
+| GPT-4o-mini | 128K           | 100K   | Lower       |
+| GPT-4o      | 128K           | 100K   | Higher      |
+| Claude 3.5  | 200K           | 150K   | Higher      |
+| Gemini 1.5  | 1M             | 750K   | Variable    |
+
+More context ≠ better answers. Research shows:
+
+- Models struggle with "lost in the middle" problem
+- Irrelevant context dilutes attention
+- Cost scales linearly with tokens
+
+## Strategy 1: Token Budget Allocation
+
+Divide your context budget strategically:
+
+```python
+class TokenBudgetAllocator:
+    def __init__(self, total_budget: int = 4000, model: str = "gpt-4o"):
+        self.total_budget = total_budget
+        self.model = model
+
+        # Allocation strategy
+        self.allocations = {
+            "system_prompt": 200,
+            "query": 100,
+            "context": 3000,  # Main budget
+            "instructions": 200,
+            "output_buffer": 500,  # Reserved for response
+        }
+
+    def allocate(self, query: str, docs: list[str]) -> dict:
+        """Allocate tokens across components."""
+        query_tokens = count_tokens(query, self.model)
+
+        # Adjust context budget based on query length
+        available_for_context = (
+            self.total_budget
+            - self.allocations["system_prompt"]
+            - query_tokens
+            - self.allocations["instructions"]
+            - self.allocations["output_buffer"]
+        )
+
+        # Pack documents until budget exhausted
+        packed_docs = []
+        used_tokens = 0
+
+        for doc in docs:
+            doc_tokens = count_tokens(doc, self.model)
+            if used_tokens + doc_tokens <= available_for_context:
+                packed_docs.append(doc)
+                used_tokens += doc_tokens
+            else:
+                # Try to fit a truncated version
+                remaining = available_for_context - used_tokens
+                if remaining > 100:
+                    truncated = truncate_to_tokens(doc, remaining, self.model)
+                    packed_docs.append(truncated)
+                break
+
+        return {
+            "documents": packed_docs,
+            "tokens_used": used_tokens,
+            "budget_remaining": available_for_context - used_tokens
+        }
+```
+
+## Strategy 2: Document Compression
+
+Reduce document size while preserving key information:
+
+### Extractive Compression
+
+```python
+def extractive_compress(document: str, query: str, target_ratio: float = 0.3) -> str:
+    """Extract most relevant sentences."""
+    sentences = nltk.sent_tokenize(document)
+
+    # Score sentences by relevance to query
+    query_embedding = embed(query)
+    sentence_scores = []
+
+    for sent in sentences:
+        sent_embedding = embed(sent)
+        score = cosine_similarity(query_embedding, sent_embedding)
+        sentence_scores.append((score, sent))
+
+    # Keep top sentences up to target ratio
+    sentence_scores.sort(reverse=True)
+    target_length = int(len(document) * target_ratio)
+
+    compressed = []
+    current_length = 0
+
+    for score, sent in sentence_scores:
+        if current_length + len(sent) <= target_length:
+            compressed.append(sent)
+            current_length += len(sent)
+
+    # Reorder to maintain original flow
+    return reorder_to_original(compressed, sentences)
+```
+
+### LLM-based Compression
+
+```python
+def llm_compress(document: str, query: str, target_tokens: int = 500) -> str:
+    """Use LLM to compress document."""
+    prompt = f"""Compress this document to ~{target_tokens} tokens while preserving
+information relevant to: "{query}"
+
+Keep:
+- Key facts and figures
+- Definitions and explanations
+- Relevant examples
+
+Remove:
+- Redundant information
+- Tangential details
+- Filler phrases
+
+Document:
+{document}
+
+Compressed version:"""
+
+    return llm.generate(prompt, max_tokens=target_tokens)
+```
+
+## Strategy 3: Hierarchical Context
+
+Structure context for better attention:
+
+```python
+def build_hierarchical_context(docs: list[dict], query: str) -> str:
+    """Build structured context with clear hierarchy."""
+
+    # Group by source/category
+    grouped = group_by_source(docs)
+
+    context_parts = []
+
+    for source, source_docs in grouped.items():
+        context_parts.append(f"## Source: {source}")
+
+        for i, doc in enumerate(source_docs):
+            # Add section headers
+            context_parts.append(f"### Section {i+1}")
+            context_parts.append(doc["text"])
+
+            # Add relevance hint
+            if doc.get("score", 0) > 0.9:
+                context_parts.append("(Highly relevant)")
+
+        context_parts.append("")  # Blank line between sources
+
+    return "\n".join(context_parts)
+```
+
+## Strategy 4: Relevance-based Ordering
+
+Order documents to combat "lost in the middle":
+
+```python
+def optimal_ordering(docs: list[dict]) -> list[dict]:
+    """Order documents for optimal attention.
+
+    Research shows: beginning and end get most attention.
+    Put most relevant at beginning, second-most at end.
+    """
+    if len(docs) <= 2:
+        return docs
+
+    # Sort by relevance
+    sorted_docs = sorted(docs, key=lambda d: d["score"], reverse=True)
+
+    # Interleave: best, worst, second-best, second-worst, ...
+    result = []
+    left, right = 0, len(sorted_docs) - 1
+
+    while left <= right:
+        result.append(sorted_docs[left])
+        left += 1
+        if left <= right:
+            result.append(sorted_docs[right])
+            right -= 1
+
+    return result
+```
+
+## Strategy 5: Dynamic Context Selection
+
+Select context based on query complexity:
+
+```python
+def dynamic_context_size(query: str, base_k: int = 5) -> int:
+    """Adjust context size based on query."""
+
+    # Simple queries need less context
+    query_complexity = estimate_complexity(query)
+
+    if query_complexity == "simple":
+        return min(base_k, 3)  # Just top 3
+    elif query_complexity == "moderate":
+        return base_k
+    else:  # complex
+        return base_k * 2  # More context for complex queries
+
+def estimate_complexity(query: str) -> str:
+    """Estimate query complexity."""
+    indicators = {
+        "simple": ["what is", "define", "who is"],
+        "complex": ["compare", "analyze", "explain why", "how does", "relationship"]
+    }
+
+    query_lower = query.lower()
+
+    for level, keywords in indicators.items():
+        if any(kw in query_lower for kw in keywords):
+            return level
+
+    return "moderate"
+```
+
+## Strategy 6: Metadata Enrichment
+
+Add structured metadata to improve understanding:
+
+```python
+def enrich_context(docs: list[dict]) -> str:
+    """Add metadata to context for better grounding."""
+    enriched_parts = []
+
+    for i, doc in enumerate(docs):
+        metadata_line = f"[Document {i+1}]"
+
+        # Add source info
+        if doc.get("source"):
+            metadata_line += f" Source: {doc['source']}"
+
+        # Add date if available
+        if doc.get("date"):
+            metadata_line += f" | Date: {doc['date']}"
+
+        # Add relevance score
+        if doc.get("score"):
+            relevance = "High" if doc["score"] > 0.8 else "Medium" if doc["score"] > 0.5 else "Low"
+            metadata_line += f" | Relevance: {relevance}"
+
+        enriched_parts.append(metadata_line)
+        enriched_parts.append(doc["text"])
+        enriched_parts.append("")  # Blank line
+
+    return "\n".join(enriched_parts)
+```
+
+## Full Optimization Pipeline
+
+```python
+class ContextOptimizer:
+    def __init__(self, token_budget: int = 4000):
+        self.budget = token_budget
+        self.allocator = TokenBudgetAllocator(token_budget)
+
+    def optimize(self, query: str, docs: list[dict]) -> str:
+        # 1. Filter low-relevance docs
+        filtered = [d for d in docs if d.get("score", 0) > 0.3]
+
+        # 2. Compress if needed
+        total_tokens = sum(count_tokens(d["text"]) for d in filtered)
+        if total_tokens > self.budget * 0.7:
+            filtered = self.compress_docs(filtered, query)
+
+        # 3. Optimal ordering
+        ordered = optimal_ordering(filtered)
+
+        # 4. Pack within budget
+        allocation = self.allocator.allocate(query, [d["text"] for d in ordered])
+
+        # 5. Enrich with metadata
+        packed_docs = [
+            {**d, "text": t}
+            for d, t in zip(ordered, allocation["documents"])
+        ]
+
+        return enrich_context(packed_docs)
+
+    def compress_docs(self, docs: list[dict], query: str) -> list[dict]:
+        """Compress documents to fit budget."""
+        target_per_doc = (self.budget * 0.6) // len(docs)
+
+        compressed = []
+        for doc in docs:
+            if count_tokens(doc["text"]) > target_per_doc:
+                doc["text"] = extractive_compress(
+                    doc["text"], query,
+                    target_ratio=target_per_doc / count_tokens(doc["text"])
+                )
+            compressed.append(doc)
+
+        return compressed
+```
+
+## Benchmarks
+
+| Strategy                | Compression | Quality  | Speed  |
+| ----------------------- | ----------- | -------- | ------ |
+| No optimization         | 0%          | Baseline | Fast   |
+| Extractive (0.3x)       | 70%         | -5%      | Fast   |
+| LLM compression         | 60%         | -3%      | Slow   |
+| Hierarchical + ordering | 0%          | +8%      | Fast   |
+| Full pipeline           | 50%         | +5%      | Medium |
+
+## When to Use Each Strategy
+
+| Scenario          | Strategy                          |
+| ----------------- | --------------------------------- |
+| Token limit tight | Aggressive compression            |
+| Speed critical    | Extractive only                   |
+| Quality critical  | Hierarchical + ordering           |
+| Cost sensitive    | Smaller context, more compression |
+| Long documents    | Hierarchical chunking             |
+
+## Production Checklist
+
+- [ ] Set token budget per request
+- [ ] Implement relevance filtering
+- [ ] Add compression for long docs
+- [ ] Use optimal ordering (beginning/end bias)
+- [ ] Enrich with metadata
+- [ ] Monitor context utilization
+- [ ] Track quality vs context size
+

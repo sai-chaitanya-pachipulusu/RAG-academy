@@ -1,0 +1,88 @@
+---
+title: "Embedding Fundamentals"
+description: "Vectors, similarity, and why embeddings make retrieval possible."
+order: 2
+estimatedMinutes: 20
+stage: foundations
+prereqs:
+  - phase: phase-0
+    slug: why-rag-exists
+next:
+  phase: phase-0
+  slug: tokenizers-and-context
+outcomes:
+  - "Explain what embeddings are and why they enable semantic retrieval."
+  - "Differentiate similarity vs distance metrics (and when they matter)."
+  - "Know the common production failure modes (model mismatch, vectors-only, bad chunking)."
+tags: ["foundations", "embeddings", "vectors", "similarity"]
+sources:
+  - title: "Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks (Reimers & Gurevych, 2019)"
+    url: "https://arxiv.org/abs/1908.10084"
+    type: "paper"
+    authors: "Nils Reimers, Iryna Gurevych"
+    year: 2019
+  - title: "MTEB: Massive Text Embedding Benchmark"
+    url: "https://arxiv.org/abs/2210.07316"
+    type: "paper"
+    year: 2022
+  - title: "OpenAI: Embeddings documentation"
+    url: "https://platform.openai.com/docs/guides/embeddings"
+    type: "docs"
+  - title: "Cohere: Embeddings documentation"
+    url: "https://docs.cohere.com/docs/embeddings"
+    type: "docs"
+---
+
+## Goals
+
+- Build the correct intuition for “meaning as geometry”.
+- Understand why similarity math matters, but isn’t the main bottleneck.
+- Be ready to implement the primitives used by vector databases.
+
+## Prereqs
+
+- Read: **Why RAG Exists** (`/learn/phase-0/why-rag-exists`).
+
+## Core idea
+
+### What is an embedding?
+
+An **embedding** maps content (text, image, code) into a vector of numbers:
+
+- similar meaning → vectors are close
+- different meaning → vectors are far
+
+This turns “search for meaning” into a geometry problem.
+
+### Similarity vs distance
+
+You’ll see both in practice:
+
+- **Cosine similarity** (most common for embeddings)
+- **Dot product** (often used directly, especially if vectors are normalized)
+- **Euclidean distance** (good for intuition; less common for modern text embeddings)
+
+<Callout title="Key idea" variant="success">
+  Retrieval quality often depends more on chunking + query formulation than the exact similarity metric.
+</Callout>
+
+## Failure modes
+
+- **Vectors-only retrieval**: you will miss exact terms (IDs/acronyms) unless you use hybrid retrieval.
+- **Model mismatch**: query and docs embedded with different models → similarity becomes meaningless.
+- **Wrong chunking**: embeddings can’t recover lost structure (garbage in → garbage out).
+
+## Production defaults
+
+- Choose one good baseline embedding model and evaluate changes with Recall@k.
+- Prefer **hybrid + reranking** improvements before fine-tuning embeddings.
+- Use Compare when choosing models:
+  - [Compare: Embeddings](/compare/embeddings)
+
+## Do next
+
+<ChallengeLinks
+  slugs={["dot-product", "cosine-similarity", "euclidean-distance"]}
+/>
+
+

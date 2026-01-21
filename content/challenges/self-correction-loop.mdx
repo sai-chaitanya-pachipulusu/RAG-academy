@@ -1,0 +1,23 @@
+﻿<Callout title="Goal" variant="info">
+  Implement a "Self-RAG" style loop where the agent critiques its own answer.
+</Callout>
+
+## Hallucination is a feature, not a bug
+
+LLMs predict the next token. If they don't know the answer, they make up a plausible one.
+To fix this in production, we add a **Verification Step**.
+
+## The Check
+
+After the LLM generates an answer, we run a check:
+
+1.  **Groundedness**: Is every claim in the answer supported by the retrieved context?
+2.  **Relevance**: Does the answer actually address the user's question?
+
+If the check fails, we send it back to the LLM: _"You hallucinated. Here is the context again. Fix it."_
+
+## Implementation details
+
+In this challenge, you will implement a simple keyword-overlap heuristic to catch unsupported claims.
+In production, you would use a "Grader LLM" or NLI (Natural Language Inference) model like `DeBERTa`.
+

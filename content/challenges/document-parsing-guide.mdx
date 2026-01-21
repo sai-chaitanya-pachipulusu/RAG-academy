@@ -1,0 +1,467 @@
+﻿<Callout title="Goal" variant="info">
+  Master document parsing for RAG — extract clean text from PDFs, Word docs,
+  HTML, and complex layouts.
+</Callout>
+
+## The Parsing Challenge
+
+Documents come in many formats:
+
+- **PDFs**: Text, images, tables, scanned
+- **Word/PowerPoint**: Rich formatting
+- **HTML**: Nested structures
+- **Images**: OCR required
+- **Markdown**: Headers, code blocks
+
+Bad parsing = bad retrieval.
+
+## PDF Parsing
+
+### Basic Text Extraction
+
+```python
+import fitz  # PyMuPDF
+
+def extract_pdf_text(pdf_path: str) -> list[dict]:
+    """Extract text from PDF with page info."""
+    doc = fitz.open(pdf_path)
+    pages = []
+
+    for page_num, page in enumerate(doc):
+        text = page.get_text("text")
+
+        pages.append({
+            "page": page_num + 1,
+            "text": text.strip(),
+            "metadata": {
+                "width": page.rect.width,
+                "height": page.rect.height,
+            }
+        })
+
+    return pages
+```
+
+### Preserving Structure
+
+```python
+def extract_pdf_structured(pdf_path: str) -> list[dict]:
+    """Extract text with layout information."""
+    doc = fitz.open(pdf_path)
+    blocks = []
+
+    for page_num, page in enumerate(doc):
+        # Get text blocks with position
+        text_blocks = page.get_text("dict")["blocks"]
+
+        for block in text_blocks:
+            if block["type"] == 0:  # Text block
+                # Reconstruct text from spans
+                text = ""
+                for line in block.get("lines", []):
+                    for span in line.get("spans", []):
+                        text += span["text"]
+                    text += "\n"
+
+                blocks.append({
+                    "page": page_num + 1,
+                    "type": "text",
+                    "text": text.strip(),
+                    "bbox": block["bbox"],  # Bounding box
+                    "font_size": get_dominant_font_size(block),
+                })
+
+            elif block["type"] == 1:  # Image block
+                blocks.append({
+                    "page": page_num + 1,
+                    "type": "image",
+                    "bbox": block["bbox"],
+                })
+
+    return blocks
+
+def get_dominant_font_size(block: dict) -> float:
+    """Get the most common font size in a block."""
+    sizes = []
+    for line in block.get("lines", []):
+        for span in line.get("spans", []):
+            sizes.append(span.get("size", 12))
+    return max(set(sizes), key=sizes.count) if sizes else 12
+```
+
+### Table Extraction
+
+```python
+import pdfplumber
+
+def extract_tables(pdf_path: str) -> list[dict]:
+    """Extract tables from PDF."""
+    tables = []
+
+    with pdfplumber.open(pdf_path) as pdf:
+        for page_num, page in enumerate(pdf.pages):
+            page_tables = page.extract_tables()
+
+            for i, table in enumerate(page_tables):
+                # Convert to structured format
+                if table and len(table) > 0:
+                    headers = table[0]
+                    rows = table[1:]
+
+                    tables.append({
+                        "page": page_num + 1,
+                        "table_num": i + 1,
+                        "headers": headers,
+                        "rows": rows,
+                        "markdown": table_to_markdown(headers, rows),
+                    })
+
+    return tables
+
+def table_to_markdown(headers: list, rows: list) -> str:
+    """Convert table to markdown format."""
+    lines = []
+
+    # Header row
+    lines.append("| " + " | ".join(str(h or "") for h in headers) + " |")
+    lines.append("| " + " | ".join(["---"] * len(headers)) + " |")
+
+    # Data rows
+    for row in rows:
+        lines.append("| " + " | ".join(str(c or "") for c in row) + " |")
+
+    return "\n".join(lines)
+```
+
+### OCR for Scanned PDFs
+
+```python
+import pytesseract
+from pdf2image import convert_from_path
+
+def ocr_pdf(pdf_path: str) -> list[dict]:
+    """Extract text from scanned PDF using OCR."""
+    # Convert PDF pages to images
+    images = convert_from_path(pdf_path, dpi=300)
+    pages = []
+
+    for page_num, image in enumerate(images):
+        # Run OCR
+        text = pytesseract.image_to_string(image)
+
+        # Get layout data
+        data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
+
+        pages.append({
+            "page": page_num + 1,
+            "text": text.strip(),
+            "confidence": calculate_avg_confidence(data),
+            "word_count": len(text.split()),
+        })
+
+    return pages
+
+def calculate_avg_confidence(data: dict) -> float:
+    """Calculate average OCR confidence."""
+    confidences = [c for c in data["conf"] if c > 0]
+    return sum(confidences) / len(confidences) if confidences else 0
+```
+
+## HTML Parsing
+
+### Clean Text Extraction
+
+```python
+from bs4 import BeautifulSoup
+import html2text
+
+def parse_html_clean(html: str) -> str:
+    """Extract clean text from HTML."""
+    h = html2text.HTML2Text()
+    h.ignore_links = False
+    h.ignore_images = True
+    h.body_width = 0  # No line wrapping
+
+    return h.handle(html)
+
+def parse_html_structured(html: str) -> dict:
+    """Extract structured content from HTML."""
+    soup = BeautifulSoup(html, "html.parser")
+
+    result = {
+        "title": None,
+        "headings": [],
+        "paragraphs": [],
+        "lists": [],
+        "tables": [],
+        "code_blocks": [],
+    }
+
+    # Title
+    if soup.title:
+        result["title"] = soup.title.string
+
+    # Headings
+    for level in range(1, 7):
+        for h in soup.find_all(f"h{level}"):
+            result["headings"].append({
+                "level": level,
+                "text": h.get_text().strip()
+            })
+
+    # Paragraphs
+    for p in soup.find_all("p"):
+        text = p.get_text().strip()
+        if text:
+            result["paragraphs"].append(text)
+
+    # Code blocks
+    for pre in soup.find_all("pre"):
+        code = pre.find("code")
+        if code:
+            result["code_blocks"].append(code.get_text())
+
+    return result
+```
+
+### Web Scraping for RAG
+
+```python
+import requests
+from urllib.parse import urljoin
+
+def scrape_for_rag(url: str, max_pages: int = 100) -> list[dict]:
+    """Scrape website for RAG indexing."""
+    visited = set()
+    documents = []
+    to_visit = [url]
+
+    while to_visit and len(visited) < max_pages:
+        current_url = to_visit.pop(0)
+        if current_url in visited:
+            continue
+
+        try:
+            response = requests.get(current_url, timeout=10)
+            if response.status_code != 200:
+                continue
+
+            visited.add(current_url)
+
+            # Parse content
+            parsed = parse_html_structured(response.text)
+
+            documents.append({
+                "url": current_url,
+                "title": parsed["title"],
+                "content": "\n".join(parsed["paragraphs"]),
+                "headings": parsed["headings"],
+            })
+
+            # Find links
+            soup = BeautifulSoup(response.text, "html.parser")
+            for link in soup.find_all("a", href=True):
+                full_url = urljoin(current_url, link["href"])
+                if full_url.startswith(url) and full_url not in visited:
+                    to_visit.append(full_url)
+
+        except Exception as e:
+            print(f"Error scraping {current_url}: {e}")
+
+    return documents
+```
+
+## Word/Office Documents
+
+```python
+from docx import Document as DocxDocument
+import pypandoc
+
+def parse_docx(path: str) -> dict:
+    """Extract content from Word document."""
+    doc = DocxDocument(path)
+
+    result = {
+        "paragraphs": [],
+        "tables": [],
+        "headings": [],
+    }
+
+    for para in doc.paragraphs:
+        text = para.text.strip()
+        if not text:
+            continue
+
+        # Check if it's a heading
+        if para.style.name.startswith("Heading"):
+            level = int(para.style.name.replace("Heading ", "") or 1)
+            result["headings"].append({"level": level, "text": text})
+        else:
+            result["paragraphs"].append(text)
+
+    # Extract tables
+    for table in doc.tables:
+        rows = []
+        for row in table.rows:
+            cells = [cell.text.strip() for cell in row.cells]
+            rows.append(cells)
+
+        if rows:
+            result["tables"].append({
+                "headers": rows[0],
+                "data": rows[1:]
+            })
+
+    return result
+
+def parse_office_universal(path: str) -> str:
+    """Convert any Office format to markdown."""
+    return pypandoc.convert_file(path, "md")
+```
+
+## Markdown Processing
+
+````python
+import re
+
+def parse_markdown(content: str) -> dict:
+    """Parse markdown into structured sections."""
+    result = {
+        "sections": [],
+        "code_blocks": [],
+        "links": [],
+    }
+
+    # Extract code blocks first
+    code_pattern = r"```(\w*)\n(.*?)```"
+    for match in re.finditer(code_pattern, content, re.DOTALL):
+        result["code_blocks"].append({
+            "language": match.group(1),
+            "code": match.group(2).strip()
+        })
+
+    # Remove code blocks for section parsing
+    clean_content = re.sub(code_pattern, "", content, flags=re.DOTALL)
+
+    # Split by headers
+    header_pattern = r"^(#{1,6})\s+(.+)$"
+    current_section = {"level": 0, "title": "Intro", "content": []}
+
+    for line in clean_content.split("\n"):
+        header_match = re.match(header_pattern, line)
+        if header_match:
+            if current_section["content"]:
+                result["sections"].append(current_section)
+
+            current_section = {
+                "level": len(header_match.group(1)),
+                "title": header_match.group(2).strip(),
+                "content": []
+            }
+        else:
+            if line.strip():
+                current_section["content"].append(line.strip())
+
+    if current_section["content"]:
+        result["sections"].append(current_section)
+
+    return result
+````
+
+## Unified Parser
+
+```python
+from pathlib import Path
+
+class UnifiedDocumentParser:
+    """Parse any document format for RAG."""
+
+    def parse(self, file_path: str) -> dict:
+        path = Path(file_path)
+        suffix = path.suffix.lower()
+
+        parsers = {
+            ".pdf": self.parse_pdf,
+            ".docx": self.parse_docx,
+            ".doc": self.parse_doc,
+            ".html": self.parse_html,
+            ".htm": self.parse_html,
+            ".md": self.parse_markdown,
+            ".txt": self.parse_text,
+            ".pptx": self.parse_pptx,
+        }
+
+        parser = parsers.get(suffix)
+        if not parser:
+            raise ValueError(f"Unsupported format: {suffix}")
+
+        return parser(file_path)
+
+    def parse_pdf(self, path: str) -> dict:
+        """Parse PDF with fallback to OCR."""
+        # Try text extraction first
+        pages = extract_pdf_text(path)
+
+        # Check if we got meaningful text
+        total_text = "".join(p["text"] for p in pages)
+
+        if len(total_text.strip()) < 100:
+            # Likely scanned, use OCR
+            pages = ocr_pdf(path)
+
+        # Extract tables
+        tables = extract_tables(path)
+
+        return {
+            "type": "pdf",
+            "pages": pages,
+            "tables": tables,
+            "text": total_text,
+        }
+
+    # other format parsers
+```
+
+## Quality Checks
+
+```python
+def check_parsing_quality(parsed: dict) -> dict:
+    """Assess parsing quality."""
+    issues = []
+
+    text = parsed.get("text", "")
+
+    # Check for garbage characters
+    garbage_ratio = len(re.findall(r"[^\x00-\x7F]", text)) / len(text) if text else 0
+    if garbage_ratio > 0.1:
+        issues.append("High ratio of non-ASCII characters")
+
+    # Check for repeated characters (OCR artifacts)
+    if re.search(r"(.)\1{10,}", text):
+        issues.append("Repeated character patterns detected")
+
+    # Check word density
+    words = text.split()
+    avg_word_length = sum(len(w) for w in words) / len(words) if words else 0
+    if avg_word_length > 15:
+        issues.append("Unusually long average word length")
+
+    return {
+        "quality_score": 1.0 - len(issues) * 0.25,
+        "issues": issues,
+        "word_count": len(words),
+        "char_count": len(text),
+    }
+```
+
+## Production Checklist
+
+- [ ] Support all required document formats
+- [ ] Handle scanned PDFs with OCR
+- [ ] Extract tables and preserve structure
+- [ ] Clean and normalize extracted text
+- [ ] Add quality checks for parsing output
+- [ ] Handle encoding issues gracefully
+- [ ] Log parsing failures for debugging
+- [ ] Benchmark parsing speed
+

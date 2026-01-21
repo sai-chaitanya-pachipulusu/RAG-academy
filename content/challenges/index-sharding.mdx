@@ -1,0 +1,38 @@
+﻿---
+title: "Index Sharding Strategy"
+description: "Design a sharding scheme to distribute vectors across nodes."
+---
+
+# Index Sharding Strategy
+
+When your index grows beyond a single machine's memory, you need **sharding**: distributing data across multiple nodes.
+
+### How Sharding Works
+
+1. **Hash the document ID** → Deterministic shard assignment.
+2. **Insert** to the correct shard.
+3. **Search** by querying all shards (scatter) and merging results (gather).
+
+### Consistent Hashing
+
+```python
+shard_id = hash(doc_id) % num_shards
+```
+
+This ensures:
+
+- Same doc always goes to same shard.
+- Even distribution across shards.
+- Adding shards requires minimal data movement (with consistent hashing).
+
+### Your Task
+
+Implement a `ShardRouter` that:
+
+- Routes documents to shards deterministically.
+- Searches all shards and merges results.
+
+### Production Scale
+
+This is how Pinecone, Weaviate, and Milvus scale to billions of vectors.
+

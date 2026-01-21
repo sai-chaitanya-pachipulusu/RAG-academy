@@ -1,0 +1,83 @@
+﻿---
+title: "HyDE: Hypothetical Document Embedding"
+description: "Generate hypothetical answers for better retrieval through embedding alignment"
+difficulty: "hard"
+timeEstimate: "35-45 min"
+xpReward: 100
+prerequisites: ["query-expansion"]
+---
+
+# HyDE: Hypothetical Document Embedding
+
+## The Vocabulary Mismatch Problem
+
+**Query**: "What is RAG?"
+**Document**: "Retrieval-Augmented Generation combines external knowledge with language models..."
+
+The query is short and uses "RAG" (acronym). The document is detailed and uses full terminology. Their embeddings may not align well.
+
+---
+
+## The HyDE Insight
+
+Instead of embedding the query directly, generate a **hypothetical answer** and embed THAT:
+
+```
+Query: "What is RAG?"
+↓
+Hypothetical Answer: "RAG (Retrieval-Augmented Generation) is a technique
+that combines information retrieval with language model generation to
+produce more accurate and grounded responses."
+↓
+Embed the hypothetical answer
+↓
+Retrieve documents similar to the hypothetical
+```
+
+The hypothetical answer shares vocabulary with actual documents!
+
+---
+
+## Why It Works
+
+| Embedding Target           | Similarity to Docs |
+| -------------------------- | ------------------ |
+| Raw query ("What is RAG?") | Low-Medium         |
+| Hypothetical answer        | High               |
+
+The LLM "imagines" what a good answer looks like, and that imagination contains the right terminology.
+
+---
+
+## Research Results
+
+From the original HyDE paper (Gao et al., 2022):
+
+- **+10-15%** improvement on several benchmarks
+- Best improvements on specialized domains
+- Works with any embedding model
+
+---
+
+## ⚠️ Tradeoffs
+
+### Pros
+
+- ✅ Better recall on vocabulary mismatch
+- ✅ Works with any embedding model
+- ✅ No training required
+
+### Cons
+
+- ❌ Requires LLM call at query time
+- ❌ Latency: +200-500ms for generation
+- ❌ Hypothetical may contain errors
+
+---
+
+## Related Challenges
+
+- `query-expansion` - Simpler expansion technique
+- `query-decomposition` - Break into sub-queries
+- `intent-classification` - Understand query type
+

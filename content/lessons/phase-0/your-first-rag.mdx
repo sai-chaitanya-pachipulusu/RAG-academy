@@ -1,0 +1,96 @@
+---
+title: "Your First RAG (Minimal Pipeline)"
+description: "A tiny end-to-end retrieval + prompt pipeline (without external APIs yet)."
+order: 5
+estimatedMinutes: 25
+stage: retrieval
+prereqs:
+  - phase: phase-0
+    slug: why-rag-exists
+  - phase: phase-0
+    slug: embedding-fundamentals
+  - phase: phase-0
+    slug: tokenizers-and-context
+  - phase: phase-0
+    slug: chunking-101
+next: null
+outcomes:
+  - "Describe the minimal end-to-end RAG loop and where it fails."
+  - "Apply grounding rules: cite sources or refuse when evidence is missing."
+  - "Know what to implement next: hybrid retrieval, reranking, and evaluation."
+tags: ["foundations", "rag", "retrieval", "prompting"]
+sources:
+  - title: "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks (Lewis et al., 2020)"
+    url: "https://arxiv.org/abs/2005.11401"
+    type: "paper"
+    year: 2020
+  - title: "RAGAS: RAG evaluation metrics (docs)"
+    url: "https://docs.ragas.io/en/stable/"
+    type: "docs"
+  - title: "Prompt injection overview (OWASP Top 10 for LLM Applications)"
+    url: "https://owasp.org/www-project-top-10-for-large-language-model-applications/"
+    type: "docs"
+    note: "Security mindset early"
+---
+
+## Goals
+
+- Build the smallest RAG loop that still teaches correct production instincts.
+- Learn the “grounded answer” rule: cite evidence or refuse.
+- Understand what to add next (hybrid retrieval, reranking, eval).
+
+## Prereqs
+
+- Read: **Why RAG Exists**, **Embedding Fundamentals**, **Tokenizers & Context**, **Chunking 101**.
+
+## Core idea
+
+### The minimal RAG pipeline
+
+Even “hello world RAG” has the same structure as production:
+
+1. Prepare chunks (+ optional metadata)
+2. Retrieve top-k chunks for a query
+3. Build a prompt that forces grounding
+
+<Callout title="RAG is a retrieval system first" variant="info">
+  If the <strong>right evidence</strong> isn’t in your top‑k, no amount of prompt engineering will save you.
+  Treat retrieval quality as an engineering problem: log it, measure it, iterate it.
+</Callout>
+
+<Callout title="Don’t overlearn theory here" variant="info">
+  This lesson is about building the minimal pipeline. For the full production pipeline (offline vs online, technique menu, and the knobs that matter), use:
+  <ul>
+    <li><a href="/playbooks/production-rag-blueprint">Production RAG Blueprint</a></li>
+    <li><a href="/playbooks/rag-techniques-encyclopedia">RAG Techniques Encyclopedia</a></li>
+  </ul>
+</Callout>
+
+<Callout title="What we’re skipping (for now)" variant="warning">
+  In the MVP we’ll avoid paid embedding APIs by using simple vector primitives and toy embeddings. Later we’ll add real embedding providers.
+</Callout>
+
+## Failure modes
+
+- **Wrong evidence in top‑k**: the model answers confidently using irrelevant chunks.
+- **Over-retrieval**: too many chunks → lost-in-the-middle → model ignores the key line.
+- **Prompt injection**: retrieved content contains instructions → the model follows them unless you treat sources as untrusted.
+
+## Production defaults
+
+- Retrieval: **hybrid + RRF** → rerank candidates → keep 5–10.
+- Context shaping: dedupe, token budget, attention-aware ordering.
+- Grounding: citations by chunk id; refusal if evidence is missing.
+
+When choosing tools/techniques, use Compare (don’t guess):
+
+- [Compare: Retrieval](/compare/retrieval)
+- [Compare: Reranking](/compare/reranking)
+- [Compare: Security](/compare/security)
+- [Compare: Evaluation](/compare/evaluation)
+
+## Do next
+
+<ChallengeLinks slugs={["basic-retrieval", "prompt-template", "metadata-tagging"]} />
+
+

@@ -1,0 +1,417 @@
+﻿<Callout title="Goal" variant="info">
+  Implement comprehensive observability for RAG systems — logging, tracing,
+  metrics, and debugging.
+</Callout>
+
+## Why RAG Observability Matters
+
+RAG systems fail silently. Without observability, you won't know:
+
+- Why answers are wrong
+- Where latency comes from
+- Which queries fail
+- How to improve quality
+
+## The Observability Stack
+
+```
+┌─────────────────────────────────────────────────┐
+│                  Dashboards                     │
+│         (Grafana, DataDog, Custom)              │
+└─────────────────────────────────────────────────┘
+                      ▲
+┌─────────────────────────────────────────────────┐
+│                   Metrics                       │
+│     (Prometheus, CloudWatch, Custom)            │
+└─────────────────────────────────────────────────┘
+                      ▲
+┌─────────────────────────────────────────────────┐
+│                   Tracing                       │
+│        (OpenTelemetry, Langfuse, Arize)         │
+└─────────────────────────────────────────────────┘
+                      ▲
+┌─────────────────────────────────────────────────┐
+│                   Logging                       │
+│         (Structured JSON, ELK, etc.)            │
+└─────────────────────────────────────────────────┘
+```
+
+## 1. Structured Logging
+
+Log every RAG step with context:
+
+```python
+import json
+import logging
+from datetime import datetime
+import uuid
+
+class RAGLogger:
+    def __init__(self, logger_name: str = "rag"):
+        self.logger = logging.getLogger(logger_name)
+        self.logger.setLevel(logging.INFO)
+
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter('%(message)s'))
+        self.logger.addHandler(handler)
+
+    def log(self, event: str, **kwargs):
+        entry = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "event": event,
+            **kwargs
+        }
+        self.logger.info(json.dumps(entry))
+
+    def log_query(self, query_id: str, query: str, user_id: str = None):
+        self.log("query_received",
+                 query_id=query_id,
+                 query=query,
+                 user_id=user_id,
+                 query_length=len(query))
+
+    def log_retrieval(self, query_id: str, docs: list, latency_ms: float):
+        self.log("retrieval_complete",
+                 query_id=query_id,
+                 num_docs=len(docs),
+                 top_doc_scores=[d.get("score") for d in docs[:5]],
+                 latency_ms=latency_ms)
+
+    def log_generation(self, query_id: str, response: str,
+                       tokens_in: int, tokens_out: int, latency_ms: float):
+        self.log("generation_complete",
+                 query_id=query_id,
+                 response_length=len(response),
+                 tokens_in=tokens_in,
+                 tokens_out=tokens_out,
+                 latency_ms=latency_ms)
+```
+
+## 2. Distributed Tracing
+
+Track the full request lifecycle:
+
+```python
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+
+# Setup
+trace.set_tracer_provider(TracerProvider())
+tracer = trace.get_tracer(__name__)
+
+# Add exporter
+otlp_exporter = OTLPSpanExporter(endpoint="http://localhost:4317")
+trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(otlp_exporter))
+
+class TracedRAG:
+    def __init__(self, retriever, generator):
+        self.retriever = retriever
+        self.generator = generator
+
+    def query(self, query: str) -> str:
+        with tracer.start_as_current_span("rag_query") as parent:
+            parent.set_attribute("query", query)
+
+            # Embed span
+            with tracer.start_as_current_span("embed_query") as span:
+                query_embedding = self.embed(query)
+                span.set_attribute("embedding_dim", len(query_embedding))
+
+            # Retrieve span
+            with tracer.start_as_current_span("retrieve") as span:
+                docs = self.retriever.search(query_embedding, k=10)
+                span.set_attribute("num_docs", len(docs))
+                span.set_attribute("top_score", docs[0]["score"] if docs else 0)
+
+            # Rerank span
+            with tracer.start_as_current_span("rerank") as span:
+                ranked_docs = self.rerank(query, docs)
+                span.set_attribute("num_after_rerank", len(ranked_docs))
+
+            # Generate span
+            with tracer.start_as_current_span("generate") as span:
+                response = self.generator.generate(query, ranked_docs)
+                span.set_attribute("response_length", len(response))
+
+            return response
+```
+
+## 3. Metrics Collection
+
+Track key performance indicators:
+
+```python
+from prometheus_client import Counter, Histogram, Gauge
+
+# Define metrics
+QUERY_COUNTER = Counter(
+    'rag_queries_total',
+    'Total RAG queries',
+    ['status', 'route']
+)
+
+LATENCY_HISTOGRAM = Histogram(
+    'rag_latency_seconds',
+    'RAG query latency',
+    ['stage'],  # embed, retrieve, rerank, generate
+    buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0]
+)
+
+RETRIEVAL_SCORE = Histogram(
+    'rag_retrieval_top_score',
+    'Top retrieval score',
+    buckets=[0.1, 0.3, 0.5, 0.7, 0.8, 0.9, 0.95, 1.0]
+)
+
+TOKENS_COUNTER = Counter(
+    'rag_tokens_total',
+    'Total tokens used',
+    ['direction']  # input, output
+)
+
+CACHE_HIT_RATE = Gauge(
+    'rag_cache_hit_rate',
+    'Semantic cache hit rate'
+)
+
+class MetricsCollector:
+    def record_query(self, status: str, route: str):
+        QUERY_COUNTER.labels(status=status, route=route).inc()
+
+    def record_latency(self, stage: str, seconds: float):
+        LATENCY_HISTOGRAM.labels(stage=stage).observe(seconds)
+
+    def record_retrieval_score(self, score: float):
+        RETRIEVAL_SCORE.observe(score)
+
+    def record_tokens(self, input_tokens: int, output_tokens: int):
+        TOKENS_COUNTER.labels(direction="input").inc(input_tokens)
+        TOKENS_COUNTER.labels(direction="output").inc(output_tokens)
+```
+
+## 4. Quality Metrics
+
+Track answer quality over time:
+
+```python
+class QualityTracker:
+    def __init__(self, db_connection):
+        self.db = db_connection
+
+    def record_feedback(self, query_id: str, rating: int, feedback: str = None):
+        """Record user feedback on a query."""
+        self.db.insert("feedback", {
+            "query_id": query_id,
+            "rating": rating,
+            "feedback": feedback,
+            "timestamp": datetime.utcnow()
+        })
+
+    def record_auto_eval(self, query_id: str, metrics: dict):
+        """Record automated evaluation metrics."""
+        self.db.insert("auto_eval", {
+            "query_id": query_id,
+            "faithfulness": metrics.get("faithfulness"),
+            "relevance": metrics.get("relevance"),
+            "context_precision": metrics.get("context_precision"),
+            "timestamp": datetime.utcnow()
+        })
+
+    def get_quality_trend(self, days: int = 7) -> dict:
+        """Get quality metrics trend."""
+        return self.db.query("""
+            SELECT
+                DATE(timestamp) as date,
+                AVG(rating) as avg_rating,
+                COUNT(*) as num_queries
+            FROM feedback
+            WHERE timestamp > NOW() - INTERVAL :days DAY
+            GROUP BY DATE(timestamp)
+            ORDER BY date
+        """, {"days": days})
+```
+
+## 5. Debug Mode
+
+Capture everything for debugging:
+
+```python
+@dataclass
+class RAGTrace:
+    query_id: str
+    query: str
+    timestamp: datetime
+
+    # Embedding
+    query_embedding: list[float] = None
+    embed_latency_ms: float = None
+
+    # Retrieval
+    retrieved_docs: list[dict] = None
+    retrieval_latency_ms: float = None
+
+    # Reranking
+    reranked_docs: list[dict] = None
+    rerank_latency_ms: float = None
+
+    # Generation
+    prompt: str = None
+    response: str = None
+    tokens_in: int = None
+    tokens_out: int = None
+    generation_latency_ms: float = None
+
+    # Outcome
+    status: str = None
+    error: str = None
+
+class DebugRAG:
+    def __init__(self, rag_pipeline, store_traces: bool = True):
+        self.pipeline = rag_pipeline
+        self.store_traces = store_traces
+        self.traces = []
+
+    def query(self, query: str) -> tuple[str, RAGTrace]:
+        trace = RAGTrace(
+            query_id=str(uuid.uuid4()),
+            query=query,
+            timestamp=datetime.utcnow()
+        )
+
+        try:
+            # Run with full instrumentation
+            response = self._instrumented_query(query, trace)
+            trace.status = "success"
+
+        except Exception as e:
+            trace.status = "error"
+            trace.error = str(e)
+            response = "An error occurred."
+
+        if self.store_traces:
+            self.traces.append(trace)
+
+        return response, trace
+
+    def export_trace(self, trace: RAGTrace) -> dict:
+        """Export trace for debugging UI."""
+        return {
+            "query_id": trace.query_id,
+            "query": trace.query,
+            "retrieved_docs": [
+                {"text": d["text"][:200], "score": d["score"]}
+                for d in (trace.retrieved_docs or [])[:5]
+            ],
+            "prompt": trace.prompt[:500] if trace.prompt else None,
+            "response": trace.response,
+            "latency_breakdown": {
+                "embed_ms": trace.embed_latency_ms,
+                "retrieve_ms": trace.retrieval_latency_ms,
+                "rerank_ms": trace.rerank_latency_ms,
+                "generate_ms": trace.generation_latency_ms,
+            },
+            "tokens": {"in": trace.tokens_in, "out": trace.tokens_out},
+            "status": trace.status,
+            "error": trace.error,
+        }
+```
+
+## 6. Alerting
+
+Set up alerts for critical issues:
+
+```python
+class RAGAlerts:
+    def __init__(self, alert_channel):
+        self.channel = alert_channel
+        self.error_count = 0
+        self.error_threshold = 10
+        self.window_minutes = 5
+
+    def check_alerts(self, metrics: dict):
+        alerts = []
+
+        # High error rate
+        if metrics["error_rate"] > 0.05:
+            alerts.append({
+                "severity": "critical",
+                "message": f"High error rate: {metrics['error_rate']:.1%}",
+            })
+
+        # Low retrieval scores
+        if metrics["avg_top_score"] < 0.5:
+            alerts.append({
+                "severity": "warning",
+                "message": f"Low retrieval quality: avg={metrics['avg_top_score']:.2f}",
+            })
+
+        # High latency
+        if metrics["p95_latency_ms"] > 3000:
+            alerts.append({
+                "severity": "warning",
+                "message": f"High latency: p95={metrics['p95_latency_ms']}ms",
+            })
+
+        # Low user ratings
+        if metrics.get("avg_rating", 5) < 3:
+            alerts.append({
+                "severity": "warning",
+                "message": f"Low user ratings: avg={metrics['avg_rating']:.1f}",
+            })
+
+        for alert in alerts:
+            self.channel.send(alert)
+```
+
+## Integration with Langfuse
+
+```python
+from langfuse import Langfuse
+
+langfuse = Langfuse()
+
+def traced_rag_query(query: str):
+    # Create trace
+    trace = langfuse.trace(name="rag-query", input={"query": query})
+
+    # Retrieval span
+    retrieval_span = trace.span(name="retrieval")
+    docs = retriever.search(query)
+    retrieval_span.end(output={"num_docs": len(docs)})
+
+    # Generation span
+    generation_span = trace.span(name="generation")
+    response = generator.generate(query, docs)
+    generation_span.end(output={"response": response})
+
+    # Score the trace
+    trace.score(name="user-feedback", value=4)  # 1-5
+
+    return response
+```
+
+## Dashboard Essentials
+
+| Panel             | Metrics                        |
+| ----------------- | ------------------------------ |
+| Query Volume      | queries/min, by route          |
+| Latency           | p50, p95, p99 by stage         |
+| Error Rate        | errors/total, by type          |
+| Retrieval Quality | avg top score, empty results % |
+| Token Usage       | input/output tokens, cost      |
+| Cache Performance | hit rate, latency saved        |
+| User Feedback     | avg rating, trends             |
+
+## Production Checklist
+
+- [ ] Structured logging with query IDs
+- [ ] Distributed tracing (OpenTelemetry)
+- [ ] Key metrics in Prometheus/CloudWatch
+- [ ] Quality tracking (ratings, auto-eval)
+- [ ] Debug mode for troubleshooting
+- [ ] Alerting for critical issues
+- [ ] Dashboard for operations
+- [ ] Log retention policy
+

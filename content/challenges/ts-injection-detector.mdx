@@ -1,0 +1,23 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Build a prompt injection detector to protect RAG systems from attacks.
+</Callout>
+
+## Why this matters in production
+
+Prompt injection is a top security concern for LLM applications. OWASP lists it as a critical vulnerability. Detecting and blocking injection attempts is essential.
+
+## What you're implementing
+
+- Detect patterns: "ignore instructions", "system:", "pretend", etc.
+- Calculate confidence based on matches.
+- Sanitize by removing suspicious patterns.
+
+## Common pitfalls
+
+- Too many false positives on normal queries.
+- Missing Unicode variations of attack patterns.
+
+## After you pass
+
+Combine with rate limiting and monitoring for defense in depth.
+

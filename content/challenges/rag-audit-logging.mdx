@@ -1,0 +1,42 @@
+---
+title: "RAG Audit Logging"
+description: "Implement comprehensive audit logging for RAG"
+---
+
+# RAG Audit Logging
+
+Implement an audit logging system that tracks all RAG operations for compliance and debugging.
+
+## Requirements
+
+1. Log all queries and retrievals
+2. Log generation inputs and outputs
+3. Track latency per stage
+4. Store in searchable format
+
+## Starter Code
+
+```python
+import json
+from datetime import datetime
+
+class RAGAuditLogger:
+    def __init__(self, storage_backend):
+        self.storage = storage_backend
+    
+    def log_query(self, query_id: str, user_id: str, query: str):
+        """Log incoming query."""
+        pass
+    
+    def log_retrieval(self, query_id: str, chunks: list[dict], latency_ms: float):
+        """Log retrieval results."""
+        pass
+    
+    def log_generation(self, query_id: str, context: str, response: str, latency_ms: float):
+        """Log generation."""
+        pass
+    
+    def get_audit_trail(self, query_id: str) -> dict:
+        """Get complete audit trail for a query."""
+        pass
+```

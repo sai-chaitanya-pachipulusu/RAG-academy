@@ -1,0 +1,122 @@
+---
+title: "Why RAG Exists"
+description: "LLMs are great at language, but not at truth. RAG reduces hallucinations by grounding answers in your data."
+order: 1
+estimatedMinutes: 15
+stage: foundations
+prereqs:
+  - phase: phase-0
+    slug: welcome-to-rag-academy
+next:
+  phase: phase-0
+  slug: embedding-fundamentals
+outcomes:
+  - "Explain the three core LLM limitations: cutoff, hallucination, privacy."
+  - "Describe RAG as non‑parametric memory and where it fits (offline vs online)."
+  - "Recognize why retrieval quality is the first thing to debug."
+tags: ["foundations", "rag", "grounding", "hallucinations"]
+sources:
+  - title: "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks (Lewis et al., 2020)"
+    url: "https://arxiv.org/abs/2005.11401"
+    type: "paper"
+    authors: "Patrick Lewis et al."
+    year: 2020
+  - title: "DPR: Dense Passage Retrieval for Open-Domain Question Answering (Karpukhin et al., 2020)"
+    url: "https://arxiv.org/abs/2004.04906"
+    type: "paper"
+    authors: "Vladimir Karpukhin et al."
+    year: 2020
+  - title: "LangChain: Retrieval documentation"
+    url: "https://python.langchain.com/docs/concepts/retrieval/"
+    type: "docs"
+  - title: "LlamaIndex: RAG overview"
+    url: "https://docs.llamaindex.ai/en/stable/understanding/rag/"
+    type: "docs"
+---
+
+## Goals
+
+- Understand why “LLM + prompt” is not enough for truth and freshness.
+- Learn the mental model: **parametric vs non‑parametric memory**.
+- Know what you should build first (and what to ignore early).
+
+## Prereqs
+
+- Read: **Welcome to RAG Academy** (optional) for how to use the platform.
+
+## Core idea
+
+RAG = **Retrieve** relevant context from your documents, then **Generate** an answer using that context.
+
+### The problem RAG solves
+
+Large Language Models (LLMs) can:
+
+- Write fluent text
+- Generalize across tasks
+- Reason *sometimes*
+
+But they also:
+
+- **Hallucinate** (confidently produce incorrect details)
+- Have **stale knowledge** (their training cutoff)
+- Can't reliably access your **private / fresh** data
+
+### The core architecture: parametric vs non-parametric memory
+
+LLMs are **parametric memory** systems: they compress knowledge into fixed weights.
+
+- **Knowledge cutoff**: training data becomes stale.
+- **Hallucination**: fluent text ≠ truth.
+- **Privacy**: your internal data isn’t accessible unless you provide it.
+
+RAG adds **non‑parametric memory**: an external store you can update, permission, and debug.
+
+### Minimal pipeline
+
+1. **Chunk** documents
+2. **Embed** chunks into vectors
+3. **Retrieve** top-k chunks for a query
+4. **Prompt** the LLM with the retrieved context
+
+### Offline vs online (production reality)
+
+In production you separate **offline indexing** from **online query time**.
+
+- **Offline**: parse → chunk → metadata → embed → store
+- **Online**: query → retrieve candidates → rerank → shape context → generate + cite/refuse
+
+If you want the full end‑to‑end pipeline (and the knobs that matter), use the blueprint as your canonical reference:
+
+- [Production RAG Blueprint](/playbooks/production-rag-blueprint)
+
+## Failure modes
+
+- **Prompt-first debugging**: trying to “prompt your way out” when the right evidence isn’t retrieved.
+- **Vectors-only retrieval**: missing exact terms (IDs, acronyms) that BM25/hybrid would catch.
+- **Over-retrieval**: k too high → context rot → the model ignores key evidence.
+
+## Production defaults
+
+- Start with **hybrid retrieval + reranking** as your production baseline.
+- Keep contexts small: retrieve 20–50 → rerank → keep 5–10 → cite everything.
+
+Canonical reference (don’t memorize):
+
+- [Production RAG Blueprint](/playbooks/production-rag-blueprint)
+
+## Do next
+
+Go to **Challenges** and implement:
+
+- Dot product
+- Cosine similarity
+- Euclidean distance
+
+Then we’ll connect those primitives into a tiny retriever.
+
+<ChallengeLinks
+  slugs={["dot-product", "cosine-similarity", "euclidean-distance"]}
+/>
+
+

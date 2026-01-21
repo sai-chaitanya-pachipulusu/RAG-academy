@@ -1,0 +1,55 @@
+﻿---
+title: "Tool Orchestration Agent"
+description: "Orchestrate multiple tools for autonomous problem-solving"
+difficulty: "hard"
+xpReward: 150
+prerequisites: ["tool-use-basics", "react-implementation"]
+---
+
+# Tool Orchestration Agent
+
+Build an agent that orchestrates multiple tools (search, calculator, code execution).
+
+## Why This Matters
+
+Real agents need diverse capabilities. Tool orchestration enables autonomous problem-solving with multiple tools.
+
+## What You'll Learn
+
+- Tool registration patterns
+- Intent-based tool selection
+- Execution orchestration
+- Result aggregation
+
+## Real-World Application
+
+**Companies:** OpenAI (function calling), Anthropic (Claude tools), LangChain
+**Use Cases:** Autonomous agents, Workflow automation, Complex task solving
+
+## Key Concepts
+
+### Tool Definition
+
+```python
+@dataclass
+class Tool:
+    name: str
+    description: str
+    function: Callable[[str], str]
+```
+
+### Tool Selection
+
+Match query intent to appropriate tools:
+
+- "calculate" → calculator
+- "search for" → search
+- "weather in" → weather
+
+### Execution Flow
+
+1. Select tools based on query
+2. Execute each tool in sequence
+3. Aggregate results
+4. Return combined output
+

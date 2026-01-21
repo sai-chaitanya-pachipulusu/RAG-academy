@@ -1,0 +1,34 @@
+﻿---
+title: "Recency Boosting"
+description: "Boost retrieval scores based on document recency."
+---
+
+# Recency Boosting
+
+Semantic similarity alone isn't enough. A **2019 revenue report** shouldn't outrank a **2024 revenue report** just because it has slightly better keyword overlap.
+
+### The Formula
+
+Use **time decay** to boost recent documents:
+
+```
+age_days = (now - doc_timestamp) / 86400
+boost = 1 / (1 + decay_factor * age_days)
+new_score = original_score * boost
+```
+
+### Tuning the Decay Factor
+
+- **0.01**: Very slow decay (1-year-old doc keeps 97% score)
+- **0.1**: Moderate decay (1-year-old doc keeps 73% score)
+- **1.0**: Aggressive decay (1-year-old doc keeps 0.3% score)
+
+### Your Task
+
+Implement a boosting function that takes `(doc_id, score, timestamp)` tuples and returns boosted scores sorted by the new relevance.
+
+### Use Cases
+
+- **News RAG**: Yesterday's news is stale; today's is valuable.
+- **Financial RAG**: Q3 2024 report overrides Q3 2023 report.
+

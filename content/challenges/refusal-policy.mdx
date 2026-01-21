@@ -1,0 +1,23 @@
+﻿<Callout title="Goal" variant="warning">
+  Decide when to answer vs refuse when context is insufficient.
+</Callout>
+
+## Why this matters in production
+
+The most dangerous failure mode is confident hallucination.
+
+A refusal policy is a **safety valve**:
+
+- if retrieval fails, you refuse or ask a follow-up question
+- you don’t “fill in the gaps” from model priors
+
+This lab uses a simple overlap gate to teach the concept.
+
+## Production extensions (optional)
+
+- use calibrated retrieval thresholds
+- add a “need more info” follow-up question generator
+- log refusal rates and investigate spikes (retrieval regressions)
+
+
+

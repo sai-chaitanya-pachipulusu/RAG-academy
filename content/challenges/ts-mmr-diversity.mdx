@@ -1,0 +1,23 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Implement Maximal Marginal Relevance for result diversification.
+</Callout>
+
+## Why this matters in production
+
+Top-k results often contain redundant information. MMR balances relevance with diversity to give users more complete coverage of a topic.
+
+## What you're implementing
+
+- MMR score = λ * relevance - (1-λ) * max_similarity_to_selected.
+- Greedily select documents with highest MMR.
+- Balance with λ parameter (1 = pure relevance, 0 = max diversity).
+
+## Common pitfalls
+
+- Computing similarity to all documents instead of just selected.
+- Not pre-computing query similarities.
+
+## After you pass
+
+Apply MMR to your RAG context selection for better answer coverage.
+

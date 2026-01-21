@@ -1,0 +1,18 @@
+﻿<Callout title="Goal" variant="info">
+  Transform noisy, unformatted tables into clean Markdown to improve LLM
+  comprehension.
+</Callout>
+
+## The "Row-Major" Problem
+
+Most PDF parsers extract tables as a sequence of words with no structural markers. An LLM might see:
+`Revenue 2023 2024 Apple $10B $12B`
+This is ambiguous. By transforming it into Markdown:
+`| Revenue | 2023 | 2024 |`
+`| Apple | $10B | $12B |`
+The model can clearly see the alignment between "Apple" and "$12B".
+
+## Task
+
+Implement a heuristic-based parser that detects column boundaries based on whitespace gaps and wraps the content in Markdown table syntax.
+

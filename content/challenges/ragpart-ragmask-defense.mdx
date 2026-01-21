@@ -1,0 +1,32 @@
+---
+title: "RAGPart RAGMask Defense"
+description: "Implement partition-based defense against retrieval attacks"
+---
+
+# RAGPart RAGMask Defense
+
+Implement a defense mechanism that partitions and masks sensitive content in the retrieval pipeline.
+
+## Requirements
+
+1. Partition documents by sensitivity level
+2. Mask sensitive entities in retrieved chunks
+3. Validate user permissions before unmasking
+4. Log access for audit
+
+## Starter Code
+
+```python
+class RAGMaskDefense:
+    def __init__(self, sensitivity_classifier):
+        self.classifier = sensitivity_classifier
+        self.partitions = {}
+    
+    def partition_document(self, doc: str, doc_id: str):
+        """Partition document by sensitivity level."""
+        pass
+    
+    def retrieve_with_mask(self, query: str, user_permissions: list[str]) -> list[dict]:
+        """Retrieve chunks with appropriate masking."""
+        pass
+```

@@ -1,0 +1,69 @@
+﻿---
+title: "End-to-End Retrieval Benchmarking"
+description: "Build a complete pipeline for comparing multiple retrievers"
+difficulty: "hard"
+xpReward: 150
+prerequisites: ["beir-evaluation-setup", "mteb-evaluation"]
+---
+
+# End-to-End Retrieval Benchmarking
+
+Build a complete benchmarking pipeline that compares multiple retrievers across multiple datasets.
+
+## Why This Matters
+
+Fair comparison requires controlled experiments. This is how production teams decide which retrieval configuration to deploy.
+
+## What You'll Learn
+
+- Benchmarking pipeline design
+- Latency and throughput measurement
+- Report generation
+- A/B testing foundations
+
+## Real-World Application
+
+**Companies:** Pinecone, Weaviate, Qdrant, Elastic
+**Use Cases:** Model comparison, Config tuning, Regression testing
+
+## The Challenge
+
+Build a `RetrievalBenchmark` class that:
+
+1. Registers multiple retrievers
+2. Runs benchmarks with warmup
+3. Measures latency and throughput
+4. Generates markdown reports
+5. Identifies the best retriever
+
+## Key Concepts
+
+### Benchmark Configuration
+
+```python
+benchmark = RetrievalBenchmark(datasets)
+benchmark.add_retriever(RetrieverConfig("bm25", bm25_fn))
+benchmark.add_retriever(RetrieverConfig("dense", dense_fn))
+results = benchmark.run_benchmark(k=10, num_warmup=5, num_runs=3)
+```
+
+### Result Structure
+
+```python
+@dataclass
+class BenchmarkResult:
+    retriever_name: str
+    dataset_name: str
+    metrics: Dict[str, float]  # nDCG, Recall, Precision
+    latency_ms: float
+    throughput_qps: float
+```
+
+### Report Generation
+
+Generate markdown tables with:
+
+- Leaderboard ranked by nDCG
+- Per-dataset breakdown
+- Latency vs quality tradeoffs
+

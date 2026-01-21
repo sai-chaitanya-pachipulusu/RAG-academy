@@ -1,0 +1,250 @@
+---
+title: "Speculative RAG"
+description: "Generate candidate answers in parallel for faster, more accurate responses."
+order: 5
+estimatedMinutes: 20
+stage: post-retrieval
+prereqs:
+  - phase: phase-3
+    slug: rag-fusion-advanced
+next:
+  phase: phase-3
+  slug: flare
+outcomes:
+  - "Understand speculative decoding applied to RAG."
+  - "Implement parallel answer generation with verification."
+  - "Know when speculation improves latency and quality."
+tags: ["speculative-rag", "parallel-generation", "verification"]
+sources:
+  - title: "Speculative RAG (Wang et al., 2024)"
+    url: "https://arxiv.org/abs/2407.08223"
+    type: "paper"
+    year: 2024
+  - title: "Speculative Decoding (Leviathan et al., 2022)"
+    url: "https://arxiv.org/abs/2211.17192"
+    type: "paper"
+    year: 2022
+---
+
+## Goals
+
+- Understand how speculative RAG parallelizes generation.
+- Implement draft-then-verify answer generation.
+- Balance speculation cost vs latency savings.
+
+## Prereqs
+
+- Read: **RAG Fusion** (understand multi-query patterns).
+
+## Core idea
+
+### What is Speculative RAG?
+
+From [Wang et al., 2024](https://arxiv.org/abs/2407.08223): Instead of sequential retrieve-then-generate, speculative RAG:
+
+1. **Drafts** multiple candidate answers in parallel using a small model
+2. **Verifies** drafts using a large model
+3. **Selects** the best verified answer
+
+```
+Traditional RAG:
+  Query → Retrieve → Generate (large model) → Answer
+  Time: ████████████████████████ (sequential)
+
+Speculative RAG:
+  Query → Retrieve → [Draft 1] ─┐
+                     [Draft 2] ─┼→ Verify → Select → Answer
+                     [Draft 3] ─┘
+  Time: ████████ (parallel drafts + verify)
+```
+
+### Why speculation helps
+
+| Aspect | Traditional | Speculative |
+|--------|-------------|-------------|
+| Latency | High (large model) | Lower (parallel small + verify) |
+| Quality | Single attempt | Best of multiple attempts |
+| Cost | One large call | Multiple small + one large |
+
+### Implementation
+
+```python
+class SpeculativeRAG:
+    def __init__(
+        self,
+        retriever,
+        draft_model,  # Small, fast model
+        verify_model,  # Large, accurate model
+        num_drafts: int = 3,
+    ):
+        self.retriever = retriever
+        self.draft_model = draft_model
+        self.verify_model = verify_model
+        self.num_drafts = num_drafts
+    
+    async def answer(self, query: str) -> Dict:
+        """
+        Speculative RAG: parallel drafts + verification.
+        """
+        # Step 1: Retrieve
+        docs = self.retriever.retrieve(query, k=10)
+        
+        # Step 2: Partition documents for drafts
+        doc_subsets = self.partition_docs(docs, self.num_drafts)
+        
+        # Step 3: Generate drafts in parallel
+        draft_tasks = [
+            self.generate_draft(query, subset)
+            for subset in doc_subsets
+        ]
+        drafts = await asyncio.gather(*draft_tasks)
+        
+        # Step 4: Verify and select best draft
+        best_answer = await self.verify_and_select(query, docs, drafts)
+        
+        return {
+            "answer": best_answer,
+            "sources": docs,
+            "num_drafts": len(drafts),
+        }
+    
+    def partition_docs(self, docs: List[Dict], n: int) -> List[List[Dict]]:
+        """
+        Partition documents into subsets for drafting.
+        Different strategies possible:
+        - Round-robin
+        - By relevance score
+        - Random
+        """
+        subsets = [[] for _ in range(n)]
+        for i, doc in enumerate(docs):
+            subsets[i % n].append(doc)
+        return subsets
+    
+    async def generate_draft(self, query: str, docs: List[Dict]) -> str:
+        """
+        Generate a draft answer using the small model.
+        """
+        context = self.build_context(docs)
+        prompt = self.build_prompt(query, context)
+        
+        return await self.draft_model.generate_async(prompt)
+    
+    async def verify_and_select(
+        self,
+        query: str,
+        all_docs: List[Dict],
+        drafts: List[str],
+    ) -> str:
+        """
+        Use large model to verify drafts and select the best.
+        """
+        # Build verification prompt
+        prompt = f"""Given the query and source documents, evaluate these candidate answers.
+Select the best answer that is:
+1. Factually accurate (supported by the documents)
+2. Complete (addresses the query)
+3. Well-written
+
+Query: {query}
+
+Source documents:
+{self.build_context(all_docs)}
+
+Candidate answers:
+{chr(10).join(f'[{i+1}] {draft}' for i, draft in enumerate(drafts))}
+
+Best answer number and brief justification:"""
+        
+        response = await self.verify_model.generate_async(prompt)
+        
+        # Parse selection
+        selected_idx = self.parse_selection(response, len(drafts))
+        
+        # Optionally: refine the selected draft
+        if self.should_refine(response):
+            return await self.refine_draft(query, all_docs, drafts[selected_idx])
+        
+        return drafts[selected_idx]
+    
+    def parse_selection(self, response: str, num_drafts: int) -> int:
+        """
+        Parse which draft was selected.
+        """
+        # Look for numbers in response
+        for i in range(1, num_drafts + 1):
+            if f"[{i}]" in response or f"{i}." in response or f"#{i}" in response:
+                return i - 1
+        return 0  # Default to first draft
+```
+
+### Speculative decoding for streaming
+
+For streaming responses, speculate ahead:
+
+```python
+class SpeculativeStreamer:
+    def __init__(self, draft_model, verify_model):
+        self.draft_model = draft_model
+        self.verify_model = verify_model
+    
+    async def stream_speculative(self, prompt: str):
+        """
+        Stream tokens with speculative decoding.
+        """
+        generated = ""
+        
+        while True:
+            # Draft: generate several tokens with small model
+            draft_tokens = await self.draft_model.generate_async(
+                prompt + generated,
+                max_tokens=5,  # Speculate 5 tokens ahead
+            )
+            
+            # Verify: check draft with large model
+            verified_prefix = await self.verify_tokens(
+                prompt + generated,
+                draft_tokens,
+            )
+            
+            if not verified_prefix:
+                # No tokens verified, generate one with large model
+                verified_prefix = await self.verify_model.generate_async(
+                    prompt + generated,
+                    max_tokens=1,
+                )
+            
+            generated += verified_prefix
+            yield verified_prefix
+            
+            if self.is_complete(generated):
+                break
+```
+
+### When speculation helps
+
+| Condition | Speculation Helps? |
+|-----------|-------------------|
+| Large model is slow | ✓ Yes |
+| Multiple valid answers possible | ✓ Yes |
+| Query is complex/multi-faceted | ✓ Yes |
+| Simple factual lookup | ✗ No |
+| Streaming required | ~ Maybe |
+
+## Failure modes
+
+1. **Bad drafts**: Small model produces poor candidates.
+2. **Verification overhead**: Large model call negates savings.
+3. **Inconsistent selection**: Verifier picks wrong draft.
+4. **Cost overrun**: Multiple drafts cost more than single generation.
+
+## Production defaults
+
+- **Num drafts**: 3-4 (diminishing returns beyond).
+- **Draft model**: GPT-4o-mini, Claude Haiku, Llama 8B.
+- **Verify model**: GPT-4o, Claude Sonnet, Llama 70B.
+- **Use when**: Latency-sensitive + quality matters.
+
+## Do next
+
+<ChallengeLinks slugs={["speculative-rag", "draft-verify-select", "parallel-generation"]} />

@@ -1,0 +1,40 @@
+﻿<Callout title="Goal" variant="info">
+  Implement an embedding cache keyed by **(model, text hash)**. This is one of the highest ROI production optimizations.
+</Callout>
+
+## Why this matters in production
+
+In real systems, embedding calls are expensive and often repeated:
+
+- users ask the same question in different wording
+- your app re-embeds identical text by accident
+- you re-index unchanged docs during ingestion
+
+Caching embeddings is usually:
+
+- **cheap to implement**
+- **huge savings** (often 20–60% fewer embed calls)
+- safer than semantic response caching (simpler invalidation)
+
+## Offline vs online
+
+- **Offline (ingestion)**: cache document/chunk embeddings so re-runs don’t re-embed unchanged text.
+- **Online (query time)**: cache query embeddings (same query text should not be re-embedded).
+
+## What the test enforces
+
+The provided `expensive_embed()` increments `EMBED_CALLS`.
+
+If your cache is correct:
+
+- repeated `(model, text)` only calls `expensive_embed()` once
+- changing model or text causes a new embedding
+
+## Production extensions (optional)
+
+- add an LRU cap (memory bounded)
+- store cache in Redis for multi-instance deployments
+- include an `index_version` or `doc_version` in the key for safe invalidation
+
+
+

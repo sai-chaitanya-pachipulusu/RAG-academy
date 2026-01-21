@@ -1,0 +1,249 @@
+---
+title: "Introduction to Agentic RAG"
+description: "Build RAG systems that can reason, plan, and use tools autonomously."
+order: 1
+estimatedMinutes: 30
+stage: agentic-rag
+prereqs:
+  - phase: phase-4
+    slug: multimodal-rag
+next:
+  phase: phase-5
+  slug: react-agents
+outcomes:
+  - "Understand the evolution from static RAG to agentic RAG."
+  - "Know the core components: planning, tool use, reflection."
+  - "Decide when agentic RAG is worth the complexity."
+tags: ["agentic", "agents", "planning", "reasoning"]
+sources:
+  - title: "ReAct: Synergizing Reasoning and Acting (Yao et al., 2022)"
+    url: "https://arxiv.org/abs/2210.03629"
+    type: "paper"
+    year: 2022
+  - title: "Cognitive Architectures for Language Agents (Sumers et al., 2023)"
+    url: "https://arxiv.org/abs/2309.02427"
+    type: "paper"
+    year: 2023
+  - title: "LangGraph: Building Agents"
+    url: "https://langchain-ai.github.io/langgraph/"
+    type: "docs"
+---
+
+## Goals
+
+- Understand what makes RAG "agentic."
+- Learn the core loop: Think → Act → Observe → Reflect.
+- Know when agentic patterns add value vs complexity.
+
+## Prereqs
+
+- Complete Phases 0-4 (understand traditional RAG well).
+
+## Core idea
+
+### From static to agentic RAG
+
+**Static RAG** follows a fixed pipeline:
+```
+Query → Retrieve → Generate → Answer
+```
+
+**Agentic RAG** can decide what to do:
+```
+Query → Plan → [Tool A? Tool B? Retrieve? Generate?] → Observe → Reflect → ...
+```
+
+### The agentic loop
+
+```
+┌─────────────────────────────────────────┐
+│                 THINK                    │
+│  "What do I need to do to answer this?" │
+└─────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────┐
+│                  ACT                     │
+│  Choose and execute a tool/action       │
+└─────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────┐
+│                OBSERVE                   │
+│  Process the result of the action       │
+└─────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────┐
+│                REFLECT                   │
+│  "Do I have enough to answer? Continue?"│
+└─────────────────────────────────────────┘
+                    ↓
+           [Answer or Loop Back]
+```
+
+### Key capabilities of agentic RAG
+
+| Capability | Description | Example |
+|------------|-------------|---------|
+| **Planning** | Break complex queries into steps | "Compare X and Y" → search X, search Y, compare |
+| **Tool use** | Call external tools beyond retrieval | Calculator, code execution, web search |
+| **Reflection** | Evaluate own outputs | "Is this answer complete?" |
+| **Memory** | Track state across interactions | Remember previous queries |
+| **Routing** | Choose strategy based on query | Simple → direct, Complex → multi-step |
+
+### When to go agentic
+
+| Query Type | Static RAG | Agentic RAG |
+|------------|------------|-------------|
+| "What is X?" | ✓ Perfect | Overkill |
+| "Compare X and Y" | ~ OK | ✓ Better |
+| "How do I do X with my data?" | ✗ Limited | ✓ Needed |
+| "Write code that does X" | ✗ Limited | ✓ Needed |
+
+### The tools paradigm
+
+Agents work by selecting and executing **tools**:
+
+```python
+TOOLS = {
+    "search_docs": {
+        "description": "Search the internal knowledge base",
+        "parameters": {"query": "string"},
+        "function": search_docs,
+    },
+    "search_web": {
+        "description": "Search the public web for recent information",
+        "parameters": {"query": "string"},
+        "function": search_web,
+    },
+    "run_code": {
+        "description": "Execute Python code and return the result",
+        "parameters": {"code": "string"},
+        "function": run_code,
+    },
+    "calculate": {
+        "description": "Perform mathematical calculations",
+        "parameters": {"expression": "string"},
+        "function": calculate,
+    },
+}
+```
+
+### Simple agentic RAG structure
+
+```python
+class SimpleAgenticRAG:
+    def __init__(self, llm, tools: Dict):
+        self.llm = llm
+        self.tools = tools
+    
+    def answer(self, query: str, max_steps: int = 5) -> str:
+        """
+        Agentic RAG with Think-Act-Observe loop.
+        """
+        context = []
+        
+        for step in range(max_steps):
+            # THINK: Decide what to do
+            thought, action = self.think(query, context)
+            
+            if action["tool"] == "final_answer":
+                return action["input"]
+            
+            # ACT: Execute the tool
+            result = self.act(action)
+            
+            # OBSERVE: Record the result
+            context.append({
+                "step": step,
+                "thought": thought,
+                "action": action,
+                "result": result,
+            })
+            
+            # REFLECT: Check if we're done
+            if self.should_stop(query, context):
+                break
+        
+        # Synthesize final answer
+        return self.synthesize(query, context)
+    
+    def think(self, query: str, context: List[Dict]) -> Tuple[str, Dict]:
+        """
+        Decide what action to take next.
+        """
+        prompt = f"""You are a helpful assistant that can use tools.
+
+Available tools:
+{self.format_tools()}
+
+Query: {query}
+
+Previous steps:
+{self.format_context(context)}
+
+Think about what to do next, then choose a tool.
+If you have enough information, use the "final_answer" tool.
+
+Thought: [your reasoning]
+Action: [tool name]
+Action Input: [input to the tool]"""
+        
+        response = self.llm.generate(prompt)
+        thought, action = self.parse_response(response)
+        
+        return thought, action
+    
+    def act(self, action: Dict) -> str:
+        """
+        Execute the selected tool.
+        """
+        tool_name = action["tool"]
+        tool_input = action["input"]
+        
+        if tool_name not in self.tools:
+            return f"Error: Unknown tool '{tool_name}'"
+        
+        try:
+            result = self.tools[tool_name]["function"](tool_input)
+            return str(result)
+        except Exception as e:
+            return f"Error: {str(e)}"
+```
+
+### Agent types comparison
+
+| Agent Type | Description | Complexity | Use When |
+|------------|-------------|------------|----------|
+| **Router** | Routes to different pipelines | Low | Multiple specialized RAG systems |
+| **ReAct** | Reason + Act loop | Medium | Most agentic tasks |
+| **Plan-and-Execute** | Plan all steps, then execute | Medium-High | Complex multi-step tasks |
+| **Multi-Agent** | Multiple specialized agents | High | Very complex systems |
+| **Reflection** | Self-critiques outputs | Medium | Quality-critical tasks |
+
+## Failure modes
+
+1. **Looping**: Agent gets stuck repeating actions.
+2. **Tool abuse**: Calls tools unnecessarily.
+3. **Hallucinated tools**: Tries to use non-existent tools.
+4. **Context explosion**: Too many steps → context overflow.
+5. **Latency**: Each step = more time.
+
+## Production defaults
+
+- **Start simple**: Static RAG for most queries.
+- **Route to agents**: Only for complex queries.
+- **Limit steps**: Max 5-10 steps per query.
+- **Monitor cost**: Agents can be expensive.
+
+## Do next
+
+<ChallengeLinks slugs={["simple-agent", "tool-registry", "agent-loop"]} />
+
+<Card className="mt-4 p-4">
+  <p className="text-sm font-medium">Next: ReAct agents:</p>
+  <Link
+    href="/learn/phase-5/react-agents"
+    className="mt-2 inline-flex text-xs font-medium text-blue-700 hover:text-blue-500 dark:text-blue-400"
+  >
+    Next: ReAct Agents →
+  </Link>
+</Card>

@@ -1,0 +1,42 @@
+﻿<Callout title="Goal" variant="info">
+  Implement Hierarchical Navigable Small World (HNSW) graph search.
+</Callout>
+
+## Why this matters in production
+
+HNSW is the **dominant algorithm** for approximate nearest neighbor (ANN) search in production vector databases. Pinecone, Weaviate, Qdrant, and Milvus all use HNSW or variants.
+
+- **Complexity**: O(log N) to O(log² N) average query time (sublinear in corpus size)
+- **Recall**: Typically 95-99%+ with proper tuning
+- **Tradeoff**: Higher memory usage than IVF/PQ methods, but faster queries
+
+## Key parameters (production tuning)
+
+- **M**: Max connections per node (default 16-32). Higher = better recall, more memory
+- **efConstruction**: Search width during index building (default 100-200). Higher = better graph, slower indexing
+- **efSearch**: Search width at query time (default 50-100). Higher = better recall, slower queries
+
+## Algorithm overview
+
+1. **Multi-layer graph**: Each layer is a "zoomed out" view (fewer nodes, longer jumps)
+2. **Greedy descent**: Start at top layer, greedily walk toward query, then drop down
+3. **Bottom layer search**: Detailed search in the densest layer (all nodes)
+
+## What you're implementing
+
+1. Build the hierarchical graph with random level assignment
+2. Implement the greedy search on upper layers to find a good entry point
+3. Implement the detailed search on the bottom layer with backtracking
+
+## Common pitfalls
+
+- Not using a priority queue (beam search) for the bottom layer
+- Edge cases: handling the first node insertion
+- Forgetting to update "furthest nearest neighbor" during search
+
+## Production extensions
+
+- **Filtering**: Pre-filter or in-query filter with metadata constraints
+- **Quantization**: Combine with SQ/PQ to reduce memory 4-8x
+- **Streaming inserts**: Handle updates without full rebuild
+

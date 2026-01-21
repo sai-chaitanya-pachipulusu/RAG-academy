@@ -1,0 +1,26 @@
+﻿---
+title: "Partitioned Vector Tables"
+description: "Design a multi-tenant storage layer with hard data isolation."
+---
+
+# Partitioned Vector Tables
+
+In enterprise RAG environments, **Multi-Tenancy** is a critical security requirement. You cannot risk User A's data leaking into User B's search results.
+
+### Physical vs. Logical Isolation
+
+- **Logical Isolation**: All data is in one index, and you filter by `tenant_id`. This is risky; a bug in the filter logic could expose data.
+- **Physical Isolation (Partitioning)**: Data for different tenants is stored in separate physical "buckets" or tables.
+
+### Your Task
+
+Implement a `DividedVectorDB` that:
+
+1.  **Encapsulates** data by `tenant_id`.
+2.  Ensures that when a user searches, they **only** hit the partition belonging to their ID.
+3.  Prevents cross-partition access even if the query is identical.
+
+### Industry Standard
+
+Services like **Pinecone** use "Namespaces" to provide this isolation, while others might spin up entirely separate index instances for high-value enterprise clients.
+

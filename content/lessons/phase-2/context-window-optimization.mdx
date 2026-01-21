@@ -1,0 +1,246 @@
+---
+title: "Context Window Optimization"
+description: "Combat lost-in-the-middle with compression, ordering, and budgeting."
+order: 5
+estimatedMinutes: 25
+stage: post-retrieval
+prereqs:
+  - phase: phase-2
+    slug: query-transform-patterns
+next:
+  phase: phase-2
+  slug: metadata-filtering
+outcomes:
+  - "Understand and mitigate the lost-in-the-middle effect."
+  - "Implement context compression and intelligent ordering."
+  - "Set and enforce token budgets."
+tags: ["context-window", "compression", "lost-in-middle", "ordering"]
+sources:
+  - title: "Lost in the Middle (Liu et al., 2023)"
+    url: "https://arxiv.org/abs/2307.03172"
+    type: "paper"
+    year: 2023
+  - title: "LLMLingua: Prompt Compression (Jiang et al., 2023)"
+    url: "https://arxiv.org/abs/2310.05736"
+    type: "paper"
+    year: 2023
+  - title: "RECOMP: Selective Augmentation (Xu et al., 2024)"
+    url: "https://arxiv.org/abs/2310.04408"
+    type: "paper"
+    year: 2024
+---
+
+## Goals
+
+- Understand why context placement affects answer quality.
+- Master compression techniques to fit more signal in less space.
+- Build reliable token budget enforcement.
+
+## Prereqs
+
+- Read: **Query Transform Patterns** (you have good retrieval results).
+- Read: **Tokenizers & Context Windows** (understand token limits).
+
+## Core idea
+
+### The lost-in-the-middle problem
+
+From [Liu et al., 2023](https://arxiv.org/abs/2307.03172): LLMs are **not equally good** at using information from all parts of the context.
+
+```
+Performance by position:
+┌────────────────────────────────────┐
+│ █████████                          │ ← Beginning: HIGH attention
+│                                    │
+│      ████                          │ ← Middle: LOW attention
+│                                    │
+│                        ████████    │ ← End: MEDIUM attention
+└────────────────────────────────────┘
+```
+
+**Key finding**: Information in the middle of the context is often ignored. Put important content at the beginning and end.
+
+### Context window budget
+
+You have limited tokens. Use them wisely:
+
+```
+Typical 8K token budget:
+┌─────────────────────────────────────┐
+│ System prompt         ~200 tokens   │
+│ Retrieved context    ~5000 tokens   │
+│ User query            ~100 tokens   │
+│ Response buffer      ~2700 tokens   │
+└─────────────────────────────────────┘
+```
+
+### Mitigation strategies
+
+#### 1. Smart ordering
+
+Put best evidence first and last:
+
+```python
+def order_for_attention(chunks: List[str], scores: List[float]) -> List[str]:
+    """
+    Order chunks to mitigate lost-in-the-middle.
+    Best evidence at beginning and end.
+    """
+    ranked = sorted(zip(chunks, scores), key=lambda x: x[1], reverse=True)
+    
+    if len(ranked) <= 2:
+        return [c for c, s in ranked]
+    
+    # Split into halves
+    n = len(ranked)
+    first_half = ranked[:n//2]
+    second_half = ranked[n//2:]
+    
+    # Best at start, second-best at end
+    result = []
+    for i, (chunk, score) in enumerate(first_half):
+        result.append(chunk)
+    for i, (chunk, score) in enumerate(reversed(second_half)):
+        result.append(chunk)
+    
+    return result
+```
+
+#### 2. Extractive compression
+
+Keep only relevant sentences:
+
+```python
+def extractive_compress(query: str, chunk: str, max_sentences: int = 3) -> str:
+    """
+    Extract only the most relevant sentences.
+    """
+    sentences = split_sentences(chunk)
+    
+    # Score each sentence by relevance to query
+    scored = []
+    for sent in sentences:
+        # Simple: keyword overlap
+        overlap = len(set(query.lower().split()) & set(sent.lower().split()))
+        scored.append((sent, overlap))
+    
+    # Keep top sentences in original order
+    top = sorted(scored, key=lambda x: x[1], reverse=True)[:max_sentences]
+    top_sents = {s for s, _ in top}
+    
+    return ' '.join(s for s in sentences if s in top_sents)
+```
+
+#### 3. LLM-based compression
+
+Use an LLM to summarize while preserving key info:
+
+```python
+def llm_compress(query: str, chunk: str, target_tokens: int = 200) -> str:
+    """
+    Use LLM to compress chunk while preserving relevant information.
+    """
+    prompt = f"""Compress this passage to answer the question. Keep only essential information.
+Target: ~{target_tokens} tokens.
+
+Question: {query}
+
+Passage: {chunk}
+
+Compressed:"""
+    
+    return llm.generate(prompt, max_tokens=target_tokens)
+```
+
+<Callout title="Caution" variant="warning">
+  LLM compression can introduce errors. Use extractive compression for high-stakes applications.
+</Callout>
+
+#### 4. Token budget enforcement
+
+Never exceed your budget:
+
+```python
+def enforce_budget(
+    chunks: List[str],
+    budget: int = 4000,
+    tokenizer = None
+) -> List[str]:
+    """
+    Enforce strict token budget.
+    """
+    result = []
+    current_tokens = 0
+    
+    for chunk in chunks:
+        chunk_tokens = len(tokenizer.encode(chunk))
+        
+        if current_tokens + chunk_tokens <= budget:
+            result.append(chunk)
+            current_tokens += chunk_tokens
+        else:
+            # Try to fit partial
+            remaining = budget - current_tokens
+            if remaining > 50:  # Worth including partial
+                truncated = tokenizer.decode(
+                    tokenizer.encode(chunk)[:remaining]
+                )
+                result.append(truncated + "...")
+            break
+    
+    return result
+```
+
+### Advanced: Selective augmentation
+
+From [RECOMP](https://arxiv.org/abs/2310.04408): Sometimes adding context **hurts**. Only augment when it helps:
+
+```python
+def selective_augment(query: str, context: str, threshold: float = 0.7) -> str:
+    """
+    Only include context if it's likely to help.
+    """
+    # Score relevance
+    relevance = score_relevance(query, context)
+    
+    if relevance < threshold:
+        # Context might confuse the model
+        return ""  # No augmentation
+    
+    return context
+```
+
+## Failure modes
+
+1. **Stuffing everything**: More context ≠ better answers.
+2. **Ignoring ordering**: Putting best evidence in the middle.
+3. **No budget enforcement**: Exceeding context limits → truncation by the model.
+4. **Over-compression**: Losing critical information.
+5. **Compression hallucinations**: LLM-based compression adding false info.
+
+## Production defaults
+
+- **Ordering**: Best evidence first, second-best last.
+- **Compression**: Extractive first, LLM-based only if needed.
+- **Budget**: Reserve 30% for response generation.
+- **Chunks**: 5-10 chunks after reranking.
+
+```python
+# Production pattern
+def build_context(query: str, chunks: List[str], scores: List[float]) -> str:
+    # 1. Order for attention
+    ordered = order_for_attention(chunks, scores)
+    
+    # 2. Compress if needed
+    if sum(len(c) for c in ordered) > MAX_CONTEXT:
+        ordered = [extractive_compress(query, c) for c in ordered]
+    
+    # 3. Enforce budget
+    final = enforce_budget(ordered, budget=4000)
+    
+    return "\n\n".join(final)
+```
+
+## Do next
+
+<ChallengeLinks slugs={["lost-in-the-middle-ordering", "extractive-compression", "token-budget-packing", "contextual-compression-llm"]} />

@@ -1,0 +1,24 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Score confidence in RAG answers based on retrieval quality.
+</Callout>
+
+## Why this matters in production
+
+Users need to know when to trust RAG answers. Confidence scoring surfaces this, enabling appropriate caveats and human review triggers.
+
+## What you're implementing
+
+- Retrieval quality: average of retrieval scores.
+- Source consistency: variance of scores.
+- Coverage: number of supporting sources.
+- Overall score: weighted combination.
+
+## Common pitfalls
+
+- Not surfacing low confidence to users.
+- Overconfident on single high-scoring source.
+
+## After you pass
+
+Use confidence scores to trigger human review for critical applications.
+

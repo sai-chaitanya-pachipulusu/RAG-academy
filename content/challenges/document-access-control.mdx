@@ -1,0 +1,40 @@
+---
+title: "Document Access Control"
+description: "Implement access control for multi-tenant RAG"
+---
+
+# Document Access Control
+
+Implement an access control layer for RAG that filters retrieved documents based on user permissions.
+
+## Requirements
+
+1. Tag documents with access levels
+2. Filter retrieval by user permissions
+3. Audit access attempts
+4. Handle permission inheritance
+
+## Starter Code
+
+```python
+class AccessControlledRAG:
+    def __init__(self, retriever):
+        self.retriever = retriever
+        self.document_acls = {}  # doc_id -> {read: [], write: []}
+    
+    def set_document_acl(self, doc_id: str, read_users: list[str], write_users: list[str]):
+        """Set access control list for a document."""
+        pass
+    
+    def retrieve_with_acl(self, query: str, user_id: str, user_groups: list[str]) -> list[dict]:
+        """
+        Retrieve documents user has access to.
+        
+        Should:
+        1. Retrieve candidates
+        2. Filter by user permissions
+        3. Log access attempt
+        4. Return filtered results
+        """
+        pass
+```

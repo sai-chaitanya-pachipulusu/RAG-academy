@@ -1,0 +1,37 @@
+﻿---
+title: "Similarity Score Threshold"
+description: "Filter results by absolute similarity, not just top-K."
+---
+
+# Similarity Score Threshold
+
+Top-K retrieval always returns K results, even if none of them are relevant. **Thresholding** ensures a minimum quality bar.
+
+### The Problem
+
+```python
+query = "How to build a rocket?"
+top_k_results = [
+    ("Banana recipes", 0.25),
+    ("Weather forecast", 0.22),
+    ("Cat videos", 0.20),
+]
+```
+
+All terrible, but top-K=3 returns them anyway!
+
+### The Solution
+
+Add a `min_score` filter:
+
+```python
+filter_by_threshold(results, min_score=0.6)
+# Returns: []  # Nothing passes!
+```
+
+Now your RAG system can trigger a "I don't have relevant information" refusal instead of hallucinating from garbage context.
+
+### Your Task
+
+Implement a simple filter that keeps only `(doc_id, score)` pairs where `score >= min_score`.
+

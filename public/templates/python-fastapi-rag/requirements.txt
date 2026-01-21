@@ -1,0 +1,43 @@
+# RAG Academy — Python FastAPI Template
+# Production dependencies
+
+# Core
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+
+# LLM & Embeddings
+openai>=1.10.0
+tiktoken>=0.5.0
+
+# Vector Stores (uncomment what you need)
+chromadb>=0.4.22
+# pinecone-client>=3.0.0
+# qdrant-client>=1.7.0
+# pgvector>=0.2.0
+
+# Retrieval
+rank-bm25>=0.2.2           # BM25 sparse retrieval
+sentence-transformers>=2.3.0  # Local embeddings (optional)
+
+# Reranking
+# cohere>=4.45              # Cohere Rerank API
+# For local reranking: sentence-transformers with cross-encoders
+
+# Document parsing
+pypdf>=3.17.0              # PDF parsing
+unstructured>=0.12.0       # Multi-format parsing (optional)
+python-magic>=0.4.27       # File type detection
+
+# Evaluation
+numpy>=1.26.0
+pandas>=2.1.0
+
+# Observability (optional)
+# langsmith>=0.0.87
+# opentelemetry-api>=1.22.0
+# opentelemetry-sdk>=1.22.0
+
+# Security
+python-multipart>=0.0.6    # File uploads

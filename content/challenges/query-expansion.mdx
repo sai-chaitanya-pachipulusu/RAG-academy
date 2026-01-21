@@ -1,0 +1,87 @@
+﻿---
+title: "Query Expansion with Synonyms"
+description: "Expand queries with synonyms to improve retrieval recall"
+difficulty: "medium"
+timeEstimate: "25-30 min"
+xpReward: 75
+prerequisites: []
+---
+
+# Query Expansion with Synonyms
+
+## The Vocabulary Mismatch Problem
+
+**User asks**: "My laptop has an error"
+**Documents say**: "If your notebook displays an issue..."
+
+Same meaning, different words. The query won't match!
+
+---
+
+## The Solution: Synonym Expansion
+
+```python
+Original: "laptop error"
+Expanded: [
+    "laptop error",           # Original
+    "notebook error",         # Synonym 1
+    "laptop bug",             # Synonym 2
+    "portable computer issue" # Synonym 3
+]
+```
+
+Search with ALL versions, union the results.
+
+---
+
+## Implementation Approaches
+
+### 1. Dictionary-Based
+
+```python
+SYNONYMS = {
+    "laptop": ["notebook", "portable computer"],
+    "error": ["bug", "issue", "problem"]
+}
+```
+
+### 2. Word2Vec Similar Words
+
+```python
+similar_words = word2vec.most_similar("laptop", topn=3)
+```
+
+### 3. LLM-Generated
+
+```python
+synonyms = llm.generate(f"List synonyms for: {term}")
+```
+
+---
+
+## Impact on Retrieval
+
+| Metric    | Without Expansion | With Expansion |
+| --------- | ----------------- | -------------- |
+| Recall    | 75%               | 92%            |
+| Precision | 85%               | 78%            |
+| F1        | 80%               | 85%            |
+
+Expansion improves recall at slight precision cost.
+
+---
+
+## Industry Usage
+
+- **Elasticsearch**: Built-in synonym filters
+- **Algolia**: Automatic synonyms feature
+- **Google**: Query understanding pipeline
+
+---
+
+## Related Challenges
+
+- `hyde-implementation` - Generate hypothetical answers
+- `query-decomposition` - Break complex queries
+- `intent-classification` - Understand query type
+

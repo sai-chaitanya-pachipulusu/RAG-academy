@@ -1,0 +1,459 @@
+﻿---
+title: "Chunking Strategies Guide"
+description: "A comprehensive guide to all 10 chunking strategies for RAG systems, from first principles"
+---
+
+# Chunking Strategies: The Complete Guide
+
+Chunking is the **most important preprocessing step** in RAG. Get it wrong, and retrieval fails no matter how good your embeddings or reranker are.
+
+This guide covers every chunking strategy from first principles, explaining:
+
+- **WHY** it was invented
+- **WHAT** problem it solved
+- **WHEN** to use it
+- **HOW** to implement it
+
+---
+
+## The Evolution of Chunking
+
+```
+Fixed-Size (baseline)
+    ↓ "cuts mid-word"
+Overlapping (preserves boundaries)
+    ↓ "still cuts mid-sentence"
+Sentence-Based (linguistic)
+    ↓ "sentences vary wildly in size"
+Paragraph-Based (thematic)
+    ↓ "hard to balance size consistency"
+Recursive (production standard)
+    ↓ "doesn't understand document structure"
+Section-Based (structure-aware)
+    ↓ "requires explicit headers"
+Semantic (AI-powered)
+    ↓ "computationally expensive"
+Hierarchical (multi-resolution)
+    ↓ "complex to implement"
+Metadata-Aware (production context)
+```
+
+---
+
+## 1️⃣ Fixed-Size Chunking
+
+### The First Principle
+
+LLMs have **fixed context windows**. A 500-page document has ~250,000 tokens. GPT-4 accepts 128K max. We MUST split.
+
+### The Simplest Solution
+
+Split every N characters or N tokens.
+
+```python
+def fixed_size_chunk(text, size=500):
+    return [text[i:i+size] for i in range(0, len(text), size)]
+```
+
+### Pros
+
+- ✅ Simplest implementation
+- ✅ Predictable chunk sizes
+- ✅ O(n) time complexity
+
+### Cons
+
+- ❌ Cuts words: "machin|e learning"
+- ❌ Cuts sentences: "The answer is|42."
+- ❌ No semantic awareness
+
+### When to Use
+
+- Log files with uniform structure
+- Initial prototypes
+- When predictable size matters more than quality
+
+---
+
+## 2️⃣ Overlapping Chunking
+
+### Why Introduced
+
+Fixed-size creates **boundary blindness**. If a query term spans two chunks, retrieval fails.
+
+### The Insight
+
+By **overlapping** content, the same information appears in multiple chunks. One will match.
+
+```python
+def overlap_chunk(text, size=500, overlap=100):
+    step = size - overlap
+    return [text[i:i+size] for i in range(0, len(text), step)]
+```
+
+### Visual
+
+```
+Text:    [AAAAAAAAAA][BBBBBBBBBB][CCCCCCCC]
+Chunk 1: [AAAAAAAAAA]
+Chunk 2:       [AAAAA][BBBBB]     # overlap!
+Chunk 3:             [BBBBB][CCCCC]
+```
+
+### Improvement
+
+- 15-25% better recall on boundary-crossing queries
+
+### Industry Standard
+
+- LangChain default: 200-char overlap
+- Pinecone recommendation: 10-20% overlap
+
+---
+
+## 3️⃣ Sentence-Based Chunking
+
+### Why Introduced
+
+Characters don't carry meaning. **Sentences** do. They're the smallest complete thought.
+
+### The Insight
+
+Instead of character counts, split on linguistic boundaries.
+
+```python
+import re
+
+def sentence_chunk(text, max_sentences=3):
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    chunks = []
+    for i in range(0, len(sentences), max_sentences):
+        chunks.append(' '.join(sentences[i:i+max_sentences]))
+    return chunks
+```
+
+### Pros
+
+- ✅ No mid-word cuts
+- ✅ Complete thoughts preserved
+- ✅ Better embedding quality
+
+### Cons
+
+- ❌ Variable chunk sizes
+- ❌ One-sentence chunks may be too small
+- ❌ Complex sentences may be too large
+
+### When to Use
+
+- Narrative content (articles, stories)
+- Customer support transcripts
+- Email bodies
+
+---
+
+## 4️⃣ Paragraph-Based Chunking
+
+### Why Introduced
+
+Sentences are semantic units, but **paragraphs** are thematic units. A paragraph develops one idea fully.
+
+### The Insight
+
+Writers naturally group related sentences. Respect that structure.
+
+```python
+def paragraph_chunk(text, min_size=100, max_size=500):
+    paragraphs = text.split('\n\n')
+    # Merge small paragraphs, split large ones
+    return processed_paragraphs
+```
+
+### When to Use
+
+- Blog posts
+- Wikipedia articles
+- Well-structured documents
+
+---
+
+## 5️⃣ Sliding Window Chunking
+
+### Why Introduced
+
+For **critical documents**, even 20% overlap isn't enough. What if the exact phrase is exactly at a boundary?
+
+### The Insight
+
+Create MANY overlapping views with small stride. Some chunk will match ANY query.
+
+```python
+def sliding_window(text, window=500, stride=50):
+    return [(text[i:i+window], i) for i in range(0, len(text)-window+1, stride)]
+```
+
+### Tradeoff
+
+- 10x more chunks
+- 10x more storage
+- 10x more retrieval candidates
+
+### When to Use
+
+- Legal contracts (missing a clause = lawsuit)
+- Medical records (missing symptom = misdiagnosis)
+- Regulatory compliance
+
+---
+
+## 6️⃣ Recursive Chunking (Production Standard)
+
+### Why Introduced
+
+Real documents have **hierarchy**: sections > paragraphs > sentences > words. We should try to split at the highest level possible.
+
+### The Algorithm
+
+1. Try splitting on paragraphs (`\n\n`)
+2. If piece > target size, try sentences (`. `)
+3. If still too large, try words (` `)
+4. Last resort: characters
+
+```python
+def recursive_chunk(text, size, separators=['\n\n', '\n', '. ', ' ', '']):
+    # Try each separator in order
+    # Recursively split pieces that exceed size
+```
+
+### Why It's the Standard
+
+- LangChain's `RecursiveCharacterTextSplitter`
+- LlamaIndex's `SentenceSplitter`
+- Used by 80% of production RAG systems
+
+---
+
+## 7️⃣ Section-Based Chunking
+
+### Why Introduced
+
+Markdown and HTML have **explicit structure** (headers). This is valuable metadata we should preserve.
+
+### The Insight
+
+A chunk from "## Error Handling" carries different semantic weight than one from "## Introduction".
+
+```python
+def section_chunk(markdown):
+    # Parse headers, track breadcrumbs
+    # Return chunks with section metadata
+    return [{'text': ..., 'header': ..., 'breadcrumb': ...}]
+```
+
+### Metadata Enables
+
+- Weighted retrieval by section importance
+- "Documentation > API" path filtering
+- Better citation generation
+
+### When to Use
+
+- Technical documentation (ReadTheDocs, GitBook)
+- API references
+- Research papers with clear sections
+
+---
+
+## 8️⃣ Semantic Chunking
+
+### Why Introduced
+
+ALL previous methods use **syntactic rules**. But meaning doesn't always follow syntax!
+
+### The Insight
+
+Use embeddings to detect when **topics change**. Place boundaries at semantic shift points.
+
+```python
+def semantic_chunk(text, threshold=0.5):
+    sentences = split_sentences(text)
+    embeddings = embed_all(sentences)
+
+    chunks = []
+    current = [sentences[0]]
+
+    for i in range(1, len(sentences)):
+        similarity = cosine(embeddings[i-1], embeddings[i])
+        if similarity < threshold:
+            chunks.append(current)
+            current = []
+        current.append(sentences[i])
+
+    return chunks
+```
+
+### The Cost
+
+- Requires inference at chunking time
+- Slower, more expensive
+- But: 30-50% better on unstructured content
+
+### When to Use
+
+- Transcripts (topic jumps randomly)
+- Social media (no structure)
+- Mixed-topic documents
+
+---
+
+## 9️⃣ Hierarchical Chunking
+
+### Why Introduced
+
+Different queries need different granularity:
+
+- "What is machine learning?" → needs paragraph
+- "What's the default learning rate?" → needs sentence
+
+### The Insight
+
+Create chunks at **multiple resolutions**. Link them in a tree.
+
+```
+Document (summary)
+├── Section 1
+│   ├── Paragraph 1.1
+│   │   ├── Sentence 1.1.1
+│   │   └── Sentence 1.1.2
+│   └── Paragraph 1.2
+└── Section 2
+```
+
+### Powers
+
+- RAPTOR (recursive summarization)
+- LlamaIndex's auto-merging retriever
+- Parent-child retrieval
+
+---
+
+## Metadata-Aware Chunking
+
+### Why Introduced
+
+Chunks exist in **context**:
+
+- Where did this come from?
+- Who wrote it?
+- When?
+- Who can see it?
+
+### The Insight
+
+Losing metadata = losing trust, filtering, and citations.
+
+```python
+def metadata_chunk(text, source_info):
+    chunks = basic_chunk(text)
+    return [{
+        'chunk_id': deterministic_hash(chunk + source_id),
+        'text': chunk,
+        'source_id': source_info['id'],
+        'author': source_info['author'],
+        'date': source_info['date'],
+        'access_level': source_info['access'],
+        'char_start': offset,
+        'char_end': offset + len(chunk)
+    } for chunk in chunks]
+```
+
+### Enables
+
+- "Show Source" buttons
+- Time-filtered search (only 2024 docs)
+- Role-based access control
+- Deduplication (same hash = same chunk)
+
+---
+
+## Quick Decision Guide
+
+| Document Type     | Recommended Strategy       |
+| ----------------- | -------------------------- |
+| General RAG       | Recursive                  |
+| Legal/Medical     | Sliding Window + Metadata  |
+| Documentation     | Section-Based              |
+| Articles/Blogs    | Paragraph-Based            |
+| Transcripts       | Semantic                   |
+| Multi-query needs | Hierarchical               |
+| Enterprise        | Metadata-Aware + Recursive |
+
+---
+
+## Production Recommendations
+
+### 1. Start Simple
+
+```python
+# Good enough for 80% of cases
+splitter = RecursiveCharacterTextSplitter(
+    chunk_size=500,
+    chunk_overlap=100
+)
+```
+
+### 2. Add Structure Awareness
+
+```python
+# For structured documents
+splitter = MarkdownHeaderTextSplitter(
+    headers_to_split_on=[
+        ("#", "H1"),
+        ("##", "H2"),
+        ("###", "H3"),
+    ]
+)
+```
+
+### 3. Always Add Metadata
+
+```python
+# Track provenance
+chunks = [{
+    **chunk,
+    'source': filename,
+    'page': page_num,
+    'timestamp': datetime.now()
+} for chunk in raw_chunks]
+```
+
+---
+
+## Chunking Metrics to Track
+
+| Metric           | Target         | Why                                  |
+| ---------------- | -------------- | ------------------------------------ |
+| Avg chunk size   | 300-600 tokens | Not too small, not too big           |
+| Size variance    | < 50% of mean  | Consistent for retrieval             |
+| Boundary quality | Manual audit   | Are cuts sensible?                   |
+| Retrieval recall | > 90%          | Does retrieval find relevant chunks? |
+
+---
+
+## Related Challenges
+
+- `fixed-size-chunking-fundamentals` - The foundation
+- `overlapping-chunking-explained` - First improvement
+- `sentence-based-chunking` - Linguistic boundaries
+- `paragraph-based-chunking` - Thematic units
+- `sliding-window-chunking` - Maximum coverage
+- `recursive-chunking` - Production standard
+- `section-based-chunking` - Document structure
+- `semantic-chunking` - AI-powered
+- `hierarchical-chunking` - Multi-resolution
+- `metadata-aware-chunking` - Production context
+
+---
+
+_Master chunking, and you'll never struggle with "why isn't RAG finding the right context?" again._
+

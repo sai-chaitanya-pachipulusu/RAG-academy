@@ -1,0 +1,16 @@
+﻿<Callout title="Goal" variant="info">
+  Implement a scoring function that combines multiple signals to rerank
+  documents.
+</Callout>
+
+## The "Cascade" Strategy
+
+In production RAG, you don't run a heavy reranker on 1 million documents. Instead, you:
+
+1.  **Retrieve** 100 docs with a fast, cheap method (Embeddings).
+2.  **Rerank** those 100 docs with a slower, more precise method.
+
+## Task
+
+Implement the math for a scoring function that weights different features (e.g., initial retrieval score, BM25 score, and metadata freshness) to produce a final, optimized ranking.
+

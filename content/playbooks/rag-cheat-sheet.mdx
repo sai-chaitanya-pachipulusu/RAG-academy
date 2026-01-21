@@ -1,0 +1,214 @@
+---
+title: "RAG Cheat Sheet"
+description: "One-page reference for RAG engineering essentials."
+order: 27
+tags: ["reference", "cheat-sheet", "quick-reference"]
+---
+
+# RAG Cheat Sheet
+
+Print this. Keep it handy.
+
+---
+
+## 🏗️ The RAG Pipeline
+
+```
+OFFLINE (Indexing)                    ONLINE (Query Time)
+─────────────────                    ──────────────────
+1. Load documents                    1. User query
+2. Parse (PDF/HTML/etc)              2. Query transform (optional)
+3. Chunk (512 tokens)                3. Embed query
+4. Add metadata                      4. Vector search (top-50)
+5. Embed chunks                      5. Rerank (top-5)
+6. Store in vector DB                6. Build context
+                                     7. Generate answer
+                                     8. Verify/cite
+```
+
+---
+
+## 📊 Key Defaults
+
+| Setting | Default | Notes |
+|---------|---------|-------|
+| **Chunk size** | 512 tokens | Adjust for query granularity |
+| **Chunk overlap** | 50-100 tokens | ~10-20% |
+| **Top-k retrieval** | 20-50 | Over-retrieve, then rerank |
+| **Top-k after rerank** | 3-5 | Quality over quantity |
+| **Similarity threshold** | 0.7 | Cut off low-quality matches |
+| **Temperature** | 0-0.3 | Low for factual answers |
+
+---
+
+## 🔍 Retrieval Methods
+
+| Method | Best For | Weakness |
+|--------|----------|----------|
+| **Dense (embeddings)** | Semantic similarity | Misses exact matches |
+| **Sparse (BM25)** | Exact terms, IDs | No semantic understanding |
+| **Hybrid (both)** | General use | Slightly more complex |
+| **ColBERT** | High precision | More compute |
+
+**Default**: Hybrid (BM25 + dense) with RRF fusion
+
+---
+
+## 📏 Chunking Strategies
+
+| Strategy | When to Use |
+|----------|-------------|
+| **Fixed size** | Simple, predictable |
+| **Recursive** | Structured docs (headers) |
+| **Semantic** | Topic-based documents |
+| **Sentence** | Q&A, FAQ content |
+| **Parent-child** | Need both overview + details |
+| **Late chunking** | Long-context embedding models |
+
+---
+
+## 🔄 Query Transforms
+
+| Technique | When | Example |
+|-----------|------|---------|
+| **HyDE** | Vague queries | "tell me about X" → hypothetical doc → search |
+| **Multi-query** | Ambiguous | Generate 3-5 variations, merge results |
+| **Step-back** | Complex reasoning | First ask broader question |
+| **Query rewrite** | Conversation | Include context from previous turns |
+
+---
+
+## ⚖️ Reranking Models
+
+| Model | Quality | Speed | Cost |
+|-------|---------|-------|------|
+| **Cohere Rerank v3** | Excellent | Fast | $$ |
+| **BGE-Reranker** | Very Good | Medium | Free |
+| **Cross-encoder** | Good | Slow | Free |
+| **LLM-as-reranker** | Excellent | Very Slow | $$$ |
+
+---
+
+## 📐 Evaluation Metrics
+
+### Retrieval
+
+| Metric | What it Measures |
+|--------|------------------|
+| **Recall@k** | Found all relevant in top-k? |
+| **Precision@k** | % of top-k that's relevant |
+| **MRR** | Position of first relevant |
+| **nDCG** | Weighted position score |
+
+### Generation
+
+| Metric | What it Measures |
+|--------|------------------|
+| **Faithfulness** | Claims supported by context |
+| **Answer relevance** | Addresses the question |
+| **Context relevance** | Retrieved docs are useful |
+
+---
+
+## 🚨 Common Failures
+
+| Symptom | Likely Cause | Fix |
+|---------|--------------|-----|
+| Wrong answer | Bad retrieval | Check if answer is in top-20 |
+| Hallucination | Weak grounding | Require citations, lower temp |
+| "I don't know" | Too strict | Lower similarity threshold |
+| Slow | LLM is bottleneck | Cache, smaller model |
+| Inconsistent | High temperature | Set temp=0 |
+
+---
+
+## 🔐 Security Checklist
+
+- [ ] Input validation (prompt injection defense)
+- [ ] Output filtering (PII, harmful content)
+- [ ] Access control (user can see these docs?)
+- [ ] Rate limiting (per user/API key)
+- [ ] Audit logging (who asked what)
+
+---
+
+## 💰 Cost Formula
+
+```
+Cost per query ≈ 
+  (query_tokens × embed_cost) +
+  (k × rerank_cost) +
+  (context_tokens + response_tokens) × llm_cost
+```
+
+**Typical ranges**:
+- Embedding: $0.0001 per query
+- Reranking: $0.001-0.01 per query
+- LLM (GPT-4o-mini): $0.01-0.05 per query
+
+---
+
+## 🛠️ Tool Selection
+
+| Need | Tool |
+|------|------|
+| **Vector DB (startup)** | Pinecone, Weaviate |
+| **Vector DB (self-host)** | Qdrant, Milvus |
+| **Vector DB (simple)** | ChromaDB, pgvector |
+| **Embedding** | OpenAI, Voyage, BGE-M3 |
+| **Reranking** | Cohere, BGE-Reranker |
+| **Framework** | LangChain, LlamaIndex |
+| **Agents** | LangGraph, LlamaIndex Agents |
+| **Evaluation** | Ragas, DeepEval |
+| **Observability** | LangSmith, Arize Phoenix |
+
+---
+
+## 📝 Prompt Template
+
+```
+System: You are a helpful assistant. Answer questions based ONLY 
+on the provided context. If the context doesn't contain the answer, 
+say "I don't have information about that."
+
+Context:
+{context}
+
+Question: {question}
+
+Instructions:
+- Use only information from the context above
+- Cite sources using [Source N]
+- If uncertain, say so
+```
+
+---
+
+## ⚡ Quick Debug
+
+```python
+# 1. Is the answer in the corpus?
+results = retriever.search(query, k=50)
+print([r.text[:100] for r in results])
+
+# 2. Is it ranked high enough?
+for i, r in enumerate(results[:10]):
+    print(f"{i+1}. Score: {r.score:.3f} - {r.text[:50]}...")
+
+# 3. Is the context too long?
+context = build_context(results[:5])
+print(f"Context tokens: {count_tokens(context)}")
+
+# 4. Is the LLM using it?
+response = llm.generate(query, context)
+print(f"Response: {response}")
+```
+
+---
+
+## 📚 Resources
+
+- [RAG Papers Reading List](/papers)
+- [Tool Comparison Matrix](/compare)
+- [Playbooks](/playbooks)
+- [Challenges](/challenges)

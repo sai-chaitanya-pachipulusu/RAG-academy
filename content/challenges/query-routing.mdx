@@ -1,0 +1,336 @@
+﻿<Callout title="Goal" variant="info">
+  Implement intelligent query routing — direct queries to the optimal retrieval
+  pipeline based on query characteristics.
+</Callout>
+
+## Why Query Routing?
+
+Not all queries are equal:
+
+| Query Type                 | Best Approach                   |
+| -------------------------- | ------------------------------- |
+| "What is account #12345?"  | Exact match, structured DB      |
+| "Explain machine learning" | Dense retrieval, summarization  |
+| "Latest news on Acme Corp" | Real-time search + web          |
+| "Compare product A vs B"   | Multi-doc retrieval + synthesis |
+| "Hi, how are you?"         | No retrieval (chitchat)         |
+
+One-size-fits-all RAG wastes resources and degrades quality.
+
+## Router Types
+
+### 1. LLM-based Router
+
+Use an LLM to classify query intent:
+
+```python
+ROUTER_PROMPT = """Classify this query into one of these categories:
+
+- FACTUAL: Specific facts, numbers, definitions
+- ANALYTICAL: Comparisons, analysis, reasoning
+- PROCEDURAL: How-to, step-by-step instructions
+- CONVERSATIONAL: Chitchat, greetings, no info needed
+- REALTIME: Current events, live data needed
+
+Query: {query}
+
+Output exactly one category name:"""
+
+def llm_router(query: str) -> str:
+    response = llm.generate(ROUTER_PROMPT.format(query=query))
+    return response.strip().upper()
+```
+
+### 2. Classifier-based Router
+
+Train a fast classifier:
+
+```python
+from sklearn.linear_model import LogisticRegression
+import numpy as np
+
+class ClassifierRouter:
+    def __init__(self, embedder):
+        self.embedder = embedder
+        self.classifier = LogisticRegression()
+        self.labels = []
+
+    def train(self, queries: list[str], labels: list[str]):
+        """Train router on labeled examples."""
+        embeddings = self.embedder.encode(queries)
+        self.classifier.fit(embeddings, labels)
+        self.labels = list(set(labels))
+
+    def route(self, query: str) -> str:
+        """Route a query to the best pipeline."""
+        embedding = self.embedder.encode([query])
+        prediction = self.classifier.predict(embedding)[0]
+        confidence = max(self.classifier.predict_proba(embedding)[0])
+        return prediction, confidence
+```
+
+### 3. Semantic Router
+
+Route based on similarity to example queries:
+
+```python
+class SemanticRouter:
+    def __init__(self, embedder):
+        self.embedder = embedder
+        self.routes = {}  # route_name -> (examples, embeddings)
+
+    def add_route(self, name: str, examples: list[str]):
+        """Add a route with example queries."""
+        embeddings = self.embedder.encode(examples)
+        self.routes[name] = (examples, embeddings)
+
+    def route(self, query: str, threshold: float = 0.5) -> tuple[str, float]:
+        """Find the best matching route."""
+        query_embedding = self.embedder.encode([query])[0]
+
+        best_route = None
+        best_score = threshold
+
+        for route_name, (_, embeddings) in self.routes.items():
+            similarities = query_embedding @ embeddings.T
+            max_sim = similarities.max()
+
+            if max_sim > best_score:
+                best_score = max_sim
+                best_route = route_name
+
+        return best_route or "default", best_score
+
+# Usage
+router = SemanticRouter(embedder)
+
+router.add_route("factual", [
+    "What is the capital of France?",
+    "How tall is Mount Everest?",
+    "When was Einstein born?",
+])
+
+router.add_route("analytical", [
+    "Compare Python and JavaScript",
+    "What are the pros and cons of X?",
+    "Why did revenue decline?",
+])
+
+router.add_route("chitchat", [
+    "Hello",
+    "How are you?",
+    "What's up?",
+])
+
+route, confidence = router.route("What's the difference between AWS and GCP?")
+# Returns: ("analytical", 0.85)
+```
+
+## Full Routing Pipeline
+
+```python
+class RoutedRAG:
+    def __init__(self, router, pipelines: dict):
+        self.router = router
+        self.pipelines = pipelines
+
+    async def query(self, query: str) -> dict:
+        # Step 1: Route the query
+        route, confidence = self.router.route(query)
+
+        # Step 2: Handle low-confidence routing
+        if confidence < 0.5:
+            route = "default"
+
+        # Step 3: Execute appropriate pipeline
+        pipeline = self.pipelines.get(route, self.pipelines["default"])
+        result = await pipeline.execute(query)
+
+        return {
+            "response": result,
+            "route": route,
+            "confidence": confidence
+        }
+
+# Define pipelines for each route
+pipelines = {
+    "factual": FactualPipeline(retriever, generator),
+    "analytical": AnalyticalPipeline(multi_retriever, reasoner),
+    "procedural": ProceduralPipeline(how_to_retriever, step_generator),
+    "chitchat": ChitchatPipeline(llm),  # No retrieval
+    "realtime": RealtimePipeline(web_search, generator),
+    "default": DefaultRAGPipeline(retriever, generator),
+}
+
+rag = RoutedRAG(router, pipelines)
+```
+
+## Route to Different Models
+
+Route by complexity/cost:
+
+```python
+MODEL_TIERS = {
+    "simple": "gpt-4o-mini",      # $0.15/1M tokens
+    "medium": "gpt-4o",           # $2.50/1M tokens
+    "complex": "claude-3-opus",   # $15/1M tokens
+}
+
+def complexity_router(query: str) -> str:
+    """Route based on query complexity."""
+    # Simple heuristics
+    word_count = len(query.split())
+    has_comparison = any(w in query.lower() for w in ["compare", "vs", "versus", "difference"])
+    has_reasoning = any(w in query.lower() for w in ["why", "how", "explain", "analyze"])
+
+    if word_count < 10 and not has_comparison and not has_reasoning:
+        return "simple"
+    elif has_reasoning or word_count > 30:
+        return "complex"
+    else:
+        return "medium"
+```
+
+## Route to Different Retrievers
+
+```python
+RETRIEVER_ROUTES = {
+    "code": CodeRetriever(),           # Code-aware chunking
+    "legal": LegalRetriever(),         # Section-aware, citation tracking
+    "financial": FinancialRetriever(), # Table-aware, number extraction
+    "general": GeneralRetriever(),     # Standard RAG
+}
+
+def domain_router(query: str) -> str:
+    """Route to domain-specific retriever."""
+    keywords = {
+        "code": ["function", "code", "programming", "api", "bug", "error"],
+        "legal": ["contract", "clause", "liability", "agreement", "legal"],
+        "financial": ["revenue", "profit", "quarterly", "earnings", "stock"],
+    }
+
+    query_lower = query.lower()
+    for domain, terms in keywords.items():
+        if any(term in query_lower for term in terms):
+            return domain
+
+    return "general"
+```
+
+## Hybrid Router
+
+Combine multiple routing strategies:
+
+```python
+class HybridRouter:
+    def __init__(self, semantic_router, keyword_rules: dict):
+        self.semantic = semantic_router
+        self.keyword_rules = keyword_rules
+
+    def route(self, query: str) -> tuple[str, float, str]:
+        """
+        Returns: (route, confidence, method)
+        """
+        # First: Check keyword rules (fast, explicit)
+        query_lower = query.lower()
+        for route, keywords in self.keyword_rules.items():
+            if any(kw in query_lower for kw in keywords):
+                return route, 1.0, "keyword"
+
+        # Second: Semantic matching
+        route, confidence = self.semantic.route(query)
+        return route, confidence, "semantic"
+
+# Configure
+keyword_rules = {
+    "account_lookup": ["account number", "account #", "my account"],
+    "password_reset": ["reset password", "forgot password", "change password"],
+    "pricing": ["how much", "pricing", "cost", "price"],
+}
+
+router = HybridRouter(semantic_router, keyword_rules)
+```
+
+## Guardrails & Fallbacks
+
+```python
+class SafeRouter:
+    def __init__(self, router, fallback_route: str = "default"):
+        self.router = router
+        self.fallback = fallback_route
+
+    def route(self, query: str) -> str:
+        try:
+            route, confidence = self.router.route(query)
+
+            # Fallback on low confidence
+            if confidence < 0.3:
+                return self.fallback
+
+            return route
+
+        except Exception as e:
+            # Log error, use fallback
+            logger.error(f"Router failed: {e}")
+            return self.fallback
+```
+
+## Metrics to Track
+
+| Metric             | Description                         |
+| ------------------ | ----------------------------------- |
+| Route distribution | % queries per route                 |
+| Route accuracy     | Did the route produce good results? |
+| Fallback rate      | % routed to default                 |
+| Latency by route   | Time per route type                 |
+| Cost by route      | $ per route type                    |
+
+```python
+class RouterMetrics:
+    def __init__(self):
+        self.route_counts = Counter()
+        self.route_latencies = defaultdict(list)
+        self.fallback_count = 0
+
+    def record(self, route: str, latency_ms: float, was_fallback: bool):
+        self.route_counts[route] += 1
+        self.route_latencies[route].append(latency_ms)
+        if was_fallback:
+            self.fallback_count += 1
+
+    def report(self) -> dict:
+        total = sum(self.route_counts.values())
+        return {
+            "distribution": {r: c/total for r, c in self.route_counts.items()},
+            "avg_latency_ms": {r: np.mean(l) for r, l in self.route_latencies.items()},
+            "fallback_rate": self.fallback_count / total if total > 0 else 0,
+        }
+```
+
+## When to Add Routing
+
+**Add routing when:**
+
+- Different query types need different handling
+- You want to optimize cost (route simple → cheap model)
+- Domain-specific retrievers exist
+- Chitchat detection saves unnecessary retrievals
+- Real-time vs static data distinction matters
+
+**Skip routing when:**
+
+- All queries are similar
+- Single pipeline handles everything well
+- Added complexity isn't justified
+- You're just getting started
+
+## Production Checklist
+
+- [ ] Define clear route categories
+- [ ] Collect labeled examples for each route
+- [ ] Choose router type (LLM vs classifier vs semantic)
+- [ ] Implement fallback for uncertain routes
+- [ ] Track route distribution and accuracy
+- [ ] Monitor cost savings from routing
+- [ ] Regularly retrain/update router
+

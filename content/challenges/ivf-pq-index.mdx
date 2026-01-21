@@ -1,0 +1,144 @@
+﻿<Callout title="Goal" variant="info">
+  Understand IVF-PQ (Inverted File with Product Quantization) — the
+  memory-efficient alternative to HNSW for billion-scale vector search.
+</Callout>
+
+## The Scale Problem
+
+HNSW is excellent, but at **1 billion vectors × 1536 dimensions × 4 bytes** = **6 TB of RAM**. That's not feasible for most teams.
+
+**IVF-PQ** trades some accuracy for **10-50x memory reduction**.
+
+## How IVF-PQ Works
+
+### Step 1: IVF (Inverted File Index)
+
+1. Cluster all vectors into `nlist` centroids (typically √N to 4√N)
+2. At query time, find the `nprobe` closest centroids
+3. Only search vectors within those clusters
+
+```
+Corpus: 1M vectors, nlist=1000, nprobe=10
+→ Search only ~10K vectors instead of 1M (100x speedup)
+```
+
+### Step 2: PQ (Product Quantization)
+
+1. Split each 1536-dim vector into `M` subspaces (e.g., M=48, each 32-dim)
+2. Cluster each subspace into 256 centroids (1 byte each)
+3. Store only the centroid IDs (48 bytes instead of 6144 bytes = **128x compression**)
+
+## IVF-PQ vs HNSW Comparison
+
+| Aspect            | HNSW                      | IVF-PQ                 | IVF-HNSW-PQ        |
+| ----------------- | ------------------------- | ---------------------- | ------------------ |
+| **Memory**        | ~1.2x raw vectors         | ~0.1x raw vectors      | ~0.15x raw vectors |
+| **Build time**    | Slow (graph construction) | Fast (clustering)      | Medium             |
+| **Query latency** | ~1-5ms                    | ~5-20ms                | ~2-10ms            |
+| **Recall@10**     | 95-99%                    | 85-95%                 | 90-97%             |
+| **Update cost**   | Expensive                 | Cheap                  | Medium             |
+| **Best for**      | <100M, latency-critical   | >100M, memory-critical | Balance            |
+
+## FAISS Index Types Cheat Sheet
+
+### For Development/Prototyping
+
+```python
+# Exact search (slow but 100% accurate)
+index = faiss.IndexFlatL2(dim)  # or IndexFlatIP for cosine
+```
+
+### For Production (<10M vectors)
+
+```python
+# HNSW — best recall/latency tradeoff
+index = faiss.IndexHNSWFlat(dim, M=32)  # M=16-64
+index.hnsw.efConstruction = 200  # build quality
+index.hnsw.efSearch = 64  # query quality
+```
+
+### For Scale (10M-1B vectors)
+
+```python
+# IVF-PQ — memory efficient
+nlist = int(np.sqrt(n_vectors))  # number of clusters
+m = 48  # subquantizers (dim must be divisible by m)
+quantizer = faiss.IndexFlatL2(dim)
+index = faiss.IndexIVFPQ(quantizer, dim, nlist, m, 8)
+index.nprobe = 10  # clusters to search (higher = better recall)
+```
+
+### For Scale + Quality
+
+```python
+# IVF-HNSW-PQ — best of both worlds
+quantizer = faiss.IndexHNSWFlat(dim, 32)
+index = faiss.IndexIVFPQ(quantizer, dim, nlist, m, 8)
+```
+
+## Tuning Parameters
+
+### IVF Parameters
+
+| Parameter | Values     | Effect                             |
+| --------- | ---------- | ---------------------------------- |
+| `nlist`   | √N to 4√N  | More = better recall, slower build |
+| `nprobe`  | 1 to nlist | More = better recall, slower query |
+
+**Rule of thumb**: `nprobe = nlist / 10` for 90%+ recall
+
+### PQ Parameters
+
+| Parameter           | Values            | Effect                              |
+| ------------------- | ----------------- | ----------------------------------- |
+| `m` (subquantizers) | 8, 16, 32, 48, 64 | More = better accuracy, more memory |
+| `nbits`             | 8 (256 centroids) | Standard, rarely changed            |
+
+## Recall vs Memory Tradeoff (1B vectors, 768-dim)
+
+| Index Type    | Memory | Recall@10 | QPS  |
+| ------------- | ------ | --------- | ---- |
+| Flat (exact)  | 3 TB   | 100%      | 0.1  |
+| HNSW          | 4 TB   | 99%       | 1000 |
+| IVF-PQ (m=32) | 100 GB | 88%       | 500  |
+| IVF-PQ (m=64) | 150 GB | 92%       | 400  |
+| OPQ + IVF-PQ  | 100 GB | 91%       | 450  |
+
+## Edge Cases & Gotchas
+
+1. **Training required**: IVF-PQ needs training on representative data
+
+   ```python
+   index.train(training_vectors)  # Before adding vectors!
+   ```
+
+2. **Dimension divisibility**: `dim` must be divisible by `m`
+
+3. **Empty clusters**: With small corpora, some clusters may be empty
+
+4. **Cold vs warm queries**: First query to a cluster is slower (cache miss)
+
+5. **IP vs L2**: Product quantization works better with L2; normalize vectors for cosine
+
+## When to Use Which
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Vector Count                              │
+│   <1M          1M-100M         100M-1B          >1B         │
+├─────────────────────────────────────────────────────────────┤
+│  HNSW         HNSW or        IVF-PQ or       IVF-OPQ-PQ    │
+│  (easy)       IVF-HNSW       IVF-HNSW-PQ     + sharding     │
+│                              (tune nprobe)                   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Production Checklist
+
+- [ ] Benchmark with YOUR data (synthetic benchmarks lie)
+- [ ] Test recall at YOUR k value (Recall@10 ≠ Recall@100)
+- [ ] Measure P99 latency, not average
+- [ ] Account for metadata filtering overhead
+- [ ] Plan for re-indexing (embeddings change, models update)
+- [ ] Monitor recall in production (sample and verify)
+

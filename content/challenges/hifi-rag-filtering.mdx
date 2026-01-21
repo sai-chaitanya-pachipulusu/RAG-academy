@@ -1,0 +1,34 @@
+---
+title: "HiFi-RAG Filtering"
+description: "Implement high-fidelity filtering for improved retrieval precision"
+---
+
+# HiFi-RAG Filtering
+
+Implement a high-fidelity filtering system that removes irrelevant or low-quality retrieved chunks before generation.
+
+## Requirements
+
+1. Score chunk relevance to query
+2. Filter chunks below threshold
+3. Diversify remaining chunks
+4. Validate filtering improves generation
+
+## Starter Code
+
+```python
+def hifi_filter(query: str, chunks: list[dict], threshold: float = 0.5) -> list[dict]:
+    """
+    High-fidelity filtering for retrieved chunks.
+    
+    Args:
+        query: User query
+        chunks: Retrieved chunks with scores
+        threshold: Minimum relevance score
+    
+    Returns:
+        Filtered and diversified chunks
+    """
+    # Your implementation here
+    pass
+```

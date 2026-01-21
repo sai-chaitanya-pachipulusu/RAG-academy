@@ -1,0 +1,40 @@
+﻿<Callout title="Goal" variant="info">
+  Implement stable chunk IDs + hashes — the backbone of production traceability (citations, dedup, safe re-indexing).
+</Callout>
+
+## Why this matters in production
+
+If you can’t reliably identify a chunk, you can’t:
+
+- **Debug**: “why did the model cite this?” becomes impossible.
+- **Deduplicate**: you’ll embed the same content repeatedly (cost + noise).
+- **Invalidate caches safely**: semantic cache and retrieval caches need versioning.
+- **Prove grounding**: citations must map to stable chunk identifiers.
+
+## Offline vs online
+
+- **Offline (ingestion)**:
+  - chunk the doc
+  - compute **content hash** for each chunk
+  - assign a stable `chunk_id`
+  - store metadata (`doc_id`, `chunk_index`, `chunk_id`, hashes, offsets)
+- **Online (query time)**:
+  - retrieval returns `chunk_id`s
+  - generation cites `chunk_id`s
+  - tracing logs `chunk_id`s so you can reproduce failures
+
+## What the tests enforce
+
+- **Deterministic IDs**: same input → same output across runs.
+- **No `hash()`**: Python’s built-in `hash()` is salted per process (not stable).
+- **IDs include** `doc_id` and `chunk_index`.
+- **IDs change** if `chunk_text` changes.
+
+## Production extensions (optional)
+
+- Add `start` / `end` offsets so you can highlight exact passages.
+- Add `doc_hash` + `index_version` for safe re-ingestion.
+- Add `chunk_type` (`markdown_header`, `table`, `code_block`) for routing strategies.
+
+
+

@@ -1,0 +1,23 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Implement sliding window retrieval for long documents.
+</Callout>
+
+## Why this matters in production
+
+Documents longer than context limits need to be processed in chunks. Sliding window with overlap ensures no information is lost at boundaries.
+
+## What you're implementing
+
+- Create overlapping windows across the document.
+- Process each window independently.
+- Aggregate results across windows.
+
+## Common pitfalls
+
+- Missing content at window boundaries.
+- Too much overlap wastes compute.
+
+## After you pass
+
+Combine with aggregation strategies for final answer synthesis.
+

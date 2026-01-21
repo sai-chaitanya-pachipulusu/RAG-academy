@@ -1,0 +1,35 @@
+﻿<Callout title="Goal" variant="info">
+  Implement Euclidean distance — useful for building intuition about “closeness” in vector space.
+</Callout>
+
+## Why this matters in production
+
+Most embedding retrieval uses cosine similarity, but Euclidean distance is the cleanest way to build intuition:
+
+- distance 0 means identical vectors
+- larger distance means less similar
+
+Some vector DBs can operate in Euclidean/L2 space, and many ANN indexes support it directly.
+
+## What you’re implementing
+
+\[
+L2(a,b)=\sqrt{\sum_i (a_i-b_i)^2}
+\]
+
+Rules:
+
+- mismatched lengths → `ValueError`
+- `distance([], []) == 0.0`
+
+## Common pitfalls
+
+- Forgetting the final square root.
+- Using absolute differences instead of squared differences.
+
+## After you pass
+
+Move on to **Tokenizers** and **Chunking**, then tie the primitives together in retrieval.
+
+
+

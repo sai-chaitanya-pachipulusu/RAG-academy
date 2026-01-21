@@ -1,0 +1,495 @@
+---
+title: "Debugging RAG Systems"
+description: "Systematic approaches to diagnose and fix common RAG failures."
+order: 7
+estimatedMinutes: 35
+stage: production-ops
+prereqs:
+  - phase: phase-1
+    slug: evaluation-basics
+  - phase: phase-6
+    slug: observability
+next:
+  phase: phase-6
+  slug: security-hardening
+outcomes:
+  - "Diagnose retrieval vs generation failures."
+  - "Use systematic debugging workflows."
+  - "Fix the top 10 most common RAG issues."
+tags: ["debugging", "troubleshooting", "production", "observability"]
+sources:
+  - title: "Lost in the Middle: How LMs Use Long Contexts"
+    url: "https://arxiv.org/abs/2307.03172"
+    type: "paper"
+  - title: "RAGAS Documentation"
+    url: "https://docs.ragas.io/"
+    type: "docs"
+---
+
+## Goals
+
+- Learn a systematic approach to debugging RAG systems.
+- Identify whether problems are in retrieval or generation.
+- Fix common issues with proven solutions.
+
+## Prereqs
+
+- Read: **Evaluation Basics** (Phase 1) for metrics.
+- Read: **Observability** (Phase 6) for logging setup.
+
+## Core idea
+
+RAG failures come from **three layers**:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     User Query                               │
+└─────────────────────────────┬───────────────────────────────┘
+                              │
+┌─────────────────────────────▼───────────────────────────────┐
+│  LAYER 1: RETRIEVAL                                          │
+│  "Did we find the right documents?"                          │
+│  Problems: Wrong chunks, missing info, bad embeddings        │
+└─────────────────────────────┬───────────────────────────────┘
+                              │
+┌─────────────────────────────▼───────────────────────────────┐
+│  LAYER 2: CONTEXT                                            │
+│  "Is the context useful to the LLM?"                         │
+│  Problems: Too long, irrelevant, lost in middle, no metadata │
+└─────────────────────────────┬───────────────────────────────┘
+                              │
+┌─────────────────────────────▼───────────────────────────────┐
+│  LAYER 3: GENERATION                                         │
+│  "Did the LLM use the context correctly?"                    │
+│  Problems: Hallucination, ignoring context, wrong format     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Rule #1**: Always debug retrieval first. If the right info isn't retrieved, generation can't help.
+
+## The Debugging Workflow
+
+### Step 1: Reproduce the Failure
+
+```python
+class RAGDebugger:
+    def __init__(self, rag_system):
+        self.rag = rag_system
+        self.debug_log = []
+    
+    def debug_query(self, query: str, expected_answer: str = None):
+        """Full debug trace for a single query."""
+        
+        # Capture all intermediate states
+        trace = {
+            "query": query,
+            "expected": expected_answer,
+            "steps": []
+        }
+        
+        # Step 1: Query analysis
+        trace["steps"].append({
+            "name": "query_analysis",
+            "query_length": len(query),
+            "query_terms": query.split(),
+        })
+        
+        # Step 2: Retrieval
+        retrieved_docs = self.rag.retrieve(query)
+        trace["steps"].append({
+            "name": "retrieval",
+            "num_docs": len(retrieved_docs),
+            "docs": [
+                {"id": d.id, "score": d.score, "preview": d.text[:100]}
+                for d in retrieved_docs
+            ]
+        })
+        
+        # Step 3: Context building
+        context = self.rag.build_context(retrieved_docs)
+        trace["steps"].append({
+            "name": "context",
+            "context_length": len(context),
+            "num_tokens": count_tokens(context),
+        })
+        
+        # Step 4: Generation
+        response = self.rag.generate(query, context)
+        trace["steps"].append({
+            "name": "generation",
+            "response": response,
+            "response_length": len(response),
+        })
+        
+        return trace
+```
+
+### Step 2: Identify the Layer
+
+```python
+def diagnose_layer(trace: dict, expected_answer: str) -> str:
+    """Determine which layer is failing."""
+    
+    # Check Layer 1: Retrieval
+    retrieved_docs = trace["steps"][1]["docs"]
+    
+    # Is the answer in the retrieved documents?
+    all_retrieved_text = " ".join([d["preview"] for d in retrieved_docs])
+    answer_in_retrieval = expected_answer.lower() in all_retrieved_text.lower()
+    
+    if not answer_in_retrieval:
+        return "LAYER_1_RETRIEVAL"  # Answer not retrieved
+    
+    # Check Layer 2: Context
+    context_length = trace["steps"][2]["num_tokens"]
+    if context_length > 4000:  # Arbitrary threshold
+        return "LAYER_2_CONTEXT_TOO_LONG"
+    
+    # Check Layer 3: Generation
+    response = trace["steps"][3]["response"]
+    if expected_answer.lower() not in response.lower():
+        return "LAYER_3_GENERATION"  # Had the info, didn't use it
+    
+    return "NO_ISSUE"
+```
+
+## Top 10 RAG Issues and Fixes
+
+### Issue 1: Answer Not Retrieved
+
+**Symptom**: Correct answer exists in corpus but not in retrieved chunks.
+
+**Diagnosis**:
+```python
+def check_retrieval_coverage(query: str, expected_doc_id: str):
+    retrieved = retriever.retrieve(query, k=20)  # Get more than usual
+    retrieved_ids = [d.id for d in retrieved]
+    
+    if expected_doc_id in retrieved_ids:
+        position = retrieved_ids.index(expected_doc_id)
+        print(f"✓ Found at position {position}")
+        if position > 5:
+            print("⚠ Found but ranked too low")
+    else:
+        print("✗ Not found in top 20")
+```
+
+**Fixes**:
+1. **Hybrid retrieval**: Add BM25 for exact matches
+2. **Query expansion**: Use HyDE or multi-query
+3. **Better chunking**: Chunk boundaries may split relevant info
+4. **Re-embed**: Embedding model may be wrong for your domain
+
+### Issue 2: Chunks Too Small/Large
+
+**Symptom**: Retrieved chunks are fragmented or contain too much irrelevant info.
+
+**Diagnosis**:
+```python
+def analyze_chunk_quality(chunks: list):
+    sizes = [len(c.text) for c in chunks]
+    print(f"Min: {min(sizes)}, Max: {max(sizes)}, Avg: {sum(sizes)/len(sizes):.0f}")
+    
+    # Check for sentence fragments
+    fragments = [c for c in chunks if not c.text.strip().endswith(('.', '!', '?'))]
+    print(f"Potential fragments: {len(fragments)}/{len(chunks)}")
+```
+
+**Fixes**:
+1. **Adjust chunk size**: Try 512-1024 tokens
+2. **Use overlap**: 10-20% overlap between chunks
+3. **Semantic chunking**: Split at topic boundaries
+4. **Parent-child**: Store both summaries and details
+
+### Issue 3: Lost in the Middle
+
+**Symptom**: LLM ignores information in the middle of context.
+
+**Diagnosis**:
+```python
+def test_position_sensitivity(query: str, key_chunk: str):
+    """Test if answer changes based on chunk position."""
+    
+    results = []
+    for position in ["first", "middle", "last"]:
+        context = build_context_with_position(key_chunk, position)
+        response = llm.generate(query, context)
+        results.append({"position": position, "correct": is_correct(response)})
+    
+    return results
+```
+
+**Fixes**:
+1. **Reorder**: Put most relevant chunks first and last
+2. **Reduce context**: Fewer, more relevant chunks
+3. **Use summaries**: Compress middle sections
+4. **Explicit pointers**: "See Document 3 for details about X"
+
+### Issue 4: Hallucination Despite Good Retrieval
+
+**Symptom**: LLM makes up facts even with correct context.
+
+**Diagnosis**:
+```python
+def check_faithfulness(response: str, context: str) -> dict:
+    """Check if response claims are supported by context."""
+    
+    # Extract claims from response
+    claims = extract_claims(response)
+    
+    supported = []
+    unsupported = []
+    
+    for claim in claims:
+        if claim.lower() in context.lower():
+            supported.append(claim)
+        else:
+            unsupported.append(claim)
+    
+    return {
+        "total_claims": len(claims),
+        "supported": len(supported),
+        "unsupported": unsupported
+    }
+```
+
+**Fixes**:
+1. **Stronger grounding prompt**: "Only use information from the context"
+2. **Require citations**: "Cite [Source X] for each claim"
+3. **Reduce temperature**: Lower randomness
+4. **Add refusal**: "If context doesn't contain the answer, say 'I don't know'"
+
+### Issue 5: Wrong Embedding Model
+
+**Symptom**: Semantically similar queries return different results.
+
+**Diagnosis**:
+```python
+def test_embedding_consistency():
+    """Test if similar queries get similar results."""
+    
+    queries = [
+        "What's the return policy?",
+        "How do I return an item?",
+        "Return policy for products"
+    ]
+    
+    results = [set(d.id for d in retrieve(q)) for q in queries]
+    
+    # Check overlap
+    common = results[0] & results[1] & results[2]
+    print(f"Common docs across similar queries: {len(common)}")
+```
+
+**Fixes**:
+1. **Domain-specific model**: Use Voyage for code, BGE for multi-lingual
+2. **Fine-tune embeddings**: Train on your domain
+3. **Add query prefix**: Some models need "query:" prefix
+
+### Issue 6: Metadata Not Used
+
+**Symptom**: Filters not working, or irrelevant docs returned.
+
+**Diagnosis**:
+```python
+def check_metadata_filtering(query: str, expected_filter: dict):
+    """Verify metadata filters are applied."""
+    
+    # Without filter
+    results_no_filter = retrieve(query)
+    
+    # With filter
+    results_filtered = retrieve(query, filters=expected_filter)
+    
+    print(f"Without filter: {len(results_no_filter)}")
+    print(f"With filter: {len(results_filtered)}")
+    
+    # Check if filtered results actually match
+    for doc in results_filtered:
+        for key, val in expected_filter.items():
+            if doc.metadata.get(key) != val:
+                print(f"⚠ Filter leak: {doc.id} has {key}={doc.metadata.get(key)}")
+```
+
+**Fixes**:
+1. **Verify index**: Ensure metadata was indexed
+2. **Check filter syntax**: Different vector DBs have different filter syntax
+3. **Pre-filter**: Filter before retrieval vs post-filter
+
+### Issue 7: Context Window Overflow
+
+**Symptom**: Truncation errors or degraded quality with long contexts.
+
+**Diagnosis**:
+```python
+def check_context_budget(query: str, k: int = 10):
+    """Check if context fits in model's window."""
+    
+    docs = retrieve(query, k=k)
+    context = build_context(docs)
+    tokens = count_tokens(context)
+    
+    MODEL_LIMITS = {
+        "gpt-4o": 128000,
+        "claude-3-5-sonnet": 200000,
+        "gpt-4o-mini": 128000,
+    }
+    
+    for model, limit in MODEL_LIMITS.items():
+        usage = tokens / limit * 100
+        status = "✓" if usage < 80 else "⚠"
+        print(f"{status} {model}: {usage:.1f}% of context used")
+```
+
+**Fixes**:
+1. **Reduce k**: Fewer documents
+2. **Compress**: Use LLMLingua or extractive summarization
+3. **Hierarchical**: Retrieve summaries, then details on demand
+4. **Truncate smartly**: Keep first/last sentences of chunks
+
+### Issue 8: Slow Response Times
+
+**Symptom**: High latency (>3s for simple queries).
+
+**Diagnosis**:
+```python
+import time
+
+def profile_latency(query: str):
+    """Profile each stage of the pipeline."""
+    
+    timings = {}
+    
+    start = time.time()
+    embedding = embed(query)
+    timings["embed"] = time.time() - start
+    
+    start = time.time()
+    docs = vector_search(embedding)
+    timings["search"] = time.time() - start
+    
+    start = time.time()
+    reranked = rerank(query, docs)
+    timings["rerank"] = time.time() - start
+    
+    start = time.time()
+    response = generate(query, reranked)
+    timings["generate"] = time.time() - start
+    
+    print(f"Total: {sum(timings.values()):.2f}s")
+    for stage, t in timings.items():
+        print(f"  {stage}: {t:.2f}s ({t/sum(timings.values())*100:.0f}%)")
+```
+
+**Fixes**:
+1. **Cache embeddings**: For common queries
+2. **Reduce k**: Fewer docs = faster reranking
+3. **Async retrieval**: Parallelize where possible
+4. **Model selection**: Use faster models for simple queries
+
+### Issue 9: Inconsistent Answers
+
+**Symptom**: Same query returns different answers on repeated runs.
+
+**Diagnosis**:
+```python
+def test_consistency(query: str, n_runs: int = 5):
+    """Test answer consistency across runs."""
+    
+    responses = [rag.answer(query) for _ in range(n_runs)]
+    
+    # Check similarity
+    unique_responses = len(set(responses))
+    print(f"Unique responses: {unique_responses}/{n_runs}")
+    
+    if unique_responses > 1:
+        print("Responses differ:")
+        for i, r in enumerate(responses):
+            print(f"  Run {i+1}: {r[:100]}...")
+```
+
+**Fixes**:
+1. **Set temperature=0**: Deterministic generation
+2. **Fix seed**: If supported by provider
+3. **Cache responses**: For identical queries
+4. **Check retrieval**: Ensure retrieval is deterministic
+
+### Issue 10: Poor Performance on Edge Cases
+
+**Symptom**: Works for common queries, fails on unusual ones.
+
+**Diagnosis**:
+```python
+EDGE_CASES = [
+    "What if...",           # Hypotheticals
+    "Compare X and Y",      # Multi-entity
+    "Step by step...",      # Multi-step
+    "In Spanish...",        # Language switch
+    "Previous question...", # Context-dependent
+]
+
+def test_edge_cases(rag):
+    for case in EDGE_CASES:
+        print(f"\n{case}")
+        response = rag.answer(case)
+        print(f"  → {response[:100]}...")
+```
+
+**Fixes**:
+1. **Query classification**: Route edge cases differently
+2. **Multi-step retrieval**: For comparison queries
+3. **Conversation memory**: For follow-up questions
+4. **Fallback**: Graceful degradation for unsupported cases
+
+## Failure modes
+
+- **Premature optimization**: Fixing generation when retrieval is the problem
+- **Over-engineering**: Adding complexity before measuring baselines
+- **Confirmation bias**: Only testing queries that work
+- **Ignoring edge cases**: Not testing short/long/ambiguous queries
+- **No golden set**: Can't measure if changes help or hurt
+
+## Production defaults
+
+```python
+# Default debugging configuration
+DEBUG_CONFIG = {
+    "log_level": "INFO",              # Log all queries
+    "trace_retrieval": True,          # Log retrieved doc IDs
+    "trace_latency": True,            # Profile each stage
+    "sample_rate": 0.1,               # Sample 10% for detailed traces
+    "alert_latency_p95_ms": 3000,     # Alert if p95 > 3s
+    "alert_error_rate": 0.01,         # Alert if errors > 1%
+}
+```
+
+## Debugging Checklist
+
+```markdown
+## Quick Debug Checklist
+
+### Retrieval Issues
+- [ ] Is the answer in the corpus at all?
+- [ ] Is it being chunked correctly?
+- [ ] Is it being embedded correctly?
+- [ ] Is it ranked high enough?
+- [ ] Are filters blocking it?
+
+### Context Issues
+- [ ] Is context too long?
+- [ ] Is relevant info in the middle?
+- [ ] Are chunks coherent?
+- [ ] Is metadata included?
+
+### Generation Issues
+- [ ] Is the prompt clear?
+- [ ] Is temperature appropriate?
+- [ ] Are citations required?
+- [ ] Is refusal policy set?
+```
+
+## Do next
+
+1. **Challenge**: [RAG Debug Detective](/challenges/rag-debug-detective)
+2. **Playbook**: [RAG Troubleshooting Guide](/playbooks/rag-troubleshooting-guide)
+3. **Continue to**: [Security Hardening](/learn/phase-6/security-hardening)

@@ -1,0 +1,27 @@
+﻿<Callout title="Goal" variant="info">
+  Pack the most valuable evidence into a strict token budget (context window management).
+</Callout>
+
+## Why this matters in production
+
+If you exceed the context window, you get truncation. If you include too much low-value text, you get:
+
+- higher cost
+- lower quality (“context rot”)
+- worse grounding
+
+This challenge forces you to treat context selection as an optimization problem: **maximize value under a budget**.
+
+## Offline vs online
+
+- **Offline**: you can precompute “chunk token cost” estimates.
+- **Online**: you must decide which evidence to include per query, under a fixed budget.
+
+## Production extensions (optional)
+
+- prefer coverage/diversity instead of pure score
+- budget per section (e.g., 60% evidence, 20% definitions, 20% policies)
+- use real tokenizer counts (tiktoken) and apply “prompt + tool” overhead
+
+
+

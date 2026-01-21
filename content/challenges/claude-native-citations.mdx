@@ -1,0 +1,363 @@
+---
+title: "Claude Native Citations"
+description: |
+  Use Claude's built-in citation features to automatically cite sources from uploaded documents.
+difficulty: intermediate
+estimatedMinutes: 25
+topics: ["native-rag", "citations", "claude", "anthropic"]
+language: python
+prerequisites:
+  - basic-retrieval
+  - prompt-template
+xp: 120
+---
+
+# Claude Native Citations
+
+Claude 3.5 Sonnet can automatically cite sources from documents you provide. No vector database needed!
+
+**Your task**: Implement a document Q&A system using Claude's native citation capabilities.
+
+## Setup
+
+```python
+# For this challenge, we'll simulate the Claude API response format
+
+from dataclasses import dataclass
+from typing import List, Optional
+import json
+
+@dataclass
+class CitationSource:
+    document_title: str
+    page: Optional[int] = None
+    paragraph: Optional[int] = None
+    quote: Optional[str] = None
+
+@dataclass
+class CitedClaim:
+    text: str
+    citations: List[CitationSource]
+
+# Sample documents (in production, these would be PDFs)
+DOCUMENTS = [
+    {
+        "title": "Q3 2024 Financial Report",
+        "content": """
+        Executive Summary
+        
+        Q3 2024 represented our strongest quarter to date. Total revenue reached 
+        $15.2 million, a 25% increase from Q2 2024. This growth was primarily 
+        driven by our expansion into the APAC region and the successful launch 
+        of our Enterprise tier.
+        
+        Key Metrics:
+        - Revenue: $15.2M (up 25% QoQ)
+        - Active customers: 2,847 (up 18% QoQ)
+        - Net Revenue Retention: 125%
+        - Gross Margin: 78%
+        
+        The Enterprise tier, launched in July, now accounts for 35% of new ARR.
+        Customer acquisition cost decreased by 15% due to improved marketing efficiency.
+        """
+    },
+    {
+        "title": "Product Roadmap 2025",
+        "content": """
+        Planned Features for 2025
+        
+        Q1 2025:
+        - AI-powered search (codename: SmartFind)
+        - Mobile app for iOS and Android
+        - SSO integration for Enterprise customers
+        
+        Q2 2025:
+        - Real-time collaboration features
+        - Advanced analytics dashboard
+        - API v2 with GraphQL support
+        
+        Q3-Q4 2025:
+        - Multi-language support (starting with Spanish, French, German)
+        - On-premise deployment option
+        - SOC 2 Type II certification
+        
+        Resource allocation: 60% of engineering will focus on SmartFind in Q1.
+        """
+    },
+    {
+        "title": "Company Policies Handbook",
+        "content": """
+        Remote Work Policy
+        
+        Effective January 2024, all employees may work remotely up to 3 days per week.
+        Core collaboration hours are 10 AM - 3 PM in your local timezone.
+        
+        Equipment allowance: $1,500 one-time for home office setup.
+        Internet reimbursement: Up to $75/month.
+        
+        Return Policy (Customer-facing)
+        
+        Customers may request a full refund within 30 days of purchase.
+        Refunds are processed within 5-7 business days.
+        Annual subscriptions receive prorated refunds after 30 days.
+        """
+    },
+]
+```
+
+## Your Task
+
+Implement the `ClaudeCitationRAG` class that simulates Claude's citation behavior:
+
+```python
+class ClaudeCitationRAG:
+    def __init__(self, documents: List[dict]):
+        """
+        Initialize with documents to cite from.
+        
+        Args:
+            documents: List of {"title": str, "content": str}
+        """
+        self.documents = documents
+    
+    def find_relevant_passages(
+        self, 
+        query: str, 
+        max_passages: int = 5
+    ) -> List[dict]:
+        """
+        Find passages relevant to the query.
+        
+        Returns:
+            List of {"title": str, "passage": str, "relevance": float}
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def generate_cited_answer(
+        self, 
+        query: str,
+        passages: List[dict]
+    ) -> str:
+        """
+        Generate answer with inline citations.
+        
+        Format: "Claim text [Title, paragraph X]."
+        
+        Returns:
+            Answer string with citations
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def answer_with_citations(self, query: str) -> dict:
+        """
+        Main entry point: answer question with full citation metadata.
+        
+        Returns:
+            {
+                "answer": str,
+                "citations": [
+                    {"claim": str, "source": str, "quote": str},
+                    ...
+                ]
+            }
+        """
+        # YOUR CODE HERE
+        pass
+```
+
+## Example Usage
+
+```python
+rag = ClaudeCitationRAG(DOCUMENTS)
+
+result = rag.answer_with_citations("What was Q3 revenue and what drove the growth?")
+
+print(result["answer"])
+# "Q3 2024 revenue was $15.2 million [Q3 2024 Financial Report], representing 
+#  a 25% increase from Q2 [Q3 2024 Financial Report]. Growth was driven by 
+#  APAC expansion and the Enterprise tier launch [Q3 2024 Financial Report], 
+#  with Enterprise now accounting for 35% of new ARR [Q3 2024 Financial Report]."
+
+print(result["citations"])
+# [
+#     {"claim": "Q3 2024 revenue was $15.2 million", 
+#      "source": "Q3 2024 Financial Report", 
+#      "quote": "Total revenue reached $15.2 million"},
+#     ...
+# ]
+```
+
+## Requirements
+
+1. **Inline citations**: Every factual claim must have `[Source]` citation
+2. **Extractable quotes**: Citations should include the source quote
+3. **Multi-document**: Answer can cite multiple documents
+4. **No hallucination**: Only state facts found in documents
+
+## Test Questions
+
+```python
+TEST_QUERIES = [
+    {
+        "query": "What is the return policy?",
+        "expected_sources": ["Company Policies Handbook"],
+        "expected_facts": ["30 days", "5-7 business days"]
+    },
+    {
+        "query": "What features are planned for Q1 2025?",
+        "expected_sources": ["Product Roadmap 2025"],
+        "expected_facts": ["SmartFind", "Mobile app", "SSO"]
+    },
+    {
+        "query": "How much is the equipment allowance for remote workers?",
+        "expected_sources": ["Company Policies Handbook"],
+        "expected_facts": ["$1,500"]
+    },
+    {
+        "query": "What was the gross margin in Q3 and what's the engineering focus for Q1 2025?",
+        "expected_sources": ["Q3 2024 Financial Report", "Product Roadmap 2025"],
+        "expected_facts": ["78%", "60%", "SmartFind"]
+    },
+]
+```
+
+## Hints
+
+<details>
+<summary>Hint 1: Passage extraction</summary>
+
+Split documents into paragraphs and score by term overlap:
+
+```python
+def find_relevant_passages(self, query: str, max_passages: int = 5):
+    query_terms = set(query.lower().split())
+    passages = []
+    
+    for doc in self.documents:
+        paragraphs = doc["content"].strip().split("\n\n")
+        for para in paragraphs:
+            if len(para.strip()) < 20:
+                continue
+            para_terms = set(para.lower().split())
+            score = len(query_terms & para_terms) / len(query_terms)
+            if score > 0:
+                passages.append({
+                    "title": doc["title"],
+                    "passage": para.strip(),
+                    "relevance": score
+                })
+    
+    passages.sort(key=lambda x: x["relevance"], reverse=True)
+    return passages[:max_passages]
+```
+
+</details>
+
+<details>
+<summary>Hint 2: Citation formatting</summary>
+
+Build answer with inline citations:
+
+```python
+def generate_cited_answer(self, query: str, passages: List[dict]) -> str:
+    # Group passages by document
+    by_doc = {}
+    for p in passages:
+        by_doc.setdefault(p["title"], []).append(p["passage"])
+    
+    # Build answer with citations
+    answer_parts = []
+    for title, paras in by_doc.items():
+        for para in paras:
+            # Extract key facts from paragraph
+            facts = extract_facts(para)  # You implement this
+            for fact in facts:
+                answer_parts.append(f"{fact} [{title}]")
+    
+    return " ".join(answer_parts)
+```
+
+</details>
+
+## Test Your Solution
+
+```python
+def test_citation_rag():
+    rag = ClaudeCitationRAG(DOCUMENTS)
+    
+    for test in TEST_QUERIES:
+        print(f"\n{'='*60}")
+        print(f"Query: {test['query']}")
+        
+        result = rag.answer_with_citations(test["query"])
+        
+        print(f"Answer: {result['answer'][:200]}...")
+        print(f"Citations: {len(result['citations'])}")
+        
+        # Check expected sources are cited
+        cited_sources = set(c["source"] for c in result["citations"])
+        expected_sources = set(test["expected_sources"])
+        source_coverage = len(cited_sources & expected_sources) / len(expected_sources)
+        print(f"Source coverage: {source_coverage:.0%}")
+        
+        # Check expected facts appear
+        answer_lower = result["answer"].lower()
+        facts_found = sum(1 for fact in test["expected_facts"] 
+                        if fact.lower() in answer_lower)
+        fact_coverage = facts_found / len(test["expected_facts"])
+        print(f"Fact coverage: {fact_coverage:.0%}")
+        
+        assert source_coverage >= 0.5, f"Source coverage too low"
+        assert fact_coverage >= 0.5, f"Fact coverage too low"
+        assert "[" in result["answer"], "Missing inline citations"
+    
+    print("\n✓ All tests passed!")
+
+test_citation_rag()
+```
+
+## Bonus: Real Claude API
+
+If you have an Anthropic API key, try the real implementation:
+
+```python
+import anthropic
+import base64
+
+def real_claude_citations(pdf_path: str, query: str) -> str:
+    client = anthropic.Anthropic()
+    
+    with open(pdf_path, "rb") as f:
+        pdf_b64 = base64.standard_b64encode(f.read()).decode()
+    
+    response = client.messages.create(
+        model="claude-3-5-sonnet-20241022",
+        max_tokens=1024,
+        messages=[{
+            "role": "user",
+            "content": [
+                {
+                    "type": "document",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "application/pdf",
+                        "data": pdf_b64,
+                    },
+                },
+                {
+                    "type": "text",
+                    "text": f"Answer this question with citations: {query}"
+                }
+            ]
+        }]
+    )
+    
+    return response.content[0].text
+```
+
+## Resources
+
+- [Claude Citations Documentation](https://docs.anthropic.com/en/docs/build-with-claude/citations)
+- [Anthropic Cookbook: Document Q&A](https://github.com/anthropics/anthropic-cookbook)

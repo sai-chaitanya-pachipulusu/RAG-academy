@@ -1,0 +1,23 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Build a request batcher for efficient API usage.
+</Callout>
+
+## Why this matters in production
+
+API batching is how production systems achieve high throughput. OpenAI's embedding API, for example, is optimized for batch requests — single requests waste resources.
+
+## What you're implementing
+
+- Collect requests until batch is full or timeout.
+- Send batch to processor, map results back.
+- Handle both size-based and time-based flushing.
+
+## Common pitfalls
+
+- Memory leaks from unresolved promises.
+- Not handling processor failures gracefully.
+
+## After you pass
+
+Apply this pattern to your embedding and LLM API calls.
+

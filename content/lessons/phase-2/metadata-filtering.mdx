@@ -1,0 +1,252 @@
+---
+title: "Metadata Filtering & Routing"
+description: "Use metadata to reduce search space and route queries intelligently."
+order: 6
+estimatedMinutes: 20
+stage: retrieval
+prereqs:
+  - phase: phase-2
+    slug: context-window-optimization
+next:
+  phase: phase-2
+  slug: caching-strategies
+outcomes:
+  - "Design effective metadata schemas for filtering."
+  - "Implement filter-first retrieval for performance."
+  - "Build query routers that pick the right index/strategy."
+tags: ["metadata", "filtering", "routing", "performance"]
+sources:
+  - title: "Pinecone: Metadata Filtering"
+    url: "https://docs.pinecone.io/guides/data/filter-with-metadata"
+    type: "docs"
+  - title: "Weaviate: Filtering"
+    url: "https://weaviate.io/developers/weaviate/search/filters"
+    type: "docs"
+  - title: "LangChain: Self-Query Retriever"
+    url: "https://python.langchain.com/docs/how_to/self_query/"
+    type: "docs"
+---
+
+## Goals
+
+- Design metadata schemas that enable efficient filtering.
+- Understand filter-first vs filter-after tradeoffs.
+- Build intelligent query routers.
+
+## Prereqs
+
+- Read: **Context Window Optimization** (you understand retrieval flow).
+
+## Core idea
+
+### Why metadata filtering matters
+
+Without filtering, every query searches your **entire corpus**. With filtering:
+- **Faster**: Search smaller subset
+- **More relevant**: Exclude irrelevant documents
+- **Multi-tenant safe**: Enforce access control
+
+### Metadata schema design
+
+```python
+# Good metadata schema
+{
+    # Identity
+    "doc_id": "doc_123",
+    "chunk_id": "doc_123_chunk_5",
+    
+    # Access control (CRITICAL)
+    "tenant_id": "acme_corp",
+    "access_level": "internal",
+    
+    # Structure
+    "doc_type": "policy",
+    "section": "security",
+    "page": 5,
+    
+    # Temporal
+    "created_at": "2024-01-15",
+    "effective_date": "2024-02-01",
+    "expires_at": "2025-01-15",
+    
+    # Quality
+    "language": "en",
+    "confidence": 0.95,
+    
+    # Custom
+    "product": "api_gateway",
+    "region": "us-east-1",
+}
+```
+
+### Filter-first vs filter-after
+
+| Approach | Speed | Recall | Use When |
+|----------|-------|--------|----------|
+| **Filter-first** | Fast | Lower | User specifies clear scope |
+| **Filter-after** | Slow | Higher | Unsure what user wants |
+| **Hybrid** | Medium | High | Production default |
+
+```python
+# Filter-first (faster, less recall)
+results = vector_db.query(
+    vector=query_embedding,
+    filter={"tenant_id": "acme", "doc_type": "policy"},
+    top_k=10
+)
+
+# Filter-after (slower, more recall)
+results = vector_db.query(
+    vector=query_embedding,
+    top_k=100
+)
+results = [r for r in results if r.metadata["tenant_id"] == "acme"]
+
+# Hybrid (balance)
+results = vector_db.query(
+    vector=query_embedding,
+    filter={"tenant_id": "acme"},  # Hard filter
+    top_k=50
+)
+# Then soft-filter/rerank by doc_type
+```
+
+### Self-query: LLM extracts filters
+
+Let the LLM parse natural language into structured filters:
+
+```python
+def self_query_filter(query: str) -> Dict:
+    """
+    Use LLM to extract filters from natural language.
+    """
+    prompt = f"""Extract search filters from this query.
+
+Query: {query}
+
+Available filters:
+- doc_type: policy, guide, api_reference, tutorial
+- product: api_gateway, auth_service, billing
+- date_after: YYYY-MM-DD
+- date_before: YYYY-MM-DD
+
+Output JSON:
+{{"filter": {{}}, "search_query": ""}}
+
+Example:
+Query: "Show me API gateway policies from 2024"
+Output: {{"filter": {{"doc_type": "policy", "product": "api_gateway", "date_after": "2024-01-01"}}, "search_query": "API gateway policies"}}
+
+Query: {query}
+Output:"""
+    
+    response = llm.generate(prompt)
+    return json.loads(response)
+```
+
+### Query routing
+
+Route different queries to different retrieval strategies:
+
+```python
+class QueryRouter:
+    def route(self, query: str) -> Dict:
+        """
+        Route query to appropriate retrieval strategy.
+        """
+        # Extract intent
+        intent = self.classify_intent(query)
+        
+        if intent == "lookup":
+            # Exact match needed
+            return {
+                "strategy": "bm25_only",
+                "index": "keyword_index",
+                "filters": self.extract_filters(query)
+            }
+        
+        elif intent == "comparison":
+            # Multiple retrievals needed
+            return {
+                "strategy": "multi_query",
+                "index": "hybrid_index",
+                "decompose": True
+            }
+        
+        elif intent == "recent":
+            # Time-sensitive
+            return {
+                "strategy": "hybrid",
+                "index": "main_index",
+                "filters": {"date_after": self.get_recent_date()},
+                "boost": {"recency": 1.5}
+            }
+        
+        else:
+            # Default semantic search
+            return {
+                "strategy": "hybrid",
+                "index": "main_index"
+            }
+    
+    def classify_intent(self, query: str) -> str:
+        # Simple keyword-based classification
+        if any(w in query.lower() for w in ["latest", "recent", "new", "today"]):
+            return "recent"
+        if any(w in query.lower() for w in ["compare", "vs", "difference"]):
+            return "comparison"
+        if any(w in query.lower() for w in ["error code", "id:", "ticket #"]):
+            return "lookup"
+        return "semantic"
+```
+
+### Multi-index routing
+
+Different indexes for different content:
+
+```python
+INDEX_REGISTRY = {
+    "code": {
+        "index": "code_index",
+        "embedding_model": "code-embedding-model",
+        "chunking": "ast_based",
+    },
+    "docs": {
+        "index": "docs_index", 
+        "embedding_model": "text-embedding-3-small",
+        "chunking": "markdown_aware",
+    },
+    "support": {
+        "index": "support_index",
+        "embedding_model": "text-embedding-3-small",
+        "chunking": "conversation_aware",
+    },
+}
+
+def route_to_index(query: str) -> str:
+    """Route query to appropriate index."""
+    if any(kw in query.lower() for kw in ["code", "function", "class", "import"]):
+        return "code"
+    if any(kw in query.lower() for kw in ["ticket", "support", "help"]):
+        return "support"
+    return "docs"
+```
+
+## Failure modes
+
+1. **No tenant isolation**: Security vulnerability.
+2. **Over-filtering**: Miss relevant results.
+3. **Under-filtering**: Search too much, slow + noisy.
+4. **Stale metadata**: Filters based on outdated info.
+5. **Filter explosion**: Too many filter dimensions.
+
+## Production defaults
+
+- **Always filter by tenant** (non-negotiable for multi-tenant).
+- **Log filter usage** for debugging and optimization.
+- **Self-query for complex queries** only (adds latency).
+- **Index per content type** if content is heterogeneous.
+
+## Do next
+
+<ChallengeLinks slugs={["metadata-filtering", "self-query-filters", "query-routing", "multi-tenant-rag"]} />

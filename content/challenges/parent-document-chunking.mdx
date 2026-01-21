@@ -1,0 +1,158 @@
+﻿---
+title: "Parent Document Chunking: Small Retrieval, Big Context"
+description: "Retrieve using small chunks, but return larger parent chunks for generation"
+difficulty: "hard"
+timeEstimate: "40-50 min"
+xpReward: 150
+prerequisites: ["hierarchical-chunking"]
+---
+
+# Parent Document Chunking: Best of Both Worlds
+
+## The Chunk Size Dilemma
+
+| Small Chunks (100 tokens) | Large Chunks (500 tokens) |
+| ------------------------- | ------------------------- |
+| ✅ Precise matching       | ❌ Fuzzy matching         |
+| ❌ Missing context        | ✅ Complete context       |
+| ✅ Fast embedding         | ❌ Larger vectors         |
+
+**What if we could have BOTH?**
+
+---
+
+## The Two-Tier Insight
+
+Create TWO levels:
+
+1. **Small "child" chunks** → For retrieval (precise matching)
+2. **Large "parent" chunks** → For generation (complete context)
+
+When a query matches a child, return the parent!
+
+---
+
+## The Algorithm
+
+```python
+def parent_document_chunk(document, small_size=100, large_size=500):
+    parents = []
+    children = []
+
+    # Create parent chunks
+    for i in range(0, len(document), large_size):
+        parent_text = document[i:i + large_size]
+        parent_id = f"parent_{len(parents)}"
+
+        # Create children from this parent
+        parent_children = []
+        for j in range(0, len(parent_text), small_size):
+            child_text = parent_text[j:j + small_size]
+            child_id = f"child_{len(children)}"
+
+            children.append({
+                'id': child_id,
+                'text': child_text,
+                'parent_id': parent_id
+            })
+            parent_children.append(child_id)
+
+        parents.append({
+            'id': parent_id,
+            'text': parent_text,
+            'children': parent_children
+        })
+
+    return {'parents': parents, 'children': children}
+```
+
+---
+
+## Retrieval Flow
+
+```
+Query: "What is the learning rate?"
+
+1. SEARCH children (small, precise)
+   → Match: "The learning rate is 0.001"
+
+2. LOOKUP parent (large, contextual)
+   → Return: "In our experiments... The learning rate is 0.001...
+              This was chosen because..."
+
+3. GENERATE using parent context
+```
+
+---
+
+## ⚖️ Tradeoffs
+
+### Pros
+
+- ✅ Precise retrieval (small matches exact queries)
+- ✅ Rich context (large provides full picture)
+- ✅ LangChain has this built-in!
+
+### Cons
+
+- ❌ 2x or more storage
+- ❌ Two-step retrieval logic
+- ❌ Need to maintain parent-child links
+
+---
+
+## Real-World Usage
+
+**The go-to pattern for production RAG!**
+
+**Implementations**:
+
+- LangChain: `ParentDocumentRetriever`
+- LlamaIndex: Auto-merging retrievers
+- Anthropic: Context expansion patterns
+
+**Companies**:
+
+- Most enterprise RAG deployments
+- Document QA systems
+- Research assistants
+
+---
+
+## Implementation Tips
+
+```python
+# LangChain example
+from langchain.retrievers import ParentDocumentRetriever
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+# Small chunks for search
+child_splitter = RecursiveCharacterTextSplitter(chunk_size=100)
+
+# Large chunks for context
+parent_splitter = RecursiveCharacterTextSplitter(chunk_size=500)
+
+retriever = ParentDocumentRetriever(
+    child_splitter=child_splitter,
+    parent_splitter=parent_splitter
+)
+```
+
+---
+
+## Key Insight
+
+Parent-child chunking teaches us:
+
+> "Don't force one chunk size to do two jobs. Separate concerns."
+
+Retrieval and generation have different optimal sizes.
+
+---
+
+## Related Challenges
+
+- `hierarchical-chunking` - More than two levels
+- `sliding-window-chunking` - Alternative for maximum coverage
+- `metadata-aware-chunking` - Track parent-child relationships
+

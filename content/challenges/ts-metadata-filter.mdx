@@ -1,0 +1,23 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Build a metadata filter engine with AND/OR/NOT operations.
+</Callout>
+
+## Why this matters in production
+
+Metadata filtering is essential for multi-tenant RAG, permission systems, and scoped search. Every production vector database supports this.
+
+## What you're implementing
+
+- Filter operations: eq, ne, gt, lt, in.
+- Compound operations: and, or, not.
+- Recursive evaluation for nested filters.
+
+## Common pitfalls
+
+- Forgetting to handle missing metadata fields.
+- Not short-circuiting AND/OR evaluation.
+
+## After you pass
+
+Combine with vector search for filtered retrieval.
+

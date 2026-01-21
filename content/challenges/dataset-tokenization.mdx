@@ -1,0 +1,22 @@
+﻿---
+title: "RLHF/SFT Dataset Formatting"
+description: "Format raw data into ChatML or Alpaca templates for Supervised Fine-Tuning (SFT)."
+---
+
+# RLHF/SFT Dataset Formatting
+
+When fine-tuning a model for RAG, the **format** of your data is just as important as the content. Models are trained with specific "Special Tokens" that help them distinguish between user instructions, provided context, and the expected response.
+
+### Common Formats
+
+- **ChatML**: Uses specific tags like `<|im_start|>user` and `<|im_end|>`.
+- **Alpaca**: Uses headers like `### Instruction:` and `### Response:`.
+
+### Your Task
+
+Implement a formatter that converts a raw instruction, context, and answer into a structured **ChatML** string.
+
+### The Precision Gap
+
+If you train a model on one format but prompt it with another, its performance will drop significantly. Standardizing your pipeline on a format like ChatML ensures compatibility across modern open-source ecosystems (like Hugging Face and vLLM).
+

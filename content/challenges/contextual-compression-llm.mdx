@@ -1,0 +1,42 @@
+﻿---
+title: "LLM Context Compression"
+description: "Use an LLM to summarize chunks before passing to the generator."
+---
+
+# LLM Context Compression
+
+Raw retrieved chunks contain noise: irrelevant sentences, boilerplate text, headers. **LLM compression** distills only the relevant facts.
+
+### Before Compression (500 tokens)
+
+```
+API Key Rotation Policy
+Version 2.3, Updated 2024-01-15
+For internal use only.
+
+1. Introduction
+This document describes the key rotation process.
+...
+[50 lines of boilerplate]
+...
+5.2 Rotation Frequency
+Rotate API keys every 90 days to maintain security.
+...
+```
+
+### After Compression (50 tokens)
+
+```
+Rotate API keys every 90 days to maintain security.
+```
+
+### How It Works
+
+1. Pass each chunk through an LLM with the query.
+2. Ask: "Extract only the sentences relevant to: '{query}'"
+3. Replace original chunks with compressed versions.
+
+### Your Task
+
+Implement a simulated compressor that keeps only sentences with 2+ token overlap with the query.
+

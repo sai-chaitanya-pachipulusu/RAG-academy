@@ -1,0 +1,34 @@
+﻿<Callout title="Goal" variant="info">
+  Implement **field-boosted BM25** so matches in a high-signal field (like a title) matter more than matches in a body.
+</Callout>
+
+## Why this matters
+
+In production search, “keyword retrieval” is rarely just BM25 on one blob of text.
+
+Teams typically store **multiple fields** per document/chunk:
+
+- title / section header
+- body
+- tags / keywords / entities
+- metadata (doc type, tenant, timestamp)
+
+Then they **boost** important fields so results feel correct:
+
+- A query match in a title often beats many weaker matches in the body.
+
+## What you’re building
+
+- Compute BM25 over a document where term frequency is:
+
+\[
+tf = w_{title}\cdot tf_{title} + w_{body}\cdot tf_{body}
+\]
+
+## Pitfalls to avoid
+
+- “Boost everything”: if boosts are too high, you overfit titles and miss body evidence.
+- Forgetting tie-break stability: always return deterministic ordering.
+
+
+

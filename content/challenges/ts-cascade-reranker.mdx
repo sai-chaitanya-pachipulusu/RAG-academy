@@ -1,0 +1,24 @@
+<Callout title="TypeScript Challenge" variant="info">
+  Implement cascade reranking — cheap filter → expensive reranker for production efficiency.
+</Callout>
+
+## Why this matters in production
+
+You can't afford to run expensive cross-encoder reranking on thousands of candidates. Cascade reranking uses cheap initial scores to filter, then applies the expensive reranker only to top candidates.
+
+## What you're implementing
+
+- Filter by initial score threshold.
+- Select top N by initial score (reranker budget).
+- Apply expensive reranker to selected candidates.
+- Sort by reranked score.
+
+## Common pitfalls
+
+- Running reranker on too many documents (cost explosion).
+- Losing good documents by setting threshold too high.
+
+## After you pass
+
+Build a complete retrieval pipeline: retrieve → filter → rerank.
+

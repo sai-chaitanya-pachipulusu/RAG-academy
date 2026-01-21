@@ -1,0 +1,354 @@
+---
+title: "Scaling RAG Systems"
+description: "Handle high traffic, large corpora, and multi-tenant requirements."
+order: 3
+estimatedMinutes: 30
+stage: production-ops
+prereqs:
+  - phase: phase-6
+    slug: evaluation-in-production
+next:
+  phase: phase-6
+  slug: security-hardening
+outcomes:
+  - "Scale retrieval for millions of documents."
+  - "Handle high query volumes with proper architecture."
+  - "Implement multi-tenant RAG with isolation."
+tags: ["scaling", "performance", "multi-tenant", "architecture"]
+sources:
+  - title: "Pinecone: Scaling Vector Search"
+    url: "https://docs.pinecone.io/guides/architecture/scaling"
+    type: "docs"
+  - title: "Weaviate: Performance Tuning"
+    url: "https://weaviate.io/developers/weaviate/concepts/performance"
+    type: "docs"
+  - title: "FAISS: Billion-scale Similarity Search"
+    url: "https://github.com/facebookresearch/faiss/wiki"
+    type: "docs"
+---
+
+## Goals
+
+- Understand scaling challenges in RAG systems.
+- Design for high document counts and query volumes.
+- Build multi-tenant systems with proper isolation.
+
+## Prereqs
+
+- Read: **Evaluation in Production** (have a working production system).
+
+## Core idea
+
+### Scaling dimensions
+
+```
+1. CORPUS SIZE
+   - 1K documents → 10M+ documents
+   - Index size, memory, search latency
+
+2. QUERY VOLUME
+   - 10 QPS → 10K+ QPS
+   - Compute, caching, load balancing
+
+3. TENANT COUNT
+   - Single tenant → 1000+ tenants
+   - Isolation, resource allocation, fairness
+```
+
+### Scaling retrieval
+
+#### Index architecture
+
+```python
+class ScalableVectorIndex:
+    """
+    Multi-tier index for different scale requirements.
+    """
+    def __init__(self, tier: str = "medium"):
+        if tier == "small":
+            # < 100K vectors: flat index (exact search)
+            self.index = FlatIndex()
+        elif tier == "medium":
+            # 100K - 10M vectors: IVF index
+            self.index = IVFIndex(nlist=1024)
+        elif tier == "large":
+            # 10M+ vectors: HNSW + quantization
+            self.index = HNSWIndex(
+                m=16,
+                ef_construction=200,
+                quantization="sq8",
+            )
+    
+    def search(self, query_vector, k: int = 10, nprobe: int = 32):
+        """Search with scale-appropriate parameters."""
+        return self.index.search(query_vector, k=k, nprobe=nprobe)
+
+
+# Sharding for very large corpora
+class ShardedIndex:
+    def __init__(self, num_shards: int, shard_by: str = "hash"):
+        self.shards = [create_index() for _ in range(num_shards)]
+        self.shard_by = shard_by
+    
+    def add(self, vectors, ids, metadata):
+        """Add vectors to appropriate shard."""
+        for v, id, m in zip(vectors, ids, metadata):
+            shard_id = self.get_shard(id, m)
+            self.shards[shard_id].add([v], [id], [m])
+    
+    def get_shard(self, id: str, metadata: dict) -> int:
+        """Determine shard for a document."""
+        if self.shard_by == "hash":
+            return hash(id) % len(self.shards)
+        elif self.shard_by == "tenant":
+            return hash(metadata.get("tenant_id", "")) % len(self.shards)
+    
+    async def search(self, query_vector, k: int = 10, filters: dict = None):
+        """Search all shards in parallel."""
+        tasks = [
+            shard.search_async(query_vector, k=k, filters=filters)
+            for shard in self.shards
+        ]
+        results = await asyncio.gather(*tasks)
+        
+        # Merge and re-rank
+        all_results = []
+        for shard_results in results:
+            all_results.extend(shard_results)
+        
+        return sorted(all_results, key=lambda x: x["score"], reverse=True)[:k]
+```
+
+#### Caching for high QPS
+
+```python
+class CachedRetriever:
+    def __init__(
+        self,
+        retriever,
+        cache_size: int = 10000,
+        ttl_seconds: int = 3600,
+    ):
+        self.retriever = retriever
+        self.cache = LRUCache(maxsize=cache_size)
+        self.ttl_seconds = ttl_seconds
+    
+    def retrieve(self, query: str, k: int = 10) -> List[Dict]:
+        cache_key = f"{hash(query)}:{k}"
+        
+        # Check cache
+        cached = self.cache.get(cache_key)
+        if cached and (time.time() - cached["time"]) < self.ttl_seconds:
+            return cached["results"]
+        
+        # Retrieve and cache
+        results = self.retriever.retrieve(query, k=k)
+        self.cache[cache_key] = {
+            "results": results,
+            "time": time.time(),
+        }
+        
+        return results
+
+
+# Semantic cache with embedding similarity
+class SemanticCache:
+    def __init__(self, threshold: float = 0.95):
+        self.cache_index = FlatIndex()
+        self.cache_data = {}
+        self.threshold = threshold
+    
+    def get(self, query_embedding) -> Optional[List[Dict]]:
+        if len(self.cache_data) == 0:
+            return None
+        
+        results = self.cache_index.search(query_embedding, k=1)
+        if results and results[0]["score"] > self.threshold:
+            return self.cache_data[results[0]["id"]]
+        return None
+    
+    def set(self, query_embedding, query_id: str, results: List[Dict]):
+        self.cache_index.add([query_embedding], [query_id])
+        self.cache_data[query_id] = results
+```
+
+### Multi-tenant architecture
+
+```python
+class MultiTenantRAG:
+    """
+    RAG system with tenant isolation.
+    """
+    def __init__(self, config: dict):
+        self.config = config
+        self.tenant_configs = {}
+    
+    def answer(self, query: str, tenant_id: str) -> Dict:
+        """
+        Answer query with tenant context.
+        """
+        # Validate tenant
+        tenant_config = self.get_tenant_config(tenant_id)
+        
+        # Apply tenant-specific settings
+        retriever = self.get_retriever(tenant_id, tenant_config)
+        generator = self.get_generator(tenant_config)
+        
+        # Always filter by tenant
+        results = retriever.retrieve(
+            query,
+            k=tenant_config.get("top_k", 10),
+            filters={"tenant_id": tenant_id},  # CRITICAL
+        )
+        
+        # Rate limiting per tenant
+        if not self.check_rate_limit(tenant_id):
+            raise RateLimitError(f"Rate limit exceeded for tenant {tenant_id}")
+        
+        # Generate with tenant-specific model/settings
+        answer = generator.generate(
+            query,
+            results,
+            model=tenant_config.get("model", "gpt-4o-mini"),
+            system_prompt=tenant_config.get("system_prompt"),
+        )
+        
+        # Track usage for billing
+        self.track_usage(tenant_id, answer["usage"])
+        
+        return answer
+    
+    def get_retriever(self, tenant_id: str, config: dict):
+        """
+        Get tenant-specific retriever.
+        """
+        # Option 1: Shared index with filtering (cheaper)
+        if config.get("index_type") == "shared":
+            return SharedIndexRetriever(
+                self.shared_index,
+                tenant_filter=tenant_id,
+            )
+        
+        # Option 2: Dedicated index per tenant (more isolated)
+        else:
+            return DedicatedIndexRetriever(
+                index_name=f"tenant_{tenant_id}",
+            )
+    
+    def check_rate_limit(self, tenant_id: str) -> bool:
+        """
+        Check and enforce rate limits.
+        """
+        config = self.get_tenant_config(tenant_id)
+        limit = config.get("rate_limit_qpm", 100)
+        
+        key = f"rate:{tenant_id}"
+        current = self.redis.incr(key)
+        
+        if current == 1:
+            self.redis.expire(key, 60)  # 1 minute window
+        
+        return current <= limit
+
+
+# Tenant isolation patterns
+class IsolationLevel:
+    SHARED = "shared"          # Shared resources, filter by metadata
+    NAMESPACE = "namespace"    # Separate namespaces in shared infra
+    DEDICATED = "dedicated"    # Fully isolated resources
+
+def get_isolation_strategy(tenant_tier: str) -> str:
+    """
+    Higher-paying tenants get more isolation.
+    """
+    return {
+        "free": IsolationLevel.SHARED,
+        "pro": IsolationLevel.NAMESPACE,
+        "enterprise": IsolationLevel.DEDICATED,
+    }.get(tenant_tier, IsolationLevel.SHARED)
+```
+
+### Load balancing and auto-scaling
+
+```python
+class RAGLoadBalancer:
+    """
+    Distribute load across RAG instances.
+    """
+    def __init__(self, instances: List[RAGInstance]):
+        self.instances = instances
+        self.health_check_interval = 30
+    
+    async def route(self, query: str, tenant_id: str) -> RAGInstance:
+        """
+        Route to least-loaded healthy instance.
+        """
+        healthy = [i for i in self.instances if i.is_healthy()]
+        
+        if not healthy:
+            raise ServiceUnavailableError("No healthy instances")
+        
+        # Least connections routing
+        return min(healthy, key=lambda i: i.active_connections)
+    
+    async def handle_request(self, query: str, tenant_id: str) -> Dict:
+        """
+        Handle request with retry on failure.
+        """
+        for attempt in range(3):
+            instance = await self.route(query, tenant_id)
+            try:
+                return await instance.answer(query, tenant_id)
+            except Exception as e:
+                instance.mark_unhealthy()
+                if attempt == 2:
+                    raise
+        
+
+# Kubernetes HPA config example
+"""
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: rag-service
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: rag-service
+  minReplicas: 2
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Pods
+    pods:
+      metric:
+        name: rag_requests_per_second
+      target:
+        type: AverageValue
+        averageValue: 10
+"""
+```
+
+## Failure modes
+
+1. **Hot partitions**: Uneven load across shards.
+2. **Cache stampede**: Many requests hit expired cache.
+3. **Tenant noisy neighbor**: One tenant impacts others.
+4. **Index corruption**: Scaling operations corrupt data.
+
+## Production defaults
+
+- **Index type**: IVF for 100K-10M docs, HNSW for 10M+.
+- **Cache TTL**: 1 hour for stable content, shorter for dynamic.
+- **Rate limits**: Per-tenant, with burst allowance.
+- **Isolation**: Namespace-based for most, dedicated for enterprise.
+
+## Do next
+
+<ChallengeLinks slugs={["sharded-index", "multi-tenant-rag", "load-balancer"]} />

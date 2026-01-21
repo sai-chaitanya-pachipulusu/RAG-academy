@@ -1,0 +1,38 @@
+﻿---
+title: "Toxicity / Safety Guard"
+description: "Detect toxic or harmful content before serving to users."
+---
+
+# Toxicity / Safety Guard
+
+LLMs can generate harmful content. A safety guard is your last line of defense.
+
+### What to Detect
+
+- **Hate speech**: Discriminatory language.
+- **Violence**: Instructions for harm.
+- **Illegal activities**: Hacking, fraud.
+- **PII leakage**: Accidental exposure of personal data.
+
+### Implementation Approaches
+
+| Approach          | Speed  | Accuracy |
+| ----------------- | ------ | -------- |
+| Keyword blocklist | Fast   | Low      |
+| Classifier model  | Medium | High     |
+| LLM-as-judge      | Slow   | Highest  |
+
+### Your Task
+
+Implement a simple keyword-based toxicity checker:
+
+1. Check for toxic patterns in the text.
+2. Return `(is_safe, reason)`.
+
+### Production Tools
+
+- OpenAI Moderation API
+- Anthropic Constitutional AI
+- Meta LlamaGuard
+- Perspective API (Google)
+

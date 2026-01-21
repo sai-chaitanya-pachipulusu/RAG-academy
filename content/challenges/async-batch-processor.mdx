@@ -1,0 +1,40 @@
+﻿---
+title: "Async Batch Embedding Processor"
+description: "Process embeddings in batches for maximum throughput."
+---
+
+# Async Batch Embedding Processor
+
+Embedding APIs accept batches. Sending one text at a time is **100x slower** than batching.
+
+### The Math
+
+| Method     | API Calls | Time        |
+| ---------- | --------- | ----------- |
+| One-by-one | 10,000    | 100 minutes |
+| Batch (32) | 313       | ~3 minutes  |
+
+### Rate Limiting
+
+APIs have rate limits. Add delays between batches to avoid 429 errors.
+
+```python
+for batch in batches:
+    embeddings = api.embed(batch)
+    time.sleep(0.1)  # Rate limit delay
+```
+
+### Your Task
+
+Implement a batch processor that:
+
+- Groups texts into batches of `batch_size`.
+- Calls the embedding function per batch.
+- Adds delay between batches.
+
+### Production Best Practices
+
+- Use async/await for concurrent processing.
+- Implement exponential backoff for retries.
+- Monitor throughput and adjust batch size.
+

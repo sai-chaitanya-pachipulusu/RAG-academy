@@ -1,0 +1,35 @@
+﻿<Callout title="Goal" variant="warning">
+  Extract metadata filters **before retrieval** (tenant, doc_type, date range). This is correctness + safety.
+</Callout>
+
+## Why this matters in production
+
+Two big reasons:
+
+1. **Quality**: filtering first shrinks the search space (often 10–100×), improving relevance and latency.
+2. **Security**: multi-tenant RAG must never retrieve cross-tenant chunks. Filtering later is too late.
+
+This challenge simulates the “self‑query retriever” idea: convert parts of a natural query into structured filters.
+
+## Offline vs online
+
+- **Offline (ingestion)**: attach metadata to every chunk (`tenant_id`, `doc_type`, `year`, `version`, …).
+- **Online (query time)**:
+  1. parse filters from the query
+  2. apply filters at retrieval boundary
+  3. only then score/rerank
+
+## What the tests enforce
+
+- Recognize `tenant:` / `tenant_id=` and similar patterns.
+- Remove filter tokens from the query.
+- Return a normalized cleaned query + a filters dict.
+
+## Production extensions (optional)
+
+- Support natural language dates (“after 2023”, “in Q1 2024”).
+- Extract multiple filters (tags, product, region).
+- Add validation/allowlists for filter values.
+
+
+

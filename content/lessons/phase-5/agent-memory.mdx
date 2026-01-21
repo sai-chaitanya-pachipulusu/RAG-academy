@@ -1,0 +1,307 @@
+---
+title: "Agent Memory Systems"
+description: "Give agents short-term and long-term memory for better context."
+order: 5
+estimatedMinutes: 25
+stage: agentic-rag
+prereqs:
+  - phase: phase-5
+    slug: multi-agent-systems
+next:
+  phase: phase-5
+  slug: mcp-integration
+outcomes:
+  - "Understand different memory types: working, episodic, semantic."
+  - "Implement memory systems for conversational agents."
+  - "Handle memory retrieval and pruning."
+tags: ["memory", "context", "conversation", "state"]
+sources:
+  - title: "Generative Agents: Interactive Simulacra (Park et al., 2023)"
+    url: "https://arxiv.org/abs/2304.03442"
+    type: "paper"
+    year: 2023
+  - title: "MemGPT: Towards LLMs as Operating Systems (Packer et al., 2023)"
+    url: "https://arxiv.org/abs/2310.08560"
+    type: "paper"
+    year: 2023
+  - title: "LangChain: Memory"
+    url: "https://python.langchain.com/docs/how_to/#memory"
+    type: "docs"
+---
+
+## Goals
+
+- Understand memory types and their purposes.
+- Implement working and long-term memory for agents.
+- Build memory retrieval for relevant context.
+
+## Prereqs
+
+- Read: **Multi-Agent Systems** (understand agent architectures).
+
+## Core idea
+
+### Why agents need memory
+
+Without memory, agents:
+- Forget previous turns in conversation
+- Can't learn from past interactions
+- Repeat the same mistakes
+- Lose track of long tasks
+
+### Memory types
+
+| Type | Duration | Purpose | Example |
+|------|----------|---------|---------|
+| **Working** | Current task | Active context | Current conversation |
+| **Episodic** | Session/hours | Recent events | "Earlier you asked about..." |
+| **Semantic** | Permanent | Facts & knowledge | "User prefers detailed answers" |
+| **Procedural** | Permanent | How to do things | Tool usage patterns |
+
+### Memory architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│                   AGENT MEMORY                       │
+├──────────────┬──────────────┬───────────────────────┤
+│   Working    │   Episodic   │      Semantic         │
+│   Memory     │   Memory     │      Memory           │
+├──────────────┼──────────────┼───────────────────────┤
+│ • Current    │ • Recent     │ • User preferences    │
+│   message    │   messages   │ • Learned facts       │
+│ • Active     │ • Session    │ • Entity info         │
+│   plan       │   summary    │ • Relationships       │
+│ • Tool       │ • Important  │                       │
+│   results    │   events     │                       │
+└──────────────┴──────────────┴───────────────────────┘
+```
+
+### Implementation: Conversation memory
+
+```python
+class ConversationMemory:
+    def __init__(
+        self,
+        max_messages: int = 20,
+        summary_threshold: int = 10,
+    ):
+        self.messages = []
+        self.summary = ""
+        self.max_messages = max_messages
+        self.summary_threshold = summary_threshold
+    
+    def add(self, role: str, content: str):
+        """Add a message to memory."""
+        self.messages.append({
+            "role": role,
+            "content": content,
+            "timestamp": datetime.now(),
+        })
+        
+        # Summarize if too long
+        if len(self.messages) > self.max_messages:
+            self.compress()
+    
+    def compress(self):
+        """Summarize older messages to save space."""
+        # Take first half for summarization
+        to_summarize = self.messages[:self.summary_threshold]
+        self.messages = self.messages[self.summary_threshold:]
+        
+        # Generate summary
+        prompt = f"""Summarize this conversation, preserving key information:
+
+{self.format_messages(to_summarize)}
+
+Summary:"""
+        
+        new_summary = llm.generate(prompt, max_tokens=200)
+        
+        # Merge with existing summary
+        if self.summary:
+            self.summary = f"{self.summary}\n\n{new_summary}"
+        else:
+            self.summary = new_summary
+    
+    def get_context(self) -> str:
+        """Get memory context for the prompt."""
+        context = ""
+        
+        if self.summary:
+            context += f"Previous conversation summary:\n{self.summary}\n\n"
+        
+        context += "Recent messages:\n"
+        context += self.format_messages(self.messages)
+        
+        return context
+
+
+class AgentWithMemory:
+    def __init__(self, llm, tools, memory: ConversationMemory):
+        self.llm = llm
+        self.tools = tools
+        self.memory = memory
+    
+    def chat(self, user_message: str) -> str:
+        """Process message with memory context."""
+        # Add user message to memory
+        self.memory.add("user", user_message)
+        
+        # Build prompt with memory
+        context = self.memory.get_context()
+        prompt = f"""{context}
+
+Current message: {user_message}
+
+Respond to the user:"""
+        
+        response = self.llm.generate(prompt)
+        
+        # Add response to memory
+        self.memory.add("assistant", response)
+        
+        return response
+```
+
+### Implementation: Semantic (long-term) memory
+
+```python
+class SemanticMemory:
+    def __init__(self, vector_store):
+        self.vector_store = vector_store
+    
+    def store(self, content: str, metadata: Dict):
+        """Store a memory."""
+        embedding = embed(content)
+        self.vector_store.add({
+            "id": str(uuid4()),
+            "embedding": embedding,
+            "content": content,
+            "metadata": metadata,
+            "created_at": datetime.now(),
+        })
+    
+    def remember(self, query: str, k: int = 5) -> List[Dict]:
+        """Retrieve relevant memories."""
+        query_embedding = embed(query)
+        results = self.vector_store.search(query_embedding, k=k)
+        return results
+    
+    def extract_and_store(self, conversation: str):
+        """Extract memorable facts from conversation."""
+        prompt = f"""Extract key facts from this conversation that should be remembered.
+Focus on:
+- User preferences
+- Important entities mentioned
+- Decisions made
+- Facts learned
+
+Conversation:
+{conversation}
+
+Facts to remember (one per line):"""
+        
+        facts = llm.generate(prompt).split("\n")
+        
+        for fact in facts:
+            if fact.strip():
+                self.store(fact.strip(), {"type": "extracted_fact"})
+
+
+class AgentWithLongTermMemory:
+    def __init__(
+        self,
+        llm,
+        working_memory: ConversationMemory,
+        semantic_memory: SemanticMemory,
+    ):
+        self.llm = llm
+        self.working_memory = working_memory
+        self.semantic_memory = semantic_memory
+    
+    def chat(self, user_message: str) -> str:
+        """Chat with both short and long-term memory."""
+        # Get relevant long-term memories
+        relevant_memories = self.semantic_memory.remember(user_message)
+        
+        # Build context
+        context = ""
+        
+        if relevant_memories:
+            context += "Relevant information from past interactions:\n"
+            for mem in relevant_memories:
+                context += f"- {mem['content']}\n"
+            context += "\n"
+        
+        context += self.working_memory.get_context()
+        
+        # Generate response
+        prompt = f"""{context}
+
+Current message: {user_message}
+
+Respond to the user:"""
+        
+        response = self.llm.generate(prompt)
+        
+        # Update memories
+        self.working_memory.add("user", user_message)
+        self.working_memory.add("assistant", response)
+        
+        return response
+    
+    def end_session(self):
+        """Extract and store important info at session end."""
+        conversation = self.working_memory.get_context()
+        self.semantic_memory.extract_and_store(conversation)
+```
+
+### Memory retrieval strategies
+
+```python
+def retrieve_memories(
+    query: str,
+    memories: SemanticMemory,
+    strategy: str = "relevance",
+) -> List[Dict]:
+    """
+    Different strategies for memory retrieval.
+    """
+    if strategy == "relevance":
+        # Pure semantic similarity
+        return memories.remember(query, k=10)
+    
+    elif strategy == "recency":
+        # Boost recent memories
+        results = memories.remember(query, k=20)
+        for r in results:
+            age_hours = (datetime.now() - r["created_at"]).total_seconds() / 3600
+            r["score"] *= math.exp(-age_hours / 24)  # Decay over 24 hours
+        return sorted(results, key=lambda x: x["score"], reverse=True)[:10]
+    
+    elif strategy == "importance":
+        # Consider importance metadata
+        results = memories.remember(query, k=20)
+        for r in results:
+            importance = r.get("metadata", {}).get("importance", 0.5)
+            r["score"] *= importance
+        return sorted(results, key=lambda x: x["score"], reverse=True)[:10]
+```
+
+## Failure modes
+
+1. **Memory bloat**: Too much stored, retrieval slow.
+2. **Stale memories**: Outdated info retrieved.
+3. **Wrong memories**: Irrelevant memories confuse agent.
+4. **Summary loss**: Important details lost in compression.
+
+## Production defaults
+
+- **Working memory**: 10-20 recent messages.
+- **Summarize**: Every 10 messages or 4K tokens.
+- **Long-term retrieval**: Top 5 relevant memories.
+- **Recency decay**: Exponential decay over 24-48 hours.
+
+## Do next
+
+<ChallengeLinks slugs={["conversation-memory", "semantic-memory", "memory-retrieval"]} />

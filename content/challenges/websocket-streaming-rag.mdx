@@ -1,0 +1,46 @@
+﻿---
+title: "WebSocket Streaming RAG"
+description: "Implement real-time streaming for RAG responses"
+difficulty: "hard"
+xpReward: 150
+prerequisites: ["react-implementation"]
+---
+
+# WebSocket Streaming RAG
+
+Implement WebSocket-based streaming for real-time RAG responses.
+
+## Why This Matters
+
+Users expect ChatGPT-like streaming. Streaming reduces perceived latency by 10x through token-by-token delivery.
+
+## What You'll Learn
+
+- Async generators in Python
+- Event-based streaming patterns
+- Real-time response delivery
+- Latency optimization
+
+## Real-World Application
+
+**Companies:** OpenAI, Anthropic, Google, Perplexity
+**Use Cases:** Chat interfaces, Real-time assistants, Live search
+
+## Key Concepts
+
+### Stream Events
+
+```python
+@dataclass
+class StreamEvent:
+    event_type: str  # "retrieval_start", "token", "done"
+    data: Any
+```
+
+### Pipeline Flow
+
+1. `retrieval_start` - Begin retrieval
+2. `retrieval_complete` - Documents found
+3. `token` - Each generated token
+4. `done` - Complete with latency stats
+

@@ -1,0 +1,402 @@
+﻿<Callout title="Goal" variant="info">
+  Implement streaming RAG for real-time response delivery — reduce
+  time-to-first-token and improve user experience.
+</Callout>
+
+## Why Streaming?
+
+Traditional RAG response: **Wait 2-5 seconds, then see full answer**
+
+Streaming RAG: **See tokens as they're generated (100ms to first token)**
+
+| Metric              | Non-streaming | Streaming |
+| ------------------- | ------------- | --------- |
+| Time to first token | 2-5s          | 100-500ms |
+| Perceived speed     | Slow          | Fast      |
+| User abandonment    | Higher        | Lower     |
+| Total time          | Same          | Same      |
+
+## Basic Streaming Architecture
+
+```
+Client ←------ Stream ------→ Server
+         ↑                     ↓
+         |              [Retrieve Docs]
+         |                     ↓
+         |              [Build Prompt]
+         |                     ↓
+         |              [Start LLM Stream]
+         |                     ↓
+         └──── Token ← Token ← Token
+```
+
+## Server-Side Streaming
+
+### FastAPI + SSE
+
+```python
+from fastapi import FastAPI, Request
+from fastapi.responses import StreamingResponse
+import asyncio
+
+app = FastAPI()
+
+async def stream_rag_response(query: str, user_id: str):
+    """Generator that yields SSE events."""
+    # 1. Retrieve (fast)
+    docs = await retriever.search(query)
+
+    # Send retrieval complete event
+    yield f"event: retrieval\ndata: {json.dumps({'count': len(docs)})}\n\n"
+
+    # 2. Stream generation
+    context = build_context(docs)
+    prompt = build_prompt(query, context)
+
+    async for token in llm.stream(prompt):
+        # Send token event
+        yield f"event: token\ndata: {json.dumps({'token': token})}\n\n"
+
+    # 3. Send sources at end
+    sources = [{"id": d.id, "title": d.title} for d in docs[:5]]
+    yield f"event: sources\ndata: {json.dumps({'sources': sources})}\n\n"
+
+    # 4. Done
+    yield f"event: done\ndata: {{}}\n\n"
+
+@app.get("/v1/stream")
+async def stream_query(request: Request, q: str, user_id: str):
+    return StreamingResponse(
+        stream_rag_response(q, user_id),
+        media_type="text/event-stream"
+    )
+```
+
+### Flask + Streaming
+
+```python
+from flask import Flask, Response, stream_with_context
+
+app = Flask(__name__)
+
+@app.route("/v1/stream")
+def stream_query():
+    query = request.args.get("q")
+
+    def generate():
+        # Retrieve
+        docs = retriever.search(query)
+        yield f"data: {json.dumps({'event': 'retrieval', 'count': len(docs)})}\n\n"
+
+        # Stream tokens
+        for token in llm.stream(build_prompt(query, docs)):
+            yield f"data: {json.dumps({'event': 'token', 'text': token})}\n\n"
+
+        yield f"data: {json.dumps({'event': 'done'})}\n\n"
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream"
+    )
+```
+
+## Client-Side Consumption
+
+### JavaScript EventSource
+
+```javascript
+function streamRAG(query, onToken, onDone) {
+  const eventSource = new EventSource(
+    `/v1/stream?q=${encodeURIComponent(query)}`
+  );
+
+  let fullResponse = "";
+
+  eventSource.addEventListener("token", (event) => {
+    const data = JSON.parse(event.data);
+    fullResponse += data.token;
+    onToken(data.token, fullResponse);
+  });
+
+  eventSource.addEventListener("sources", (event) => {
+    const data = JSON.parse(event.data);
+    onSources(data.sources);
+  });
+
+  eventSource.addEventListener("done", () => {
+    eventSource.close();
+    onDone(fullResponse);
+  });
+
+  eventSource.onerror = (error) => {
+    eventSource.close();
+    onError(error);
+  };
+
+  return eventSource; // Return for cancellation
+}
+
+// Usage
+streamRAG(
+  "What is RAG?",
+  (token, full) => {
+    document.getElementById("response").textContent = full;
+  },
+  (full) => {
+    console.log("Complete:", full);
+  }
+);
+```
+
+### React Hook
+
+```typescript
+import { useState, useCallback } from "react";
+
+function useStreamingRAG() {
+  const [response, setResponse] = useState("");
+  const [sources, setSources] = useState([]);
+  const [isStreaming, setIsStreaming] = useState(false);
+
+  const query = useCallback(async (q: string) => {
+    setIsStreaming(true);
+    setResponse("");
+    setSources([]);
+
+    try {
+      const eventSource = new EventSource(
+        `/v1/stream?q=${encodeURIComponent(q)}`
+      );
+
+      eventSource.addEventListener("token", (e) => {
+        const { token } = JSON.parse(e.data);
+        setResponse((prev) => prev + token);
+      });
+
+      eventSource.addEventListener("sources", (e) => {
+        const { sources } = JSON.parse(e.data);
+        setSources(sources);
+      });
+
+      eventSource.addEventListener("done", () => {
+        eventSource.close();
+        setIsStreaming(false);
+      });
+
+      eventSource.onerror = () => {
+        eventSource.close();
+        setIsStreaming(false);
+      };
+    } catch (error) {
+      setIsStreaming(false);
+    }
+  }, []);
+
+  return { query, response, sources, isStreaming };
+}
+
+// Usage in component
+function ChatComponent() {
+  const { query, response, sources, isStreaming } = useStreamingRAG();
+
+  return (
+    <div>
+      <input onKeyDown={(e) => e.key === "Enter" && query(e.target.value)} />
+      <div className="response">{response}</div>
+      {!isStreaming && sources.length > 0 && (
+        <div className="sources">{sources.map((s) => s.title).join(", ")}</div>
+      )}
+    </div>
+  );
+}
+```
+
+## Streaming with Citations
+
+Stream tokens and inject citations inline:
+
+```python
+async def stream_with_citations(query: str, docs: list):
+    """Stream response while inserting citation markers."""
+    # Create source map
+    source_map = {i: doc for i, doc in enumerate(docs)}
+
+    prompt = f"""Answer using the sources. Add citation numbers like [1], [2].
+
+Sources:
+{format_numbered_sources(docs)}
+
+Question: {query}
+
+Answer:"""
+
+    buffer = ""
+    async for token in llm.stream(prompt):
+        buffer += token
+        yield token
+
+    # Send sources at end for reference
+    yield "\n\n---\nSources:\n"
+    for i, doc in enumerate(docs):
+        yield f"[{i+1}] {doc.title}\n"
+```
+
+## Parallel Retrieval + Streaming
+
+Start streaming while retrieval continues:
+
+```python
+async def parallel_stream(query: str):
+    """Start generation early with partial context."""
+    # Start retrieval
+    retrieval_task = asyncio.create_task(retriever.search(query))
+
+    # Quick initial response (no docs yet)
+    yield "Searching for relevant information...\n\n"
+
+    # Wait for retrieval
+    docs = await retrieval_task
+
+    # Now stream with full context
+    async for token in llm.stream(build_prompt(query, docs)):
+        yield token
+```
+
+## Backpressure Handling
+
+Handle slow clients:
+
+```python
+import asyncio
+from asyncio import Queue
+
+async def stream_with_backpressure(query: str, max_buffer: int = 100):
+    """Buffer tokens if client is slow."""
+    queue = Queue(maxsize=max_buffer)
+
+    async def producer():
+        async for token in llm.stream(query):
+            try:
+                await asyncio.wait_for(
+                    queue.put(token),
+                    timeout=5.0
+                )
+            except asyncio.TimeoutError:
+                # Client too slow, stop generation
+                break
+
+    async def consumer():
+        while True:
+            try:
+                token = await asyncio.wait_for(
+                    queue.get(),
+                    timeout=30.0
+                )
+                yield token
+            except asyncio.TimeoutError:
+                break
+
+    producer_task = asyncio.create_task(producer())
+
+    async for token in consumer():
+        yield token
+
+    producer_task.cancel()
+```
+
+## Streaming Metrics
+
+```python
+class StreamingMetrics:
+    def __init__(self):
+        self.streams = {}
+
+    def start_stream(self, stream_id: str):
+        self.streams[stream_id] = {
+            "start": time.time(),
+            "first_token": None,
+            "token_count": 0,
+        }
+
+    def record_token(self, stream_id: str):
+        stream = self.streams[stream_id]
+        if stream["first_token"] is None:
+            stream["first_token"] = time.time()
+        stream["token_count"] += 1
+
+    def end_stream(self, stream_id: str) -> dict:
+        stream = self.streams.pop(stream_id)
+        return {
+            "ttft_ms": (stream["first_token"] - stream["start"]) * 1000,
+            "total_ms": (time.time() - stream["start"]) * 1000,
+            "tokens": stream["token_count"],
+            "tokens_per_second": stream["token_count"] / (time.time() - stream["first_token"])
+        }
+```
+
+## Error Handling in Streams
+
+```python
+async def robust_stream(query: str):
+    """Handle errors gracefully during streaming."""
+    try:
+        # Retrieval
+        docs = await retriever.search(query)
+        if not docs:
+            yield "event: error\ndata: {\"message\": \"No relevant documents found\"}\n\n"
+            return
+
+        # Generation
+        token_count = 0
+        async for token in llm.stream(build_prompt(query, docs)):
+            yield f"event: token\ndata: {json.dumps({'token': token})}\n\n"
+            token_count += 1
+
+            # Safety limit
+            if token_count > 2000:
+                yield "event: truncated\ndata: {\"reason\": \"Max tokens reached\"}\n\n"
+                break
+
+        yield "event: done\ndata: {}\n\n"
+
+    except Exception as e:
+        yield f"event: error\ndata: {json.dumps({'message': str(e)})}\n\n"
+```
+
+## WebSocket Alternative
+
+For bidirectional communication:
+
+```python
+from fastapi import WebSocket
+
+@app.websocket("/ws/chat")
+async def websocket_chat(websocket: WebSocket):
+    await websocket.accept()
+
+    while True:
+        data = await websocket.receive_json()
+        query = data["query"]
+
+        # Retrieve
+        docs = await retriever.search(query)
+        await websocket.send_json({"type": "retrieval", "count": len(docs)})
+
+        # Stream
+        async for token in llm.stream(build_prompt(query, docs)):
+            await websocket.send_json({"type": "token", "text": token})
+
+        await websocket.send_json({"type": "done"})
+```
+
+## Production Checklist
+
+- [ ] Use SSE or WebSocket for streaming
+- [ ] Handle client disconnections gracefully
+- [ ] Implement backpressure handling
+- [ ] Track time-to-first-token metric
+- [ ] Add timeout for long-running streams
+- [ ] Buffer appropriately for slow clients
+- [ ] Test with production load
+- [ ] Monitor stream completion rate
+
