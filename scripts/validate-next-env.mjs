@@ -10,7 +10,30 @@ function fail(msg) {
   process.exit(1);
 }
 
-const raw = await fs.readFile(filePath, "utf8");
+// Default content for next-env.d.ts (Next.js auto-generates this)
+const DEFAULT_NEXT_ENV = `/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+`;
+
+// Check if file exists, create it if not (fresh clone scenario)
+let raw;
+try {
+  raw = await fs.readFile(filePath, "utf8");
+} catch (err) {
+  if (err.code === "ENOENT") {
+    // File doesn't exist - create it with default content
+    console.log("next-env.d.ts not found, creating default file...");
+    // Ensure directory exists before writing
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.writeFile(filePath, DEFAULT_NEXT_ENV, "utf8");
+    raw = DEFAULT_NEXT_ENV;
+  } else {
+    throw err;
+  }
+}
 
 async function ensureFileExists(relPath, content) {
   const abs = path.join(ROOT, relPath);
