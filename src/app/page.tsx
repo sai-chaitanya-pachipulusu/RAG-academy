@@ -96,7 +96,7 @@ export default function Home() {
       {/* Pricing Banner */}
       <PricingBanner />
 
-      {/* Hero Section - Minimal Gallery Inspired */}
+      {/* Hero Section */}
       <section className="relative">
         <div className="mx-auto max-w-[1400px] px-8 pt-24 pb-32 lg:px-16 lg:pt-32 lg:pb-40">
           <div className="grid gap-16 lg:grid-cols-2 lg:gap-24 items-center">
@@ -194,6 +194,18 @@ export default function Home() {
       {/* Features Section */}
       <section className="border-t border-zinc-100">
         <div className="mx-auto max-w-[1400px] px-8 py-24 lg:px-16 lg:py-32">
+          {/* Section Header */}
+          <Reveal>
+            <div className="mb-16 text-center">
+              <h2 className="text-3xl font-semibold tracking-tight text-zinc-900 lg:text-4xl">
+                What's Included
+              </h2>
+              <p className="mt-4 text-lg text-zinc-500 max-w-2xl mx-auto">
+                Everything you need to master RAG engineering, from fundamentals to production deployment.
+              </p>
+            </div>
+          </Reveal>
+          
           <div className="grid gap-6 md:grid-cols-3">
             {FEATURES.map((feature, i) => (
               <Reveal key={feature.title} delayMs={i * 60}>
@@ -225,9 +237,12 @@ export default function Home() {
               </div>
               <Link 
                 href="/challenges" 
-                className="hidden text-[15px] font-medium text-zinc-500 hover:text-zinc-900 transition-colors sm:block"
+                className="hidden sm:inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-5 py-2.5 text-sm font-medium text-zinc-700 transition-all duration-200 hover:border-zinc-300 hover:bg-zinc-50 hover:shadow-sm"
               >
-                View all →
+                View all challenges
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
               </Link>
             </div>
           </Reveal>
@@ -338,9 +353,11 @@ export default function Home() {
                     </div>
                   </div>
                   {i < LEARNING_PATH.length - 1 && (
-                    <svg className="h-4 w-4 text-zinc-300 mx-2 hidden sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
+                    <div className="hidden sm:flex items-center justify-center mx-4">
+                      <svg className="h-6 w-6 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </div>
                   )}
                 </div>
               ))}
@@ -430,17 +447,17 @@ export default function Home() {
       <section className="border-t border-zinc-100">
         <div className="mx-auto max-w-[1400px] px-8 py-24 lg:px-16 lg:py-32">
           <Reveal>
-            <div className="rounded-3xl bg-zinc-900 p-12 text-center lg:p-20">
-              <h2 className="text-3xl font-semibold tracking-tight text-white lg:text-4xl">
+            <div className="rounded-3xl border border-zinc-200 bg-white p-12 text-center lg:p-20 shadow-sm">
+              <h2 className="text-3xl font-semibold tracking-tight text-zinc-900 lg:text-4xl">
                 Ready to build production RAG?
               </h2>
-              <p className="mx-auto mt-5 max-w-2xl text-lg text-zinc-400">
+              <p className="mx-auto mt-5 max-w-2xl text-lg text-zinc-500">
                 Join engineers building reliable, scalable RAG systems with the most comprehensive platform available.
               </p>
               <div className="mt-10 flex items-center justify-center gap-4 flex-wrap">
                 <Link
                   href={user ? "/learn" : "/login"}
-                  className="group inline-flex h-14 items-center justify-center gap-3 rounded-full bg-white px-8 text-[15px] font-medium text-zinc-900 transition-all duration-200 hover:bg-zinc-100"
+                  className="group inline-flex h-14 items-center justify-center gap-3 rounded-full bg-zinc-900 px-8 text-[15px] font-medium text-white transition-all duration-200 hover:bg-zinc-800"
                 >
                   Start Learning Free
                   <svg className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -449,7 +466,7 @@ export default function Home() {
                 </Link>
                 <Link
                   href="/challenges"
-                  className="inline-flex h-14 items-center justify-center rounded-full border border-zinc-700 px-8 text-[15px] font-medium text-white transition-all duration-200 hover:border-zinc-600 hover:bg-zinc-800"
+                  className="inline-flex h-14 items-center justify-center rounded-full border border-zinc-300 px-8 text-[15px] font-medium text-zinc-700 transition-all duration-200 hover:border-zinc-400 hover:bg-zinc-50"
                 >
                   Browse Challenges
                 </Link>
