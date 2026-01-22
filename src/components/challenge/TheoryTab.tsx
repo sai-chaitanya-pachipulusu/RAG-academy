@@ -27,55 +27,56 @@ export function TheoryTab({ challengeSlug, conceptTitle, content }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 dark:border-blue-900/50 dark:from-blue-950/20 dark:to-indigo-950/20">
+    <div className="rounded-xl border border-zinc-200 bg-white">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex w-full items-center justify-between p-4"
+        className="flex w-full items-center justify-between p-4 bg-zinc-50/50 hover:bg-zinc-50 rounded-t-xl transition-colors"
       >
         <div className="flex items-center gap-2">
-          <span className="text-lg">📚</span>
-          <span className="text-sm font-semibold text-blue-800 dark:text-blue-200">
+          <span className="text-sm font-medium text-zinc-900">
             Theory: {conceptTitle}
           </span>
         </div>
         <span
-          className={`text-blue-600 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+          className={`text-zinc-400 transition-transform ${isExpanded ? "rotate-180" : ""}`}
         >
           ▼
         </span>
       </button>
 
       {isExpanded && (
-        <div className="border-t border-blue-200 p-4 dark:border-blue-900/50">
+        <div className="border-t border-zinc-200 p-5 space-y-6">
           {/* Overview */}
-          <div className="mb-4">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+          <div>
+            <h4 className="text-sm font-semibold text-zinc-900">
               Overview
             </h4>
-            <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
+            <p className="mt-2 text-sm leading-relaxed text-zinc-700">
               {content.overview}
             </p>
           </div>
 
           {/* Key Formulas */}
           {content.keyFormulas && content.keyFormulas.length > 0 && (
-            <div className="mb-4">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+            <div>
+              <h4 className="text-sm font-semibold text-zinc-900">
                 Key Formulas
               </h4>
-              <div className="mt-2 space-y-2">
+              <div className="mt-3 space-y-3">
                 {content.keyFormulas.map((formula, i) => (
                   <div
                     key={i}
-                    className="rounded-lg bg-white p-3 dark:bg-zinc-900"
+                    className="rounded-lg border border-zinc-200 bg-zinc-50 p-4"
                   >
-                    <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
-                      {formula.name}
-                    </p>
-                    <code className="mt-1 block rounded bg-zinc-100 px-2 py-1 font-mono text-sm text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-zinc-900">
+                        {formula.name}
+                      </p>
+                    </div>
+                    <code className="mt-2 block rounded border border-zinc-200 bg-white px-3 py-2 font-mono text-sm text-zinc-800">
                       {formula.latex}
                     </code>
-                    <p className="mt-1 text-xs text-zinc-500">
+                    <p className="mt-2 text-xs text-zinc-500">
                       {formula.explanation}
                     </p>
                   </div>
@@ -86,36 +87,36 @@ export function TheoryTab({ challengeSlug, conceptTitle, content }: Props) {
 
           {/* Visual Explanation */}
           {content.visualExplanation && (
-            <div className="mb-4">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-                Visual Intuition
+            <div>
+              <h4 className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
+                <span>👁️</span> Visual Intuition
               </h4>
-              <div className="mt-2 rounded-lg bg-white p-3 text-sm text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+              <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50/50 p-4 text-sm leading-relaxed text-zinc-800">
                 {content.visualExplanation}
               </div>
             </div>
           )}
 
           {/* Why It Matters */}
-          <div className="mb-4">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-              🎯 Why This Matters
+          <div>
+            <h4 className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
+              <span>🎯</span> Why This Matters
             </h4>
-            <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
+            <div className="mt-3 text-sm leading-relaxed text-zinc-700">
               {content.whyItMatters}
-            </p>
+            </div>
           </div>
 
           {/* Common Mistakes */}
           {content.commonMistakes && content.commonMistakes.length > 0 && (
-            <div className="mb-4">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-red-600 dark:text-red-400">
-                ⚠️ Common Mistakes
+            <div>
+              <h4 className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
+                <span>⚠️</span> Common Mistakes
               </h4>
-              <ul className="mt-2 space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
+              <ul className="mt-3 space-y-2 text-sm text-zinc-700">
                 {content.commonMistakes.map((mistake, i) => (
-                  <li key={i} className="flex gap-2">
-                    <span className="text-red-500">•</span>
+                  <li key={i} className="flex gap-2.5">
+                    <span className="mt-0.5 text-zinc-400">•</span>
                     {mistake}
                   </li>
                 ))}
@@ -126,13 +127,13 @@ export function TheoryTab({ challengeSlug, conceptTitle, content }: Props) {
           {/* Interview Tips */}
           {content.interviewTips && content.interviewTips.length > 0 && (
             <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-purple-600 dark:text-purple-400">
-                💼 Interview Tips
+              <h4 className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
+                <span>💼</span> Interview Tips
               </h4>
-              <ul className="mt-2 space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
+              <ul className="mt-3 space-y-2 text-sm text-zinc-700">
                 {content.interviewTips.map((tip, i) => (
-                  <li key={i} className="flex gap-2">
-                    <span className="text-purple-500">→</span>
+                  <li key={i} className="flex gap-2.5">
+                    <span className="mt-0.5 text-zinc-400">→</span>
                     {tip}
                   </li>
                 ))}
@@ -486,6 +487,187 @@ export const CHALLENGE_THEORY: Record<string, { title: string; content: TheoryCo
         "Explain why log discount makes sense (position decay)",
         "Know that nDCG = 1.0 means perfect ranking",
         "Mention that it's differentiable (used in learning-to-rank)",
+      ],
+    },
+  },
+  "tokenizer-basics": {
+    title: "Tokenization",
+    content: {
+      overview:
+        "Tokenization is the process of splitting text into smaller units (tokens) for processing by language models. Real LLM tokenizers (BPE, WordPiece, SentencePiece) use subword tokenization, but understanding word-level tokenization teaches the core concepts.",
+      keyFormulas: [
+        {
+          name: "Token Count Impact",
+          latex: "cost ∝ input_tokens + output_tokens",
+          explanation: "API costs scale directly with token count, making efficient tokenization crucial",
+        },
+        {
+          name: "Context Window",
+          latex: "tokens ≤ max_context (e.g., 8K, 32K, 128K)",
+          explanation: "All input + output tokens must fit within the model's context window",
+        },
+      ],
+      visualExplanation:
+        "Think of tokenization like breaking a sentence into Lego bricks. 'Hello world!' becomes ['hello', 'world']. Real tokenizers go further: 'unbelievable' might become ['un', 'believ', 'able'] to handle rare words.",
+      whyItMatters:
+        "Every LLM interaction starts with tokenization. Misunderstanding it leads to: 'Context Window Exceeded' errors, unexpected API bills, and broken prompts. GPT-4's tokenizer treats 'ChatGPT' as 3 tokens while 'understanding' is 2.",
+      commonMistakes: [
+        "Assuming 1 word = 1 token (often 1 word ≈ 1.3 tokens for English)",
+        "Not accounting for special tokens that models add",
+        "Ignoring that different languages tokenize very differently (Chinese uses more tokens)",
+      ],
+      interviewTips: [
+        "Know the difference between BPE, WordPiece, and SentencePiece",
+        "Explain why subword tokenization handles rare words better",
+        "Mention tiktoken for OpenAI models, cl100k_base for GPT-4",
+      ],
+    },
+  },
+  "basic-retrieval": {
+    title: "Top-K Retrieval",
+    content: {
+      overview:
+        "Top-K retrieval is the core operation of vector search: given a query vector, find the K vectors most similar to it from a corpus. This is the foundation of all semantic search systems.",
+      keyFormulas: [
+        {
+          name: "Brute Force Complexity",
+          latex: "O(n × d)",
+          explanation: "n = corpus size, d = vector dimension. Must compare query against every vector.",
+        },
+        {
+          name: "Similarity Ranking",
+          latex: "top_k = argsort(similarities)[-k:]",
+          explanation: "Sort all similarity scores and take the k highest indices",
+        },
+      ],
+      visualExplanation:
+        "Imagine you're at a party with 1000 people. To find the 5 most similar to you, you'd need to talk to everyone (brute force). Top-K returns those 5 people ranked by how similar they are.",
+      whyItMatters:
+        "Every RAG system needs to retrieve relevant context. The quality of your retrieval directly determines the quality of your LLM's answers. Bad retrieval = hallucinations.",
+      commonMistakes: [
+        "Not handling the case where k > corpus size",
+        "Forgetting to sort in descending order (highest similarity first)",
+        "Using the wrong similarity metric (cosine vs dot product)",
+      ],
+      interviewTips: [
+        "Explain why brute force is still used for small datasets",
+        "Know the tradeoff: exact search (slow, 100% recall) vs ANN (fast, ~95% recall)",
+        "Mention that GPU acceleration can do millions of comparisons per second",
+      ],
+    },
+  },
+  "bm25-from-scratch": {
+    title: "BM25 Algorithm",
+    content: {
+      overview:
+        "BM25 (Best Matching 25) is the industry-standard algorithm for keyword-based search. It improves on TF-IDF by adding document length normalization and term frequency saturation.",
+      keyFormulas: [
+        {
+          name: "IDF Component",
+          latex: "IDF(t) = ln(1 + (N - df(t) + 0.5) / (df(t) + 0.5))",
+          explanation: "Rare terms get higher weight. N = total docs, df = docs containing term.",
+        },
+        {
+          name: "TF Saturation",
+          latex: "tf_norm = (tf × (k1 + 1)) / (tf + k1 × (1 - b + b × dl/avgdl))",
+          explanation: "Term frequency with diminishing returns. k1 ≈ 1.5, b ≈ 0.75 are standard.",
+        },
+      ],
+      visualExplanation:
+        "Imagine scoring job candidates. BM25 is like: 1) Rare skills are worth more (IDF), 2) Having 10 years of Python isn't 10x better than 1 year (saturation), 3) Long resumes don't automatically win (length normalization).",
+      whyItMatters:
+        "BM25 powers Elasticsearch, Solr, and every major search engine. It excels at exact matches like 'error code 504' or 'iPhone 15 Pro Max' where semantic search often fails.",
+      commonMistakes: [
+        "Using wrong IDF formula (several variants exist)",
+        "Not pre-computing document frequencies",
+        "Forgetting length normalization (long documents unfairly boosted)",
+      ],
+      interviewTips: [
+        "Explain why BM25 beats TF-IDF (saturation and length normalization)",
+        "Know k1 and b parameters: k1 controls saturation, b controls length penalty",
+        "Mention that Hybrid Search (BM25 + Vector) beats either alone",
+      ],
+    },
+  },
+  "overlap-chunking": {
+    title: "Overlap Chunking",
+    content: {
+      overview:
+        "Overlap chunking involves splitting text into chunks that share a specific number of characters or tokens with adjacent chunks. This 'sliding window' approach ensures that context at the boundaries of chunks is preserved.",
+      keyFormulas: [
+        {
+          name: "Stride / Step Size",
+          latex: "step = chunk_size - overlap",
+          explanation: "The cursor moves forward by 'step' characters for each new chunk.",
+        },
+      ],
+      visualExplanation:
+        "Imagine taking a panorama photo. To stitch it together, you need each photo to overlap slightly with the next. If you just took non-overlapping photos, you might cut a person in half at the edge. Overlap chunking prevents cutting sentences or ideas in half.",
+      whyItMatters:
+        "Without overlap, a query matching the end of chunk A and the start of chunk B might fail to retrieve either because the context is split. Overlap is the industry standard for simple chunkers.",
+      commonMistakes: [
+        "Setting overlap >= chunk_size (infinite loop)",
+        "Reviewing chunks and seeing duplicates (this is intentional)",
+        "Not handling the final chunk (often smaller than chunk_size)",
+      ],
+      interviewTips: [
+        "Explain the tradeoff: more overlap = better recall but higher storage/indexing costs",
+        "Typical overlap is 10-20% of chunk size",
+        "Mention that modern chunkers often split by sentence boundaries first, then group into chunks",
+      ],
+    },
+  },
+  "markdown-header-chunking": {
+    title: "Markdown Chunking",
+    content: {
+      overview:
+        "This technique respects the document's structure by using Markdown headers (#, ##, ###) as natural boundaries. It groups text belonging to the same section together.",
+      visualExplanation:
+        "Think of a textbook. You wouldn't rip a page out in the middle of a Chapter 1 sub-section and group it with the start of Chapter 2. You'd keep Chapter 1 content together. Header chunking does exactly this.",
+      whyItMatters:
+        "Structural boundaries (headers) usually indicate semantic boundaries. Mixing content from 'Server Configuration' and 'Client Installation' just because they fit in 512 tokens leads to poor retrieval. Header chunking preserves the author's intent.",
+      commonMistakes: [
+        "Ignoring the hierarchy (H2 inside H1 should inherit context)",
+        "Not handling text before the first header (preamble)",
+        "Creating massive chunks if a section is too long (need recursive splitting inside large sections)",
+      ],
+      interviewTips: [
+        "Mention LangChain's MarkdownHeaderTextSplitter",
+        "Explain why preserving document structure improves RAG answer quality (context separation)",
+        "Discuss how to handle headers that don't fit in context (prepend breadcrumbs like H1 > H2 > H3)",
+      ],
+    },
+  },
+  "rrf-fusion": {
+    title: "Reciprocal Rank Fusion (RRF)",
+    content: {
+      overview:
+        "RRF combines multiple ranked lists without needing comparable scores. It uses only positions, making it perfect for fusing BM25 (scores 0-20) with cosine similarity (scores 0-1).",
+      keyFormulas: [
+        {
+          name: "RRF Score",
+          latex: "score(d) = Σ 1/(k + rank_i(d))",
+          explanation: "Sum over all rankers. k=60 is standard. Rank is 1-based (first = rank 1).",
+        },
+        {
+          name: "Why k=60?",
+          latex: "k dampens the impact of top positions",
+          explanation: "With k=60, rank 1 scores 1/61 ≈ 0.016, rank 2 scores 1/62 ≈ 0.016. Smooth curve.",
+        },
+      ],
+      visualExplanation:
+        "Imagine combining Rotten Tomatoes and IMDB ratings. Instead of normalizing their different scales, RRF just looks at each movie's position on each list. If a movie is top-10 on both lists, it rises to the top.",
+      whyItMatters:
+        "RRF is why Hybrid Search works so well. Pinecone, Elasticsearch, and Weaviate all use variants of RRF because it's simple, robust, and requires no tuning of score normalization parameters.",
+      commonMistakes: [
+        "Using 0-based ranks (should be 1-based)",
+        "Forgetting to handle docs that only appear in one list",
+        "Not understanding that k=60 is a hyperparameter you can tune",
+      ],
+      interviewTips: [
+        "Explain why RRF solves the 'score normalization' problem",
+        "Know that RRF was invented by Cormack et al. (2009) for TREC",
+        "Mention that Weighted RRF can bias toward one retriever",
       ],
     },
   },

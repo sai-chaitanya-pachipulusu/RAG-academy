@@ -22,18 +22,18 @@ const TYPE_ICONS: Record<LearningResource["type"], string> = {
 };
 
 const TYPE_COLORS: Record<LearningResource["type"], string> = {
-  video: "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300",
-  article: "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300",
-  paper: "bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300",
-  github: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-  course: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300",
-  documentation: "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300",
+  video: "bg-red-100 text-red-700",
+  article: "bg-blue-100 text-blue-700",
+  paper: "bg-purple-100 text-purple-700",
+  github: "bg-zinc-100 text-zinc-700",
+  course: "bg-emerald-100 text-emerald-700",
+  documentation: "bg-amber-100 text-amber-700",
 };
 
 const DIFFICULTY_COLORS: Record<string, string> = {
-  beginner: "text-emerald-600 dark:text-emerald-400",
-  intermediate: "text-amber-600 dark:text-amber-400",
-  advanced: "text-red-600 dark:text-red-400",
+  beginner: "text-emerald-600",
+  intermediate: "text-amber-600",
+  advanced: "text-red-600",
 };
 
 export function LearnMoreSection({ challengeSlug, topics, limit = 3 }: Props) {
@@ -54,10 +54,10 @@ export function LearnMoreSection({ challengeSlug, topics, limit = 3 }: Props) {
   if (resources.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-gradient-to-br from-indigo-50/50 to-purple-50/50 p-4 dark:border-zinc-800 dark:from-indigo-950/20 dark:to-purple-950/20">
+    <div className="rounded-xl border border-zinc-200 bg-gradient-to-br from-indigo-50/50 to-purple-50/50 p-4">
       <div className="flex items-center gap-2">
         <span className="text-lg">📖</span>
-        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+        <h3 className="text-sm font-semibold text-zinc-900">
           Learn More
         </h3>
       </div>
@@ -72,13 +72,13 @@ export function LearnMoreSection({ challengeSlug, topics, limit = 3 }: Props) {
             href={resource.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="group block rounded-lg border border-zinc-200 bg-white p-3 transition-all hover:border-indigo-300 hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-indigo-800"
+            className="group block rounded-lg border border-zinc-200 bg-white p-3 transition-all hover:border-indigo-300 hover:shadow-sm"
           >
             <div className="flex items-start gap-3">
               <span className="text-xl">{TYPE_ICONS[resource.type]}</span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-zinc-900 group-hover:text-indigo-600 dark:text-zinc-100 dark:group-hover:text-indigo-400 truncate">
+                  <p className="text-sm font-medium text-zinc-900 group-hover:text-indigo-600 truncate">
                     {resource.title}
                   </p>
                   <span

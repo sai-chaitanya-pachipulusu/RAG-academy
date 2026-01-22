@@ -14,9 +14,9 @@ That's why it's used for embeddings:
 
 ## What you're implementing
 
-$$
-\cos(\theta)=\frac{a\cdot b}{\|a\|\cdot\|b\|}
-$$
+```
+cos(θ) = (a · b) / (||a|| × ||b||)
+```
 
 ## Edge Cases (Critical for Production)
 
@@ -52,22 +52,21 @@ mag = np.linalg.norm(vec)
 ## Common pitfalls
 
 - Not guarding the zero-norm case.
-- Computing norms incorrectly (must be sqrt(sum(x²))).
+- Computing norms incorrectly (must be sqrt(sum(x^2))).
 - Floating-point precision: `1.0000000001` should clamp to `1.0`.
 - Using L2 distance when you meant cosine (they're related but different).
 
 ## Cosine vs L2 Distance
 
-| Metric            | Formula           | Range   | Use when                 |
-| ----------------- | ----------------- | ------- | ------------------------ |
-| Cosine similarity | dot / (mag × mag) | [-1, 1] | Semantic similarity      |
-| Cosine distance   | 1 - cosine_sim    | [0, 2]  | Some vector DBs use this |
-| L2 (Euclidean)    | sqrt(sum((a-b)²)) | [0, ∞)  | Magnitude matters        |
-| Dot product       | sum(a × b)        | (-∞, ∞) | Normalized vectors       |
+| Metric            | Formula            | Range   | Use when                 |
+| ----------------- | ------------------ | ------- | ------------------------ |
+| Cosine similarity | dot / (mag \* mag) | [-1, 1] | Semantic similarity      |
+| Cosine distance   | 1 - cosine_sim     | [0, 2]  | Some vector DBs use this |
+| L2 (Euclidean)    | sqrt(sum((a-b)^2)) | [0, ∞)  | Magnitude matters        |
+| Dot product       | sum(a \* b)        | (-∞, ∞) | Normalized vectors       |
 
 For normalized vectors: **cosine similarity = dot product** and **L2 distance ∝ 1 - cosine similarity**
 
 ## After you pass
 
 Use cosine similarity to build **Top-K retrieval**.
-

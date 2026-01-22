@@ -1,7 +1,4 @@
-"use client";
-
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
@@ -18,26 +15,14 @@ type Props = {
   height?: string;
 };
 
-function usePrefersDark() {
-  const [dark, setDark] = useState(false);
 
-  useEffect(() => {
-    const mql = window.matchMedia("(prefers-color-scheme: dark)");
-    const update = () => setDark(mql.matches);
-    update();
-    mql.addEventListener("change", update);
-    return () => mql.removeEventListener("change", update);
-  }, []);
-
-  return dark;
-}
 
 export function CodeEditor({
   value,
   onChange,
   height = "clamp(420px, 70vh, 860px)",
 }: Props) {
-  const prefersDark = usePrefersDark();
+
 
   return (
     <div
@@ -49,7 +34,7 @@ export function CodeEditor({
         defaultLanguage="python"
         value={value}
         onChange={(v) => onChange(v ?? "")}
-        theme={prefersDark ? "vs-dark" : "vs"}
+        theme="vs"
         options={{
           minimap: { enabled: false },
           fontSize: 14,

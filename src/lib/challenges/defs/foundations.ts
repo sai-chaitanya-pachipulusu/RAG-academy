@@ -5,7 +5,7 @@ export const FOUNDATIONS_CHALLENGES: RawChallenge[] = [
     slug: "dot-product",
     title: "Dot Product",
     description:
-      "Implement the dot product — a core building block for cosine similarity and embedding search. Why: It's the fundamental operation for semantic similarity. Solves: Enables comparing high-dimensional meaning commonly used in AI.",
+      "Goal: Implement dot product — the primitive behind cosine similarity and vector search. Why: It's the fundamental operation for measuring semantic similarity between embeddings. Production impact: Vector databases compute millions of dot products per second; understanding this operation is essential for optimizing retrieval performance.",
     group: "Phase 0 — Vector Math & Foundations",
     difficulty: "easy",
     xpReward: 25,
@@ -25,15 +25,27 @@ def dot(a: List[float], b: List[float]) -> float:
     testCode: `def _almost_equal(x, y, eps=1e-9):
     return abs(x - y) <= eps
 
-assert dot([], []) == 0.0
-assert dot([1, 2, 3], [4, 5, 6]) == 32
-# Test negative numbers
-assert dot([-1, 2], [3, -4]) == -11
-assert _almost_equal(dot([0.1, 0.2], [0.3, 0.4]), 0.11)
+# Helper to provide descriptive errors
+def assert_eq(actual, expected, msg):
+    assert actual == expected, f"{msg}: Expected {expected}, but got {actual}"
+
+def assert_near(actual, expected, msg):
+    assert _almost_equal(actual, expected), f"{msg}: Expected {expected}, but got {actual}"
+
+assert_eq(dot([], []), 0.0, "Dot product of empty lists should be 0.0")
+
+result = dot([1, 2, 3], [4, 5, 6])
+assert_eq(result, 32, "Simple dot product ([1,2,3] · [4,5,6]) failed")
+
+result = dot([-1, 2], [3, -4])
+assert_eq(result, -11, "Dot product with negative numbers ([-1,2] · [3,-4]) failed")
+
+result = dot([0.1, 0.2], [0.3, 0.4])
+assert_near(result, 0.11, "Dot product with floats ([0.1,0.2] · [0.3,0.4]) failed")
 
 try:
     dot([1, 2], [1])
-    raise AssertionError("Expected ValueError for length mismatch")
+    raise AssertionError("Validation failed: Did not raise ValueError for length mismatch")
 except ValueError:
     pass
 
@@ -69,7 +81,7 @@ def dot(a: List[float], b: List[float]) -> float:
     slug: "cosine-similarity",
     title: "Cosine Similarity",
     description:
-      "Implement cosine similarity — the most common similarity metric for embedding vectors. Why: It normalizes vector magnitude. Solves: Prevents long documents from artificially scoring higher just because they have more words.",
+      "Goal: Implement cosine similarity — the industry-standard metric for comparing embeddings. Why: Unlike dot product, it normalizes for vector magnitude, so document length doesn't artificially inflate similarity scores. Production impact: Every semantic search engine (Pinecone, Weaviate, Qdrant) defaults to cosine similarity for text embeddings.",
     group: "Phase 0 — Vector Math & Foundations",
     difficulty: "easy",
     xpReward: 25,
@@ -157,7 +169,7 @@ def cosine_similarity(a: List[float], b: List[float]) -> float:
     slug: "euclidean-distance",
     title: "Euclidean Distance",
     description:
-      "Implement Euclidean distance — useful for understanding geometric distance vs similarity. Why: Essential for clustering and finding nearest neighbors. Solves: Provides a direct spatial metric for how 'far apart' two concepts are.",
+      "Goal: Implement Euclidean distance — the L2 norm between points in vector space. Why: While cosine measures direction, Euclidean measures absolute spatial distance between concepts. Production impact: Essential for clustering algorithms (K-Means), geospatial search, and applications where vector magnitude represents importance.",
     group: "Phase 0 — Vector Math & Foundations",
     difficulty: "easy",
     xpReward: 25,
@@ -224,7 +236,7 @@ def euclidean_distance(a: List[float], b: List[float]) -> float:
     slug: "tokenizer-basics",
     title: "Tokenizer Basics",
     description:
-      "Implement a simplified word tokenizer to understand context windows. Note: Real LLM tokenizers (BPE, WordPiece, SentencePiece) work differently — they split into subwords, not words. This challenge teaches the concept, not the production algorithm.",
+      "Goal: Build a basic word tokenizer to understand how LLMs process text. Why: LLMs don't see sentences — they see token sequences. Context windows, API costs, and prompt engineering all depend on tokenization. Production impact: Knowing token counts prevents 'Context Window Exceeded' errors and helps estimate API costs (\$0.01 per 1K tokens adds up fast).",
     group: "Phase 0 — Vector Math & Foundations",
     difficulty: "easy",
     xpReward: 25,

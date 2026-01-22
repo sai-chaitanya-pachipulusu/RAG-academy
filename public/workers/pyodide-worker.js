@@ -44,8 +44,7 @@ except Exception:
     ok = False
     traceback.print_exc()
 
-
-json.dumps({
+__result__ = json.dumps({
   "ok": ok,
   "stdout": _stdout.getvalue(),
   "stderr": _stderr.getvalue(),
@@ -53,6 +52,7 @@ json.dumps({
   "metrics": ns.get("_METRICS", None),
   "visuals": ns.get("_VISUALS", None)
 })
+__result__
 `;
 
 // Message format:

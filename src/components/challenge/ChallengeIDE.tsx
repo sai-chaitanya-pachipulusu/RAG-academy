@@ -32,6 +32,7 @@ import {
 import { upsertChallengeProgressFromLocal, upsertProfileFromLocal } from "@/lib/supabase/progress";
 import { deepClone } from "@/lib/utils/deepClone";
 import { CURRICULUM_STAGE_LABELS } from "@/lib/curriculum/stages";
+import { isPythonTraceback, formatTestFailure, parsePythonError, formatErrorForDisplay } from "@/lib/pyodide/errorParser";
 
 type Neighbor = Pick<Challenge, "slug" | "title" | "group">;
 
@@ -234,8 +235,8 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-2">
+    <div className="flex flex-col gap-4">
+      <header className="flex flex-col gap-1.5">
         <div>
           <Link
             href="/challenges"
@@ -275,15 +276,15 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
 
         {/* Real-World Context - LeetCode Differentiator */}
         {(challenge.realWorld || challenge.complexity) && (
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {challenge.complexity && (
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-3 dark:border-zinc-800 dark:bg-zinc-900/50">
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-2.5">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Complexity</p>
                 <div className="mt-1 flex flex-wrap gap-2">
-                  <code className="rounded bg-zinc-200/80 px-1.5 py-0.5 text-xs font-medium text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
+                  <code className="rounded bg-zinc-200/80 px-1.5 py-0.5 text-xs font-medium text-zinc-800">
                     Time: {challenge.complexity.time}
                   </code>
-                  <code className="rounded bg-zinc-200/80 px-1.5 py-0.5 text-xs font-medium text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
+                  <code className="rounded bg-zinc-200/80 px-1.5 py-0.5 text-xs font-medium text-zinc-800">
                     Space: {challenge.complexity.space}
                   </code>
                 </div>
@@ -294,13 +295,13 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
             )}
 
             {challenge.realWorld?.companies && challenge.realWorld.companies.length > 0 && (
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-3 dark:border-zinc-800 dark:bg-zinc-900/50">
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-2.5">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Used By</p>
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   {challenge.realWorld.companies.map((company) => (
                     <span
                       key={company}
-                      className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-800 dark:bg-blue-950/50 dark:text-blue-300"
+                      className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-800"
                     >
                       {company}
                     </span>
@@ -310,13 +311,13 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
             )}
 
             {challenge.realWorld?.useCases && challenge.realWorld.useCases.length > 0 && (
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-3 dark:border-zinc-800 dark:bg-zinc-900/50">
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-2.5">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Use Cases</p>
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   {challenge.realWorld.useCases.map((useCase) => (
                     <span
                       key={useCase}
-                      className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300"
+                      className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-800"
                     >
                       {useCase}
                     </span>
@@ -328,9 +329,9 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
         )}
 
         {challenge.realWorld?.description && (
-          <div className="mt-3 rounded-xl border border-amber-200/50 bg-amber-50/50 p-3 dark:border-amber-900/30 dark:bg-amber-950/20">
-            <p className="text-xs font-medium text-amber-800 dark:text-amber-200">🏭 In Production</p>
-            <p className="mt-1 text-xs text-amber-700 dark:text-amber-300/80">
+          <div className="mt-2 rounded-lg border border-amber-200/50 bg-amber-50/50 p-2.5">
+            <p className="text-xs font-medium text-amber-800">🏭 In Production</p>
+            <p className="mt-1 text-xs text-amber-700">
               {challenge.realWorld.description}
             </p>
           </div>
@@ -338,7 +339,7 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
       </header>
 
       {children ? (
-        <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5">
           {children}
         </section>
       ) : null}
@@ -360,8 +361,8 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
         />
       )}
 
-      <section className="grid gap-4 lg:grid-cols-12">
-        <div className="flex flex-col gap-3 lg:col-span-9">
+      <section className="grid gap-3 lg:grid-cols-12">
+        <div className="flex flex-col gap-2 lg:col-span-9">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm font-medium">Editor (Python)</p>
             <div className="flex items-center gap-2">
@@ -369,51 +370,57 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
               <MicroTaskToggle
                 hasMicroTasks={hasMicroTasks}
                 isEnabled={microTaskMode}
-                onToggle={() => setMicroTaskMode(!microTaskMode)}
+                onToggleAction={() => setMicroTaskMode(!microTaskMode)}
               />
               {/* AI Code Review Button */}
               <CodeReviewButton onClick={() => setShowAIReview(true)} />
-              <button
-                type="button"
-                onClick={() => run("run")}
-                disabled={running !== null}
-                className="inline-flex h-9 items-center justify-center rounded-full bg-zinc-950 px-4 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
-              >
-                {running === "run" ? "Running…" : "Run"}
-              </button>
+              
               <button
                 type="button"
                 onClick={() => run("test")}
                 disabled={running !== null}
-                className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-950 hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50 dark:hover:bg-zinc-900"
+                className="inline-flex h-9 items-center justify-center rounded-full bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 shadow-sm transition-all"
               >
-                {running === "test" ? "Testing…" : "Test"}
+                {running === "test" ? (
+                  <>
+                    <span className="mr-2 h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white"></span>
+                    Running...
+                  </>
+                ) : (
+                  <>
+                    <span className="mr-2">▶</span> Run Code
+                  </>
+                )}
               </button>
+
               <button
                 type="button"
                 onClick={submit}
                 disabled={running !== null || completed}
-                className="inline-flex h-9 items-center justify-center rounded-full bg-emerald-600 px-4 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-60 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                className="inline-flex h-9 items-center justify-center rounded-full bg-emerald-600 px-4 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-60 shadow-sm transition-all"
               >
                 {running === "submit" ? "Submitting…" : "Submit"}
               </button>
+              
               <button
                 type="button"
                 onClick={() => {
-                  setCode(challenge.starterCode);
-                  setStdout("");
-                  setStderr("");
-                  setMeta(null);
-                  setState((prev: LocalProgressState) => {
-                    const next = { ...prev, challenges: { ...prev.challenges } };
-                    const existing = prev.challenges[challenge.slug];
-                    if (existing) next.challenges[challenge.slug] = { ...existing };
-                    resetChallenge(next, challenge.slug);
-                    return next;
-                  });
+                  if (confirm("Are you sure you want to reset your code to the starter template? This cannot be undone.")) {
+                    setCode(challenge.starterCode);
+                    setStdout("");
+                    setStderr("");
+                    setMeta(null);
+                    setState((prev: LocalProgressState) => {
+                      const next = { ...prev, challenges: { ...prev.challenges } };
+                      const existing = prev.challenges[challenge.slug];
+                      if (existing) next.challenges[challenge.slug] = { ...existing };
+                      resetChallenge(next, challenge.slug);
+                      return next;
+                    });
+                  }
                 }}
                 disabled={running !== null}
-                className="inline-flex h-9 items-center justify-center rounded-full px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-100 disabled:opacity-60 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 disabled:opacity-60 transition-all"
               >
                 Reset
               </button>
@@ -429,7 +436,7 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
           </p>
         </div>
 
-        <div className="flex flex-col gap-3 lg:col-span-3">
+        <div className="flex flex-col gap-2 lg:col-span-3">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium">Output</p>
             {meta?.durationMs !== undefined ? (
@@ -468,30 +475,58 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
              </div>
           )}
 
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4">
             {stdout ? (
-              <pre className="whitespace-pre-wrap break-words font-mono text-sm leading-6 text-zinc-950 dark:text-zinc-50">
+              <pre className="whitespace-pre-wrap break-words font-mono text-sm leading-6 text-zinc-950">
                 {stdout}
               </pre>
+            ) : stderr ? (
+               <p className="text-sm italic text-zinc-500">
+                 (See error below)
+               </p>
+            ) : meta ? (
+              <p className="text-sm italic text-zinc-500 text-emerald-600">
+                ✓ Code executed successfully.
+                <br />
+                <span className="mt-1 block text-xs not-italic text-zinc-400">
+                  Tip: Use <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-zinc-800">print()</code> to see values.
+                </span>
+              </p>
             ) : (
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                Run or test your code to see results here.
+              <p className="text-sm text-zinc-500">
+                Run your code to see results here.
               </p>
             )}
           </div>
 
-          {stderr ? (
-            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/30">
-              <p className="text-xs font-medium text-red-700 dark:text-red-300">
-                Errors
-              </p>
-              <pre className="mt-2 whitespace-pre-wrap break-words font-mono text-sm leading-6 text-red-900 dark:text-red-200">
-                {stderr}
-              </pre>
-            </div>
-          ) : null}
+          {stderr ? (() => {
+            // Parse and format Python errors for better UX
+            const isTraceback = isPythonTraceback(stderr);
+            const formattedError = isTraceback ? formatTestFailure(stderr) : stderr;
+            
+            return (
+              <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-red-700">
+                    {isTraceback ? "Python Error" : "Error"}
+                  </p>
+                  {isTraceback && (
+                    <details className="text-xs text-red-600">
+                      <summary className="cursor-pointer hover:text-red-700">Show full traceback</summary>
+                      <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-red-100 p-2 text-[10px] leading-relaxed">
+                        {stderr}
+                      </pre>
+                    </details>
+                  )}
+                </div>
+                <pre className="mt-2 whitespace-pre-wrap break-words font-mono text-sm leading-6 text-red-900">
+                  {formattedError}
+                </pre>
+              </div>
+            );
+          })() : null}
 
-          <div className="rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+          <div className="rounded-xl border border-zinc-200 p-3 dark:border-zinc-800">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-medium">Hints</p>
               <button
@@ -508,13 +543,13 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
               </button>
             </div>
 
-            <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-zinc-700 dark:text-zinc-300">
+            <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm text-zinc-700 dark:text-zinc-300">
               {challenge.hints.slice(0, revealedHints).map((hint) => (
                 <li key={hint}>{hint}</li>
               ))}
             </ol>
             {revealedHints === 0 ? (
-              <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
                 Stuck? Reveal hints progressively.
               </p>
             ) : null}
@@ -544,7 +579,7 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
         </div>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2">
+      <section className="grid gap-2 sm:grid-cols-2">
         {prev ? (
           <CardLink href={`/challenges/${prev.slug}`}>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">Previous challenge</p>
@@ -592,7 +627,7 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
 
       {/* Related Challenges - LeetCode Differentiator */}
       {challenge.relatedChallenges && challenge.relatedChallenges.length > 0 && (
-        <section className="mt-6">
+        <section className="mt-4">
           <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Continue Learning</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {challenge.relatedChallenges.map((slug) => (
@@ -609,7 +644,7 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
       )}
 
       {challenge.benchmark && (
-        <section className="mt-8">
+        <section className="mt-5">
           <Leaderboard slug={challenge.slug} />
         </section>
       )}

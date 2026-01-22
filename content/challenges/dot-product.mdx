@@ -1,33 +1,27 @@
 ﻿<Callout title="Goal" variant="info">
-  Implement dot product — the primitive behind cosine similarity and a huge amount of vector search.
+  Implement dot product — the primitive behind cosine similarity and a huge
+  amount of vector search.
 </Callout>
 
 ## Why this matters in production
 
-Vector databases ultimately reduce “retrieval” to **scoring** candidates.
+Vector databases like **Pinecone**, **Weaviate**, and **Milvus** ultimately reduce "retrieval" to fast candidate **scoring**.
 
-Dot product shows up everywhere:
+The Dot Product is the fundamental scoring operation:
 
-- cosine similarity (dot + norms)
-- maximum inner product search (MIPS)
-- attention (query · key)
+- **Cosine Similarity** is just normalized dot product.
+- **Attention Mechanisms** in Transformers use dot product (`Query · Key`).
+- **Maximum Inner Product Search (MIPS)** is the standard retrieval task.
 
-If you can’t implement this correctly, you can’t debug retrieval quality.
+If you can't implement this efficiently, you can't build scalable RAG.
 
-## What you’re implementing
+## What you're implementing
 
-- Validate equal lengths (raise `ValueError` if not).
+- Validate equal lengths (raise `ValueError` if mismatch).
 - Handle empty vectors (`dot([], []) == 0.0`).
 - Return a `float`.
 
 ## Common pitfalls
 
-- Forgetting length checks (silently truncating via `zip`).
-- Returning `int` instead of `float` (tests may still pass sometimes — don’t rely on it).
-
-## After you pass
-
-Do **Cosine Similarity**, then implement **Top‑K retrieval**.
-
-
-
+- Forgetting length checks (python's `zip` truncates silently!).
+- Returning `int` instead of `float` (type safety matters in production).
