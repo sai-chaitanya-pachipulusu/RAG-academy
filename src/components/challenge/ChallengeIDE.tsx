@@ -14,6 +14,7 @@ import { AICodeReview, CodeReviewButton } from "./AICodeReview";
 import { InterviewTimer, InterviewModeToggle, getInterviewDuration } from "./InterviewTimer";
 import { TheoryTab, CHALLENGE_THEORY } from "./TheoryTab";
 import { MicroTaskView, MicroTaskToggle } from "./MicroTaskView";
+import { SubmissionHistory } from "./SubmissionHistory";
 import { getMicroTasks } from "@/lib/challenges/microTasks";
 import { CodeEditor } from "./CodeEditor";
 import { useLocalProgress } from "@/components/providers/LocalProgressProvider";
@@ -33,6 +34,7 @@ import { upsertChallengeProgressFromLocal, upsertProfileFromLocal } from "@/lib/
 import { deepClone } from "@/lib/utils/deepClone";
 import { CURRICULUM_STAGE_LABELS } from "@/lib/curriculum/stages";
 import { isPythonTraceback, formatTestFailure, parsePythonError, formatErrorForDisplay } from "@/lib/pyodide/errorParser";
+import { saveSubmission } from "@/lib/supabase/submissions";
 
 type Neighbor = Pick<Challenge, "slug" | "title" | "group">;
 
@@ -189,6 +191,25 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
         metrics: result.metrics,
         visuals: (result as any).visuals,
       });
+
+      // Save EVERY submission attempt to history (like LeetCode)
+      if (user) {
+        const errorInfo = result.stderr || result.error;
+        const parsedError = errorInfo && isPythonTraceback(errorInfo) 
+          ? parsePythonError(errorInfo) 
+          : null;
+        
+        saveSubmission(user.id, challenge.slug, {
+          code,
+          language: isTypeScript ? "typescript" : "python",
+          passed: result.ok,
+          executionTimeMs: result.durationMs,
+          score: result.score ?? undefined,
+          errorMessage: errorInfo || undefined,
+          errorType: parsedError?.type || undefined,
+          metrics: result.metrics || undefined,
+        }).catch(e => console.warn("Failed to save submission history:", e));
+      }
 
       if (result.ok) {
         setState((prev: LocalProgressState) => {
@@ -576,6 +597,12 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
 
           {/* Learn More - External Resources */}
           <LearnMoreSection challengeSlug={challenge.slug} />
+
+          {/* Submission History - like LeetCode */}
+          <SubmissionHistory
+            challengeSlug={challenge.slug}
+            onLoadCode={(loadedCode) => setCode(loadedCode)}
+          />
         </div>
       </section>
 

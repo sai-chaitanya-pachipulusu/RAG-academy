@@ -4,6 +4,10 @@ import { Suspense, useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSupabaseAuth } from "@/components/providers/SupabaseAuthProvider";
+import { getPlatformStats } from "@/lib/challenges/catalog";
+
+// Get platform stats at module level for consistent display
+const platformStats = getPlatformStats();
 
 function LoginContent() {
   const { signIn, signUp, user, loading: authLoading } = useSupabaseAuth();
@@ -89,8 +93,8 @@ return (
 
           <div className="grid grid-cols-3 gap-12">
             {[
-              { value: "50+", label: "Challenges" },
-              { value: "12", label: "Modules" },
+              { value: `${platformStats.totalChallenges}+`, label: "Challenges" },
+              { value: String(platformStats.totalModules), label: "Modules" },
               { value: "Free", label: "Access" },
             ].map((stat) => (
               <div key={stat.label}>

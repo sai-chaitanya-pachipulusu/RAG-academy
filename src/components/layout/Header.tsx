@@ -7,6 +7,7 @@ import { HeaderAuth } from "./HeaderAuth";
 const NAV_LINKS = [
   { href: "/learn", label: "Learn", icon: "book" },
   { href: "/challenges", label: "Practice", icon: "code" },
+  { href: "/stats", label: "Stats", icon: "chart" },
   { href: "/settings", label: "Settings", icon: "cog" },
 ];
 

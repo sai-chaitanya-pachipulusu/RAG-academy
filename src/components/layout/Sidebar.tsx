@@ -2,16 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { getPlatformStats } from "@/lib/challenges/catalog";
+
+// Get dynamic stats at module level
+const platformStats = getPlatformStats();
 
 const NAV = [
-  { href: "/learn", label: "Learn", desc: "43 lessons & 19 playbooks" },
-  { href: "/challenges", label: "Practice", desc: "250+ challenges" },
+  { href: "/learn", label: "Learn", desc: "Lessons & playbooks" },
+  { href: "/challenges", label: "Practice", desc: `${platformStats.totalChallenges}+ challenges` },
+  { href: "/stats", label: "My Stats", desc: "Performance analytics" },
   { href: "/leaderboard", label: "Leaderboard", desc: "Top performers" },
   { href: "/compare", label: "Compare", desc: "Tools & techniques" },
   { href: "/projects", label: "Projects", desc: "Templates & tracks" },
   { href: "/events", label: "Events", desc: "Weekly challenges" },
   { href: "/contribute", label: "Contribute", desc: "Help build RAG Academy" },
 ];
+
 
 export function Sidebar() {
   const pathname = usePathname() ?? "/";
