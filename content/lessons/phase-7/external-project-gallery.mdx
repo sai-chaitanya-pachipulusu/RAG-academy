@@ -5,13 +5,31 @@ order: 10
 category: "resources"
 stage: frontier
 lastUpdated: "2025-01-25"
+outcomes:
+  - "Explore open source RAG projects."
+  - "Identify production patterns."
+  - "Select reference architectures."
+tags: ["projects", "gallery", "open-source"]
+sources:
+  - title: "AI Engineering Hub"
+    url: "https://github.com/patchy631/ai-engineering-hub"
+    type: "code"
 ---
 
-# External RAG Project Gallery
+## Goals
 
-A curated collection of high-quality, production-ready RAG projects from the open-source community. Use these as references, learning resources, or starting points for your own implementations.
+- Explore reference implementations for different RAG patterns.
+- Identify reusable components for your own system.
+- benchmark your architecture against open-source standards.
 
----
+## Prereqs
+
+- **RAG Fundamentals** (Phase 1-2).
+- **Agentic RAG** (Phase 5).
+
+## Core idea
+
+Learning from existing code is often faster than starting from scratch. This gallery groups high-quality open-source projects by complexity and pattern. Use these as reference implementations.
 
 ## 🟢 Beginner Projects
 
@@ -168,33 +186,43 @@ _Complex systems, fine-tuning, and production deployments._
 
 ---
 
-## 🎯 Learning Path Recommendations
+## Production defaults
 
-### Beginner (Week 1-2)
+### Recommended Stack Pattern
+
+Based on these projects, the consensus stack for 2024/2025:
+
+- **Orchestration**: LangChain or LlamaIndex
+- **Vector DB**: Qdrant or Pinecone (Serverless)
+- **Model**: GPT-4o (Reasoning) or Llama 3 (Local)
+- **Deployment**: Vercel (Frontend) + FastAPI (Backend)
+
+## Failure modes
+
+### 1. Stale Dependencies
+
+Open source projects rot quickly. **Always check `requirements.txt` or `package.json` for versions.**
+
+### 2. Missing Auth
+
+Many prototypes skip authentication. **Do not deploy to production without adding Auth0/Supabase/NextAuth.**
+
+### 3. Rate Limit Naivety
+
+Most demos don't handle 429 errors. **Add exponential backoff before using in production.**
+
+## Do next
+
+### Beginner Path (Week 1-2)
 
 1. Start with [Simple RAG Workflow](https://github.com/patchy631/ai-engineering-hub/blob/main/simple-rag-workflow)
 2. Try [Document Chat RAG](https://github.com/patchy631/ai-engineering-hub/blob/main/document-chat-rag)
-3. Explore [Basic RAG Chain](https://github.com/Shubhamsaboo/awesome-llm-apps/blob/main/rag_tutorials/rag_chain)
 
-### Intermediate (Week 3-4)
-
-1. Implement [Hybrid Search RAG](https://github.com/Shubhamsaboo/awesome-llm-apps/blob/main/rag_tutorials/hybrid_search_rag)
-2. Add [Corrective RAG](https://github.com/Shubhamsaboo/awesome-llm-apps/blob/main/rag_tutorials/corrective_rag)
-3. Deploy with [Deploy Agentic RAG](https://github.com/patchy631/ai-engineering-hub/blob/main/deploy-agentic-rag)
-
-### Advanced (Week 5-8)
+### Advanced Path (Week 5-8)
 
 1. Study [NotebookLM Clone](https://github.com/patchy631/ai-engineering-hub/blob/main/notebook-lm-clone)
-2. Build with [Zep Memory Assistant](https://github.com/patchy631/ai-engineering-hub/blob/main/zep-memory-assistant)
-3. Reference [Microsoft GraphRAG](https://github.com/microsoft/graphrag)
+2. Reference [Microsoft GraphRAG](https://github.com/microsoft/graphrag)
 
----
+### Attribution
 
-## 📝 Attribution
-
-These projects are curated from:
-
-- **[patchy631/ai-engineering-hub](https://github.com/patchy631/ai-engineering-hub)** - 93+ production-ready AI projects
-- **[Shubhamsaboo/awesome-llm-apps](https://github.com/Shubhamsaboo/awesome-llm-apps)** - Curated LLM apps collection
-
-All projects linked are open-source and maintained by their respective authors. Please review individual project licenses before use in production.
+Curated from [patchy631/ai-engineering-hub](https://github.com/patchy631/ai-engineering-hub) and [Shubhamsaboo/awesome-llm-apps](https://github.com/Shubhamsaboo/awesome-llm-apps).

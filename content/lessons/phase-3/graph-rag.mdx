@@ -11,73 +11,62 @@ next:
   phase: phase-3
   slug: multi-turn-rag
 tags: ["graph-rag", "knowledge-graphs", "multi-hop", "synthesis"]
+outcomes:
+  - "Understand the GraphRAG architecture."
+  - "Implement entity extraction and community detection."
+  - "Perform graph-augmented retrieval."
+sources:
+  - title: "From Local to Global: A Graph RAG Approach to Query-Focused Summarization (Microsoft)"
+    url: "https://arxiv.org/abs/2404.16130"
+    type: "paper"
+  - title: "Microsoft GraphRAG Repo"
+    url: "https://github.com/microsoft/graphrag"
+    type: "code"
 ---
 
-# Graph RAG: Understanding Connections, Not Just Content
+## Goals
 
-Traditional RAG finds documents. **Graph RAG finds connections.** This lesson teaches you when and how to use Graph RAG for complex reasoning tasks.
+- Understand when to use Graph RAG vs Traditional RAG.
+- Learn the end-to-end Graph RAG pipeline: Extraction -> Community Detection -> Summarization.
+- Implement a graph-augmented retrieval system.
 
-## The Core Insight
+## Prereqs
 
-> "The pattern: Graph RAG excels when you need to understand **connections**, not just **content**."
+- **Reasoning RAG** (Phase 3).
+- Basic understanding of **Knowledge Graphs** (Phase 4 intro recommended but not required).
 
----
+## Core idea
 
-## The Three Problems Graph RAG Solves
+Traditional RAG finds documents. **Graph RAG finds connections.** This approach excels when you need to understand relationships across your entire corpus, not just semantic similarity.
 
-### Problem 1: Multi-Hop Reasoning
+### The Three Problems Graph RAG Solves
+
+#### Problem 1: Multi-Hop Reasoning
 
 **Question:** "Which projects are at risk based on team member dependencies?"
+**Graph RAG** Traces: `Team A → depends on → Person X → also on → Project Y → behind schedule`
 
-| Approach      | Response                                                                         |
-| ------------- | -------------------------------------------------------------------------------- |
-| **Naive RAG** | Returns docs mentioning "risk" and "projects" separately                         |
-| **Graph RAG** | Traces: `Team A → depends on → Person X → also on → Project Y → behind schedule` |
-
-The naive approach finds **keywords**. Graph RAG follows **relationships**.
-
-### Problem 2: Thematic Synthesis
+#### Problem 2: Thematic Synthesis
 
 **Question:** "What are the recurring themes in our research?"
+**Graph RAG** Identifies **concept clusters** (communities) across ALL documents.
 
-| Approach      | Response                                             |
-| ------------- | ---------------------------------------------------- |
-| **Naive RAG** | Retrieves the most similar documents                 |
-| **Graph RAG** | Identifies **concept clusters** across ALL documents |
-
-Finding themes requires understanding how ideas connect across your entire corpus, not just the top-10 similar docs.
-
-### Problem 3: Relationship Discovery
+#### Problem 3: Relationship Discovery
 
 **Question:** "How are these two topics connected?"
+**Graph RAG** Explains the path: "Topic A connects to Topic B through concepts X, Y, and Z."
 
-| Approach      | Response                                                                                   |
-| ------------- | ------------------------------------------------------------------------------------------ |
-| **Naive RAG** | "Here are docs about topic A and topic B"                                                  |
-| **Graph RAG** | "Topic A connects to topic B through concepts X, Y, and Z mentioned in these 10 documents" |
-
-This is the difference between **co-occurrence** and **explanation**.
-
----
-
-## The Decision Framework
-
-### Use Graph RAG When:
+### When to use Graph RAG
 
 - ✅ Multi-document synthesis needed
 - ✅ Relationship mapping matters
 - ✅ "How do these connect?" questions
-- ✅ Knowledge graph construction required
-- ✅ Cross-departmental or cross-domain insights
-- ✅ Regulatory/compliance tracing
 
-### Continue with Traditional RAG When:
+### When to stick with Traditional RAG
 
 - ⚡ Simple similarity search
-- ⚡ Single-document retrieval
-- ⚡ "Find documents about X" questions
 - ⚡ Speed is critical (< 100ms latency)
-- ⚡ Limited computational budget
+- ⚡ "Find documents about X" questions
 
 ---
 
@@ -254,84 +243,46 @@ def graph_rag_retrieve(query: str, graph: nx.Graph, summaries: dict) -> list[str
 
 ## Real-World Use Cases
 
-### 1. Enterprise Knowledge Management
+- **Enterprise Knowledge**: "What expertise do we need?" (Tracing team dependencies)
+- **Research Synthesis**: "How does this paper relate?" (Citation graph traversal)
+- **Compliance**: "Show data flows." (System lineage)
 
-- **Query:** "What expertise do we need for the AI initiative?"
-- **Graph Path:** `AI Initiative → requires → ML Engineers → similar_to → existing team in Dept X`
+## Production defaults
 
-### 2. Research Synthesis
+### When to deploy
 
-- **Query:** "How does this new paper relate to our existing research?"
-- **Graph Path:** `New Paper → cites → Method A → used_by → Our Paper 2022 → extends → Our Paper 2020`
+Graph RAG is expensive. Use it for offline analysis or high-value queries where 5-10s latency is acceptable.
 
-### 3. Compliance and Audit
+### Performance vs Traditional RAG
 
-- **Query:** "Show me all data flows involving customer PII"
-- **Graph Path:** `Customer PII → stored_in → Database A → accessed_by → Service B → logs_to → System C`
+| Metric                   | Traditional RAG | Graph RAG   |
+| :----------------------- | :-------------- | :---------- |
+| **Latency**              | 50-200ms        | 500-2000ms+ |
+| **Accuracy (Multi-hop)** | ~30%            | ~75%        |
+| **Cost**                 | Low             | Medium-High |
 
-### 4. Customer Intelligence
+### Recommended Settings
 
-- **Query:** "Why did this customer segment churn?"
-- **Graph Path:** `Churned Customers → complained_about → Feature X → depends_on → Service Y → had_outage`
+- **Community Detection**: Leiden algorithm (resolution 1.0)
+- **Summaries**: Abstractive, 50-100 words per community
+- **Graph Pruning**: Remove nodes with degree < 2 to reduce noise
 
----
+## Failure modes
 
-## Graph RAG vs. Traditional RAG: Performance Comparison
+### 1. The "Everything Connects" Trap
 
-| Metric                  | Traditional RAG | Graph RAG   |
-| ----------------------- | --------------- | ----------- |
-| **Latency**             | 50-200ms        | 500-2000ms  |
-| **Multi-hop accuracy**  | ~30%            | ~75%        |
-| **Synthesis quality**   | Low             | High        |
-| **Infrastructure cost** | Low             | Medium-High |
-| **Setup complexity**    | Simple          | Complex     |
+If your graph is too dense, everything connects to everything. The retrieval becomes noisy and expensive. **Fix:** Be specific in your extraction prompt about WHICH relationships matter.
 
----
+### 2. Entity Duplication
 
-## Common Mistakes
+"OpenAI", "Open AI", and "OPENAI" appearing as different nodes. **Fix:** Run entity resolution (deduplication) before graph construction.
 
-### ❌ Using Graph RAG for Simple Lookups
+### 3. Missing Thematic Synthesis
 
-If your query is "What is the return policy?", traditional RAG is faster and sufficient.
+Building a graph without _community summaries_ misses the "forest for the trees". **Fix:** Ensure step 4 (summarization) is robust.
 
-### ❌ Skipping Entity Normalization
+## Do next
 
-"OpenAI", "OPENAI", and "Open AI" should be the same node. Implement coreference resolution.
-
-### ❌ No Community Summarization
-
-Without summaries, you lose the "thematic synthesis" capability. Summarize communities at index time.
-
-### ❌ Graph Too Dense or Too Sparse
-
-- Too dense: Everything connects to everything (noisy)
-- Too sparse: Missing important relationships
-
-Tune your extraction prompts to balance precision and recall.
-
----
-
-## Interview Tips
-
-### Question: "When would you choose Graph RAG over traditional RAG?"
-
-> **Strong Answer:** "I would use Graph RAG when the question requires understanding relationships across documents—like 'how are these concepts connected?' or 'what patterns exist across our data?' For simple similarity search like 'find documents about topic X', traditional RAG is faster and more cost-effective. It's a trade-off between reasoning depth and latency."
-
-### Question: "How would you implement Graph RAG for a new project?"
-
-> **Strong Answer:** "I would start with entity extraction using NER plus an LLM for relationship extraction. Then build a knowledge graph, apply community detection (Leiden algorithm), and generate summaries for each community. At query time, I'd do entity linking, graph traversal for multi-hop context, and combine with traditional vector search for a hybrid approach."
-
----
-
-## Related Challenges
-
-- [Entity Extraction](/challenges/entity-extraction) - Extract knowledge graph triples
-- [Graph Traversal RAG](/challenges/graph-traversal-rag) - Implement BFS/DFS for retrieval
-- [Multi-Hop QA](/challenges/multi-hop-qa) - Answer questions requiring reasoning chains
-- [Community Detection](/challenges/community-detection) - Group related entities
-
-## External Resources
-
-- [Microsoft GraphRAG](https://github.com/microsoft/graphrag) - Production implementation
-- [LlamaIndex Property Graph](https://docs.llamaindex.ai/en/stable/examples/property_graph/) - Framework support
-- [Leiden Algorithm Paper](https://arxiv.org/abs/1810.08473) - Community detection
+- [Entity Extraction Challenge](/challenges/entity-extraction) - Build the triple extractor.
+- [Graph Traversal Challenge](/challenges/graph-traversal-rag) - Implement the retrieval logic.
+- [Microsoft GraphRAG](https://github.com/microsoft/graphrag) - Study the reference implementation.

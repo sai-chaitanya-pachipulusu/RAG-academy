@@ -3,7 +3,7 @@ title: "Measuring RAG Success: First Principles"
 description: "Metric-driven development and the first-principles approach to evaluating RAG."
 order: 2
 estimatedMinutes: 30
-stage: production
+stage: evaluation-ops
 prereqs:
   - phase: phase-6
     slug: evaluation-in-production
@@ -24,19 +24,22 @@ sources:
     type: "article"
 ---
 
-# Measuring RAG Success: Beyond Vanity Metrics
+## Goals
 
-**The Interview Scenario:**
+- Understand why traditional metrics (session length) fail for RAG.
+- Master the First Principles of RAG evaluation (Retrieval vs Generation).
+- Implement automated LLM-as-a-Judge pipelines.
 
-> "Imagine you are sitting in a product manager (PM) interview and the interviewer asks: How would you measure the success of the RAG system in our AI shopping assistant?"
+## Prereqs
 
-If you start talking about traditional metrics like session length or messages per session, you might fail the interview right there.
+- **Evaluation in Production** (Phase 6).
+- Basic understanding of **LLM Prompts**.
 
-This lesson teaches you how to think about RAG evaluation from **first principles**.
+## Core idea
 
----
+**The Insight:** You cannot measure a RAG system like a social media app (engagement). You must measure it like a precision tool (accuracy per component).
 
-## Why Traditional Metrics Are Deceptive
+### The Problem: Deceptive Metrics
 
 ### The Session Length Trap
 
@@ -420,7 +423,7 @@ While measuring generation, you may encounter these legacy NLP metrics. They are
 
 ---
 
-## The Complete Evaluation Dashboard
+## Production defaults
 
 For production RAG systems, track these metrics:
 
@@ -476,7 +479,7 @@ For production RAG systems, track these metrics:
 
 ---
 
-## Common Mistakes
+## Failure modes
 
 ### ❌ Only Measuring Generation, Ignoring Retrieval
 
@@ -508,7 +511,7 @@ One human can review maybe 100 conversations per day. Use LLM-as-a-Judge for tho
 
 ---
 
-## Related Challenges
+## Do next
 
 - [Evaluator: Recall@K](/challenges/evaluator-recall-at-k) - Implement retrieval recall
 - [Evaluator: MRR](/challenges/evaluator-mrr) - Implement mean reciprocal rank

@@ -3,7 +3,7 @@ title: "Seven Failure Points of RAG Systems"
 description: "Identify and diagnose the seven common failure points in production RAG pipelines."
 order: 1
 estimatedMinutes: 25
-stage: debugging
+stage: evaluation-ops
 prereqs:
   - phase: phase-1
     slug: evaluation-basics
@@ -35,9 +35,14 @@ import Link from "next/link";
 - Learn to diagnose which failure point is affecting your pipeline.
 - Implement targeted fixes for each failure mode.
 
-## Overview
+## Prereqs
 
-[Barnett et al. (2024)](https://arxiv.org/abs/2401.05856) from Deakin University identified **seven distinct failure points** across three RAG case studies (research, education, biomedical). Each failure point requires different diagnostic approaches and mitigations.
+- **Evaluation Basics** (Phase 1).
+- **RAG Architecture** knowledge.
+
+## Core idea
+
+[Barnett et al. (2024)](https://arxiv.org/abs/2401.05856) from Deakin University identified **seven distinct failure points** across three RAG case studies. Understanding this taxonomy helps you move from "it's broken" to "it's an FP2 ranking issue".
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
@@ -53,7 +58,9 @@ import Link from "next/link";
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-## FP1: Missing Content
+## Failure modes
+
+### FP1: Missing Content
 
 **What happens**: The answer to the question doesn't exist in your document corpus.
 
@@ -464,7 +471,7 @@ def check_fp7_incompleteness(
 
 ---
 
-## Diagnostic Framework
+## Production defaults
 
 Use this decision tree to identify which failure point to investigate first:
 

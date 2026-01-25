@@ -33,7 +33,14 @@ import { Callout } from "@/components/ui/Callout";
 - Learn when "noise" can improve system performance.
 - Apply these insights to production systems.
 
-## The Counter-Intuitive Finding
+## Prereqs
+
+- **Graph RAG** (Phase 7).
+- **Evaluation Ops** (Phase 6).
+
+## Core idea
+
+### The Counter-Intuitive Finding
 
 [Cuconasu et al. (2024)](https://arxiv.org/abs/2401.14887) from Sapienza University discovered something surprising:
 
@@ -109,7 +116,7 @@ The presence of irrelevant content may help the model **calibrate** its attentio
 | **Multi-hop questions** | Mixed        | Depends on relevance chain |
 | **Summarization**       | Hurts        | All content gets used      |
 
-## Implementation Strategy
+## Production defaults
 
 ```python
 def smart_retrieval_with_diversity(query: str, retriever, k: int = 10) -> List[str]:
@@ -141,7 +148,7 @@ def smart_retrieval_with_diversity(query: str, retriever, k: int = 10) -> List[s
     return final[:k]
 ```
 
-## Important Caveats
+## Failure modes
 
 <Callout title="Warning" variant="warning">
   These findings were on specific datasets and models. Always A/B test before

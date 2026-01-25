@@ -34,16 +34,16 @@ import Link from "next/link";
 - Learn five strategies for embedding conversational queries.
 - Choose the right strategy for your use case.
 
-## The Problem: Multi-Turn Context Loss
+## Prereqs
 
-In a single-turn RAG system, the query is self-contained:
+- **HyDE** (Phase 3).
+- **Hybrid Retrieval** (Phase 2).
 
-```
-User: "What are the symptoms of Lyme disease?"
-→ Embed query → Retrieve → Generate
-```
+## Core idea
 
-In multi-turn conversations, queries often lack context:
+### The Problem: Multi-Turn Context Loss
+
+In a single-turn RAG system, the query is self-contained. In multi-turn conversations, queries often lack context.
 
 ```
 Turn 1: User: "My dog has been acting strange lately."
@@ -54,7 +54,7 @@ Turn 4: User: "Is it common in dogs?"  ← WHAT DOES "IT" REFER TO?
 
 If you only embed "Is it common in dogs?", you'll retrieve irrelevant documents. The model needs to understand that "it" refers to "Lyme disease in dogs."
 
-## Five Query Embedding Strategies
+### Five Query Embedding Strategies
 
 ### Strategy 1: Latest User Turn Only
 
@@ -367,7 +367,7 @@ class ConversationalRAG:
 | **Dialogue state** | ⚠️ Medium  | ✅ Excellent    | Complex domains     |
 | **Reformulate**    | ⚠️ Medium  | ✅ Excellent    | General purpose     |
 
-## Best Practices
+## Production defaults
 
 1. **Cache reformulations**: Same follow-up patterns can be cached
 2. **Fallback to concatenation**: If LLM reformulation fails, use concatenate
@@ -375,7 +375,7 @@ class ConversationalRAG:
 4. **Limit history window**: 5-10 turns is usually sufficient
 5. **Handle topic switches**: Detect when user changes topic entirely
 
-## Failure Modes
+## Failure modes
 
 1. **Over-reformulation**: LLM adds assumptions not in the conversation
 2. **Under-reformulation**: Missing critical context

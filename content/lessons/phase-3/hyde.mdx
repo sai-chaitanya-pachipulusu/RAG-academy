@@ -3,7 +3,7 @@ title: "HyDE: Hypothetical Document Embeddings"
 description: "Zero-shot dense retrieval by generating hypothetical documents for improved embedding."
 order: 9
 estimatedMinutes: 20
-stage: query-transformation
+stage: query-transforms
 prereqs:
   - phase: phase-2
     slug: query-transform-patterns
@@ -34,7 +34,14 @@ sources:
 - Implement HyDE for improved zero-shot retrieval.
 - Know when to use HyDE vs. direct query embedding.
 
-## The Problem: Query-Document Mismatch
+## Prereqs
+
+- **Query Transform Patterns** (Phase 2).
+- Basic understanding of **Vector Search** and **Embeddings**.
+
+## Core idea
+
+### The Problem: Query-Document Mismatch
 
 Dense retrieval embeds queries and documents into the same vector space. But there's a fundamental mismatch:
 
@@ -46,7 +53,7 @@ Dense retrieval embeds queries and documents into the same vector space. But the
 
 This mismatch hurts retrieval quality, especially in **zero-shot** scenarios where the retriever hasn't been fine-tuned on your domain.
 
-## Core Idea: Generate Then Retrieve
+### Generate Then Retrieve
 
 HyDE (Hypothetical Document Embeddings) from [Gao et al., 2022](https://arxiv.org/abs/2212.10496) flips the script:
 
