@@ -128,7 +128,7 @@ export async function getSubmissionHistory(
     return [];
   }
 
-  return (data || []).map(row => ({
+  return (data || []).map((row: any) => ({
     id: row.id,
     challengeSlug: row.challenge_slug,
     code: row.code,
@@ -169,7 +169,7 @@ export async function getAllSubmissions(
     return [];
   }
 
-  return (data || []).map(row => ({
+  return (data || []).map((row: any) => ({
     id: row.id,
     challengeSlug: row.challenge_slug,
     code: row.code,
