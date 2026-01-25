@@ -213,15 +213,15 @@
 
 ## Implementation Priority
 
-| Priority | Items | Effort | Impact |
-|----------|-------|--------|--------|
-| **P0** | Add 8 missing papers | 1 hour | High |
-| **P1** | Query routing lesson + challenge | 4 hours | High |
-| **P1** | Advanced caching lesson | 3 hours | High |
-| **P2** | Guardrails integration | 4 hours | Medium |
-| **P2** | Enterprise playbooks | 6 hours | Medium |
-| **P3** | Framework update docs | 8 hours | Medium |
-| **P3** | Video/Audio RAG | 8 hours | Low |
+| Priority | Items                            | Effort  | Impact |
+| -------- | -------------------------------- | ------- | ------ |
+| **P0**   | Add 8 missing papers             | 1 hour  | High   |
+| **P1**   | Query routing lesson + challenge | 4 hours | High   |
+| **P1**   | Advanced caching lesson          | 3 hours | High   |
+| **P2**   | Guardrails integration           | 4 hours | Medium |
+| **P2**   | Enterprise playbooks             | 6 hours | Medium |
+| **P3**   | Framework update docs            | 8 hours | Medium |
+| **P3**   | Video/Audio RAG                  | 8 hours | Low    |
 
 ## Quick Wins (Do Today)
 
@@ -229,3 +229,84 @@
 2. Update "Late 2025 Techniques" with Gemini/Qwen context lengths
 3. Add Cohere Rerank 3.5 to reranker comparisons
 4. Add structured outputs section to generation lessons
+
+---
+
+## ✅ Completed Enhancements (January 2025)
+
+Based on analysis of [patchy631/ai-engineering-hub](https://github.com/patchy631/ai-engineering-hub) and [Shubhamsaboo/awesome-llm-apps](https://github.com/Shubhamsaboo/awesome-llm-apps):
+
+### New Lessons Created
+
+- ✅ `lessons/graph-rag-introduction.mdx` - Comprehensive Graph RAG lesson
+- ✅ `lessons/measuring-rag-success.mdx` - RAG Evaluation with PM interview focus
+- ✅ `lessons/external-rag-project-gallery.mdx` - Curated external projects
+
+### New Challenges Created
+
+- ✅ `challenges/llm-as-judge.mdx` - Automated evaluation with LLM judges
+- ✅ `challenges/knowledge-graph-extraction.mdx` - Foundation for Graph RAG
+
+### New Playbooks Created
+
+- ✅ `playbooks/rag-interview-playbook.mdx` - Complete PM/AI Engineer interview prep
+
+### Roadmap Updates
+
+- ✅ Phase 11: Graph RAG & Multi-Hop Reasoning (7 challenges)
+- ✅ Phase 12: RAG Evaluation & Interview Prep (3 challenges)
+- ✅ Updated curriculum summary with learning paths
+
+### New Concepts Covered
+
+1. **Graph RAG Decision Framework** - When to use Graph RAG vs Traditional RAG
+2. **RAG Success Formula** - Success = Retrieval Quality × Generation Quality
+3. **RAG Triad** - Faithfulness + Relevancy + Context Recall
+4. **LLM-as-a-Judge Pattern** - Scaling evaluation
+5. **First Principles PM Interview Answers** - Why traditional metrics fail
+
+### External Resources Curated
+
+- 40+ projects from both GitHub repositories
+- Organized by difficulty (Beginner/Intermediate/Advanced)
+- Categorized by pattern (Agentic, Voice, MCP, Production)
+
+---
+
+## Remaining High-Priority Items
+
+### Challenges to Create
+
+```
+# Phase 11: Graph RAG (partial)
+- entity-linking.mdx
+- community-detection.mdx
+- multi-hop-retrieval.mdx
+- community-summarization.mdx
+- graph-vector-fusion.mdx
+
+# Phase 12: Evaluation (partial)
+- rag-triad-scorer.mdx
+
+# Production Patterns
+- mcp-rag-server.mdx - MCP integration for RAG
+- voice-query-processing.mdx - Voice RAG
+- confidence-scoring.mdx - Answer uncertainty
+```
+
+### Lessons to Create
+
+```
+# Theory Gaps
+- agentic-rag-patterns.mdx - When to add agents to RAG
+- mcp-integration-guide.mdx - Model Context Protocol for RAG
+- voice-rag-overview.mdx - Audio/voice RAG systems
+- rag-vs-long-context.mdx - When to skip RAG
+```
+
+### Framework Documentation Needed
+
+1. LlamaIndex 2024 patterns (Property Graph, Auto-Retriever)
+2. LangGraph 2024 (Memory, Checkpointing)
+3. Vercel AI SDK (Streaming, Edge RAG)
+4. Haystack 2.0 (Pipeline components)

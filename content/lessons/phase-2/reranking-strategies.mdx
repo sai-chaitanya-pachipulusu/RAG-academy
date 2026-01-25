@@ -14,16 +14,29 @@ outcomes:
   - "Explain the difference between bi-encoders and cross-encoders."
   - "Know when to use cross-encoder vs ColBERT vs LLM reranking."
   - "Implement a reranking cascade for latency-quality tradeoffs."
-tags: ["reranking", "cross-encoder", "colbert", "precision"]
+tags:
+  ["reranking", "cross-encoder", "colbert", "precision", "monobert", "duobert"]
 sources:
   - title: "Passage Re-ranking with BERT (Nogueira & Cho, 2019)"
     url: "https://arxiv.org/abs/1901.04085"
+    type: "paper"
+    year: 2019
+  - title: "Multi-Stage Document Ranking with BERT (monoBERT/duoBERT)"
+    url: "https://arxiv.org/abs/1910.14424"
     type: "paper"
     year: 2019
   - title: "ColBERT: Efficient and Effective Passage Search (Khattab & Zaharia, 2020)"
     url: "https://arxiv.org/abs/2004.12832"
     type: "paper"
     year: 2020
+  - title: "ListBERT: Learning to Rank E-commerce products with Listwise BERT"
+    url: "https://arxiv.org/abs/2206.15198"
+    type: "paper"
+    year: 2022
+  - title: "ListT5: Listwise Reranking with Fusion-in-Decoder"
+    url: "https://arxiv.org/abs/2402.15838"
+    type: "paper"
+    year: 2024
   - title: "RankGPT: Is ChatGPT Good at Search? (Sun et al., 2023)"
     url: "https://arxiv.org/abs/2304.09542"
     type: "paper"
@@ -67,12 +80,12 @@ From the [Lost in the Middle paper](https://arxiv.org/abs/2307.03172): LLMs stru
 
 ### Bi-encoder vs Cross-encoder
 
-| Aspect | Bi-encoder (Retrieval) | Cross-encoder (Rerank) |
-|--------|------------------------|------------------------|
+| Aspect           | Bi-encoder (Retrieval)           | Cross-encoder (Rerank)    |
+| ---------------- | -------------------------------- | ------------------------- |
 | **How it works** | Encode query and docs separately | Encode query+doc together |
-| **Speed** | Fast (precompute doc embeddings) | Slow (N forward passes) |
-| **Accuracy** | Good recall | Better precision |
-| **Use case** | First-stage retrieval | Second-stage reranking |
+| **Speed**        | Fast (precompute doc embeddings) | Slow (N forward passes)   |
+| **Accuracy**     | Good recall                      | Better precision          |
+| **Use case**     | First-stage retrieval            | Second-stage reranking    |
 
 **Cross-encoder** sees the query and document together, allowing fine-grained attention:
 
@@ -88,12 +101,12 @@ score = model.predict([query, doc])  # Must be computed at query time
 
 ### Reranking methods compared
 
-| Method | Quality | Latency | Cost | Best For |
-|--------|---------|---------|------|----------|
-| **Cross-encoder** | High | +100-300ms | Medium | Default production choice |
-| **ColBERT** | High | +50-150ms | Infra-heavy | Large corpora, speed-critical |
-| **LLM rerank** | Very high | +500-2000ms | High | Hard queries, low volume |
-| **Cascade** | Tunable | Tunable | Tunable | Latency-sensitive systems |
+| Method            | Quality   | Latency     | Cost        | Best For                      |
+| ----------------- | --------- | ----------- | ----------- | ----------------------------- |
+| **Cross-encoder** | High      | +100-300ms  | Medium      | Default production choice     |
+| **ColBERT**       | High      | +50-150ms   | Infra-heavy | Large corpora, speed-critical |
+| **LLM rerank**    | Very high | +500-2000ms | High        | Hard queries, low volume      |
+| **Cascade**       | Tunable   | Tunable     | Tunable     | Latency-sensitive systems     |
 
 ### Cross-encoder reranking
 
@@ -108,15 +121,32 @@ def rerank(query: str, candidates: List[str], top_k: int = 10) -> List[str]:
     """Rerank candidates using cross-encoder."""
     pairs = [[query, doc] for doc in candidates]
     scores = reranker.predict(pairs)
-    
+
     # Sort by score descending
     ranked = sorted(zip(candidates, scores), key=lambda x: x[1], reverse=True)
     return [doc for doc, score in ranked[:top_k]]
 ```
 
+### Neural Reranker Paradigms: Pointwise, Pairwise, Listwise
+
+Neural rerankers are classified into three methodological paradigms based on how they evaluate relevance:
+
+| Paradigm      | Model Examples                                                                           | How It Works                                             | Tradeoffs                             |
+| ------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------- |
+| **Pointwise** | [monoBERT](https://arxiv.org/abs/1910.14424)                                             | Score each query-doc pair independently                  | High quality, slow (N forward passes) |
+| **Pairwise**  | [duoBERT](https://arxiv.org/abs/1910.14424)                                              | Compare pairs of documents: "Is A more relevant than B?" | Better fine-grained distinctions      |
+| **Listwise**  | [ListBERT](https://arxiv.org/abs/2206.15198), [ListT5](https://arxiv.org/abs/2402.15838) | Consider full list of documents together                 | Best for zero-shot, state-of-the-art  |
+
+**monoBERT** (Pointwise): Each document is scored independently. Concatenate query and doc with [SEP], predict relevance score.
+
+**duoBERT** (Pairwise): Extends monoBERT by comparing pairs - "Given query Q, is document A more relevant than B?" Typically used as a second stage after monoBERT to resolve fine-grained distinctions.
+
+**ListBERT/ListT5** (Listwise): Consider the full list of documents simultaneously using listwise loss functions (ListMLE, Softmax Cross Entropy). [ListT5](https://arxiv.org/abs/2402.15838) uses Fusion-in-Decoder architecture and achieves state-of-the-art zero-shot retrieval.
+
 ### ColBERT: Late interaction
 
 [ColBERT](https://arxiv.org/abs/2004.12832) offers a middle ground:
+
 - Encode query and document into **multiple vectors** (one per token)
 - Score via **MaxSim**: max similarity between each query token and all doc tokens
 - Faster than cross-encoder because doc encodings can be precomputed
@@ -140,7 +170,7 @@ For the hardest queries, use an LLM to reason about relevance:
 def llm_rerank(query: str, candidates: List[str], top_k: int = 5) -> List[str]:
     """Use LLM to rerank candidates."""
     prompt = f"""Given the query and documents, rank them by relevance.
-    
+
 Query: {query}
 
 Documents:
@@ -155,7 +185,8 @@ Format: [3], [1], [5], ...
 ```
 
 <Callout title="Warning" variant="warning">
-  LLM reranking is expensive and slow. Use only when: (1) queries are hard, (2) volume is low, (3) stakes are high.
+  LLM reranking is expensive and slow. Use only when: (1) queries are hard, (2)
+  volume is low, (3) stakes are high.
 </Callout>
 
 ### Reranking cascade
@@ -169,10 +200,10 @@ def cascade_rerank(query: str, candidates: List[str]) -> List[str]:
     """
     # Stage 1: Fast reranker on all candidates (e.g., MiniLM)
     shortlist = fast_reranker.rerank(query, candidates, top_k=20)
-    
+
     # Stage 2: Expensive reranker on shortlist (e.g., large cross-encoder)
     final = expensive_reranker.rerank(query, shortlist, top_k=5)
-    
+
     return final
 ```
 
@@ -192,7 +223,15 @@ def cascade_rerank(query: str, candidates: List[str]) -> List[str]:
 
 ## Do next
 
-<ChallengeLinks slugs={["rerank-cascade", "reranker-score-function", "mmr-diversity", "llm-reranker"]} />
+<ChallengeLinks
+  slugs={[
+    "rerank-cascade",
+    "reranker-score-function",
+    "mmr-diversity",
+    "llm-reranker",
+    "bert-vs-sentence-transformers",
+  ]}
+/>
 
 <Card className="mt-4 p-4">
   <p className="text-sm font-medium">Compare reranking approaches:</p>

@@ -457,12 +457,153 @@ _When general-purpose models aren't enough, you must specialize._
 
 ---
 
+### **Phase 11: Graph RAG & Multi-Hop Reasoning** ⭐ _NEW PHASE_
+
+_When traditional RAG isn't enough. Learn to understand connections, not just content._
+
+> **The Pattern:** Graph RAG excels when you need to understand **connections**, not just **content**.
+
+#### **11.1 The Three Problems Graph RAG Solves**
+
+| Problem                    | Traditional RAG                             | Graph RAG Solution                          |
+| -------------------------- | ------------------------------------------- | ------------------------------------------- |
+| **Multi-Hop Reasoning**    | Returns docs mentioning keywords separately | Traces relationship chains across entities  |
+| **Thematic Synthesis**     | Retrieves similar documents                 | Identifies concept clusters across ALL docs |
+| **Relationship Discovery** | "Here are docs about A and B"               | "A connects to B through X, Y, Z"           |
+
+#### **11.2 Knowledge Graph Construction**
+
+- **[Challenge 11.1]: Knowledge Graph Extraction** ⭐ _NEW_
+  - **Task**: Extract (Subject, Predicate, Object) triples from documents.
+  - **Concept**: Building the foundation for Graph RAG.
+  - **File**: `challenges/knowledge-graph-extraction.mdx`
+- **[Challenge 11.2]: Entity Linking & Normalization**
+  - **Task**: Resolve "OpenAI", "OPEN AI", "Open AI Inc" to the same entity.
+  - **Concept**: Coreference resolution for clean graphs.
+  - **File**: `challenges/entity-linking.mdx`
+- **[Challenge 11.3]: Community Detection (Leiden)**
+  - **Task**: Apply Leiden algorithm to find topic clusters in your graph.
+  - **Concept**: Thematic grouping for synthesis queries.
+  - **File**: `challenges/community-detection.mdx`
+
+#### **11.3 Graph-Augmented Retrieval**
+
+- **[Challenge 11.4]: Graph Traversal Search**
+  - **Task**: Implement BFS/DFS for relationship-based queries.
+  - **Concept**: Finding paths between concepts.
+  - **File**: `challenges/graph-traversal-rag.mdx`
+- **[Challenge 11.5]: Multi-Hop Retrieval Chain**
+  - **Task**: Chain multiple retrieval steps for complex reasoning.
+  - **Concept**: Answering "what connects A to B?" questions.
+  - **File**: `challenges/multi-hop-retrieval.mdx`
+- **[Challenge 11.6]: Community Summarization**
+  - **Task**: Generate summaries for each topic cluster at index time.
+  - **Concept**: Enabling broad thematic queries.
+  - **File**: `challenges/community-summarization.mdx`
+
+#### **11.4 Hybrid Graph + Vector RAG**
+
+- **[Challenge 11.7]: Graph-Vector Fusion**
+  - **Task**: Combine graph traversal with vector similarity.
+  - **Concept**: Best of both worlds - precision + semantics.
+  - **File**: `challenges/graph-vector-fusion.mdx`
+
+#### **Decision Framework: When to Use Graph RAG**
+
+**Use Graph RAG when:**
+
+- ✅ Multi-document synthesis needed
+- ✅ Relationship mapping matters
+- ✅ "How do these connect?" questions
+- ✅ Knowledge graph construction required
+
+**Continue with Traditional RAG when:**
+
+- ⚡ Simple similarity search
+- ⚡ Single-document retrieval
+- ⚡ "Find documents about X" questions
+- ⚡ Speed is critical (< 100ms latency)
+
+---
+
+### **Phase 12: RAG Evaluation & Interview Prep** ⭐ _NEW PHASE_
+
+_Master the metrics that matter. Ace the PM and AI Engineer interviews._
+
+> **The Formula:** RAG Success = Retrieval Quality × Generation Quality
+
+#### **12.1 The RAG Triad**
+
+- **[Challenge 12.1]: LLM-as-a-Judge** ⭐ _NEW_
+  - **Task**: Build automated evaluation using LLM judges.
+  - **Concept**: Scaling evaluation to thousands of test cases.
+  - **File**: `challenges/llm-as-judge.mdx`
+- **[Challenge 12.2]: Complete RAG Triad Scorer**
+  - **Task**: Implement Faithfulness + Relevancy + Context Recall as one suite.
+  - **Concept**: The three pillars of RAG quality.
+  - **File**: `challenges/rag-triad-scorer.mdx`
+- **[Challenge 12.3]: Multi-Judge Consensus**
+  - **Task**: Aggregate multiple LLM judges with weighted voting.
+  - **Concept**: Robustness through ensembling.
+  - **File**: `challenges/multi-judge-consensus.mdx`
+
+#### **12.2 Why Traditional Metrics Fail**
+
+| Metric           | Why It's Deceptive in RAG                      |
+| ---------------- | ---------------------------------------------- |
+| Session Length   | Frustrated users also have long sessions       |
+| Messages/Session | More messages = more confusion, not engagement |
+| User Rating      | Doesn't identify WHERE the system failed       |
+
+#### **12.3 First Principles Metrics**
+
+**Retrieval Metrics:**
+
+- **Recall@K**: Is the correct answer in top-K results?
+- **Precision@K**: How much noise in top-K?
+- **MRR**: How high is the first relevant result?
+
+**Generation Metrics:**
+
+- **Faithfulness**: Is the answer grounded in context?
+- **Answer Relevancy**: Does it address the user's question?
+- **Context Recall**: Did we use all relevant facts?
+
+#### **12.4 Interview Prep Resources**
+
+- **Playbook**: `playbooks/rag-interview-playbook.mdx` ⭐ _NEW_
+- **Lesson**: `lessons/measuring-rag-success.mdx` ⭐ _NEW_
+- Covers: PM interviews, system design, STAR examples
+
+---
+
 ## 🎉 Curriculum Complete!
 
 You have now completed the **RAG Engineer's Handbook** — the most comprehensive "LeetCode for RAG" curriculum available.
 
-**Total Challenges**: 103+
-**Phases**: 10 (Foundations → Fine-Tuning)
-**Coverage**: From dot products to LoRA adapters
+**Total Challenges**: 242+
+**Phases**: 12 (Foundations → Graph RAG → Interview Prep)
+**Coverage**: From dot products to Graph RAG to PM interviews
+
+### What Sets This Curriculum Apart
+
+| Topic               | Other Platforms | RAG Academy                              |
+| ------------------- | --------------- | ---------------------------------------- |
+| Vector DB Internals | ❌              | ✅ HNSW, IVF, PQ                         |
+| Graph RAG           | ❌              | ✅ Full track (7 challenges)             |
+| RAG Evaluation      | Basic           | ✅ RAG Triad + LLM-as-Judge              |
+| Interview Prep      | Generic         | ✅ RAG-specific playbook                 |
+| Production Patterns | ❌              | ✅ Caching, rate limiting, observability |
+
+### Learning Paths
+
+**🚀 Fast Track (2 weeks)**
+Phases 0, 1, 2, 3, 9 → Core RAG competency
+
+**📚 Complete Mastery (8 weeks)**
+All Phases → Senior AI Engineer level
+
+**🎯 Interview Prep (1 week)**
+Phase 12 + Playbook → PM/AI Engineer interviews
 
 Build. Ship. Master RAG.

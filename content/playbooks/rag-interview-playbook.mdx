@@ -1,0 +1,369 @@
+---
+title: "RAG Interview Playbook"
+description: "Complete preparation guide for PM and AI Engineer interviews focused on RAG systems"
+category: "interview-prep"
+difficulty: "all-levels"
+estimatedMinutes: 60
+tags: ["interview", "pm", "ai-engineer", "evaluation", "metrics"]
+---
+
+# RAG Interview Playbook: Ace the PM & AI Engineer Questions
+
+This playbook prepares you for the toughest RAG-related interview questions, whether you're interviewing for a Product Manager, AI/ML Engineer, or Solutions Architect role.
+
+---
+
+## Section 1: The Classic PM Question
+
+### "How would you measure the success of our RAG-powered AI assistant?"
+
+**🚫 Weak Answer (Red Flag):**
+
+> "I would track session length, messages per session, and user ratings."
+
+**Why it fails:** Traditional engagement metrics are **deceptive** for RAG systems. A frustrated user trying to correct misinformation also has long sessions.
+
+**✅ Strong Answer:**
+
+> "For a RAG system, I would NOT rely on traditional engagement metrics because they can be misleading—a user asking 10 follow-up questions might be frustrated, not engaged.
+>
+> Instead, I'd use a **first-principles approach** with the RAG Success Formula:
+>
+> **Success = Retrieval Quality × Generation Quality**
+>
+> **For Retrieval Quality:**
+>
+> - **Recall@K**: Are we finding the right documents in the top K results?
+> - **Precision@K**: How much noise are we feeding the LLM?
+> - **MRR (Mean Reciprocal Rank)**: Is the best match appearing at the top?
+>
+> **For Generation Quality:**
+>
+> - **Faithfulness**: Is the answer grounded in retrieved context? (prevents hallucination)
+> - **Answer Relevancy**: Does the response actually address what was asked?
+> - **Context Recall**: Did we use all the relevant facts?
+>
+> I'd implement **LLM-as-a-Judge** to automate these evaluations at scale—one human can review maybe 100 conversations daily, but LLM judges can evaluate thousands in minutes.
+>
+> Finally, I'd set up **dashboards with alerts** for when any metric drops below threshold, so we know exactly WHERE the system is failing—retrieval or generation—and can fix it efficiently."
+
+---
+
+## Section 2: Technical Deep Dives
+
+### "When would you choose Graph RAG over traditional RAG?"
+
+**✅ Strong Answer:**
+
+> "The key insight is: **Traditional RAG finds documents. Graph RAG finds connections.**
+>
+> I'd use Graph RAG when the answer requires understanding **relationships across documents**:
+>
+> 1. **Multi-hop reasoning**: 'Which projects are at risk based on team dependencies?'
+>    - Traditional RAG returns docs mentioning 'risk' and 'projects' separately
+>    - Graph RAG traces: Team A → depends on → Person X → on Project Y → behind schedule
+> 2. **Thematic synthesis**: 'What patterns exist across our research?'
+>    - Traditional RAG returns the most similar documents
+>    - Graph RAG identifies **concept clusters** across the entire corpus
+> 3. **Relationship discovery**: 'How are topic A and topic B connected?'
+>    - Traditional RAG: 'Here are docs about A and docs about B'
+>    - Graph RAG: 'A connects to B through concepts X, Y, Z'
+>
+> I'd **continue with traditional RAG** for simple similarity search, single-document retrieval, or when latency is critical (sub-100ms). Graph RAG adds 500ms-2s overhead.
+>
+> The decision framework: if the user's question starts with 'how are these connected' or 'what patterns exist', consider Graph RAG. If it's 'find documents about X', stick with traditional."
+
+---
+
+### "How do you handle hallucinations in production RAG?"
+
+**✅ Strong Answer:**
+
+> "Hallucination prevention is a **multi-layer defense**:
+>
+> **Layer 1: Retrieval Quality**
+>
+> - High Recall@K ensures the correct information is retrieved
+> - Good Precision@K reduces noise that might confuse the LLM
+> - Reranking (cross-encoder) puts the most relevant context first
+>
+> **Layer 2: Prompt Engineering**
+>
+> - Explicit instructions: 'Only use information from the provided context'
+> - Format for citations: 'Cite source [1], [2] for each claim'
+> - Refusal policy: 'If the context doesn't contain the answer, say "I don't have that information"'
+>
+> **Layer 3: Grounded Generation**
+>
+> - Use the 'Lost in the Middle' pattern—most relevant context at start and end
+> - Token budget management—don't overflow the context window
+> - Model-specific features like Claude's native citations
+>
+> **Layer 4: Post-Generation Verification**
+>
+> - NLI (Natural Language Inference) to check if answer is entailed by context
+> - Citation validation—does claim [1] actually support the statement?
+> - LLM-as-a-Judge for faithfulness scoring
+>
+> **Layer 5: Fallback Responses**
+>
+> - Confidence thresholds—refuse to answer if similarity score is too low
+> - 'I'm not certain about this' hedging for borderline cases
+>
+> In production, I'd monitor **faithfulness scores** daily and set alerts for drops below 0.85."
+
+---
+
+### "How would you reduce RAG latency from 5 seconds to 500ms?"
+
+**✅ Strong Answer:**
+
+> "I'd attack this bottleneck by bottleneck:
+>
+> **Typical Latency Breakdown:**
+>
+> - Embedding: ~100ms
+> - Vector Search: ~50ms (with ANN)
+> - Reranking: ~200ms (cross-encoder on 20 docs)
+> - LLM Generation: ~3-4s
+>
+> **Quick Wins:**
+>
+> 1. **Semantic Caching** (~80% latency reduction for repeated queries)
+>    - Cache query embeddings → similar questions get cached answers
+>    - Threshold: 0.95+ similarity = cache hit
+> 2. **Smaller/Faster LLM** for simple queries
+>    - Route simple FAQs to GPT-3.5 or Claude Haiku
+>    - Use GPT-4 only for complex reasoning
+> 3. **Streaming** (perceived latency)
+>    - Stream tokens as they're generated
+>    - User sees response in ~500ms even if full response takes 3s
+>
+> **Deeper Optimizations:**
+>
+> 4. **Reduce Reranking Candidates**
+>    - Top-10 instead of top-50
+>    - Or skip reranking for high-confidence vector matches
+> 5. **HNSW Index Tuning**
+>    - Higher `ef_search` = more accurate but slower
+>    - Find the sweet spot for your accuracy requirements
+> 6. **Edge Deployment**
+>    - Small embedding model at edge
+>    - Vector DB replicas in multiple regions
+> 7. **Speculative RAG**
+>    - Draft answer with small model
+>    - Verify/refine with large model only if needed
+>
+> For your 5s → 500ms target, I'd prioritize: semantic caching + streaming + model routing. That alone could get you to perceived 500ms for most queries."
+
+---
+
+## Section 3: System Design Questions
+
+### "Design a RAG system for a customer support chatbot handling 100K queries/day"
+
+**✅ Strong Answer:**
+
+> **1. Requirements Clarification**
+>
+> - 100K queries/day = ~1.2 QPS average, maybe 10 QPS peak
+> - Expected latency: P95 < 3s
+> - Knowledge base: product docs, FAQs, policies
+> - Multi-language? Single tenant or multi-tenant?
+>
+> **2. High-Level Architecture**
+>
+> ```
+> User → CDN/Edge → API Gateway → Query Router
+>                                      ↓
+>              ┌────────────────────────┼────────────────────────┐
+>              ↓                        ↓                        ↓
+>         Simple FAQ              RAG Pipeline             Human Handoff
+>         (cached)                     ↓                   (escalation)
+>                              ┌───────┴───────┐
+>                              ↓               ↓
+>                         Vector DB      BM25 Index
+>                              ↓               ↓
+>                              └───────┬───────┘
+>                                      ↓
+>                                 Reranker
+>                                      ↓
+>                                 LLM + Citations
+>                                      ↓
+>                              Safety Filter → Response
+> ```
+>
+> **3. Key Components**
+>
+> - **Query Router**: Classifies intent, routes to appropriate pipeline
+> - **Semantic Cache**: Redis with query embeddings, 15-min TTL
+> - **Hybrid Search**: BM25 + dense vectors, RRF fusion
+> - **Reranker**: Cohere Rerank or cross-encoder for top-20
+> - **LLM**: GPT-4o for complex, GPT-4o-mini for simple
+> - **Safety**: PII redaction, prompt injection detection
+>
+> **4. Scaling Considerations**
+>
+> - Vector DB: Pinecone/Weaviate with 2 replicas
+> - Embedding: Batch processing, async for non-critical
+> - LLM: Rate limiting to control costs
+> - Monitoring: Latency, faithfulness, escalation rate
+>
+> **5. Evaluation & Monitoring**
+>
+> - Daily RAG Triad evaluation (sample 1000 queries)
+> - Alert if faithfulness drops below 0.85
+> - A/B test new retrievers before full rollout
+> - Human review of escalated/failed queries
+
+---
+
+## Section 4: Behavioral & Product Questions
+
+### "Tell me about a time you improved a RAG or search system."
+
+**Framework: STAR with Metrics**
+
+> **Situation**: Our e-commerce search was returning irrelevant products—customers complained that searching 'iPhone 15 case' showed random accessories.
+>
+> **Task**: Improve search relevance while maintaining sub-200ms latency.
+>
+> **Action**:
+>
+> 1. Analyzed failure cases—found that pure vector search was doing semantic matching but missing exact product names
+> 2. Implemented **hybrid search** with BM25 for keyword matching + dense vectors for semantics
+> 3. Added **RRF fusion** with k=60 to combine results
+> 4. Deployed a **reranker** (Cohere) on top-20 candidates
+> 5. Set up **NDCG@10 tracking** to measure relevance
+>
+> **Result**:
+>
+> - Relevance (NDCG@10) improved from 0.62 to 0.84 (+35%)
+> - Customer complaints about irrelevant results dropped 60%
+> - Latency stayed under 200ms (reranker added only 50ms)
+> - Conversion rate on search increased 12%
+
+---
+
+### "How would you prioritize features for a RAG product roadmap?"
+
+**✅ Strong Answer:**
+
+> "I'd use an **Impact × Effort matrix** filtered by customer pain:
+>
+> **P0 (Do First)**: Features that affect trust
+>
+> - Hallucination prevention (destroys trust if wrong)
+> - Citation display (users need to verify)
+> - Refusal policy for unknown topics
+>
+> **P1 (High Impact)**: Features that affect adoption
+>
+> - Response latency (streaming at minimum)
+> - Conversational context (follow-up questions)
+> - Multi-language support (if international)
+>
+> **P2 (Nice-to-Have)**: Features that affect stickiness
+>
+> - Personalization (remember user preferences)
+> - Export/share responses
+> - Feedback collection for fine-tuning
+>
+> **P3 (Future)**: Features that differentiate
+>
+> - Multi-modal (image search)
+> - Voice interface
+> - Proactive suggestions
+>
+> For evaluation: I'd A/B test each major feature with faithfulness + user satisfaction metrics."
+
+---
+
+## Section 5: Quick-Fire Q&A
+
+### Retrieval
+
+| Question                    | Key Point                                                                                                     |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| "BM25 vs. Dense retrieval?" | BM25 for exact keywords, Dense for semantics. Use **hybrid** for best of both.                                |
+| "How to choose chunk size?" | Tradeoff: small chunks = precise retrieval, large chunks = more context. Start with 512 tokens + 100 overlap. |
+| "Best embedding model?"     | Check **MTEB leaderboard**. text-embedding-3-small for cost, voyage-3 for quality.                            |
+| "When to rerank?"           | Always if you have >10 candidates. Adds ~50-200ms but significant relevance boost.                            |
+
+### Generation
+
+| Question                        | Key Point                                                                     |
+| ------------------------------- | ----------------------------------------------------------------------------- |
+| "Prompt engineering for RAG?"   | "Only use the provided context. Cite sources as [1]. If unknown, say so."     |
+| "Handle contradictory sources?" | Acknowledge conflict: "Source A says X, but Source B says Y."                 |
+| "Long context vs. RAG?"         | RAG for large corpora, frequent updates. Long context for small, stable docs. |
+| "Structured output?"            | Use JSON mode for citations: `{"answer": "...", "sources": [1, 2]}`           |
+
+### Evaluation
+
+| Question                    | Key Point                                                                |
+| --------------------------- | ------------------------------------------------------------------------ |
+| "Measure hallucination?"    | **Faithfulness score** via LLM-as-a-Judge or NLI models.                 |
+| "Build evaluation dataset?" | 100+ (question, ground_truth, relevant_docs) triplets. Cover edge cases. |
+| "Regression testing?"       | Run eval suite on every deployment. Alert if metrics drop >5%.           |
+
+---
+
+## Section 6: Red Flags to Avoid
+
+❌ **"We track session length and message count"**
+
+- Shows misunderstanding of RAG-specific needs
+
+❌ **"We just use GPT-4 and it's fine"**
+
+- Ignores retrieval layer, no systematic evaluation
+
+❌ **"Users will tell us if it's wrong"**
+
+- Reactive, not proactive quality management
+
+❌ **"We don't really measure hallucinations"**
+
+- Major trust risk, unprofessional for production
+
+❌ **"Graph RAG is always better"**
+
+- Shows lack of understanding of trade-offs
+
+---
+
+## Section 7: Resources to Reference
+
+**Papers to namedrop:**
+
+- "Lost in the Middle" (Liu et al., 2023)
+- "REPLUG" (Shi et al., 2024)
+- "RAGAS" (Es et al., 2023)
+- "GraphRAG" (Microsoft, 2024)
+
+**Tools to mention:**
+
+- RAGAS (evaluation framework)
+- LangSmith (observability)
+- Cohere Rerank (reranking API)
+- MTEB (embedding benchmarks)
+
+**Concepts to demonstrate:**
+
+- RAG Triad (Faithfulness, Relevancy, Recall)
+- LLM-as-a-Judge
+- Hybrid Search with RRF
+- Semantic Caching
+
+---
+
+## Final Checklist Before Interview
+
+- [ ] Can explain RAG Success = Retrieval × Generation
+- [ ] Know the RAG Triad metrics
+- [ ] Can design Graph RAG decision framework
+- [ ] Understand LLM-as-a-Judge for evaluation
+- [ ] Have concrete STAR stories with metrics
+- [ ] Know when NOT to use RAG (long context, small docs)
+- [ ] Can discuss production concerns (latency, cost, safety)

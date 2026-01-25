@@ -1,0 +1,364 @@
+---
+title: "RAG Failure Diagnosis"
+description: "Implement a diagnostic tool to identify which of the seven failure points is affecting your RAG system."
+difficulty: "intermediate"
+estimatedMinutes: 35
+---
+
+# RAG Failure Diagnosis
+
+When a RAG system gives a wrong answer, **where did it fail?** Based on the [Seven Failure Points paper](https://arxiv.org/abs/2401.05856) by Barnett et al. (2024), we can systematically diagnose issues.
+
+## The Seven Failure Points
+
+| Code    | Failure Point     | Stage         | Quick Description                     |
+| ------- | ----------------- | ------------- | ------------------------------------- |
+| **FP1** | Missing Content   | Corpus        | Answer doesn't exist in your data     |
+| **FP2** | Missed Top Rank   | Retrieval     | Answer exists but wasn't in top-K     |
+| **FP3** | Not in Context    | Consolidation | Retrieved but dropped during assembly |
+| **FP4** | Not Extracted     | Generation    | In context but LLM didn't use it      |
+| **FP5** | Wrong Format      | Generation    | Content correct, format wrong         |
+| **FP6** | Wrong Specificity | Generation    | Too specific or too general           |
+| **FP7** | Incomplete        | Generation    | Partial answer, missing info          |
+
+## Your Task
+
+Implement the `RAGDiagnostic` class that can identify which failure point(s) caused a bad response.
+
+```python
+from typing import List, Dict, Optional, Set
+from enum import Enum
+from dataclasses import dataclass
+
+class FailurePoint(Enum):
+    FP1_MISSING_CONTENT = "FP1: Missing Content"
+    FP2_MISSED_TOP_RANK = "FP2: Missed Top Ranked"
+    FP3_NOT_IN_CONTEXT = "FP3: Not in Context"
+    FP4_NOT_EXTRACTED = "FP4: Not Extracted"
+    FP5_WRONG_FORMAT = "FP5: Wrong Format"
+    FP6_WRONG_SPECIFICITY = "FP6: Incorrect Specificity"
+    FP7_INCOMPLETE = "FP7: Incomplete"
+    NO_FAILURE = "No Failure Detected"
+
+@dataclass
+class DiagnosisResult:
+    failure_point: FailurePoint
+    confidence: float  # 0.0 to 1.0
+    details: str
+    suggested_fix: str
+
+class RAGDiagnostic:
+    """
+    Diagnostic tool to identify RAG failure points.
+    """
+
+    def __init__(self, retriever, generator=None):
+        """
+        Args:
+            retriever: Retriever with .retrieve(query, k) method
+            generator: Optional generator for extraction checks
+        """
+        self.retriever = retriever
+        self.generator = generator
+
+    def check_fp1_missing_content(
+        self,
+        query: str,
+        expected_answer_keywords: List[str],
+        search_k: int = 100
+    ) -> DiagnosisResult:
+        """
+        FP1: Check if the expected content exists anywhere in the corpus.
+
+        Args:
+            query: The user's query
+            expected_answer_keywords: Keywords that should appear in relevant docs
+            search_k: Number of documents to search (high for recall)
+
+        Returns:
+            DiagnosisResult indicating if content is missing
+        """
+        # TODO: Implement FP1 check
+        # 1. Retrieve with high k and no threshold
+        # 2. Check if any retrieved doc contains the expected keywords
+        # 3. Return diagnosis
+
+        # YOUR CODE HERE
+        pass
+
+    def check_fp2_missed_ranking(
+        self,
+        query: str,
+        relevant_doc_ids: Set[str],
+        top_k: int = 10
+    ) -> DiagnosisResult:
+        """
+        FP2: Check if relevant docs were retrieved but not in top-K.
+
+        Args:
+            query: The user's query
+            relevant_doc_ids: Set of doc IDs that are known to be relevant
+            top_k: The K used in production retrieval
+
+        Returns:
+            DiagnosisResult indicating ranking issues
+        """
+        # TODO: Implement FP2 check
+        # 1. Retrieve at top_k and at 100
+        # 2. Check if relevant docs are in top_k vs top_100
+        # 3. If in 100 but not k, it's a ranking issue
+
+        # YOUR CODE HERE
+        pass
+
+    def check_fp3_context_consolidation(
+        self,
+        retrieved_docs: List[str],
+        context_sent_to_llm: str,
+        expected_content: str
+    ) -> DiagnosisResult:
+        """
+        FP3: Check if relevant content was dropped during context assembly.
+
+        Args:
+            retrieved_docs: All docs that were retrieved
+            context_sent_to_llm: The actual context that was sent
+            expected_content: Content we expected to be included
+
+        Returns:
+            DiagnosisResult indicating consolidation issues
+        """
+        # TODO: Implement FP3 check
+        # 1. Check if expected_content is in retrieved_docs
+        # 2. Check if expected_content is in context_sent_to_llm
+        # 3. If in retrieved but not in context, it's FP3
+
+        # YOUR CODE HERE
+        pass
+
+    def check_fp4_extraction_failure(
+        self,
+        context: str,
+        generated_answer: str,
+        expected_answer: str
+    ) -> DiagnosisResult:
+        """
+        FP4: Check if the answer was in context but LLM failed to extract it.
+
+        Args:
+            context: The context provided to the LLM
+            generated_answer: What the LLM generated
+            expected_answer: What we expected
+
+        Returns:
+            DiagnosisResult indicating extraction issues
+        """
+        # TODO: Implement FP4 check
+        # 1. Check if expected_answer content is in context
+        # 2. Check if expected_answer content is in generated_answer
+        # 3. If in context but not in answer, it's FP4
+
+        # YOUR CODE HERE
+        pass
+
+    def diagnose(
+        self,
+        query: str,
+        generated_answer: str,
+        expected_answer: str,
+        context_sent: str,
+        retrieved_docs: List[Dict],
+        relevant_doc_ids: Set[str]
+    ) -> List[DiagnosisResult]:
+        """
+        Run full diagnosis pipeline to identify all failure points.
+
+        Returns results sorted by confidence (most likely failure first).
+        """
+        results = []
+
+        # Check each failure point
+        expected_keywords = expected_answer.lower().split()[:5]
+
+        # FP1: Content exists?
+        fp1 = self.check_fp1_missing_content(query, expected_keywords)
+        if fp1:
+            results.append(fp1)
+
+        # FP2: Ranking issue?
+        fp2 = self.check_fp2_missed_ranking(query, relevant_doc_ids)
+        if fp2:
+            results.append(fp2)
+
+        # FP3: Context assembly?
+        fp3 = self.check_fp3_context_consolidation(
+            [d.get("text", d.get("content", "")) for d in retrieved_docs],
+            context_sent,
+            expected_answer
+        )
+        if fp3:
+            results.append(fp3)
+
+        # FP4: Extraction?
+        fp4 = self.check_fp4_extraction_failure(
+            context_sent,
+            generated_answer,
+            expected_answer
+        )
+        if fp4:
+            results.append(fp4)
+
+        # Sort by confidence
+        results.sort(key=lambda x: x.confidence, reverse=True)
+
+        return results if results else [DiagnosisResult(
+            failure_point=FailurePoint.NO_FAILURE,
+            confidence=1.0,
+            details="No obvious failure point detected",
+            suggested_fix="Check for subtle issues or edge cases"
+        )]
+
+
+# Helper function
+def keyword_overlap(text: str, keywords: List[str]) -> float:
+    """Calculate what fraction of keywords appear in text."""
+    text_lower = text.lower()
+    found = sum(1 for kw in keywords if kw.lower() in text_lower)
+    return found / len(keywords) if keywords else 0.0
+
+
+# Test cases
+def test_rag_diagnostic():
+    # Mock retriever
+    class MockRetriever:
+        def __init__(self):
+            self.corpus = {
+                "doc1": {"id": "doc1", "text": "The refund policy allows returns within 90 days."},
+                "doc2": {"id": "doc2", "text": "Shipping takes 3-5 business days."},
+                "doc3": {"id": "doc3", "text": "Contact support at help@example.com."},
+            }
+
+        def retrieve(self, query, k=10):
+            # Simple simulation - return all docs sorted by "relevance"
+            if "refund" in query.lower():
+                return [self.corpus["doc1"], self.corpus["doc2"], self.corpus["doc3"]][:k]
+            elif "shipping" in query.lower():
+                return [self.corpus["doc2"], self.corpus["doc1"], self.corpus["doc3"]][:k]
+            else:
+                return list(self.corpus.values())[:k]
+
+    diagnostic = RAGDiagnostic(MockRetriever())
+
+    # Test FP1: Missing content
+    fp1_result = diagnostic.check_fp1_missing_content(
+        query="What is the warranty period?",
+        expected_answer_keywords=["warranty", "year", "months"]
+    )
+    assert fp1_result.failure_point == FailurePoint.FP1_MISSING_CONTENT
+    print(f"✓ FP1 detected: {fp1_result.details}")
+
+    # Test FP2: Missed ranking (simulate with mock)
+    fp2_result = diagnostic.check_fp2_missed_ranking(
+        query="What is the refund policy?",
+        relevant_doc_ids={"doc1"},
+        top_k=1
+    )
+    # doc1 should be at position 1, so no FP2
+    # (implementation dependent)
+
+    # Test FP3: Not in context
+    fp3_result = diagnostic.check_fp3_context_consolidation(
+        retrieved_docs=[
+            "The refund policy allows returns within 90 days.",
+            "Shipping takes 3-5 business days."
+        ],
+        context_sent_to_llm="Shipping takes 3-5 business days.",  # Truncated!
+        expected_content="90 days"
+    )
+    assert fp3_result.failure_point == FailurePoint.FP3_NOT_IN_CONTEXT
+    print(f"✓ FP3 detected: {fp3_result.details}")
+
+    # Test FP4: Not extracted
+    fp4_result = diagnostic.check_fp4_extraction_failure(
+        context="The refund policy allows returns within 90 days.",
+        generated_answer="Our return policy is flexible.",  # Vague, didn't extract "90 days"
+        expected_answer="Returns are allowed within 90 days."
+    )
+    assert fp4_result.failure_point == FailurePoint.FP4_NOT_EXTRACTED
+    print(f"✓ FP4 detected: {fp4_result.details}")
+
+    print("\n✅ All diagnostic tests passed!")
+
+
+if __name__ == "__main__":
+    test_rag_diagnostic()
+```
+
+## Expected Output
+
+```
+✓ FP1 detected: Content about 'warranty' not found in corpus
+✓ FP3 detected: Expected content was in retrieved docs but not in context sent to LLM
+✓ FP4 detected: '90 days' was in context but not in generated answer
+
+✅ All diagnostic tests passed!
+```
+
+## Implementation Tips
+
+### FP1: Missing Content Check
+
+```python
+def check_fp1_missing_content(self, query, expected_keywords, search_k=100):
+    # Try to find ANY doc with the expected content
+    all_docs = self.retriever.retrieve(query, k=search_k)
+
+    best_overlap = 0.0
+    for doc in all_docs:
+        text = doc.get("text", doc.get("content", ""))
+        overlap = keyword_overlap(text, expected_keywords)
+        best_overlap = max(best_overlap, overlap)
+
+    if best_overlap < 0.3:  # Less than 30% keyword match
+        return DiagnosisResult(
+            failure_point=FailurePoint.FP1_MISSING_CONTENT,
+            confidence=1.0 - best_overlap,
+            details=f"Expected keywords not found. Best overlap: {best_overlap:.1%}",
+            suggested_fix="Add the missing content to your corpus"
+        )
+    return None
+```
+
+### FP2: Ranking Check
+
+Compare recall@K vs recall@100 to detect ranking issues.
+
+### FP3: Context Assembly
+
+Check if content was in retrieved docs but got truncated during prompt assembly.
+
+### FP4: Extraction
+
+Check if the answer was in the context but the LLM ignored it or gave a generic response.
+
+## Extensions
+
+1. **FP5 (Format)**: Add regex patterns to detect format requests (table, list, JSON)
+2. **FP6 (Specificity)**: Detect multi-entity queries and check coverage
+3. **FP7 (Completeness)**: Check if all aspects of multi-part questions were addressed
+
+## Why This Matters
+
+In production, knowing **which** stage failed is crucial:
+
+- FP1/FP2 → Fix your data or retrieval
+- FP3 → Fix context assembly
+- FP4-7 → Fix prompts or model
+
+Without diagnosis, you waste time optimizing the wrong component.
+
+## Related Challenges
+
+- [Retrieval Metrics](/challenges/retrieval-metrics)
+- [Groundedness Check](/challenges/ts-groundedness-check)
+- [Self-Correction Loop](/challenges/self-correction-loop)

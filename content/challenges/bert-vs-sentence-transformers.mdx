@@ -1,0 +1,275 @@
+---
+title: "BERT vs Sentence Transformers"
+description: "Understand the key differences between BERT and Sentence Transformers for RAG embeddings."
+difficulty: "intermediate"
+estimatedMinutes: 20
+---
+
+# BERT vs Sentence Transformers: Which Embeddings for RAG?
+
+A common confusion in RAG is whether to use **BERT** or **Sentence Transformers** for embeddings. They're related but optimized for different tasks.
+
+## The Key Difference
+
+| Aspect              | BERT                                | Sentence Transformers                 |
+| ------------------- | ----------------------------------- | ------------------------------------- |
+| **Objective**       | Predict masked words, next sentence | Sentence-level semantic similarity    |
+| **Embedding level** | Token-level (one per word)          | Sentence-level (one per sentence)     |
+| **Training data**   | General text corpora                | Sentence pairs with similarity labels |
+| **Architecture**    | Single encoder                      | Siamese/Triplet networks              |
+| **Best for**        | Token-level tasks (NER, QA)         | Sentence similarity, retrieval        |
+
+## Why This Matters for RAG
+
+For RAG, you need to compare **whole chunks** to **queries**. This is sentence-level comparison:
+
+```python
+# What we need for RAG:
+query = "What is the capital of France?"
+chunk = "Paris is the capital city of France, located on the Seine River."
+
+# We need ONE vector per text, not one per token
+similarity = cosine_similarity(embed(query), embed(chunk))
+```
+
+## The Problem with Raw BERT
+
+BERT produces **one vector per token**. To get a sentence embedding, you must aggregate:
+
+```python
+def bert_sentence_embedding(text: str, bert_model) -> np.ndarray:
+    """
+    Get sentence embedding from BERT.
+
+    Common approaches:
+    1. Use [CLS] token embedding
+    2. Mean pooling of all tokens
+    3. Max pooling of all tokens
+    """
+    outputs = bert_model(text)
+    token_embeddings = outputs.last_hidden_state  # [batch, seq_len, hidden_dim]
+
+    # Option 1: [CLS] token (NOT great for similarity)
+    cls_embedding = token_embeddings[:, 0, :]
+
+    # Option 2: Mean pooling (better)
+    attention_mask = outputs.attention_mask
+    input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size())
+    mean_embedding = torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(
+        input_mask_expanded.sum(1), min=1e-9
+    )
+
+    return mean_embedding.numpy()
+```
+
+**Problem**: BERT wasn't trained to make these aggregated embeddings semantically meaningful!
+
+## Why Sentence Transformers Work Better
+
+Sentence Transformers are specifically trained for semantic similarity:
+
+```python
+from sentence_transformers import SentenceTransformer
+
+# This model was trained for similarity tasks
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+# Single vector per sentence, optimized for similarity
+query_embedding = model.encode("What is the capital of France?")
+chunk_embedding = model.encode("Paris is the capital of France.")
+
+# These embeddings are DESIGNED to be compared
+similarity = cosine_similarity([query_embedding], [chunk_embedding])[0][0]
+# Output: 0.87 (high similarity - correct!)
+```
+
+## Training Differences
+
+### BERT Training
+
+```
+Input: "The [MASK] sat on the mat."
+Task: Predict that [MASK] = "cat"
+
+Input: "Sentence A" + "Sentence B"
+Task: Are these consecutive sentences? (Yes/No)
+```
+
+### Sentence Transformer Training
+
+```
+Input: ("A dog is running", "A canine is jogging")
+Task: These should have HIGH similarity (0.9+)
+
+Input: ("A dog is running", "The stock market crashed")
+Task: These should have LOW similarity (0.1-)
+```
+
+## Your Task
+
+Implement both approaches and compare their effectiveness for retrieval:
+
+```python
+from transformers import AutoModel, AutoTokenizer
+from sentence_transformers import SentenceTransformer
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+
+class EmbeddingComparison:
+    """Compare BERT vs Sentence Transformers for retrieval."""
+
+    def __init__(self):
+        # Load BERT
+        self.bert_tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
+        self.bert_model = AutoModel.from_pretrained('bert-base-uncased')
+
+        # Load Sentence Transformer
+        self.sbert = SentenceTransformer('all-MiniLM-L6-v2')
+
+    def bert_embed(self, text: str) -> np.ndarray:
+        """
+        Get sentence embedding from BERT using mean pooling.
+
+        TODO: Implement mean pooling over token embeddings.
+        """
+        # YOUR CODE HERE
+        pass
+
+    def sbert_embed(self, text: str) -> np.ndarray:
+        """
+        Get sentence embedding from Sentence Transformers.
+
+        TODO: Use the encode method.
+        """
+        # YOUR CODE HERE
+        pass
+
+    def retrieve_top_k(
+        self,
+        query: str,
+        documents: list[str],
+        method: str = "sbert",
+        k: int = 3
+    ) -> list[tuple[str, float]]:
+        """
+        Retrieve top-k documents for a query.
+
+        Args:
+            query: Search query
+            documents: List of documents to search
+            method: "bert" or "sbert"
+            k: Number of results to return
+
+        Returns:
+            List of (document, similarity_score) tuples
+        """
+        # Choose embedding method
+        embed_fn = self.bert_embed if method == "bert" else self.sbert_embed
+
+        # TODO: Embed query and all documents
+        # TODO: Calculate similarities
+        # TODO: Return top-k with scores
+
+        # YOUR CODE HERE
+        pass
+
+    def compare_methods(
+        self,
+        queries: list[str],
+        documents: list[str],
+        relevant_doc_indices: list[list[int]]
+    ) -> dict:
+        """
+        Compare BERT vs Sentence Transformers on retrieval task.
+
+        Returns recall@k for both methods.
+        """
+        results = {"bert": [], "sbert": []}
+
+        for query, relevant_indices in zip(queries, relevant_doc_indices):
+            for method in ["bert", "sbert"]:
+                retrieved = self.retrieve_top_k(query, documents, method, k=3)
+                retrieved_indices = [documents.index(doc) for doc, _ in retrieved]
+
+                # Calculate recall
+                hits = len(set(retrieved_indices) & set(relevant_indices))
+                recall = hits / len(relevant_indices)
+                results[method].append(recall)
+
+        return {
+            "bert_recall@3": np.mean(results["bert"]),
+            "sbert_recall@3": np.mean(results["sbert"]),
+        }
+
+
+# Test case
+def test_comparison():
+    comp = EmbeddingComparison()
+
+    # Test documents and queries
+    documents = [
+        "Paris is the capital of France, known for the Eiffel Tower.",
+        "London is the capital of the United Kingdom.",
+        "The weather in Tokyo is humid in summer.",
+        "Machine learning is a subset of artificial intelligence.",
+        "Python is a popular programming language for data science.",
+    ]
+
+    queries = [
+        "What is the capital of France?",
+        "Tell me about AI and machine learning",
+    ]
+
+    relevant = [
+        [0],  # First query → first document
+        [3],  # Second query → fourth document
+    ]
+
+    # Compare methods
+    results = comp.compare_methods(queries, documents, relevant)
+
+    print(f"BERT Recall@3: {results['bert_recall@3']:.2f}")
+    print(f"SBERT Recall@3: {results['sbert_recall@3']:.2f}")
+
+    # Sentence Transformers should outperform raw BERT
+    assert results['sbert_recall@3'] >= results['bert_recall@3'], \
+        "Sentence Transformers should perform at least as well as BERT"
+
+    print("✅ Test passed!")
+
+if __name__ == "__main__":
+    test_comparison()
+```
+
+## Expected Results
+
+```
+BERT Recall@3: 0.50
+SBERT Recall@3: 1.00
+✅ Test passed!
+```
+
+Sentence Transformers typically outperform raw BERT for retrieval by **20-50%** on standard benchmarks.
+
+## When to Use Each
+
+| Use Case                     | Recommendation        | Why                      |
+| ---------------------------- | --------------------- | ------------------------ |
+| **RAG retrieval**            | Sentence Transformers | Optimized for similarity |
+| **Named Entity Recognition** | BERT                  | Token-level task         |
+| **Question Answering**       | BERT (fine-tuned)     | Span extraction          |
+| **Semantic search**          | Sentence Transformers | Sentence-level matching  |
+| **Document clustering**      | Sentence Transformers | Need document vectors    |
+
+## Key Takeaways
+
+1. **BERT** = token-level, not designed for sentence similarity
+2. **Sentence Transformers** = sentence-level, trained for similarity
+3. For RAG, **always prefer Sentence Transformers** or similar embedding models
+4. Popular choices: `all-MiniLM-L6-v2`, `all-mpnet-base-v2`, OpenAI `text-embedding-3-small`
+
+## Related Challenges
+
+- [Embedding Fundamentals](/challenges/embedding-fundamentals)
+- [Cosine Similarity](/challenges/cosine-similarity)
+- [MTEB Evaluation](/challenges/mteb-evaluation)

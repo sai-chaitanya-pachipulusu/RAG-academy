@@ -1,0 +1,296 @@
+---
+title: "Sentence Window Retrieval"
+description: "Implement small-to-large retrieval: retrieve precise sentences, expand to full context."
+difficulty: "intermediate"
+estimatedMinutes: 25
+---
+
+# Sentence Window Retrieval (Small-to-Large)
+
+One of the most effective retrieval patterns is **sentence-window retrieval**, also called **small-to-large retrieval**. The idea: retrieve with high precision using small chunks, but provide rich context using larger windows.
+
+## The Problem with Fixed Chunking
+
+| Chunk Size          | Retrieval Precision | Context Quality |
+| ------------------- | ------------------- | --------------- |
+| Small (128 tokens)  | ✅ High             | ❌ Fragmented   |
+| Large (1024 tokens) | ❌ Low              | ✅ Complete     |
+
+You want **both**: precise retrieval AND complete context.
+
+## The Solution: Decouple Retrieval from Synthesis
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ INDEXING                                                     │
+│ ┌───────────────────────────────────────────────────────┐   │
+│ │ Store: Small chunks (sentences) with pointers         │   │
+│ │        to surrounding context                         │   │
+│ └───────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│ RETRIEVAL                                                    │
+│ ┌───────────────────────────────────────────────────────┐   │
+│ │ Find: Most relevant sentences (high precision)        │   │
+│ └───────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│ EXPANSION                                                    │
+│ ┌───────────────────────────────────────────────────────┐   │
+│ │ Expand: Retrieved sentences to include window         │   │
+│ │         (e.g., 3 sentences before + 3 after)          │   │
+│ └───────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Your Task
+
+Implement a `SentenceWindowRetriever` that:
+
+1. Indexes documents as individual sentences
+2. Retrieves the most relevant sentences
+3. Expands each match to include surrounding context
+
+```python
+from dataclasses import dataclass
+from typing import List, Dict, Tuple
+import numpy as np
+
+@dataclass
+class IndexedSentence:
+    """A sentence with its position and parent document reference."""
+    sentence_id: int
+    document_id: str
+    sentence_index: int  # Position within document
+    text: str
+    embedding: np.ndarray
+
+class SentenceWindowRetriever:
+    """
+    Small-to-large retrieval with sentence-level precision.
+
+    From DeepLearning.AI's Advanced RAG course and vinija.ai.
+    """
+
+    def __init__(self, embedder, window_size: int = 3):
+        """
+        Args:
+            embedder: Model with .encode(text) method
+            window_size: Number of sentences before/after to include
+        """
+        self.embedder = embedder
+        self.window_size = window_size
+        self.index: List[IndexedSentence] = []
+        self.documents: Dict[str, List[str]] = {}  # doc_id -> sentences
+
+    def add_document(self, doc_id: str, text: str):
+        """
+        Index a document by splitting into sentences and embedding each.
+
+        TODO: Implement sentence splitting and indexing.
+        """
+        # Step 1: Split into sentences
+        sentences = self._split_sentences(text)
+
+        # Step 2: Store sentences for later expansion
+        self.documents[doc_id] = sentences
+
+        # Step 3: Embed and index each sentence
+        for i, sentence in enumerate(sentences):
+            embedding = self.embedder.encode(sentence)
+
+            indexed = IndexedSentence(
+                sentence_id=len(self.index),
+                document_id=doc_id,
+                sentence_index=i,
+                text=sentence,
+                embedding=embedding
+            )
+            self.index.append(indexed)
+
+    def _split_sentences(self, text: str) -> List[str]:
+        """
+        Split text into sentences.
+
+        TODO: Implement or use a library like nltk or spacy.
+        """
+        # Simple implementation - in production use nltk.sent_tokenize
+        import re
+        sentences = re.split(r'(?<=[.!?])\s+', text)
+        return [s.strip() for s in sentences if s.strip()]
+
+    def retrieve(self, query: str, k: int = 5) -> List[Dict]:
+        """
+        Retrieve top-k sentences with expanded windows.
+
+        Args:
+            query: Search query
+            k: Number of sentence windows to return
+
+        Returns:
+            List of dicts with 'sentence', 'window', and 'score'
+        """
+        # TODO: Implement retrieval with window expansion
+
+        # Step 1: Embed query
+        query_embedding = self.embedder.encode(query)
+
+        # Step 2: Find top-k similar sentences
+        similarities = []
+        for indexed in self.index:
+            sim = self._cosine_similarity(query_embedding, indexed.embedding)
+            similarities.append((indexed, sim))
+
+        similarities.sort(key=lambda x: x[1], reverse=True)
+        top_k = similarities[:k]
+
+        # Step 3: Expand each match to window
+        results = []
+        for indexed, score in top_k:
+            window = self._get_window(
+                indexed.document_id,
+                indexed.sentence_index
+            )
+
+            results.append({
+                "sentence": indexed.text,  # The matched sentence
+                "window": window,           # Expanded context
+                "score": score,
+                "document_id": indexed.document_id,
+                "sentence_index": indexed.sentence_index,
+            })
+
+        return results
+
+    def _get_window(self, doc_id: str, center_idx: int) -> str:
+        """
+        Get sentence window around the center index.
+
+        TODO: Return sentences from (center - window_size) to (center + window_size).
+        """
+        sentences = self.documents[doc_id]
+
+        start = max(0, center_idx - self.window_size)
+        end = min(len(sentences), center_idx + self.window_size + 1)
+
+        return " ".join(sentences[start:end])
+
+    def _cosine_similarity(self, a: np.ndarray, b: np.ndarray) -> float:
+        """Calculate cosine similarity between two vectors."""
+        return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+
+# Mock embedder for testing
+class MockEmbedder:
+    def encode(self, text: str) -> np.ndarray:
+        # Simple hash-based mock embedding
+        np.random.seed(hash(text) % 2**32)
+        return np.random.randn(384)
+
+
+# Test cases
+def test_sentence_window():
+    retriever = SentenceWindowRetriever(MockEmbedder(), window_size=2)
+
+    # Add a document
+    doc = """
+    Machine learning is a subset of artificial intelligence.
+    It enables computers to learn from data.
+    Deep learning uses neural networks with many layers.
+    Transformers revolutionized NLP in 2017.
+    BERT was released by Google in 2018.
+    GPT models use decoder-only architecture.
+    RAG combines retrieval with generation.
+    """
+
+    retriever.add_document("doc1", doc)
+
+    # Test retrieval
+    results = retriever.retrieve("What is deep learning?", k=2)
+
+    assert len(results) == 2, f"Expected 2 results, got {len(results)}"
+
+    # Check that window is larger than sentence
+    for r in results:
+        assert len(r["window"]) >= len(r["sentence"]), \
+            "Window should be at least as large as sentence"
+        print(f"Sentence: {r['sentence'][:50]}...")
+        print(f"Window: {r['window'][:100]}...")
+        print(f"Score: {r['score']:.3f}")
+        print()
+
+    print("✅ Sentence window retrieval test passed!")
+
+
+if __name__ == "__main__":
+    test_sentence_window()
+```
+
+## Expected Output
+
+```
+Sentence: Deep learning uses neural networks with many layers...
+Window: It enables computers to learn from data. Deep learning uses neural networks with many layers. Transformers revolutionized NLP in 2017. BERT was released...
+Score: 0.847
+
+Sentence: Machine learning is a subset of artificial intelligence...
+Window: Machine learning is a subset of artificial intelligence. It enables computers to learn from data. Deep learning uses neural networks...
+Score: 0.723
+
+✅ Sentence window retrieval test passed!
+```
+
+## Why This Works
+
+1. **High Precision Retrieval**: Small sentences are more focused than large chunks
+2. **Rich Context Synthesis**: Expanded window provides necessary background
+3. **Best of Both Worlds**: Precise matching + complete understanding
+
+## Advantages from vinija.ai
+
+| Aspect                  | Traditional Chunking | Sentence Window |
+| ----------------------- | -------------------- | --------------- |
+| **Retrieval precision** | Medium               | High            |
+| **Context richness**    | Fixed                | Adaptive        |
+| **Index size**          | Medium               | Higher          |
+| **Flexibility**         | Low                  | High            |
+
+## Trade-offs
+
+- **More storage**: Need to store sentence-level embeddings
+- **More complexity**: Two-stage retrieve + expand
+- **Window overlap**: Adjacent sentences may return similar windows
+
+## Production Tips
+
+1. **Deduplicate windows**: If sentences 3 and 4 both match, merge their windows
+2. **Rerank after expansion**: Rerank on full windows, not just sentences
+3. **Tune window size**: Domain-dependent (legal = smaller, narrative = larger)
+4. **Consider boundaries**: Don't expand across section headers
+
+## LlamaIndex Implementation
+
+```python
+from llama_index.node_parser import SentenceWindowNodeParser
+from llama_index.indices.postprocessor import MetadataReplacementPostProcessor
+
+# Create sentence window nodes
+node_parser = SentenceWindowNodeParser.from_defaults(
+    window_size=3,
+    window_metadata_key="window",
+    original_text_metadata_key="original_text",
+)
+
+# At query time, replace node content with window
+postprocessor = MetadataReplacementPostProcessor(
+    target_metadata_key="window"
+)
+```
+
+## Related Challenges
+
+- [Parent Document Retrieval](/challenges/parent-document-chunking)
+- [Hierarchical Chunking](/challenges/hierarchical-chunking)
+- [Auto-Merging Retriever](/challenges/auto-merging-retriever)

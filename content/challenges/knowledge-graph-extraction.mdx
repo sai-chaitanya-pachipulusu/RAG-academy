@@ -1,0 +1,547 @@
+---
+title: "Knowledge Graph Extraction"
+slug: "knowledge-graph-extraction"
+difficulty: "medium"
+estimatedMinutes: 30
+stage: "advanced-retrieval"
+track: "graph-rag"
+tags: ["graph-rag", "knowledge-graph", "entity-extraction", "nlp"]
+prerequisites: ["entity-extraction"]
+relatedChallenges: ["graph-traversal-rag", "multi-hop-qa"]
+theory:
+  overview: |
+    Knowledge Graph Extraction is the foundation of Graph RAG. It transforms unstructured 
+    text into structured (Subject, Predicate, Object) triples that can be used for 
+    multi-hop reasoning and relationship discovery.
+  keyFormulas:
+    - name: "Triple Structure"
+      formula: "(Subject, Predicate, Object) → (Entity_A, Relationship, Entity_B)"
+    - name: "Graph Construction"
+      formula: "G = (V, E) where V = {entities}, E = {(s, p, o) triples}"
+  visualIntuition: |
+    Imagine turning a paragraph like:
+    "Alice works at OpenAI. She leads the GPT team."
+
+    Into a graph:
+    Alice --works_at--> OpenAI
+    Alice --leads--> GPT team
+    GPT team --belongs_to--> OpenAI
+
+    Now you can answer: "What does Alice's team work on?" by traversing edges.
+  whyItMatters: |
+    Graph RAG solves problems traditional RAG cannot:
+    1. Multi-hop reasoning: "What projects are at risk based on team dependencies?"
+    2. Thematic synthesis: "What recurring themes exist across our research?"
+    3. Relationship discovery: "How are topic A and topic B connected?"
+  commonMistakes:
+    - "Not normalizing entity names (OpenAI vs OPEN-AI vs Open AI)"
+    - "Extracting too many or too few relationships (balance precision/recall)"
+    - "Missing implicit relationships in the text"
+  interviewTips:
+    - "Mention that extraction quality is the bottleneck for Graph RAG"
+    - "Discuss using NER + LLM for hybrid extraction"
+    - "Reference Leiden algorithm for community detection on the graph"
+realWorld:
+  description: |
+    Microsoft's GraphRAG system uses knowledge graph extraction to enable 
+    question-answering that requires synthesizing information across many documents.
+    It's used for enterprise knowledge management, research synthesis, and compliance.
+  companies: ["Microsoft", "Google", "Amazon", "Neo4j"]
+  useCases:
+    - "Enterprise knowledge base Q&A"
+    - "Research paper synthesis"
+    - "Compliance and audit trails"
+    - "Customer journey analysis"
+complexity:
+  time: "O(n) where n = number of sentences"
+  space: "O(v + e) where v = entities, e = relationships"
+  latency: "~500ms per document (with LLM extraction)"
+---
+
+# Knowledge Graph Extraction
+
+Build the foundation of Graph RAG by extracting knowledge graph triples from text documents, enabling multi-hop reasoning and relationship discovery.
+
+## Problem Statement
+
+You're building a Graph RAG system that can answer complex questions like:
+
+- "How are these two research topics connected?"
+- "What patterns exist across our customer feedback?"
+- "Which team dependencies create project risks?"
+
+Traditional RAG retrieves similar documents. Graph RAG understands **relationships**.
+
+Your first step: Extract structured knowledge (entities and relationships) from unstructured text.
+
+## Your Task
+
+Implement a `KnowledgeGraphExtractor` class that:
+
+1. Extracts **entities** (people, organizations, concepts, products, etc.)
+2. Identifies **relationships** between entities
+3. Produces **(Subject, Predicate, Object)** triples
+
+```python
+class KnowledgeGraphExtractor:
+    def __init__(self):
+        """Initialize the extractor."""
+        pass
+
+    def extract_entities(self, text: str) -> list[dict]:
+        """
+        Extract named entities from text.
+
+        Args:
+            text: Input text
+
+        Returns:
+            List of entities with structure:
+            [
+                {"name": "OpenAI", "type": "ORG"},
+                {"name": "Alice", "type": "PERSON"},
+                ...
+            ]
+        """
+        pass
+
+    def extract_triples(self, text: str) -> list[tuple[str, str, str]]:
+        """
+        Extract (subject, predicate, object) triples from text.
+
+        Args:
+            text: Input text
+
+        Returns:
+            List of triples, e.g.:
+            [
+                ("Alice", "works_at", "OpenAI"),
+                ("Alice", "leads", "GPT team"),
+                ("GPT team", "develops", "ChatGPT")
+            ]
+        """
+        pass
+
+    def build_graph(self, documents: list[str]) -> dict:
+        """
+        Build a knowledge graph from multiple documents.
+
+        Args:
+            documents: List of text documents
+
+        Returns:
+            {
+                "nodes": [{"id": "Alice", "type": "PERSON"}, ...],
+                "edges": [{"source": "Alice", "target": "OpenAI", "relation": "works_at"}, ...]
+            }
+        """
+        pass
+```
+
+## Example
+
+```python
+extractor = KnowledgeGraphExtractor()
+
+text = """
+Alice Smith is a senior engineer at OpenAI. She leads the GPT research team.
+The team recently launched ChatGPT, which is used by millions of users.
+Bob Johnson from Microsoft collaborates with Alice on safety research.
+"""
+
+# Extract entities
+entities = extractor.extract_entities(text)
+print(entities)
+# [
+#     {"name": "Alice Smith", "type": "PERSON"},
+#     {"name": "OpenAI", "type": "ORG"},
+#     {"name": "GPT research team", "type": "ORG"},
+#     {"name": "ChatGPT", "type": "PRODUCT"},
+#     {"name": "Bob Johnson", "type": "PERSON"},
+#     {"name": "Microsoft", "type": "ORG"}
+# ]
+
+# Extract triples
+triples = extractor.extract_triples(text)
+print(triples)
+# [
+#     ("Alice Smith", "works_at", "OpenAI"),
+#     ("Alice Smith", "leads", "GPT research team"),
+#     ("GPT research team", "launched", "ChatGPT"),
+#     ("ChatGPT", "used_by", "millions of users"),
+#     ("Bob Johnson", "works_at", "Microsoft"),
+#     ("Bob Johnson", "collaborates_with", "Alice Smith")
+# ]
+
+# Build full graph from documents
+docs = [text, "More documents..."]
+graph = extractor.build_graph(docs)
+print(f"Nodes: {len(graph['nodes'])}, Edges: {len(graph['edges'])}")
+```
+
+## Starter Code
+
+```python
+import re
+from collections import defaultdict
+
+class KnowledgeGraphExtractor:
+    def __init__(self):
+        """Initialize with entity type patterns."""
+        # Simple patterns for entity detection (production would use NER models)
+        self.entity_patterns = {
+            "PERSON": [
+                # Capitalized names (simplified)
+                r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b'
+            ],
+            "ORG": [
+                # Known organizations
+                r'\b(OpenAI|Microsoft|Google|Amazon|Meta|Anthropic)\b',
+                # Generic org patterns
+                r'\b([A-Z][a-z]+(?:\s+(?:Inc|Corp|LLC|Team|Group))?)\b'
+            ],
+            "PRODUCT": [
+                r'\b(ChatGPT|GPT-\d+|Claude|Gemini|DALL-E)\b'
+            ]
+        }
+
+        # Relationship patterns
+        self.relation_patterns = [
+            # (subject pattern, predicate, object pattern)
+            (r'(\w+(?:\s+\w+)?)\s+works?\s+(?:at|for)\s+(\w+(?:\s+\w+)?)', 'works_at'),
+            (r'(\w+(?:\s+\w+)?)\s+leads?\s+(?:the\s+)?(\w+(?:\s+\w+)?)', 'leads'),
+            (r'(\w+(?:\s+\w+)?)\s+launched\s+(\w+(?:\s+\w+)?)', 'launched'),
+            (r'(\w+(?:\s+\w+)?)\s+collaborates?\s+with\s+(\w+(?:\s+\w+)?)', 'collaborates_with'),
+            (r'(\w+(?:\s+\w+)?)\s+develops?\s+(\w+(?:\s+\w+)?)', 'develops'),
+            (r'(\w+(?:\s+\w+)?)\s+(?:is\s+)?used\s+by\s+(\w+(?:\s+\w+)?)', 'used_by'),
+        ]
+
+    def extract_entities(self, text: str) -> list[dict]:
+        """
+        Extract named entities from text.
+
+        TODO: Implement entity extraction using patterns or NER.
+        Return list of {"name": str, "type": str} dicts.
+        """
+        entities = []
+        # TODO: Loop through entity patterns and extract matches
+        # TODO: Deduplicate entities by name
+        pass
+
+    def extract_triples(self, text: str) -> list[tuple[str, str, str]]:
+        """
+        Extract (subject, predicate, object) triples from text.
+
+        TODO: Implement triple extraction using relation patterns.
+        Return list of (subject, predicate, object) tuples.
+        """
+        triples = []
+        # TODO: For each relation pattern, find matches
+        # TODO: Extract subject and object from regex groups
+        pass
+
+    def normalize_entity(self, entity: str) -> str:
+        """
+        Normalize entity names for consistency.
+
+        TODO: Lowercase, strip whitespace, handle common variations.
+        """
+        pass
+
+    def build_graph(self, documents: list[str]) -> dict:
+        """
+        Build a knowledge graph from multiple documents.
+
+        TODO:
+        1. Extract entities and triples from all documents
+        2. Create unique nodes for each entity
+        3. Create edges for each relationship
+        4. Handle duplicates and merge information
+        """
+        nodes = []
+        edges = []
+        # TODO: Implement graph construction
+        pass
+
+
+# Test your implementation
+if __name__ == "__main__":
+    extractor = KnowledgeGraphExtractor()
+
+    test_text = """
+    Alice Smith is a senior engineer at OpenAI. She leads the GPT research team.
+    The team recently launched ChatGPT. Bob Johnson from Microsoft collaborates with Alice.
+    """
+
+    entities = extractor.extract_entities(test_text)
+    print("Entities:", entities)
+
+    triples = extractor.extract_triples(test_text)
+    print("Triples:", triples)
+```
+
+## Test Cases
+
+```python
+def test_knowledge_graph_extractor():
+    extractor = KnowledgeGraphExtractor()
+
+    # Test 1: Entity extraction
+    text1 = "Alice works at OpenAI. Bob works at Google."
+    entities = extractor.extract_entities(text1)
+
+    entity_names = {e["name"] for e in entities}
+    assert "Alice" in entity_names or "OpenAI" in entity_names
+    print(f"✓ Test 1 passed: Found {len(entities)} entities")
+
+    # Test 2: Triple extraction
+    text2 = "Alice works at OpenAI. She leads the research team."
+    triples = extractor.extract_triples(text2)
+
+    assert len(triples) >= 1, "Should extract at least one triple"
+    for triple in triples:
+        assert len(triple) == 3, "Each triple should have 3 elements"
+    print(f"✓ Test 2 passed: Extracted {len(triples)} triples")
+
+    # Test 3: Graph construction
+    docs = [
+        "Alice works at OpenAI.",
+        "Bob works at Google.",
+        "Alice collaborates with Bob."
+    ]
+    graph = extractor.build_graph(docs)
+
+    assert "nodes" in graph, "Graph should have nodes"
+    assert "edges" in graph, "Graph should have edges"
+    assert len(graph["nodes"]) >= 2, "Should have at least 2 nodes"
+    print(f"✓ Test 3 passed: Graph has {len(graph['nodes'])} nodes, {len(graph['edges'])} edges")
+
+    # Test 4: Entity normalization
+    assert extractor.normalize_entity("  OpenAI  ") == extractor.normalize_entity("OpenAI")
+    print("✓ Test 4 passed: Entity normalization works")
+
+    print("\n✅ All tests passed!")
+
+test_knowledge_graph_extractor()
+```
+
+## Hints
+
+<details>
+<summary>Hint 1: Entity Extraction</summary>
+
+Use regex patterns to find entities, then deduplicate:
+
+```python
+def extract_entities(self, text: str) -> list[dict]:
+    entities = []
+    seen = set()
+
+    for entity_type, patterns in self.entity_patterns.items():
+        for pattern in patterns:
+            matches = re.findall(pattern, text)
+            for match in matches:
+                name = match if isinstance(match, str) else match[0]
+                if name not in seen:
+                    entities.append({"name": name, "type": entity_type})
+                    seen.add(name)
+
+    return entities
+```
+
+</details>
+
+<details>
+<summary>Hint 2: Triple Extraction</summary>
+
+Extract triples using relation patterns:
+
+```python
+def extract_triples(self, text: str) -> list[tuple[str, str, str]]:
+    triples = []
+
+    for pattern, predicate in self.relation_patterns:
+        matches = re.findall(pattern, text, re.IGNORECASE)
+        for match in matches:
+            subject, obj = match[0], match[1]
+            triples.append((subject.strip(), predicate, obj.strip()))
+
+    return triples
+```
+
+</details>
+
+<details>
+<summary>Hint 3: Building the Graph</summary>
+
+Combine all extractions into a graph structure:
+
+```python
+def build_graph(self, documents: list[str]) -> dict:
+    all_nodes = {}
+    all_edges = []
+
+    for doc in documents:
+        # Add entities as nodes
+        for entity in self.extract_entities(doc):
+            normalized = self.normalize_entity(entity["name"])
+            if normalized not in all_nodes:
+                all_nodes[normalized] = {
+                    "id": normalized,
+                    "type": entity["type"]
+                }
+
+        # Add triples as edges
+        for subj, pred, obj in self.extract_triples(doc):
+            all_edges.append({
+                "source": self.normalize_entity(subj),
+                "target": self.normalize_entity(obj),
+                "relation": pred
+            })
+
+    return {
+        "nodes": list(all_nodes.values()),
+        "edges": all_edges
+    }
+```
+
+</details>
+
+## Solution
+
+<details>
+<summary>Click to reveal solution</summary>
+
+```python
+import re
+from collections import defaultdict
+
+class KnowledgeGraphExtractor:
+    def __init__(self):
+        self.entity_patterns = {
+            "PERSON": [
+                r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b'
+            ],
+            "ORG": [
+                r'\b(OpenAI|Microsoft|Google|Amazon|Meta|Anthropic)\b',
+                r'the\s+([A-Z][a-z]+(?:\s+(?:team|group|department|company))?)',
+            ],
+            "PRODUCT": [
+                r'\b(ChatGPT|GPT-\d+|Claude|Gemini|DALL-E)\b'
+            ]
+        }
+
+        self.relation_patterns = [
+            (r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+works?\s+(?:at|for)\s+(\w+)', 'works_at'),
+            (r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+leads?\s+(?:the\s+)?(.+?team)', 'leads'),
+            (r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+from\s+(\w+)', 'works_at'),
+            (r'(.+?team)\s+(?:recently\s+)?launched\s+(\w+)', 'launched'),
+            (r'(\w+)\s+collaborates?\s+with\s+([A-Z][a-z]+)', 'collaborates_with'),
+        ]
+
+    def extract_entities(self, text: str) -> list[dict]:
+        entities = []
+        seen = set()
+
+        for entity_type, patterns in self.entity_patterns.items():
+            for pattern in patterns:
+                matches = re.findall(pattern, text, re.IGNORECASE)
+                for match in matches:
+                    name = match if isinstance(match, str) else match
+                    name = name.strip()
+                    normalized = self.normalize_entity(name)
+
+                    if normalized and normalized not in seen:
+                        entities.append({"name": name, "type": entity_type})
+                        seen.add(normalized)
+
+        return entities
+
+    def extract_triples(self, text: str) -> list[tuple[str, str, str]]:
+        triples = []
+        seen = set()
+
+        for pattern, predicate in self.relation_patterns:
+            matches = re.finditer(pattern, text, re.IGNORECASE)
+            for match in matches:
+                groups = match.groups()
+                if len(groups) >= 2:
+                    subject = groups[0].strip()
+                    obj = groups[1].strip()
+
+                    triple_key = (self.normalize_entity(subject),
+                                  predicate,
+                                  self.normalize_entity(obj))
+
+                    if triple_key not in seen:
+                        triples.append((subject, predicate, obj))
+                        seen.add(triple_key)
+
+        return triples
+
+    def normalize_entity(self, entity: str) -> str:
+        if not entity:
+            return ""
+        # Lowercase, strip whitespace, remove extra spaces
+        normalized = " ".join(entity.lower().split())
+        return normalized
+
+    def build_graph(self, documents: list[str]) -> dict:
+        all_nodes = {}
+        all_edges = []
+        edge_set = set()
+
+        for doc in documents:
+            # Extract and add entities as nodes
+            for entity in self.extract_entities(doc):
+                normalized = self.normalize_entity(entity["name"])
+                if normalized not in all_nodes:
+                    all_nodes[normalized] = {
+                        "id": entity["name"],
+                        "normalized_id": normalized,
+                        "type": entity["type"]
+                    }
+
+            # Extract and add triples as edges
+            for subj, pred, obj in self.extract_triples(doc):
+                subj_norm = self.normalize_entity(subj)
+                obj_norm = self.normalize_entity(obj)
+
+                edge_key = (subj_norm, pred, obj_norm)
+                if edge_key not in edge_set:
+                    all_edges.append({
+                        "source": subj,
+                        "source_normalized": subj_norm,
+                        "target": obj,
+                        "target_normalized": obj_norm,
+                        "relation": pred
+                    })
+                    edge_set.add(edge_key)
+
+        return {
+            "nodes": list(all_nodes.values()),
+            "edges": all_edges
+        }
+```
+
+</details>
+
+## Extensions
+
+After mastering basic extraction, explore these advanced topics:
+
+1. **LLM-Based Extraction**: Use GPT-4 or Claude for more accurate extraction
+2. **Coreference Resolution**: "She" → "Alice" mapping
+3. **Relation Typing**: Classify relationships into categories
+4. **Entity Linking**: Link to external knowledge bases (Wikidata)
+5. **Community Detection**: Use Leiden algorithm to find topic clusters
+
+## Production Notes
+
+In production Graph RAG systems:
+
+- **Use NER models** (spaCy, Flair) for better entity detection
+- **Use LLMs** for relationship extraction with few-shot examples
+- **Store in Neo4j** or similar graph database for scalable queries
+- **Implement coreference** to handle pronouns ("she", "it", "the company")
+- **Version your knowledge graph** for reproducibility

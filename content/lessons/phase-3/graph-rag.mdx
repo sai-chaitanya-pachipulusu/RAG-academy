@@ -1,0 +1,337 @@
+---
+title: "Graph RAG: Connection-Based Retrieval"
+description: "Master Graph RAG for multi-hop reasoning, thematic synthesis, and relationship discovery across large document corpora"
+order: 20
+estimatedMinutes: 45
+stage: advanced-retrieval
+prereqs:
+  - phase: phase-3
+    slug: reasoning-rag
+next:
+  phase: phase-3
+  slug: multi-turn-rag
+tags: ["graph-rag", "knowledge-graphs", "multi-hop", "synthesis"]
+---
+
+# Graph RAG: Understanding Connections, Not Just Content
+
+Traditional RAG finds documents. **Graph RAG finds connections.** This lesson teaches you when and how to use Graph RAG for complex reasoning tasks.
+
+## The Core Insight
+
+> "The pattern: Graph RAG excels when you need to understand **connections**, not just **content**."
+
+---
+
+## The Three Problems Graph RAG Solves
+
+### Problem 1: Multi-Hop Reasoning
+
+**Question:** "Which projects are at risk based on team member dependencies?"
+
+| Approach      | Response                                                                         |
+| ------------- | -------------------------------------------------------------------------------- |
+| **Naive RAG** | Returns docs mentioning "risk" and "projects" separately                         |
+| **Graph RAG** | Traces: `Team A → depends on → Person X → also on → Project Y → behind schedule` |
+
+The naive approach finds **keywords**. Graph RAG follows **relationships**.
+
+### Problem 2: Thematic Synthesis
+
+**Question:** "What are the recurring themes in our research?"
+
+| Approach      | Response                                             |
+| ------------- | ---------------------------------------------------- |
+| **Naive RAG** | Retrieves the most similar documents                 |
+| **Graph RAG** | Identifies **concept clusters** across ALL documents |
+
+Finding themes requires understanding how ideas connect across your entire corpus, not just the top-10 similar docs.
+
+### Problem 3: Relationship Discovery
+
+**Question:** "How are these two topics connected?"
+
+| Approach      | Response                                                                                   |
+| ------------- | ------------------------------------------------------------------------------------------ |
+| **Naive RAG** | "Here are docs about topic A and topic B"                                                  |
+| **Graph RAG** | "Topic A connects to topic B through concepts X, Y, and Z mentioned in these 10 documents" |
+
+This is the difference between **co-occurrence** and **explanation**.
+
+---
+
+## The Decision Framework
+
+### Use Graph RAG When:
+
+- ✅ Multi-document synthesis needed
+- ✅ Relationship mapping matters
+- ✅ "How do these connect?" questions
+- ✅ Knowledge graph construction required
+- ✅ Cross-departmental or cross-domain insights
+- ✅ Regulatory/compliance tracing
+
+### Continue with Traditional RAG When:
+
+- ⚡ Simple similarity search
+- ⚡ Single-document retrieval
+- ⚡ "Find documents about X" questions
+- ⚡ Speed is critical (< 100ms latency)
+- ⚡ Limited computational budget
+
+---
+
+## Graph RAG Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Document Corpus                           │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Entity Extraction (NER + LLM)                   │
+│  "Extract all people, organizations, concepts, and their     │
+│   relationships from this document."                         │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│            Knowledge Graph (Nodes + Edges)                   │
+│  Nodes: Entities (Person, Org, Concept)                      │
+│  Edges: Relationships (works_for, depends_on, related_to)    │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│           Community Detection (Leiden Algorithm)             │
+│  Group densely connected entities into communities           │
+│  Each community represents a coherent theme or topic         │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│            Community Summarization (LLM)                     │
+│  "Summarize what this community of entities represents"      │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Graph-Augmented Retrieval                       │
+│  1. Entity linking from query to graph                       │
+│  2. Graph traversal for related concepts                     │
+│  3. Community-aware context construction                     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Implementation Deep Dive
+
+### Step 1: Entity Extraction
+
+The foundation of Graph RAG is extracting **entities** and **relationships** from your documents.
+
+```python
+def extract_entities_and_relations(document: str) -> list[dict]:
+    """
+    Use an LLM to extract (subject, predicate, object) triples.
+    """
+    prompt = f"""
+    Extract all entities and their relationships from this text.
+    Format each as: (SUBJECT, PREDICATE, OBJECT)
+
+    Example:
+    Text: "Alice works at OpenAI on the GPT project."
+    Output:
+    - (Alice, works_at, OpenAI)
+    - (Alice, works_on, GPT project)
+    - (GPT project, belongs_to, OpenAI)
+
+    Text: {document}
+    """
+    return llm.extract_triples(prompt)
+```
+
+### Step 2: Knowledge Graph Construction
+
+Build a graph data structure from the extracted triples:
+
+```python
+import networkx as nx
+
+def build_knowledge_graph(triples: list[tuple]) -> nx.Graph:
+    """
+    Construct a knowledge graph from entity-relation triples.
+    """
+    G = nx.Graph()
+
+    for subject, predicate, obj in triples:
+        # Add nodes with metadata
+        G.add_node(subject, type="entity")
+        G.add_node(obj, type="entity")
+
+        # Add edge with relationship type
+        G.add_edge(subject, obj, relation=predicate)
+
+    return G
+```
+
+### Step 3: Community Detection
+
+Group related entities into communities using the Leiden algorithm:
+
+```python
+from cdlib import algorithms
+
+def detect_communities(graph: nx.Graph) -> list[list[str]]:
+    """
+    Find communities of densely connected entities.
+    """
+    communities = algorithms.leiden(graph)
+    return communities.communities
+```
+
+### Step 4: Community Summarization
+
+Generate natural language summaries for each community:
+
+```python
+def summarize_community(community: list[str], graph: nx.Graph) -> str:
+    """
+    Create a coherent summary of what this community represents.
+    """
+    # Extract all edges within the community
+    subgraph = graph.subgraph(community)
+    edges = list(subgraph.edges(data=True))
+
+    prompt = f"""
+    These entities are densely connected: {community}
+    Their relationships: {edges}
+
+    Write a 2-3 sentence summary of what this community represents.
+    """
+    return llm.summarize(prompt)
+```
+
+### Step 5: Graph-Augmented Retrieval
+
+When a query comes in, use the graph for enhanced retrieval:
+
+```python
+def graph_rag_retrieve(query: str, graph: nx.Graph, summaries: dict) -> list[str]:
+    """
+    Graph-augmented retrieval with multi-hop reasoning.
+    """
+    # 1. Entity linking: Find entities mentioned in query
+    query_entities = extract_entities(query)
+
+    # 2. Graph traversal: Find connected entities (1-2 hops)
+    related_entities = set()
+    for entity in query_entities:
+        if entity in graph:
+            neighbors = nx.single_source_shortest_path_length(graph, entity, cutoff=2)
+            related_entities.update(neighbors.keys())
+
+    # 3. Community context: Get relevant community summaries
+    relevant_communities = []
+    for entity in related_entities:
+        community = get_community_for_entity(entity)
+        if community:
+            relevant_communities.append(summaries[community])
+
+    # 4. Combine with traditional retrieval
+    vector_results = traditional_rag_search(query)
+
+    return {
+        "graph_context": relevant_communities,
+        "vector_context": vector_results,
+        "reasoning_path": list(related_entities)
+    }
+```
+
+---
+
+## Real-World Use Cases
+
+### 1. Enterprise Knowledge Management
+
+- **Query:** "What expertise do we need for the AI initiative?"
+- **Graph Path:** `AI Initiative → requires → ML Engineers → similar_to → existing team in Dept X`
+
+### 2. Research Synthesis
+
+- **Query:** "How does this new paper relate to our existing research?"
+- **Graph Path:** `New Paper → cites → Method A → used_by → Our Paper 2022 → extends → Our Paper 2020`
+
+### 3. Compliance and Audit
+
+- **Query:** "Show me all data flows involving customer PII"
+- **Graph Path:** `Customer PII → stored_in → Database A → accessed_by → Service B → logs_to → System C`
+
+### 4. Customer Intelligence
+
+- **Query:** "Why did this customer segment churn?"
+- **Graph Path:** `Churned Customers → complained_about → Feature X → depends_on → Service Y → had_outage`
+
+---
+
+## Graph RAG vs. Traditional RAG: Performance Comparison
+
+| Metric                  | Traditional RAG | Graph RAG   |
+| ----------------------- | --------------- | ----------- |
+| **Latency**             | 50-200ms        | 500-2000ms  |
+| **Multi-hop accuracy**  | ~30%            | ~75%        |
+| **Synthesis quality**   | Low             | High        |
+| **Infrastructure cost** | Low             | Medium-High |
+| **Setup complexity**    | Simple          | Complex     |
+
+---
+
+## Common Mistakes
+
+### ❌ Using Graph RAG for Simple Lookups
+
+If your query is "What is the return policy?", traditional RAG is faster and sufficient.
+
+### ❌ Skipping Entity Normalization
+
+"OpenAI", "OPENAI", and "Open AI" should be the same node. Implement coreference resolution.
+
+### ❌ No Community Summarization
+
+Without summaries, you lose the "thematic synthesis" capability. Summarize communities at index time.
+
+### ❌ Graph Too Dense or Too Sparse
+
+- Too dense: Everything connects to everything (noisy)
+- Too sparse: Missing important relationships
+
+Tune your extraction prompts to balance precision and recall.
+
+---
+
+## Interview Tips
+
+### Question: "When would you choose Graph RAG over traditional RAG?"
+
+> **Strong Answer:** "I would use Graph RAG when the question requires understanding relationships across documents—like 'how are these concepts connected?' or 'what patterns exist across our data?' For simple similarity search like 'find documents about topic X', traditional RAG is faster and more cost-effective. It's a trade-off between reasoning depth and latency."
+
+### Question: "How would you implement Graph RAG for a new project?"
+
+> **Strong Answer:** "I would start with entity extraction using NER plus an LLM for relationship extraction. Then build a knowledge graph, apply community detection (Leiden algorithm), and generate summaries for each community. At query time, I'd do entity linking, graph traversal for multi-hop context, and combine with traditional vector search for a hybrid approach."
+
+---
+
+## Related Challenges
+
+- [Entity Extraction](/challenges/entity-extraction) - Extract knowledge graph triples
+- [Graph Traversal RAG](/challenges/graph-traversal-rag) - Implement BFS/DFS for retrieval
+- [Multi-Hop QA](/challenges/multi-hop-qa) - Answer questions requiring reasoning chains
+- [Community Detection](/challenges/community-detection) - Group related entities
+
+## External Resources
+
+- [Microsoft GraphRAG](https://github.com/microsoft/graphrag) - Production implementation
+- [LlamaIndex Property Graph](https://docs.llamaindex.ai/en/stable/examples/property_graph/) - Framework support
+- [Leiden Algorithm Paper](https://arxiv.org/abs/1810.08473) - Community detection

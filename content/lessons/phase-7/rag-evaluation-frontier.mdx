@@ -9,7 +9,9 @@ prereqs:
     slug: compound-ai-systems
   - phase: phase-6
     slug: evaluation-in-production
-next: null
+next:
+  phase: phase-7
+  slug: power-of-noise
 outcomes:
   - "Implement comprehensive RAG evaluation suites."
   - "Use LLM-as-judge for scalable evaluation."
@@ -84,7 +86,7 @@ from ragas.metrics import (
 def evaluate_rag_response(query, retrieved_contexts, generated_answer, ground_truth):
     """
     Comprehensive RAG evaluation using RAGAS metrics.
-    
+
     Returns dict with scores from 0-1 for each metric.
     """
     return {
@@ -99,7 +101,7 @@ def evaluate_rag_response(query, retrieved_contexts, generated_answer, ground_tr
             contexts=retrieved_contexts,
             ground_truth=ground_truth
         ),
-        
+
         # Generation metrics
         "faithfulness": faithfulness(
             question=query,
@@ -115,12 +117,69 @@ def evaluate_rag_response(query, retrieved_contexts, generated_answer, ground_tr
 
 ### Metric definitions
 
-| Metric | Measures | Formula |
-|--------|----------|---------|
-| **Context Precision** | Retrieved chunks relevance to answer | (relevant chunks) / (total retrieved) |
-| **Context Recall** | Coverage of ground truth | (GT sentences in context) / (total GT sentences) |
-| **Faithfulness** | Answer grounded in context | (supported claims) / (total claims) |
-| **Answer Relevancy** | Answer addresses the question | Semantic similarity(answer, question) |
+| Metric                | Measures                             | Formula                                          |
+| --------------------- | ------------------------------------ | ------------------------------------------------ |
+| **Context Precision** | Retrieved chunks relevance to answer | (relevant chunks) / (total retrieved)            |
+| **Context Recall**    | Coverage of ground truth             | (GT sentences in context) / (total GT sentences) |
+| **Faithfulness**      | Answer grounded in context           | (supported claims) / (total claims)              |
+| **Answer Relevancy**  | Answer addresses the question        | Semantic similarity(answer, question)            |
+
+### ARES: Automated RAG Evaluation System
+
+[ARES](https://arxiv.org/abs/2311.09476) from Stanford/UC Berkeley provides automated evaluation with statistical guarantees:
+
+**Three-Stage Pipeline:**
+
+1. **Synthetic Dataset Generation**: Use LLMs to create question-answer pairs from your corpus
+2. **LLM Judge Training**: Fine-tune lightweight models for context relevance, faithfulness, and relevancy
+3. **Prediction-Powered Inference (PPI)**: Use small human-annotated set to provide confidence intervals
+
+```python
+class ARESEvaluator:
+    """
+    ARES-style evaluation with confidence intervals.
+    """
+    def __init__(self, judge_models, human_validation_set):
+        self.judges = judge_models  # Fine-tuned classifiers
+        self.validation_set = human_validation_set  # 50-200 examples
+
+    def evaluate_with_confidence(self, rag_outputs: List[Dict]) -> Dict:
+        """
+        Evaluate RAG outputs with PPI confidence intervals.
+
+        Returns metrics with 95% confidence bounds.
+        """
+        # Score all outputs with LLM judges
+        judge_scores = {
+            "context_relevance": [self.judges["relevance"].score(o) for o in rag_outputs],
+            "faithfulness": [self.judges["faithful"].score(o) for o in rag_outputs],
+            "answer_relevance": [self.judges["answer_rel"].score(o) for o in rag_outputs],
+        }
+
+        # Apply PPI rectifier using human validation set
+        for metric, scores in judge_scores.items():
+            human_labels = [v[metric] for v in self.validation_set]
+            judge_on_validation = [self.judges[metric.split("_")[0]].score(v) for v in self.validation_set]
+
+            # Calculate rectifier (difference between judge and human)
+            rectifier = np.mean(human_labels) - np.mean(judge_on_validation)
+
+            # Apply to full dataset
+            corrected_mean = np.mean(scores) + rectifier
+
+            # Confidence interval via PPI
+            se = self._ppi_standard_error(scores, human_labels, judge_on_validation)
+
+            judge_scores[metric] = {
+                "mean": corrected_mean,
+                "ci_lower": corrected_mean - 1.96 * se,
+                "ci_upper": corrected_mean + 1.96 * se,
+            }
+
+        return judge_scores
+```
+
+**Key Advantage**: ARES requires only 50-200 human-annotated examples to provide reliable confidence intervals for thousands of RAG outputs, making it practical for production evaluation.
 
 ### LLM-as-Judge implementation
 
@@ -133,9 +192,9 @@ def llm_judge_faithfulness(context: str, answer: str) -> dict:
     Returns score and reasoning.
     """
     client = OpenAI()
-    
+
     prompt = f"""You are evaluating whether an answer is faithful to the given context.
-    
+
 Context:
 {context}
 
@@ -152,13 +211,13 @@ Evaluate faithfulness on a scale of 1-5:
 Respond in JSON format:
 {{"score": <1-5>, "reasoning": "<explanation>", "unsupported_claims": [<list of claims not in context>]}}
 """
-    
+
     response = client.chat.completions.create(
         model="gpt-4-turbo",
         messages=[{"role": "user", "content": prompt}],
         response_format={"type": "json_object"},
     )
-    
+
     return json.loads(response.choices[0].message.content)
 
 
@@ -167,9 +226,9 @@ def llm_judge_relevancy(question: str, answer: str) -> dict:
     Use LLM to judge if answer is relevant to question.
     """
     client = OpenAI()
-    
+
     prompt = f"""You are evaluating whether an answer is relevant to the question.
-    
+
 Question: {question}
 
 Answer: {answer}
@@ -184,13 +243,13 @@ Evaluate relevancy on a scale of 1-5:
 Respond in JSON format:
 {{"score": <1-5>, "reasoning": "<explanation>", "missing_aspects": [<what the answer should have covered>]}}
 """
-    
+
     response = client.chat.completions.create(
         model="gpt-4-turbo",
         messages=[{"role": "user", "content": prompt}],
         response_format={"type": "json_object"},
     )
-    
+
     return json.loads(response.choices[0].message.content)
 ```
 
@@ -207,7 +266,7 @@ def robust_llm_judge(question, answer, context):
         llm_judge(judge, question, answer, context)
         for judge in judges
     ]
-    
+
     # Strategy 2: Criteria decomposition
     criteria_scores = {
         "factual_accuracy": judge_factual(answer, context),
@@ -215,11 +274,11 @@ def robust_llm_judge(question, answer, context):
         "conciseness": judge_conciseness(answer),
         "coherence": judge_coherence(answer),
     }
-    
+
     # Strategy 3: Reference-based calibration
     calibration_set = load_human_annotated_examples()
     judge_calibration = compute_judge_accuracy(calibration_set)
-    
+
     # Combine with confidence weighting
     return weighted_average(scores, criteria_scores, judge_calibration)
 ```
@@ -232,19 +291,19 @@ class RAGEvaluationPipeline:
         self.rag = rag_system
         self.dataset = eval_dataset
         self.metrics_history = []
-    
+
     def run_evaluation(self):
         """Run full evaluation suite."""
         results = []
-        
+
         for example in self.dataset:
             # Get RAG response
             response = self.rag.query(example["question"])
-            
+
             # Evaluate
             metrics = {
                 "retrieval": self.eval_retrieval(
-                    response["contexts"], 
+                    response["contexts"],
                     example["relevant_contexts"]
                 ),
                 "generation": self.eval_generation(
@@ -258,19 +317,19 @@ class RAGEvaluationPipeline:
                 ),
             }
             results.append(metrics)
-        
+
         # Aggregate
         aggregated = self.aggregate_metrics(results)
         self.metrics_history.append({
             "timestamp": datetime.now(),
             "metrics": aggregated,
         })
-        
+
         # Alert on regression
         self.check_regressions(aggregated)
-        
+
         return aggregated
-    
+
     def check_regressions(self, current_metrics):
         """Alert if metrics drop below thresholds."""
         thresholds = {
@@ -278,7 +337,7 @@ class RAGEvaluationPipeline:
             "generation.faithfulness": 0.85,
             "end_to_end.correctness": 0.75,
         }
-        
+
         for metric, threshold in thresholds.items():
             value = get_nested(current_metrics, metric)
             if value < threshold:
@@ -293,7 +352,7 @@ def create_golden_set(raw_queries, num_samples=100):
     Create a golden evaluation set with human-verified ground truth.
     """
     golden_set = []
-    
+
     for query in sample(raw_queries, num_samples):
         # Get expert annotation
         annotation = {
@@ -303,11 +362,11 @@ def create_golden_set(raw_queries, num_samples=100):
             "difficulty": expert_rate_difficulty(query),
             "query_type": expert_classify_query(query),
         }
-        
+
         # Verify with second annotator
         if second_annotator_agrees(annotation):
             golden_set.append(annotation)
-    
+
     return golden_set
 ```
 
@@ -331,4 +390,3 @@ def create_golden_set(raw_queries, num_samples=100):
 4. **Iterate**: Use evaluation to drive improvements
 
 **Congratulations!** You've completed the RAG Academy curriculum through Phase 7. You now have cutting-edge knowledge of RAG systems.
-

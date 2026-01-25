@@ -1,0 +1,442 @@
+---
+title: "LLM as a Judge"
+slug: "llm-as-judge"
+difficulty: "medium"
+estimatedMinutes: 25
+stage: "evaluation-ops"
+track: "evaluation"
+tags: ["evaluation", "llm", "judge", "automated-testing"]
+prerequisites: ["faithfulness-judge", "relevance-judge"]
+relatedChallenges: ["multi-judge-consensus", "context-recall-judge"]
+theory:
+  overview: |
+    LLM-as-a-Judge is the technique of using a powerful LLM to automatically evaluate 
+    the quality of RAG outputs. Instead of manually reviewing thousands of responses, 
+    you automate evaluation with scoring rubrics and prompt engineering.
+  keyFormulas:
+    - name: "Evaluation Prompt Structure"
+      formula: |
+        CONTEXT: {retrieved_context}
+        QUESTION: {user_query}
+        ANSWER: {generated_answer}
+        RUBRIC: {scoring_criteria}
+        OUTPUT: Numeric score with reasoning
+    - name: "Multi-Judge Aggregation"
+      formula: "final_score = weighted_average(judge_1, judge_2, ..., judge_n)"
+  visualIntuition: |
+    Think of LLM-as-a-Judge like having an expert reviewer who:
+    1. Reads the source context (like fact-checking)
+    2. Reads the question and answer
+    3. Scores against specific criteria
+    4. Provides explanations for the score
+  whyItMatters: |
+    Manual evaluation doesn't scale. One human can review ~100 conversations/day.
+    LLM-as-a-Judge can evaluate thousands in minutes, enabling:
+    - Regression testing on every deployment
+    - A/B testing at scale
+    - Continuous quality monitoring
+  commonMistakes:
+    - "Using vague rubrics without specific criteria"
+    - "Not validating judge outputs against human labels"
+    - "Ignoring judge model biases (e.g., verbosity preference)"
+  interviewTips:
+    - "Mention that you calibrate LLM judges against human evaluations"
+    - "Discuss using multiple judges and consensus for robustness"
+    - "Reference the RAGAS framework as a production solution"
+realWorld:
+  description: |
+    Every major RAG deployment uses automated evaluation. OpenAI, Anthropic, and 
+    Google all use LLM-as-a-Judge for their products. The RAGAS framework has 
+    become the industry standard for open-source RAG evaluation.
+  companies: ["OpenAI", "Anthropic", "Google", "LangChain", "LlamaIndex"]
+  useCases:
+    - "Automated regression testing for RAG deployments"
+    - "A/B testing different retrieval strategies"
+    - "Quality monitoring dashboards"
+    - "Hallucination detection at scale"
+complexity:
+  time: "O(n) where n = number of test cases"
+  space: "O(1) per evaluation"
+  latency: "1-3s per evaluation (depends on judge model)"
+---
+
+# LLM as a Judge
+
+Build an automated evaluation system that uses a large language model to score RAG outputs for faithfulness, relevancy, and completeness.
+
+## Problem Statement
+
+You're building a production RAG system that handles thousands of queries daily. You need to:
+
+1. Automatically score whether answers are faithful to the retrieved context
+2. Check if answers actually address the user's question
+3. Detect when the model hallucinates or makes unsupported claims
+
+Manual review is impossible at scale. Implement an `LLMJudge` class that automates this evaluation.
+
+## Your Task
+
+Implement the `LLMJudge` class with the following methods:
+
+```python
+class LLMJudge:
+    def __init__(self, model_fn):
+        """
+        Initialize the judge with a model function.
+
+        Args:
+            model_fn: A function that takes a prompt and returns a string response
+        """
+        pass
+
+    def score_faithfulness(self, context: str, answer: str) -> dict:
+        """
+        Score how well the answer is grounded in the context.
+
+        Args:
+            context: The retrieved context/documents
+            answer: The generated answer
+
+        Returns:
+            {
+                "score": float (0.0 to 1.0),
+                "reasoning": str (explanation for the score)
+            }
+        """
+        pass
+
+    def score_relevancy(self, question: str, answer: str) -> dict:
+        """
+        Score how well the answer addresses the question.
+
+        Args:
+            question: The user's question
+            answer: The generated answer
+
+        Returns:
+            {
+                "score": float (0.0 to 1.0),
+                "reasoning": str (explanation for the score)
+            }
+        """
+        pass
+
+    def evaluate(self, question: str, context: str, answer: str) -> dict:
+        """
+        Complete evaluation with all metrics.
+
+        Args:
+            question: The user's question
+            context: The retrieved context
+            answer: The generated answer
+
+        Returns:
+            {
+                "faithfulness": {"score": float, "reasoning": str},
+                "relevancy": {"score": float, "reasoning": str},
+                "overall_score": float (average of above scores)
+            }
+        """
+        pass
+```
+
+## Example
+
+```python
+# Mock LLM function for testing
+def mock_llm(prompt: str) -> str:
+    if "faithfulness" in prompt.lower():
+        return '{"score": 0.9, "reasoning": "Answer supported by context"}'
+    elif "relevancy" in prompt.lower():
+        return '{"score": 0.85, "reasoning": "Directly addresses question"}'
+    return '{"score": 0.5, "reasoning": "Unknown evaluation type"}'
+
+judge = LLMJudge(mock_llm)
+
+# Test faithfulness
+result = judge.score_faithfulness(
+    context="The iPhone 15 has a 48MP camera and A17 chip.",
+    answer="The iPhone 15 features a 48MP camera."
+)
+print(result)
+# {"score": 0.9, "reasoning": "Answer supported by context"}
+
+# Test relevancy
+result = judge.score_relevancy(
+    question="What camera does the iPhone 15 have?",
+    answer="The iPhone 15 features a 48MP camera."
+)
+print(result)
+# {"score": 0.85, "reasoning": "Directly addresses question"}
+
+# Full evaluation
+result = judge.evaluate(
+    question="What camera does the iPhone 15 have?",
+    context="The iPhone 15 has a 48MP camera and A17 chip.",
+    answer="The iPhone 15 features a 48MP camera."
+)
+print(result)
+# {
+#     "faithfulness": {"score": 0.9, "reasoning": "..."},
+#     "relevancy": {"score": 0.85, "reasoning": "..."},
+#     "overall_score": 0.875
+# }
+```
+
+## Starter Code
+
+```python
+import json
+
+class LLMJudge:
+    def __init__(self, model_fn):
+        """
+        Initialize the judge with a model function.
+
+        Args:
+            model_fn: A function that takes a prompt string and returns a response string.
+                     The response should be valid JSON with "score" and "reasoning" keys.
+        """
+        self.model_fn = model_fn
+
+    def _create_faithfulness_prompt(self, context: str, answer: str) -> str:
+        """Create the prompt for faithfulness evaluation."""
+        # TODO: Create a prompt that asks the LLM to score faithfulness
+        # The prompt should ask if the answer is supported by the context
+        # and request a score from 0.0 to 1.0 with reasoning
+        pass
+
+    def _create_relevancy_prompt(self, question: str, answer: str) -> str:
+        """Create the prompt for relevancy evaluation."""
+        # TODO: Create a prompt that asks the LLM to score relevancy
+        # The prompt should ask if the answer addresses the question
+        # and request a score from 0.0 to 1.0 with reasoning
+        pass
+
+    def _parse_response(self, response: str) -> dict:
+        """Parse the LLM response into a structured dict."""
+        # TODO: Parse the JSON response and extract score + reasoning
+        # Handle parsing errors gracefully
+        pass
+
+    def score_faithfulness(self, context: str, answer: str) -> dict:
+        """Score how well the answer is grounded in the context."""
+        # TODO: Implement using _create_faithfulness_prompt and _parse_response
+        pass
+
+    def score_relevancy(self, question: str, answer: str) -> dict:
+        """Score how well the answer addresses the question."""
+        # TODO: Implement using _create_relevancy_prompt and _parse_response
+        pass
+
+    def evaluate(self, question: str, context: str, answer: str) -> dict:
+        """Complete evaluation with all metrics."""
+        # TODO: Call both scoring functions and compute overall_score
+        pass
+```
+
+## Test Cases
+
+```python
+def test_llm_judge():
+    # Mock LLM that returns structured JSON
+    def mock_llm(prompt: str) -> str:
+        prompt_lower = prompt.lower()
+        if "faithfulness" in prompt_lower or "grounded" in prompt_lower:
+            return json.dumps({"score": 0.9, "reasoning": "Answer is well-grounded"})
+        elif "relevancy" in prompt_lower or "address" in prompt_lower:
+            return json.dumps({"score": 0.85, "reasoning": "Answers the question"})
+        return json.dumps({"score": 0.5, "reasoning": "Unknown"})
+
+    judge = LLMJudge(mock_llm)
+
+    # Test 1: Faithfulness scoring
+    faith_result = judge.score_faithfulness(
+        context="Python was created by Guido van Rossum in 1991.",
+        answer="Python was created by Guido van Rossum."
+    )
+    assert "score" in faith_result
+    assert "reasoning" in faith_result
+    assert 0.0 <= faith_result["score"] <= 1.0
+
+    # Test 2: Relevancy scoring
+    rel_result = judge.score_relevancy(
+        question="Who created Python?",
+        answer="Python was created by Guido van Rossum."
+    )
+    assert "score" in rel_result
+    assert "reasoning" in rel_result
+    assert 0.0 <= rel_result["score"] <= 1.0
+
+    # Test 3: Full evaluation
+    eval_result = judge.evaluate(
+        question="Who created Python?",
+        context="Python was created by Guido van Rossum in 1991.",
+        answer="Python was created by Guido van Rossum."
+    )
+    assert "faithfulness" in eval_result
+    assert "relevancy" in eval_result
+    assert "overall_score" in eval_result
+
+    # Overall score should be average of both
+    expected_overall = (eval_result["faithfulness"]["score"] +
+                       eval_result["relevancy"]["score"]) / 2
+    assert abs(eval_result["overall_score"] - expected_overall) < 0.01
+
+    print("All tests passed!")
+
+test_llm_judge()
+```
+
+## Hints
+
+<details>
+<summary>Hint 1: Prompt Structure</summary>
+
+Your faithfulness prompt should follow this structure:
+
+```
+You are evaluating if an AI answer is faithful to its source context.
+
+CONTEXT:
+{context}
+
+ANSWER:
+{answer}
+
+Score from 0.0 (completely unsupported) to 1.0 (fully supported).
+Respond with JSON: {"score": X.X, "reasoning": "..."}
+```
+
+</details>
+
+<details>
+<summary>Hint 2: Parsing JSON Responses</summary>
+
+Handle potential JSON parsing errors:
+
+```python
+def _parse_response(self, response: str) -> dict:
+    try:
+        return json.loads(response)
+    except json.JSONDecodeError:
+        # Fallback for malformed JSON
+        return {"score": 0.5, "reasoning": "Failed to parse response"}
+```
+
+</details>
+
+<details>
+<summary>Hint 3: Relevancy Prompt</summary>
+
+For relevancy, focus on whether the answer addresses what was asked:
+
+```
+Does this answer actually address the user's question?
+
+QUESTION: {question}
+ANSWER: {answer}
+
+Score from 0.0 (doesn't answer) to 1.0 (fully answers).
+```
+
+</details>
+
+## Solution
+
+<details>
+<summary>Click to reveal solution</summary>
+
+```python
+import json
+
+class LLMJudge:
+    def __init__(self, model_fn):
+        self.model_fn = model_fn
+
+    def _create_faithfulness_prompt(self, context: str, answer: str) -> str:
+        return f"""You are an impartial judge evaluating if an AI answer is faithful to its source.
+
+CONTEXT (the only source of truth):
+{context}
+
+AI ANSWER:
+{answer}
+
+TASK:
+Evaluate how well the answer is supported by the context.
+- 1.0 = Every claim is directly supported by the context
+- 0.7 = Most claims are supported, with minor unsupported additions
+- 0.5 = Mix of supported and unsupported claims
+- 0.3 = Few claims are supported by the context
+- 0.0 = Answer contradicts or is not grounded in context
+
+Respond with JSON only: {{"score": X.X, "reasoning": "your explanation"}}"""
+
+    def _create_relevancy_prompt(self, question: str, answer: str) -> str:
+        return f"""You are an impartial judge evaluating if an AI answer addresses the user's question.
+
+USER QUESTION:
+{question}
+
+AI ANSWER:
+{answer}
+
+TASK:
+Evaluate how well the answer addresses the specific question asked.
+- 1.0 = Directly and completely answers the question
+- 0.7 = Mostly answers but missing some details
+- 0.5 = Partially addresses the question
+- 0.3 = Tangentially related but doesn't really answer
+- 0.0 = Does not address the question at all
+
+Respond with JSON only: {{"score": X.X, "reasoning": "your explanation"}}"""
+
+    def _parse_response(self, response: str) -> dict:
+        try:
+            result = json.loads(response)
+            # Validate expected keys
+            if "score" not in result:
+                result["score"] = 0.5
+            if "reasoning" not in result:
+                result["reasoning"] = "No reasoning provided"
+            # Clamp score to valid range
+            result["score"] = max(0.0, min(1.0, float(result["score"])))
+            return result
+        except (json.JSONDecodeError, ValueError):
+            return {"score": 0.5, "reasoning": "Failed to parse LLM response"}
+
+    def score_faithfulness(self, context: str, answer: str) -> dict:
+        prompt = self._create_faithfulness_prompt(context, answer)
+        response = self.model_fn(prompt)
+        return self._parse_response(response)
+
+    def score_relevancy(self, question: str, answer: str) -> dict:
+        prompt = self._create_relevancy_prompt(question, answer)
+        response = self.model_fn(prompt)
+        return self._parse_response(response)
+
+    def evaluate(self, question: str, context: str, answer: str) -> dict:
+        faithfulness = self.score_faithfulness(context, answer)
+        relevancy = self.score_relevancy(question, answer)
+
+        overall_score = (faithfulness["score"] + relevancy["score"]) / 2
+
+        return {
+            "faithfulness": faithfulness,
+            "relevancy": relevancy,
+            "overall_score": overall_score
+        }
+```
+
+</details>
+
+## Extensions
+
+Once you've implemented the basic judge, consider these enhancements:
+
+1. **Multi-Judge Consensus**: Use multiple LLMs and average their scores
+2. **Confidence Intervals**: Track variance across multiple evaluations
+3. **Custom Rubrics**: Add domain-specific scoring criteria
+4. **Batch Evaluation**: Process multiple test cases efficiently
+5. **Human Calibration**: Compare LLM scores against human labels

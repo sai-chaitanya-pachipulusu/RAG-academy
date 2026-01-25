@@ -48,6 +48,7 @@ sources:
 ### Why chunking matters
 
 Chunking is **the most underrated** part of RAG:
+
 - Bad chunks → wrong retrieval → wrong answers
 - Chunks are the **unit of retrieval**—you can't retrieve information if it's split across chunks
 - Chunk boundaries determine what context the LLM sees
@@ -74,18 +75,18 @@ Default: Recursive chunking (300-600 tokens, 10-20% overlap)
 
 ### Chunking strategies compared
 
-| Strategy | Chunk Size | Best For | Complexity |
-|----------|------------|----------|------------|
-| **Fixed-size** | 200-500 tokens | Simple baseline | Low |
-| **Recursive** | 300-600 tokens | General purpose | Low |
-| **Sentence** | 1-3 sentences | High precision needs | Low |
-| **Markdown/HTML** | Varies | Structured docs | Medium |
-| **Code-aware** | Functions/classes | Code repositories | Medium |
-| **Semantic** | Varies | Topic boundaries | High |
-| **Sentence-window** | Small retrieve, large context | Precise + context | Medium |
-| **Parent-document** | Small child, large parent | Multi-level needs | Medium |
-| **Hierarchical (RAPTOR)** | Multi-level summaries | Very long docs | High |
-| **Contextual** | + prepended context | Any (enhancement) | Medium |
+| Strategy                  | Chunk Size                    | Best For             | Complexity |
+| ------------------------- | ----------------------------- | -------------------- | ---------- |
+| **Fixed-size**            | 200-500 tokens                | Simple baseline      | Low        |
+| **Recursive**             | 300-600 tokens                | General purpose      | Low        |
+| **Sentence**              | 1-3 sentences                 | High precision needs | Low        |
+| **Markdown/HTML**         | Varies                        | Structured docs      | Medium     |
+| **Code-aware**            | Functions/classes             | Code repositories    | Medium     |
+| **Semantic**              | Varies                        | Topic boundaries     | High       |
+| **Sentence-window**       | Small retrieve, large context | Precise + context    | Medium     |
+| **Parent-document**       | Small child, large parent     | Multi-level needs    | Medium     |
+| **Hierarchical (RAPTOR)** | Multi-level summaries         | Very long docs       | High       |
+| **Contextual**            | + prepended context           | Any (enhancement)    | Medium     |
 
 ### Strategy deep dives
 
@@ -99,13 +100,13 @@ def recursive_chunk(text: str, max_size: int = 500, overlap: int = 50) -> List[s
     Recursive chunking: try to split at natural boundaries.
     """
     separators = ["\n\n", "\n", ". ", " ", ""]
-    
+
     for sep in separators:
         if sep in text:
             parts = text.split(sep)
             chunks = []
             current = ""
-            
+
             for part in parts:
                 if len(current) + len(part) <= max_size:
                     current += part + sep
@@ -113,13 +114,13 @@ def recursive_chunk(text: str, max_size: int = 500, overlap: int = 50) -> List[s
                     if current:
                         chunks.append(current.strip())
                     current = part + sep
-            
+
             if current:
                 chunks.append(current.strip())
-            
+
             # Add overlap
             return add_overlap(chunks, overlap)
-    
+
     # Fallback: character split
     return [text[i:i+max_size] for i in range(0, len(text), max_size - overlap)]
 ```
@@ -134,7 +135,7 @@ def markdown_chunk(text: str) -> List[Dict]:
     chunks = []
     current_headers = []
     current_content = []
-    
+
     for line in text.split('\n'):
         if line.startswith('#'):
             # Save previous chunk
@@ -145,14 +146,14 @@ def markdown_chunk(text: str) -> List[Dict]:
                     'header_path': ' > '.join(current_headers),
                 })
                 current_content = []
-            
+
             # Update header stack
             level = len(line) - len(line.lstrip('#'))
             header_text = line.lstrip('#').strip()
             current_headers = current_headers[:level-1] + [header_text]
         else:
             current_content.append(line)
-    
+
     return chunks
 ```
 
@@ -167,19 +168,19 @@ def sentence_window_chunk(text: str, window_size: int = 3) -> List[Dict]:
     """
     sentences = split_sentences(text)
     chunks = []
-    
+
     for i, sentence in enumerate(sentences):
         # Window: sentences before and after
         start = max(0, i - window_size)
         end = min(len(sentences), i + window_size + 1)
         window = sentences[start:end]
-        
+
         chunks.append({
             'index': i,
             'sentence': sentence,  # For retrieval
             'window': ' '.join(window),  # For context
         })
-    
+
     return chunks
 ```
 
@@ -193,23 +194,24 @@ def contextual_chunk(doc: Document, chunks: List[str]) -> List[str]:
     Prepend context to each chunk (Anthropic's Contextual Retrieval).
     """
     context = f"Document: {doc.title}\nSection: {doc.current_section}\n\n"
-    
+
     # Optionally use LLM to generate context
     enhanced_chunks = []
     for chunk in chunks:
         # Simple: prepend metadata
         enhanced = context + chunk
-        
+
         # Advanced: use LLM to add context
         # enhanced = llm_add_context(doc, chunk)
-        
+
         enhanced_chunks.append(enhanced)
-    
+
     return enhanced_chunks
 ```
 
 <Callout title="Key insight from Anthropic" variant="success">
-  Contextual retrieval (adding document context to chunks) improved retrieval by 49% in their tests. It's a simple enhancement to any chunking strategy.
+  Contextual retrieval (adding document context to chunks) improved retrieval by
+  49% in their tests. It's a simple enhancement to any chunking strategy.
 </Callout>
 
 #### 5. Hierarchical chunking (RAPTOR)
@@ -225,17 +227,59 @@ def raptor_chunk(text: str, levels: int = 3) -> Dict[int, List[str]]:
     Level 2: Summaries of summaries
     """
     tree = {0: recursive_chunk(text)}
-    
+
     for level in range(1, levels):
         parent_chunks = tree[level - 1]
         # Group chunks (e.g., 5 at a time)
         groups = [parent_chunks[i:i+5] for i in range(0, len(parent_chunks), 5)]
-        
+
         # Summarize each group
         tree[level] = [summarize('\n'.join(group)) for group in groups]
-    
+
     return tree
 ```
+
+#### 6. Semantic chunking
+
+Split text based on meaning rather than syntax. Measure cosine similarity between adjacent sentences; if similarity drops below a threshold, start a new chunk.
+
+```python
+def semantic_chunk(text: str, similarity_threshold: float = 0.7) -> List[str]:
+    """
+    Chunk based on semantic similarity between sentences.
+    Groups sentences that are semantically similar.
+    """
+    # 1. Split into sentences
+    sentences = split_sentences(text)
+
+    # 2. Embed all sentences
+    embeddings = embedder.encode(sentences)
+
+    chunks = []
+    current_chunk = [sentences[0]]
+
+    # 3. Iterate through sentences
+    for i in range(1, len(sentences)):
+        # Calculate similarity with previous sentence
+        # (or average of current chunk)
+        sim = cosine_similarity(embeddings[i], embeddings[i-1])
+
+        if sim >= similarity_threshold:
+            # High similarity: same topic -> keep together
+            current_chunk.append(sentences[i])
+        else:
+            # Low similarity: topic shift -> new chunk
+            chunks.append(" ".join(current_chunk))
+            current_chunk = [sentences[i]]
+
+    if current_chunk:
+        chunks.append(" ".join(current_chunk))
+
+    return chunks
+```
+
+**Pros**: Highly coherent chunks.
+**Cons**: Requires embedding model inference (slower), sensitive to threshold.
 
 ## Failure modes
 
@@ -266,24 +310,32 @@ def evaluate_chunking(chunks: List[str], golden_set: List[Dict]) -> Dict:
         'chunk_count': len(chunks),
         'answerable_rate': 0,  # % of questions answerable from single chunk
     }
-    
+
     for item in golden_set:
         question = item['question']
         answer = item['answer']
-        
+
         # Check if any single chunk contains the answer
         for chunk in chunks:
             if answer.lower() in chunk.lower():
                 metrics['answerable_rate'] += 1
                 break
-    
+
     metrics['answerable_rate'] /= len(golden_set)
     return metrics
 ```
 
 ## Do next
 
-<ChallengeLinks slugs={["recursive-chunking", "semantic-chunking", "hierarchical-chunking", "contextual-retrieval"]} />
+<ChallengeLinks
+  slugs={[
+    "recursive-chunking",
+    "semantic-chunking",
+    "hierarchical-chunking",
+    "contextual-retrieval",
+    "sentence-window-retrieval",
+  ]}
+/>
 
 <Card className="mt-4 p-4">
   <p className="text-sm font-medium">See chunking in the encyclopedia:</p>

@@ -41,25 +41,31 @@ sources:
 **RAG works with ANY amount of data** — from 10 pages to 10 million documents.
 
 The question isn't "how much data do I need?" but rather:
+
 - **What problem am I solving?**
 - **How specific is my domain?**
 - **What's my latency/cost budget?**
 
 <Callout title="TL;DR" variant="tip">
-You can absolutely build a useful RAG system with 10 pages. In fact, many production RAG systems work best with focused, high-quality data rather than massive datasets.
+  You can absolutely build a useful RAG system with 10 pages. In fact, many
+  production RAG systems work best with focused, high-quality data rather than
+  massive datasets.
 </Callout>
 
 ## The data size spectrum
 
 ### 10-100 Pages (Small)
+
 **Use cases**: Personal knowledge base, internal FAQ, single-product documentation
 
 **Examples**:
+
 - Company handbook → HR chatbot
-- API documentation → Developer assistant  
+- API documentation → Developer assistant
 - Course syllabus → Student Q&A
 
 **Why it works**:
+
 - Dense, specific information
 - High relevance per chunk
 - Fast retrieval (milliseconds)
@@ -68,27 +74,33 @@ You can absolutely build a useful RAG system with 10 pages. In fact, many produc
 **Reality check**: Many successful RAG products started here!
 
 ### 100-10,000 Pages (Medium)
+
 **Use cases**: Enterprise docs, multi-product support, research papers
 
 **Examples**:
+
 - All Stripe documentation
 - Academic paper collection
 - Legal contract library
 
 **Considerations**:
+
 - Chunking strategy matters more
 - May need reranking for precision
 - Hybrid search (semantic + keyword) helps
 
 ### 10,000+ Pages (Large)
+
 **Use cases**: Enterprise search, legal discovery, code repositories
 
 **Examples**:
+
 - Wikipedia-scale knowledge
 - GitHub codebase search
 - Multi-tenant SaaS with isolated data
 
 **Considerations**:
+
 - Vector DB selection crucial
 - Metadata filtering essential
 - Cost optimization (caching, tiered retrieval)
@@ -97,56 +109,69 @@ You can absolutely build a useful RAG system with 10 pages. In fact, many produc
 
 ### RAG vs Long Context Windows
 
-| Criteria | RAG | Long Context (100K+ tokens) |
-|----------|-----|----------------------------|
-| **Cost** | $0.001-0.01/query | $0.10-1.00/query |
-| **Latency** | ~100-500ms | ~2-10 seconds |
-| **Data freshness** | Real-time updates | Requires new prompt |
-| **Scalability** | Billions of docs | Limited by context |
-| **Precision** | High (targeted retrieval) | "Lost in the middle" risk |
+| Criteria           | RAG                       | Long Context (100K+ tokens) |
+| ------------------ | ------------------------- | --------------------------- |
+| **Cost**           | $0.001-0.01/query         | $0.10-1.00/query            |
+| **Latency**        | ~100-500ms                | ~2-10 seconds               |
+| **Data freshness** | Real-time updates         | Requires new prompt         |
+| **Scalability**    | Billions of docs          | Limited by context          |
+| **Precision**      | High (targeted retrieval) | "Lost in the middle" risk   |
 
 **Rule of thumb**: If your data fits in 50K tokens AND rarely changes → consider long context. Otherwise → RAG.
 
 ### RAG vs Fine-tuning
 
-| Criteria | RAG | Fine-tuning |
-|----------|-----|-------------|
-| **Setup time** | Hours | Days-weeks |
-| **Data updates** | Instant | Requires retraining |
-| **Factual accuracy** | Grounded in sources | Can hallucinate |
-| **Cost** | Per-query retrieval | Upfront training |
-| **Citability** | Built-in sources | No sources |
+| Criteria              | RAG                     | Fine-tuning         |
+| --------------------- | ----------------------- | ------------------- |
+| **Setup time**        | Hours                   | Days-weeks          |
+| **Data updates**      | Instant                 | Requires retraining |
+| **Factual accuracy**  | Grounded in sources     | Can hallucinate     |
+| **Cost**              | Per-query retrieval     | Upfront training    |
+| **Citability**        | Built-in sources        | No sources          |
+| **Style control**     | Limited                 | Excellent           |
+| **Domain vocabulary** | Good with hybrid search | Trained into model  |
 
-**Rule of thumb**: If you need citations or frequent updates → RAG. If you need behavior/style changes → fine-tune.
+**Key insight from [vinija.ai](https://vinija.ai/nlp/RAG/)**:
+
+- **RAG excels at**: Factual, access-controlled, timely information. Real-time updates without retraining. Scalable with flexible external sources.
+- **Fine-tuning excels at**: Adapting style, tone, and vocabulary. Your linguistic "paint brush" for the desired domain.
+- **Best practice**: Focus on RAG first for connecting specialized data. Once functional, add fine-tuning to enhance style and vocabulary if needed.
+
+**Rule of thumb**: If you need citations or frequent updates → RAG. If you need behavior/style changes → fine-tune. For production excellence → consider both.
 
 ## Failure modes
 
 Even with 10 pages, RAG can fail:
 
 ### 1. Chunk size mismatch
+
 **Problem**: Default 512-token chunks are too big for your 10-page FAQ.
 **Fix**: Try 128-256 token chunks, or sentence-level for very short docs.
 
 ### 2. Over-retrieval
+
 **Problem**: Top-10 retrieval includes irrelevant chunks from your 20 total chunks.
 **Fix**: Use top-3 or add reranking, even on small datasets.
 
 ### 3. Sparse queries
+
 **Problem**: User asks "how do I X?" but your docs say "to X, you should..."
 **Fix**: Query expansion or HyDE to bridge vocabulary gap.
 
 ## Production defaults
 
 ### For 10-100 pages:
+
 ```
 chunk_size: 256 tokens
-chunk_overlap: 50 tokens  
+chunk_overlap: 50 tokens
 top_k: 3-5
 reranking: optional but helps
 embedding: text-embedding-3-small (cheap, fast)
 ```
 
 ### For 100-10K pages:
+
 ```
 chunk_size: 512 tokens
 chunk_overlap: 100 tokens
@@ -156,6 +181,7 @@ hybrid_search: enable BM25 + semantic
 ```
 
 ### For 10K+ pages:
+
 ```
 chunk_size: 512-1024 tokens (experiment!)
 chunk_overlap: 128 tokens
@@ -179,5 +205,6 @@ caching: semantic cache for common queries
 3. **Read**: [Chunking Strategies](/compare/chunking) to optimize for your size
 
 <Callout title="Key Takeaway" variant="accent">
-Start small. A 10-page RAG system that solves a real problem is infinitely more valuable than a million-doc system that nobody uses.
+  Start small. A 10-page RAG system that solves a real problem is infinitely
+  more valuable than a million-doc system that nobody uses.
 </Callout>

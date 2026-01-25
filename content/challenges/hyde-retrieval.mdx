@@ -1,0 +1,247 @@
+---
+title: "HyDE Retrieval"
+description: "Implement Hypothetical Document Embeddings for zero-shot dense retrieval."
+difficulty: "intermediate"
+estimatedMinutes: 25
+---
+
+# HyDE: Hypothetical Document Embeddings
+
+**Hypothetical Document Embeddings (HyDE)** from [Gao et al., 2022](https://arxiv.org/abs/2212.10496) improves zero-shot dense retrieval by generating a hypothetical document that would answer the query, then using that document's embedding for retrieval.
+
+## The Problem
+
+Dense retrievers embed queries and documents into the same vector space. But queries are short questions while documents are long statements - this creates a vocabulary and style mismatch.
+
+```
+Query: "What causes inflation?"
+→ Embedding focuses on question words
+
+Document: "Inflation occurs when the general price level rises due to..."
+→ Embedding focuses on statement/explanation words
+```
+
+## The Solution: HyDE
+
+Instead of embedding the question directly:
+
+1. Generate a **hypothetical document** that would answer the question
+2. Embed that hypothetical document
+3. Search for **similar real documents**
+
+The hypothetical document, even if factually imperfect, captures the form and vocabulary of relevant real documents.
+
+## Your Task
+
+Implement the `HyDERetriever` class that:
+
+1. Takes a query
+2. Generates a hypothetical document using an LLM
+3. Embeds the hypothetical document
+4. Retrieves similar real documents
+
+```python
+from typing import List, Dict
+
+class HyDERetriever:
+    """
+    Hypothetical Document Embeddings retriever.
+
+    Instead of embedding the query directly, we:
+    1. Generate a hypothetical document that would answer the query
+    2. Embed that document
+    3. Search for similar real documents
+    """
+
+    def __init__(self, llm, embedder, vector_store):
+        """
+        Args:
+            llm: Language model for generating hypothetical documents
+            embedder: Model to create embeddings
+            vector_store: Vector database with .search_by_vector(embedding, k) method
+        """
+        self.llm = llm
+        self.embedder = embedder
+        self.vector_store = vector_store
+
+    def generate_hypothetical_document(self, query: str) -> str:
+        """
+        Generate a hypothetical document that would answer the query.
+
+        The document should:
+        - Be written as an authoritative passage (not a question)
+        - Contain the type of information that would answer the query
+        - Use vocabulary typical of your document corpus
+        - Be 100-200 words (enough for good embedding, not too long)
+
+        Args:
+            query: The user's question
+
+        Returns:
+            A hypothetical document passage
+        """
+        # TODO: Create a prompt that instructs the LLM to generate
+        # a hypothetical document that would answer the query.
+        # The document should be informative, not conversational.
+
+        prompt = f"""
+        # YOUR CODE HERE
+        # Create a prompt that will make the LLM generate a passage
+        # that would answer this query as if from an authoritative source.
+        """
+
+        return self.llm.generate(prompt, max_tokens=200)
+
+    def retrieve(self, query: str, k: int = 5) -> List[Dict]:
+        """
+        Retrieve documents using HyDE.
+
+        Steps:
+        1. Generate hypothetical document from query
+        2. Embed the hypothetical document
+        3. Search vector store for similar real documents
+
+        Args:
+            query: User's question
+            k: Number of documents to retrieve
+
+        Returns:
+            List of retrieved documents
+        """
+        # TODO: Implement HyDE retrieval
+        # 1. Generate hypothetical document
+        # 2. Embed it
+        # 3. Search for similar documents
+
+        # YOUR CODE HERE
+        pass
+
+
+# Test cases
+def test_hyde():
+    # Mock LLM
+    class MockLLM:
+        def generate(self, prompt, max_tokens=200):
+            if "causes inflation" in prompt.lower() or "inflation" in prompt.lower():
+                return """Inflation is caused by several key factors. First, an increase
+                in the money supply leads to more currency chasing the same goods. Second,
+                demand-pull inflation occurs when aggregate demand exceeds supply. Third,
+                cost-push inflation happens when production costs rise, such as wages or
+                raw materials. Central bank policies, government spending, and supply chain
+                disruptions all contribute to inflationary pressures in the economy."""
+            return "Generic document about the topic."
+
+    # Mock embedder
+    class MockEmbedder:
+        def embed(self, text):
+            # Return different embeddings based on content
+            if "inflation" in text.lower():
+                return [0.8, 0.1, 0.3]  # "Inflation" embedding
+            elif "causes" in text.lower():
+                return [0.7, 0.2, 0.3]  # Similar
+            else:
+                return [0.1, 0.1, 0.1]  # Generic
+
+    # Mock vector store
+    class MockVectorStore:
+        def __init__(self):
+            self.docs = [
+                {"id": 1, "text": "Inflation occurs when prices rise due to monetary expansion...", "embedding": [0.75, 0.15, 0.25]},
+                {"id": 2, "text": "The Federal Reserve controls interest rates to manage inflation...", "embedding": [0.7, 0.2, 0.2]},
+                {"id": 3, "text": "Completely unrelated document about cooking...", "embedding": [0.1, 0.9, 0.1]},
+            ]
+
+        def search_by_vector(self, embedding, k=5):
+            # Simple cosine-ish similarity
+            def similarity(e1, e2):
+                return sum(a*b for a,b in zip(e1, e2))
+
+            scored = [(doc, similarity(embedding, doc["embedding"])) for doc in self.docs]
+            scored.sort(key=lambda x: x[1], reverse=True)
+            return [doc for doc, score in scored[:k]]
+
+    # Test
+    hyde = HyDERetriever(MockLLM(), MockEmbedder(), MockVectorStore())
+
+    # Test hypothetical generation
+    hypo = hyde.generate_hypothetical_document("What causes inflation?")
+    assert len(hypo) > 50, f"Hypothetical document too short: {len(hypo)} chars"
+    assert "inflation" in hypo.lower(), "Hypothetical should mention the topic"
+    print(f"✓ Generated hypothetical: {hypo[:100]}...")
+
+    # Test retrieval
+    results = hyde.retrieve("What causes inflation?", k=2)
+    assert len(results) == 2, f"Expected 2 results, got {len(results)}"
+    assert results[0]["id"] in [1, 2], "Top result should be inflation-related"
+    print(f"✓ Retrieved {len(results)} documents")
+    print(f"  Top result: {results[0]['text'][:50]}...")
+
+    print("\n✅ All tests passed!")
+
+if __name__ == "__main__":
+    test_hyde()
+```
+
+## Expected Output
+
+```
+✓ Generated hypothetical: Inflation is caused by several key factors. First, an increase in the money supply...
+✓ Retrieved 2 documents
+  Top result: Inflation occurs when prices rise due to monetary expansion...
+
+✅ All tests passed!
+```
+
+## Hints
+
+<details>
+<summary>Hint 1: Prompt Design</summary>
+
+The prompt should instruct the LLM to:
+
+- Write as an authoritative source
+- Not mention the question itself
+- Provide informational text directly
+
+Example structure:
+
+```
+"Write a passage that answers: {query}
+Write as if from an encyclopedia or textbook.
+Do not say 'the answer is' - just provide the information."
+```
+
+</details>
+
+<details>
+<summary>Hint 2: Retrieval Steps</summary>
+
+```python
+def retrieve(self, query, k=5):
+    hypothetical = self.generate_hypothetical_document(query)
+    embedding = self.embedder.embed(hypothetical)
+    return self.vector_store.search_by_vector(embedding, k)
+```
+
+</details>
+
+## Extensions
+
+1. **Multi-HyDE**: Generate multiple hypotheticals and fuse results with RRF
+2. **Hybrid HyDE**: Combine HyDE retrieval with direct query retrieval
+3. **Quality filter**: Detect when HyDE generates poor hypotheticals and fall back
+
+## Why This Works
+
+The hypothetical document acts as a "translation" from question-space to document-space. Even if the generated facts are wrong, the vocabulary and sentence structure match real documents better than the original question.
+
+| Method | Query Embedding             | Document Match               |
+| ------ | --------------------------- | ---------------------------- |
+| Direct | "What causes inflation?"    | Mismatch with document style |
+| HyDE   | "Inflation is caused by..." | Matches document vocabulary  |
+
+## Related Challenges
+
+- [Query Expansion](/challenges/query-expansion)
+- [Multi-Query Retrieval](/challenges/multi-query-retrieval)
+- [Adaptive RAG Router](/challenges/adaptive-rag-router)

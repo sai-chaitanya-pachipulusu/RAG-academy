@@ -1,0 +1,299 @@
+---
+title: "HyDE: Hypothetical Document Embeddings"
+description: "Zero-shot dense retrieval by generating hypothetical documents for improved embedding."
+order: 9
+estimatedMinutes: 20
+stage: query-transformation
+prereqs:
+  - phase: phase-2
+    slug: query-transform-patterns
+next:
+  phase: phase-3
+  slug: multi-turn-rag
+outcomes:
+  - "Understand why direct query embedding underperforms for dense retrieval."
+  - "Implement HyDE to improve zero-shot retrieval quality."
+  - "Know when HyDE helps vs. hurts performance."
+tags: ["hyde", "query-expansion", "zero-shot", "2022"]
+sources:
+  - title: "Precise Zero-Shot Dense Retrieval without Relevance Labels (HyDE)"
+    url: "https://arxiv.org/abs/2212.10496"
+    type: "paper"
+    year: 2022
+  - title: "HyDE Implementation - LanceDB"
+    url: "https://blog.lancedb.com/advanced-rag-precise-zero-shot-dense-retrieval-with-hyde-0946c54dfdcb"
+    type: "blog"
+  - title: "Vinija AI - RAG Guide"
+    url: "https://vinija.ai/nlp/RAG/"
+    type: "article"
+---
+
+## Goals
+
+- Understand the query-document mismatch problem in dense retrieval.
+- Implement HyDE for improved zero-shot retrieval.
+- Know when to use HyDE vs. direct query embedding.
+
+## The Problem: Query-Document Mismatch
+
+Dense retrieval embeds queries and documents into the same vector space. But there's a fundamental mismatch:
+
+| Queries                  | Documents                                                |
+| ------------------------ | -------------------------------------------------------- |
+| Short, question-form     | Long, statement-form                                     |
+| "What causes inflation?" | "Inflation occurs when the general price level rises..." |
+| Incomplete information   | Complete information                                     |
+
+This mismatch hurts retrieval quality, especially in **zero-shot** scenarios where the retriever hasn't been fine-tuned on your domain.
+
+## Core Idea: Generate Then Retrieve
+
+HyDE (Hypothetical Document Embeddings) from [Gao et al., 2022](https://arxiv.org/abs/2212.10496) flips the script:
+
+```
+Traditional:
+  Query → Embed → Search documents
+
+HyDE:
+  Query → Generate hypothetical answer → Embed answer → Search documents
+```
+
+Instead of embedding the question, we:
+
+1. Ask an LLM to generate a **hypothetical document** that would answer the question
+2. Embed that hypothetical document
+3. Search for **similar real documents**
+
+The hypothetical document, even if factually incorrect, captures the **form and vocabulary** of relevant documents.
+
+## Visual Comparison
+
+```
+Traditional Dense Retrieval:
+┌─────────────────┐      ┌─────────────────┐
+│ "What causes    │ ──▶  │ Query Embedding │ ──▶ Search
+│  inflation?"    │      │  [0.2, -0.1...] │
+└─────────────────┘      └─────────────────┘
+                                 │
+                                 ▼
+                         ❌ Poor recall (query ≠ document style)
+
+HyDE:
+┌─────────────────┐      ┌─────────────────────────────────────┐
+│ "What causes    │ ──▶  │ "Inflation is caused by an increase │
+│  inflation?"    │ LLM  │  in the money supply, demand-pull   │
+│                 │      │  factors, and cost-push factors..." │
+└─────────────────┘      └──────────────┬──────────────────────┘
+                                        │
+                                        ▼
+                         ┌─────────────────────┐
+                         │ HyDE Embedding      │ ──▶ Search
+                         │ [0.4, 0.3, ...]     │
+                         └─────────────────────┘
+                                        │
+                                        ▼
+                         ✅ Better recall (hypothetical ≈ document style)
+```
+
+## Implementation
+
+### Basic HyDE
+
+```python
+class HyDE:
+    def __init__(self, llm, embedder, retriever):
+        self.llm = llm
+        self.embedder = embedder
+        self.retriever = retriever
+
+    def generate_hypothetical(self, query: str) -> str:
+        """Generate a hypothetical document that would answer the query."""
+        prompt = f"""Write a detailed passage that would answer this question.
+Write as if you are an authoritative source directly answering the question.
+Do not mention the question itself - just provide the answer as informational text.
+
+Question: {query}
+
+Passage:"""
+        return self.llm.generate(prompt, max_tokens=200)
+
+    def retrieve(self, query: str, k: int = 5) -> List[str]:
+        """HyDE retrieval: generate hypothetical doc, embed it, search."""
+        # Step 1: Generate hypothetical document
+        hypothetical_doc = self.generate_hypothetical(query)
+
+        # Step 2: Embed the hypothetical document
+        hyde_embedding = self.embedder.embed(hypothetical_doc)
+
+        # Step 3: Search for similar real documents
+        results = self.retriever.search_by_vector(hyde_embedding, k=k)
+
+        return results
+```
+
+### HyDE with Multiple Hypotheticals
+
+For better coverage, generate multiple hypotheticals and aggregate:
+
+```python
+class MultiHyDE:
+    def __init__(self, llm, embedder, retriever, n_hypotheticals: int = 3):
+        self.llm = llm
+        self.embedder = embedder
+        self.retriever = retriever
+        self.n_hypotheticals = n_hypotheticals
+
+    def generate_hypotheticals(self, query: str) -> List[str]:
+        """Generate multiple diverse hypothetical documents."""
+        perspectives = [
+            "Write from a textbook perspective:",
+            "Write from a practical examples perspective:",
+            "Write from a definitions and key concepts perspective:",
+        ]
+
+        hypotheticals = []
+        for perspective in perspectives[:self.n_hypotheticals]:
+            prompt = f"""{perspective}
+Write a passage that answers: {query}
+
+Passage:"""
+            hypotheticals.append(self.llm.generate(prompt, max_tokens=150))
+
+        return hypotheticals
+
+    def retrieve(self, query: str, k: int = 5) -> List[str]:
+        """Multi-HyDE: generate multiple hypotheticals, fuse results."""
+        hypotheticals = self.generate_hypotheticals(query)
+
+        all_results = {}
+
+        for hypo in hypotheticals:
+            embedding = self.embedder.embed(hypo)
+            results = self.retriever.search_by_vector(embedding, k=k)
+
+            # Track all results with RRF-style scoring
+            for rank, doc in enumerate(results):
+                doc_id = hash(doc["content"])
+                if doc_id not in all_results:
+                    all_results[doc_id] = {"doc": doc, "rrf_score": 0}
+                all_results[doc_id]["rrf_score"] += 1 / (rank + 60)  # RRF constant
+
+        # Sort by RRF score and return top k
+        sorted_results = sorted(
+            all_results.values(),
+            key=lambda x: x["rrf_score"],
+            reverse=True
+        )
+
+        return [r["doc"] for r in sorted_results[:k]]
+```
+
+### Hybrid: HyDE + Direct Query
+
+Combine HyDE with direct query embedding for robustness:
+
+```python
+class HybridHyDE:
+    def __init__(self, llm, embedder, retriever, hyde_weight: float = 0.6):
+        self.hyde = HyDE(llm, embedder, retriever)
+        self.embedder = embedder
+        self.retriever = retriever
+        self.hyde_weight = hyde_weight
+
+    def retrieve(self, query: str, k: int = 5) -> List[str]:
+        """Combine HyDE and direct query retrieval."""
+        # Get HyDE results
+        hyde_results = self.hyde.retrieve(query, k=k)
+
+        # Get direct query results
+        query_embedding = self.embedder.embed(query)
+        direct_results = self.retriever.search_by_vector(query_embedding, k=k)
+
+        # Fuse with weighted RRF
+        return self._weighted_rrf_fusion(
+            [hyde_results, direct_results],
+            weights=[self.hyde_weight, 1 - self.hyde_weight],
+            k=k
+        )
+```
+
+## When HyDE Works Best
+
+| Scenario                   | HyDE Helps? | Why                                     |
+| -------------------------- | ----------- | --------------------------------------- |
+| **Zero-shot retrieval**    | ✅ Yes      | Bridge query-document vocabulary gap    |
+| **Complex questions**      | ✅ Yes      | LLM expands query into richer context   |
+| **Domain-specific jargon** | ✅ Yes      | LLM can translate to domain terms       |
+| **Keyword-heavy queries**  | ❌ Less     | Direct embedding captures keywords fine |
+| **Simple factoid lookup**  | ❌ Overkill | Too slow for simple queries             |
+| **Fine-tuned retrievers**  | ~ Depends   | Fine-tuning may already bridge the gap  |
+
+## Failure Modes
+
+1. **LLM Hallucination**: The hypothetical may contain wrong information that leads to wrong documents
+2. **Latency**: LLM generation adds 200-500ms per query
+3. **Cost**: Each query requires an LLM call
+4. **Domain Mismatch**: If LLM doesn't know your domain, hypotheticals may be low-quality
+
+## Mitigations
+
+```python
+class RobustHyDE:
+    def retrieve(self, query: str, k: int = 5) -> List[str]:
+        # Fallback if HyDE seems unreliable
+        hypothetical = self.generate_hypothetical(query)
+
+        # Check hypothetical quality
+        if self.is_low_quality(hypothetical, query):
+            # Fall back to direct query
+            return self.direct_retrieve(query, k)
+
+        return self.hyde_retrieve(hypothetical, k)
+
+    def is_low_quality(self, hypothetical: str, query: str) -> bool:
+        """Detect poor hypothetical generation."""
+        # Too short
+        if len(hypothetical.split()) < 20:
+            return True
+        # Contains "I don't know" type phrases
+        uncertainty_phrases = ["i don't know", "i'm not sure", "uncertain"]
+        if any(phrase in hypothetical.lower() for phrase in uncertainty_phrases):
+            return True
+        return False
+```
+
+## Production Defaults
+
+- **Use HyDE when**: Zero-shot retrieval, complex questions, domain gap
+- **Skip HyDE when**: High-volume simple queries, low latency requirements
+- **Default settings**:
+  - `n_hypotheticals`: 1 (trade off quality vs. latency)
+  - `max_tokens`: 150-200 (longer ≠ better for retrieval)
+  - `temperature`: 0.7 (some creativity helps diversity)
+
+## HyDE vs Other Query Transforms
+
+| Method              | Adds Latency       | Expands Vocabulary | Domain-Agnostic |
+| ------------------- | ------------------ | ------------------ | --------------- |
+| **HyDE**            | ✅ High (LLM call) | ✅ Excellent       | ✅ Yes          |
+| **Query Expansion** | ⚡ Low             | ⚠️ Limited         | ✅ Yes          |
+| **Multi-Query**     | ⚠️ Medium          | ✅ Good            | ✅ Yes          |
+| **Reranking**       | ⚡ Low             | ❌ No              | ✅ Yes          |
+
+## Do next
+
+<ChallengeLinks
+  slugs={["hyde-retrieval", "multi-query-expansion", "query-rewrite"]}
+/>
+
+<Card className="mt-4 p-4">
+  <p className="text-sm font-medium">
+    Continue learning about advanced query strategies:
+  </p>
+  <Link
+    href="/learn/phase-3/adaptive-rag"
+    className="mt-2 inline-flex text-xs font-medium text-blue-700 hover:text-blue-500 dark:text-blue-400"
+  >
+    Adaptive RAG →
+  </Link>
+</Card>

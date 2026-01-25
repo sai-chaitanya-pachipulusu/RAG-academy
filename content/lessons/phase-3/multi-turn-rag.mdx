@@ -1,0 +1,399 @@
+---
+title: "Multi-Turn RAG Query Strategies"
+description: "Embed conversational context for accurate retrieval in multi-turn chatbots."
+order: 10
+estimatedMinutes: 25
+stage: advanced-retrieval
+prereqs:
+  - phase: phase-3
+    slug: hyde
+next:
+  phase: phase-3
+  slug: adaptive-rag
+outcomes:
+  - "Choose the right query embedding strategy for conversational RAG."
+  - "Handle context carryover and pronoun resolution."
+  - "Implement query reformulation for multi-turn retrieval."
+tags: ["conversational", "multi-turn", "chatbot", "query-reformulation"]
+sources:
+  - title: "Vinija AI - RAG in Multi-Turn Chatbots"
+    url: "https://vinija.ai/nlp/RAG/#rag-in-multi-turn-chatbots-embedding-queries-for-retrieval"
+    type: "article"
+  - title: "LangChain Conversational Retrieval"
+    url: "https://python.langchain.com/docs/modules/chains/popular/chat_index"
+    type: "docs"
+---
+
+import { Callout } from "@/components/ui/Callout";
+import { Card } from "@/components/ui/Card";
+import Link from "next/link";
+
+## Goals
+
+- Understand why naive query embedding fails for multi-turn conversations.
+- Learn five strategies for embedding conversational queries.
+- Choose the right strategy for your use case.
+
+## The Problem: Multi-Turn Context Loss
+
+In a single-turn RAG system, the query is self-contained:
+
+```
+User: "What are the symptoms of Lyme disease?"
+→ Embed query → Retrieve → Generate
+```
+
+In multi-turn conversations, queries often lack context:
+
+```
+Turn 1: User: "My dog has been acting strange lately."
+Turn 2: Assistant: "Can you describe the symptoms?"
+Turn 3: User: "He's tired, limping, and has a fever. Could it be Lyme disease?"
+Turn 4: User: "Is it common in dogs?"  ← WHAT DOES "IT" REFER TO?
+```
+
+If you only embed "Is it common in dogs?", you'll retrieve irrelevant documents. The model needs to understand that "it" refers to "Lyme disease in dogs."
+
+## Five Query Embedding Strategies
+
+### Strategy 1: Latest User Turn Only
+
+**Approach**: Embed just the latest user message.
+
+```python
+def embed_latest_turn(conversation: List[Dict]) -> str:
+    """Just use the latest user message."""
+    for turn in reversed(conversation):
+        if turn["role"] == "user":
+            return turn["content"]
+    return ""
+```
+
+**Pros**:
+
+- ⚡ Fast and computationally cheap
+- 🎯 Reduces risk of embedding irrelevant/stale context
+
+**Cons**:
+
+- ❌ Ignores conversational context
+- ❌ Fails on pronoun references ("it", "that", "those")
+
+**Use when**: Simple Q&A without complex follow-ups.
+
+---
+
+### Strategy 2: Concatenated Recent Turns
+
+**Approach**: Embed the current message with a sliding window of recent turns.
+
+```python
+def embed_recent_turns(
+    conversation: List[Dict],
+    window_size: int = 3
+) -> str:
+    """Concatenate recent turns for embedding."""
+    recent = conversation[-window_size:]
+
+    # Format as alternating user/assistant turns
+    formatted = []
+    for turn in recent:
+        role = "User" if turn["role"] == "user" else "Assistant"
+        formatted.append(f"{role}: {turn['content']}")
+
+    return "\n".join(formatted)
+
+# Example output:
+# "User: My dog has been acting strange.
+#  Assistant: Can you describe the symptoms?
+#  User: He's tired, limping, has fever. Could it be Lyme disease?"
+```
+
+**Pros**:
+
+- ✅ Preserves immediate context
+- ✅ Better for resolving pronouns and follow-up queries
+
+**Cons**:
+
+- ⚠️ Can dilute the focus if too many turns included
+- ⚠️ Risk of exceeding embedding model input length
+
+**Use when**: Short conversations (< 10 turns), follow-up questions common.
+
+---
+
+### Strategy 3: Condensed/Summarized History
+
+**Approach**: Use an LLM to summarize the conversation before embedding.
+
+```python
+def embed_summarized_history(
+    conversation: List[Dict],
+    current_query: str,
+    llm
+) -> str:
+    """Summarize conversation, then append current query."""
+
+    # Format conversation history
+    history = "\n".join(
+        f"{t['role'].title()}: {t['content']}"
+        for t in conversation[:-1]  # Exclude current query
+    )
+
+    # Summarize
+    summary_prompt = f"""Summarize this conversation in 1-2 sentences,
+focusing on the key topic and any relevant context:
+
+{history}
+
+Summary:"""
+
+    summary = llm.generate(summary_prompt, max_tokens=50)
+
+    # Combine summary with current query
+    return f"Context: {summary.strip()}\nQuery: {current_query}"
+
+# Example output:
+# "Context: User is asking about symptoms in their dog that might indicate Lyme disease.
+#  Query: Is it common in dogs?"
+```
+
+**Pros**:
+
+- ✅ Handles long conversations efficiently
+- ✅ Filters out noise and tangents
+- ✅ Fixed length regardless of conversation length
+
+**Cons**:
+
+- ⚠️ Latency cost of LLM summarization
+- ⚠️ Summarization may lose important details
+
+**Use when**: Long conversations, chatbots with extended sessions.
+
+---
+
+### Strategy 4: Structured Dialogue State
+
+**Approach**: Maintain a structured representation of the conversation state.
+
+```python
+from pydantic import BaseModel
+
+class DialogueState(BaseModel):
+    topic: str
+    entities: List[str]
+    user_intent: str
+    constraints: List[str]
+
+def update_dialogue_state(
+    current_state: DialogueState,
+    new_turn: str,
+    llm
+) -> DialogueState:
+    """Update structured dialogue state with new turn."""
+
+    prompt = f"""Given the current dialogue state and new user message,
+update the state:
+
+Current State:
+- Topic: {current_state.topic}
+- Entities: {current_state.entities}
+- Intent: {current_state.user_intent}
+- Constraints: {current_state.constraints}
+
+New User Message: {new_turn}
+
+Updated state (JSON):"""
+
+    response = llm.generate(prompt)
+    return DialogueState.model_validate_json(response)
+
+def embed_from_state(state: DialogueState, query: str) -> str:
+    """Create embedding query from structured state."""
+    return f"""Topic: {state.topic}
+Entities: {', '.join(state.entities)}
+Intent: {state.user_intent}
+Query: {query}"""
+
+# Example output:
+# "Topic: Pet health - Lyme disease
+#  Entities: dog, Lyme disease, symptoms
+#  Intent: Assess disease prevalence
+#  Query: Is it common in dogs?"
+```
+
+**Pros**:
+
+- ✅ Very precise retrieval
+- ✅ Handles complex multi-topic conversations
+- ✅ Explicit entity tracking
+
+**Cons**:
+
+- ⚠️ Complex to implement
+- ⚠️ LLM latency for state updates
+- ⚠️ Schema design required
+
+**Use when**: Enterprise chatbots, complex domain-specific applications.
+
+---
+
+### Strategy 5: Query Reformulation (Recommended)
+
+**Approach**: Use LLM to rewrite the query as a standalone, self-contained question.
+
+```python
+def reformulate_query(
+    conversation: List[Dict],
+    current_query: str,
+    llm
+) -> str:
+    """Reformulate query to be standalone using conversation context."""
+
+    history = "\n".join(
+        f"{t['role'].title()}: {t['content']}"
+        for t in conversation[-5:]  # Last 5 turns
+    )
+
+    prompt = f"""Given the conversation history, reformulate the latest user query
+to be a standalone question that captures all necessary context.
+
+Conversation:
+{history}
+
+Latest Query: {current_query}
+
+Reformulated Query (standalone, self-contained):"""
+
+    reformulated = llm.generate(prompt, max_tokens=100)
+    return reformulated.strip()
+
+# Example:
+# Input: "Is it common in dogs?"
+# Output: "How common is Lyme disease in dogs?"
+```
+
+**Pros**:
+
+- ✅ Best of both worlds: context-aware AND focused
+- ✅ Query is optimized for retrieval
+- ✅ Works with any embedding model
+
+**Cons**:
+
+- ⚠️ LLM latency (100-300ms)
+- ⚠️ Possible reformulation errors
+
+**Use when**: Most production conversational RAG systems.
+
+---
+
+## Production Implementation
+
+Here's a complete conversational RAG implementation:
+
+```python
+class ConversationalRAG:
+    def __init__(
+        self,
+        retriever,
+        generator,
+        llm,
+        strategy: str = "reformulate"  # or "concatenate", "summarize"
+    ):
+        self.retriever = retriever
+        self.generator = generator
+        self.llm = llm
+        self.strategy = strategy
+        self.conversation_history = []
+
+    def create_retrieval_query(self, current_query: str) -> str:
+        """Create the query to send to retriever."""
+        if self.strategy == "latest":
+            return current_query
+
+        elif self.strategy == "concatenate":
+            return embed_recent_turns(
+                self.conversation_history + [{"role": "user", "content": current_query}],
+                window_size=3
+            )
+
+        elif self.strategy == "summarize":
+            return embed_summarized_history(
+                self.conversation_history,
+                current_query,
+                self.llm
+            )
+
+        elif self.strategy == "reformulate":
+            return reformulate_query(
+                self.conversation_history,
+                current_query,
+                self.llm
+            )
+
+    def chat(self, user_message: str) -> str:
+        """Process a chat message with conversational RAG."""
+        # Create retrieval query
+        retrieval_query = self.create_retrieval_query(user_message)
+
+        # Retrieve
+        docs = self.retriever.retrieve(retrieval_query, k=5)
+
+        # Generate with full conversation context
+        full_context = self.format_context(docs)
+        response = self.generator.generate(
+            query=user_message,
+            context=full_context,
+            conversation_history=self.conversation_history
+        )
+
+        # Update history
+        self.conversation_history.append({"role": "user", "content": user_message})
+        self.conversation_history.append({"role": "assistant", "content": response})
+
+        return response
+```
+
+## Strategy Comparison
+
+| Strategy           | Latency    | Context Quality | Best For            |
+| ------------------ | ---------- | --------------- | ------------------- |
+| **Latest turn**    | ⚡ Fastest | ❌ Poor         | Simple Q&A          |
+| **Concatenate**    | ⚡ Fast    | ⚠️ Good         | Short conversations |
+| **Summarize**      | ⚠️ Medium  | ✅ Good         | Long conversations  |
+| **Dialogue state** | ⚠️ Medium  | ✅ Excellent    | Complex domains     |
+| **Reformulate**    | ⚠️ Medium  | ✅ Excellent    | General purpose     |
+
+## Best Practices
+
+1. **Cache reformulations**: Same follow-up patterns can be cached
+2. **Fallback to concatenation**: If LLM reformulation fails, use concatenate
+3. **Track retrieval quality**: Log whether reformulated queries improve recall
+4. **Limit history window**: 5-10 turns is usually sufficient
+5. **Handle topic switches**: Detect when user changes topic entirely
+
+## Failure Modes
+
+1. **Over-reformulation**: LLM adds assumptions not in the conversation
+2. **Under-reformulation**: Missing critical context
+3. **Topic confusion**: Mixing up context from earlier unrelated turns
+4. **Latency**: LLM calls can add 200-500ms per query
+
+## Do next
+
+<ChallengeLinks
+  slugs={["conversational-rag", "conversation-buffer-memory", "query-rewrite"]}
+/>
+
+<Card className="mt-4 p-4">
+  <p className="text-sm font-medium">Continue to agent-based systems:</p>
+  <Link
+    href="/learn/phase-5/agentic-rag-intro"
+    className="mt-2 inline-flex text-xs font-medium text-blue-700 hover:text-blue-500 dark:text-blue-400"
+  >
+    Agentic RAG →
+  </Link>
+</Card>
