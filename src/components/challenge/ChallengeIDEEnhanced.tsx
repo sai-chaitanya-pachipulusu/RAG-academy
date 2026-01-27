@@ -39,6 +39,7 @@ import { deepClone } from "@/lib/utils/deepClone";
 import { CURRICULUM_STAGE_LABELS } from "@/lib/curriculum/stages";
 import { isPythonTraceback, formatTestFailure, parsePythonError, formatErrorForDisplay } from "@/lib/pyodide/errorParser";
 import { saveSubmission } from "@/lib/supabase/submissions";
+import { useToast } from "@/components/ui/Toast";
 
 type Neighbor = Pick<Challenge, "slug" | "title" | "group">;
 
@@ -59,6 +60,7 @@ type Props = {
 export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props) {
   const { state, setState } = useLocalProgress();
   const { user, hasPaidAccess, subscriptionLoading } = useSupabaseAuth();
+  const { addToast } = useToast();
 
   // Access control: check if user can access this challenge
   const isFree = isChallengeFree(challenge);
@@ -168,6 +170,13 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
   const isTypeScript = challenge.slug.startsWith("ts-");
   const executor = isTypeScript ? typescriptExec : pyodideExec;
 
+  // Preload Pyodide worker on mount for Python challenges (reduces first-run latency)
+  useEffect(() => {
+    if (!isTypeScript) {
+      pyodideExec.preload();
+    }
+  }, [isTypeScript]);
+
   // Jump to error line in editor
   const handleJumpToLine = useCallback((lineNumber: number) => {
     if (editorRef.current) {
@@ -255,6 +264,7 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
 
       if (result.ok) {
         setJustCompleted(true);
+        addToast("🎉 Challenge completed! Your solution has been saved.", "success");
         setState((prev: LocalProgressState) => {
           const next = { ...prev, challenges: { ...prev.challenges } };
           const existing = prev.challenges[challenge.slug];
@@ -290,9 +300,13 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
             console.warn("Supabase sync failed:", e);
           }
         }
+      } else {
+        // Failed submission - still saved to history
+        addToast("Submission recorded. Check the errors below.", "warning");
       }
     } catch (err) {
       setStderr(err instanceof Error ? err.message : String(err));
+      addToast("Submission failed. Please try again.", "error");
     } finally {
       setRunning(null);
     }

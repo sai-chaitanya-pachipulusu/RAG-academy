@@ -1,0 +1,162 @@
+---
+title: "Late Chunking for Context-Aware Embeddings"
+description: "Preserve cross-chunk context by embedding documents before chunking."
+order: 11
+estimatedMinutes: 20
+stage: retrieval
+prereqs:
+  - phase: phase-2
+    slug: semantic-chunking
+  - phase: phase-0
+    slug: chunking-101
+next:
+  phase: phase-2
+  slug: reranking-strategies
+outcomes:
+  - "Understand the context loss problem in naive chunking."
+  - "Implement late chunking with long-context embedding models."
+  - "Compare late chunking vs early chunking retrieval quality."
+tags: ["chunking", "embeddings", "context-preservation", "jina-ai"]
+sources:
+  - title: "Jina AI - Late Chunking"
+    url: "https://jina.ai/news/late-chunking-in-long-context-embedding-models/"
+    type: "blog"
+  - title: "Vinija AI - RAG"
+    url: "https://vinija.ai/nlp/RAG/"
+    type: "blog"
+---
+
+import { Callout } from "@/components/ui/Callout";
+import { Card } from "@/components/ui/Card";
+import Link from "next/link";
+
+## Goals
+
+- Understand why naive chunking loses important context.
+- Learn the late chunking technique pioneered by Jina AI.
+- Implement late chunking with long-context models.
+
+## Prereqs
+
+Before this lesson, ensure you understand:
+
+- Basic chunking strategies (fixed-size, sentence-based)
+- How embeddings represent semantic meaning
+- Token-level vs sentence-level embeddings
+
+## Core idea
+
+Traditional chunking pipelines follow this order: **Chunk → Embed**. This causes context loss because each chunk is embedded independently without access to surrounding context.
+
+Late chunking **inverts the order**: **Embed → Chunk**
+
+1. **Embed the entire document** using a long-context model (8K+ tokens)
+2. **Get token-level embeddings** (before the final pooling layer)
+3. **Apply chunking boundaries** to the token sequence
+4. **Mean-pool each chunk's tokens** to get chunk embeddings
+
+The magic: each token's embedding already "sees" the full document context through the transformer's attention mechanism.
+
+### The Pronoun Problem
+
+```text
+Original document:
+"Alice was exploring the garden. She fell into a mysterious hole.
+ The rabbit she was chasing had disappeared."
+
+Naive chunks:
+  Chunk 1: "Alice was exploring the garden."
+  Chunk 2: "She fell into a mysterious hole."  ← Who is "she"?
+  Chunk 3: "The rabbit she was chasing had disappeared."  ← Which rabbit?
+```
+
+When Chunk 2 is embedded independently, "She" has no referent—the model doesn't know it refers to Alice.
+
+### Implementation
+
+```python
+from transformers import AutoModel, AutoTokenizer
+import torch
+
+class LateChunker:
+    def __init__(self, model_name: str = "jinaai/jina-embeddings-v2-base-en"):
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = AutoModel.from_pretrained(model_name, trust_remote_code=True)
+        self.model.eval()
+
+    def late_chunk(self, text: str, chunk_size: int = 512) -> list[dict]:
+        # Step 1: Get token-level embeddings for entire document
+        inputs = self.tokenizer(text, return_tensors="pt",
+                                return_offsets_mapping=True, max_length=8192)
+        offset_mapping = inputs.pop("offset_mapping")[0].tolist()
+
+        with torch.no_grad():
+            outputs = self.model(**inputs, output_hidden_states=True)
+            token_embeddings = outputs.last_hidden_state[0]
+
+        # Step 2: Find chunk boundaries (character-level)
+        boundaries = self._find_boundaries(text, chunk_size)
+
+        # Step 3: Map to tokens and pool
+        chunks = []
+        for char_start, char_end in boundaries:
+            token_start, token_end = self._map_to_tokens(
+                char_start, char_end, offset_mapping
+            )
+            chunk_embedding = token_embeddings[token_start:token_end].mean(dim=0)
+            chunks.append({
+                "text": text[char_start:char_end],
+                "embedding": chunk_embedding.numpy()
+            })
+        return chunks
+```
+
+## Failure modes
+
+<Callout type="warning" title="Common Pitfalls">
+**Model context limits**: If your document exceeds 8192 tokens, you must split first, losing some cross-section context.
+
+**Compute cost**: Late chunking requires running the full document through the model, which is more expensive than embedding smaller chunks.
+
+**Token-to-character mapping**: Off-by-one errors in mapping token indices to character boundaries cause misaligned chunks.
+
+**Memory pressure**: Long documents with 8K tokens require substantial GPU memory for the full attention matrix.
+
+</Callout>
+
+## Production defaults
+
+| Setting        | Recommended Value            | Notes                                  |
+| -------------- | ---------------------------- | -------------------------------------- |
+| Model          | `jina-embeddings-v2-base-en` | 8K context, designed for late chunking |
+| Chunk size     | 300-500 chars                | Balance retrieval precision vs context |
+| Overlap        | 50-100 chars                 | Maintains some boundary context        |
+| Max doc length | 8000 tokens                  | Leave headroom below model limit       |
+
+**When to use late chunking:**
+
+- Narrative documents (stories, transcripts, conversations)
+- Documents with many pronouns and coreferences
+- Legal/medical documents where context is critical
+
+**When to skip:**
+
+- Factual, self-contained content (FAQs, definitions)
+- Speed-critical applications
+- Short documents under 1000 tokens
+
+## Do next
+
+<ChallengeLinks
+  slugs={["late-chunking-implementation", "semantic-chunking-pipeline"]}
+/>
+
+<Card className="mt-4 p-4">
+  <p className="text-sm font-medium">Learn about late interaction:</p>
+  <Link
+    href="/learn/phase-2/reranking-strategies"
+    className="mt-2 inline-flex text-xs font-medium text-blue-700 hover:text-blue-500 dark:text-blue-400"
+  >
+    ColBERT and Late Interaction →
+  </Link>
+</Card>

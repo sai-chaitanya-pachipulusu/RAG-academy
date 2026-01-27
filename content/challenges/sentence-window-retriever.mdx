@@ -1,0 +1,168 @@
+---
+title: "Sentence Window Retriever"
+difficulty: "Medium"
+stage: "retrieval-optimization"
+group: "Phase 2 — Retrieval Optimization"
+xpReward: 50
+estimatedMinutes: 25
+tags: ["retrieval", "sentence-window", "chunking", "implementation"]
+---
+
+# Challenge: Sentence Window Retriever
+
+Implement a **Sentence-Window Retriever** that embeds individual sentences but returns surrounding context windows during retrieval.
+
+## Concept
+
+The key insight: Small chunks (sentences) embed more precisely, but lack context for the LLM. The solution is to **embed small, retrieve big**.
+
+```
+Document: "A. B. C. D. E."  (5 sentences)
+
+Ingestion:
+  - Embed "A." → v1
+  - Embed "B." → v2
+  - etc.
+
+Retrieval (window_size=1):
+  - Query matches "C."
+  - Return: "B. C. D."  (1 before + match + 1 after)
+```
+
+## Task
+
+Complete the `SentenceWindowRetriever` class:
+
+```python
+from typing import List, Tuple, Callable, Dict
+import numpy as np
+import re
+
+class SentenceWindowRetriever:
+    """
+    Retriever that embeds sentences but returns context windows.
+    """
+
+    def __init__(self, embed_fn: Callable[[str], np.ndarray], window_size: int = 2):
+        """
+        Args:
+            embed_fn: Function to embed a string -> numpy array
+            window_size: Number of sentences before/after to include in window
+        """
+        self.embed_fn = embed_fn
+        self.window_size = window_size
+        self.sentence_embeddings: List[Tuple[str, np.ndarray, str, int]] = []
+        # Each entry: (sentence_text, embedding, doc_id, sentence_index)
+        self.documents: Dict[str, List[str]] = {}  # doc_id -> list of sentences
+
+    def add_document(self, doc_id: str, text: str) -> int:
+        """
+        Add a document. Split into sentences, embed each.
+
+        Args:
+            doc_id: Unique identifier for the document
+            text: The full document text
+
+        Returns:
+            Number of sentences indexed
+
+        Example:
+            >>> retriever = SentenceWindowRetriever(lambda x: np.zeros(64), window_size=1)
+            >>> n = retriever.add_document("doc1", "Hello world. This is a test. Goodbye.")
+            >>> n
+            3
+        """
+        # TODO: Implement
+        # 1. Split text into sentences
+        # 2. Store sentences in self.documents[doc_id]
+        # 3. Embed each sentence and store in self.sentence_embeddings
+        pass
+
+    def retrieve(self, query: str, top_k: int = 3) -> List[str]:
+        """
+        Retrieve the top-k context windows for a query.
+
+        Args:
+            query: The search query
+            top_k: Number of results to return
+
+        Returns:
+            List of context windows (expanded around matching sentences)
+
+        Example:
+            >>> retriever = SentenceWindowRetriever(simple_embed, window_size=1)
+            >>> retriever.add_document("d1", "A. B. C. D. E.")
+            5
+            >>> windows = retriever.retrieve("C", top_k=1)
+            >>> "C" in windows[0]  # The window contains the matched sentence
+            True
+        """
+        # TODO: Implement
+        # 1. Embed the query
+        # 2. Calculate cosine similarity with all sentence embeddings
+        # 3. Get top-k matches
+        # 4. For each match, expand to the context window
+        # 5. Return the windows
+        pass
+
+    def _split_sentences(self, text: str) -> List[str]:
+        """Split text into sentences."""
+        # Simple regex split - use spaCy/NLTK in production
+        sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+        return [s.strip() for s in sentences if s.strip()]
+
+    def _get_window(self, doc_id: str, sentence_idx: int) -> str:
+        """Get the context window around a sentence."""
+        # TODO: Implement
+        # Return sentences from (sentence_idx - window_size) to (sentence_idx + window_size)
+        # respecting document boundaries
+        pass
+
+    def _cosine_similarity(self, a: np.ndarray, b: np.ndarray) -> float:
+        """Calculate cosine similarity between two vectors."""
+        # TODO: Implement
+        pass
+```
+
+## Test Cases
+
+```python
+import numpy as np
+
+def simple_embed(text: str) -> np.ndarray:
+    """Simple embedding: hash-based for deterministic testing."""
+    np.random.seed(hash(text) % (2**32))
+    return np.random.randn(64)
+
+# Test 1: Basic indexing
+retriever = SentenceWindowRetriever(simple_embed, window_size=1)
+count = retriever.add_document("doc1", "First sentence. Second sentence. Third sentence.")
+assert count == 3
+
+# Test 2: Window retrieval
+retriever2 = SentenceWindowRetriever(simple_embed, window_size=1)
+retriever2.add_document("doc1", "A. B. C. D. E.")
+windows = retriever2.retrieve("C", top_k=1)
+assert len(windows) == 1
+# Window should contain surrounding sentences
+assert "C" in windows[0]
+
+# Test 3: Window at document start (no left context)
+retriever3 = SentenceWindowRetriever(simple_embed, window_size=2)
+retriever3.add_document("doc1", "Start. Middle. End.")
+windows3 = retriever3.retrieve("Start", top_k=1)
+# Should not crash, should contain "Start"
+assert "Start" in windows3[0]
+
+# Test 4: Window at document end (no right context)
+windows4 = retriever3.retrieve("End", top_k=1)
+assert "End" in windows4[0]
+
+# Test 5: Multi-document
+retriever5 = SentenceWindowRetriever(simple_embed, window_size=1)
+retriever5.add_document("doc1", "Doc one content. More doc one.")
+retriever5.add_document("doc2", "Doc two here. And more two.")
+assert len(retriever5.sentence_embeddings) == 4
+
+print("All tests passed!")
+```

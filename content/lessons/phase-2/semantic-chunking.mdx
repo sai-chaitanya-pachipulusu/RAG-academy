@@ -1,0 +1,384 @@
+---
+title: "Semantic Chunking"
+description: "Intelligent text splitting based on meaning, not just character counts."
+order: 4
+estimatedMinutes: 25
+stage: production-ops
+prereqs:
+  - phase: phase-2
+    slug: chunking-mastery
+next:
+  phase: phase-2
+  slug: sentence-window-retrieval
+outcomes:
+  - "Understand why fixed-size chunking fails for semantic boundaries"
+  - "Implement embedding-based semantic chunking"
+  - "Choose appropriate thresholds for your content"
+tags: ["chunking", "semantic", "embeddings", "preprocessing"]
+sources:
+  - title: "Greg Kamradt - 5 Levels of Text Splitting"
+    url: "https://github.com/FullStackRetrieval-com/RetrievalTutorials/blob/main/tutorials/LevelsOfTextSplitting/5_Levels_Of_Text_Splitting.ipynb"
+    type: "code"
+  - title: "LangChain Semantic Chunking"
+    url: "https://python.langchain.com/docs/modules/data_connection/document_transformers/semantic-chunker/"
+    type: "docs"
+---
+
+## Goals
+
+- Understand the limitations of fixed-size chunking.
+- Implement semantic chunking using embeddings.
+- Tune breakpoint thresholds for your content.
+
+## Prereqs
+
+- **Chunking Mastery** (Phase 2).
+- **Embedding Fundamentals** (Phase 0).
+
+## Core idea
+
+### The Problem with Fixed-Size Chunking
+
+Fixed-size chunking (e.g., 512 tokens with 50 token overlap) is simple but semantically blind:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              FIXED-SIZE CHUNKING PROBLEM                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Original text:                                                  │
+│  "Machine learning is transforming healthcare. It enables        │
+│   early disease detection. | On a different note, the stock     │
+│   market showed volatility. Investors are concerned..."         │
+│                           ↑                                      │
+│                  Topic boundary here!                            │
+│                                                                  │
+│  Fixed 512-token chunking might produce:                        │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │ Chunk 1: "...early disease detection. On a different     │   │
+│  │           note, the stock market showed..."              │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                                                                  │
+│  This chunk mixes healthcare AND finance topics!                │
+│  When retrieved, it adds noise to both topic queries.           │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Semantic Chunking: Split by Meaning
+
+Semantic chunking uses embeddings to detect where topics change:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                SEMANTIC CHUNKING PROCESS                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Step 1: Split into sentences                                   │
+│  [S1] [S2] [S3] [S4] [S5] [S6] [S7] [S8]                        │
+│                                                                  │
+│  Step 2: Embed sliding windows of sentences                     │
+│  [S1,S2] → embed → v1                                           │
+│  [S2,S3] → embed → v2                                           │
+│  [S3,S4] → embed → v3                                           │
+│      ...                                                         │
+│                                                                  │
+│  Step 3: Calculate cosine distance between adjacent windows     │
+│  dist(v1,v2) = 0.12  (similar topic)                            │
+│  dist(v2,v3) = 0.15  (similar topic)                            │
+│  dist(v3,v4) = 0.78  (TOPIC CHANGE! ← breakpoint)               │
+│  dist(v4,v5) = 0.10  (similar topic)                            │
+│                                                                  │
+│  Step 4: Split at high-distance boundaries                      │
+│  Chunk 1: [S1, S2, S3]                                          │
+│  Chunk 2: [S4, S5, S6, S7, S8]                                  │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## The Algorithm
+
+### Step 1: Split Text into Sentences
+
+```python
+import re
+from typing import List
+
+def split_sentences(text: str) -> List[str]:
+    """Split text into sentences."""
+    # Simple regex - use spaCy/NLTK for production
+    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+    return [s.strip() for s in sentences if s.strip()]
+```
+
+### Step 2: Embed Sentence Windows
+
+```python
+import numpy as np
+from sentence_transformers import SentenceTransformer
+
+def embed_windows(
+    sentences: List[str],
+    model: SentenceTransformer,
+    window_size: int = 2
+) -> List[np.ndarray]:
+    """
+    Embed sliding windows of sentences.
+
+    Args:
+        sentences: List of sentences
+        model: Embedding model
+        window_size: Number of sentences per window
+
+    Returns:
+        List of embedding vectors for each window
+    """
+    windows = []
+    for i in range(len(sentences)):
+        # Get window of sentences centered on i
+        start = max(0, i - window_size // 2)
+        end = min(len(sentences), i + window_size // 2 + 1)
+        window_text = " ".join(sentences[start:end])
+        windows.append(window_text)
+
+    embeddings = model.encode(windows)
+    return embeddings
+```
+
+### Step 3: Calculate Similarity Between Adjacent Windows
+
+```python
+def calculate_distances(embeddings: List[np.ndarray]) -> List[float]:
+    """
+    Calculate cosine distance between adjacent window embeddings.
+
+    Returns:
+        List of distances (0 = identical, 2 = opposite)
+    """
+    distances = []
+    for i in range(len(embeddings) - 1):
+        similarity = np.dot(embeddings[i], embeddings[i + 1]) / (
+            np.linalg.norm(embeddings[i]) * np.linalg.norm(embeddings[i + 1])
+        )
+        distance = 1 - similarity  # Convert to distance
+        distances.append(distance)
+
+    return distances
+```
+
+### Step 4: Find Breakpoints and Create Chunks
+
+```python
+def find_breakpoints(
+    distances: List[float],
+    method: str = "percentile",
+    threshold: float = 0.9
+) -> List[int]:
+    """
+    Find sentence indices where topics change.
+
+    Args:
+        distances: Cosine distances between adjacent windows
+        method: "percentile" (top X%), "stddev" (mean + X*std), or "fixed"
+        threshold: Threshold value (percentile, multiplier, or fixed distance)
+
+    Returns:
+        List of sentence indices where breaks should occur
+    """
+    if method == "percentile":
+        cutoff = np.percentile(distances, threshold * 100)
+    elif method == "stddev":
+        cutoff = np.mean(distances) + threshold * np.std(distances)
+    elif method == "fixed":
+        cutoff = threshold
+    else:
+        raise ValueError(f"Unknown method: {method}")
+
+    breakpoints = []
+    for i, dist in enumerate(distances):
+        if dist > cutoff:
+            breakpoints.append(i + 1)  # Break AFTER this sentence
+
+    return breakpoints
+
+
+def create_chunks(sentences: List[str], breakpoints: List[int]) -> List[str]:
+    """Split sentences into chunks at breakpoints."""
+    chunks = []
+    prev = 0
+
+    for bp in breakpoints:
+        chunks.append(" ".join(sentences[prev:bp]))
+        prev = bp
+
+    # Don't forget the last chunk
+    if prev < len(sentences):
+        chunks.append(" ".join(sentences[prev:]))
+
+    return chunks
+```
+
+### Complete Semantic Chunker
+
+```python
+class SemanticChunker:
+    """Chunk text based on semantic similarity."""
+
+    def __init__(
+        self,
+        model_name: str = "all-MiniLM-L6-v2",
+        window_size: int = 2,
+        threshold_method: str = "percentile",
+        threshold: float = 0.9
+    ):
+        self.model = SentenceTransformer(model_name)
+        self.window_size = window_size
+        self.threshold_method = threshold_method
+        self.threshold = threshold
+
+    def chunk(self, text: str) -> List[str]:
+        """
+        Semantically chunk a text document.
+
+        Args:
+            text: Full document text
+
+        Returns:
+            List of semantically coherent chunks
+        """
+        # Step 1: Split into sentences
+        sentences = split_sentences(text)
+
+        if len(sentences) < 2:
+            return [text]
+
+        # Step 2: Embed windows
+        embeddings = embed_windows(sentences, self.model, self.window_size)
+
+        # Step 3: Calculate distances
+        distances = calculate_distances(embeddings)
+
+        # Step 4: Find breakpoints
+        breakpoints = find_breakpoints(
+            distances,
+            self.threshold_method,
+            self.threshold
+        )
+
+        # Step 5: Create chunks
+        chunks = create_chunks(sentences, breakpoints)
+
+        return chunks
+
+
+# Usage
+chunker = SemanticChunker(threshold=0.85)
+chunks = chunker.chunk(long_document)
+```
+
+---
+
+## Threshold Methods Compared
+
+| Method         | How It Works                           | Best For                       |
+| -------------- | -------------------------------------- | ------------------------------ |
+| **Percentile** | Top X% of distances become breakpoints | Consistent chunk count         |
+| **Stddev**     | Mean + X standard deviations           | Adaptive to document variation |
+| **Fixed**      | Absolute distance threshold            | When you know your data well   |
+
+### Tuning Recommendations
+
+| Document Type   | Method     | Threshold | Expected Chunk Size |
+| --------------- | ---------- | --------- | ------------------- |
+| News articles   | Percentile | 0.90      | 3-5 paragraphs      |
+| Technical docs  | Percentile | 0.85      | 2-4 paragraphs      |
+| Legal contracts | Stddev     | 1.5       | Clause-level        |
+| Conversations   | Percentile | 0.95      | Topic turns         |
+
+---
+
+## LangChain Implementation
+
+```python
+from langchain_experimental.text_splitter import SemanticChunker
+from langchain_openai.embeddings import OpenAIEmbeddings
+
+# Create semantic chunker
+embeddings = OpenAIEmbeddings()
+
+# Using percentile-based breakpoints
+chunker = SemanticChunker(
+    embeddings,
+    breakpoint_threshold_type="percentile",
+    breakpoint_threshold_amount=90  # Top 10% of distances = breakpoints
+)
+
+# Chunk documents
+docs = chunker.create_documents([long_text])
+
+# Using standard deviation
+chunker_stddev = SemanticChunker(
+    embeddings,
+    breakpoint_threshold_type="standard_deviation",
+    breakpoint_threshold_amount=1.25  # mean + 1.25*std
+)
+```
+
+---
+
+## Failure modes
+
+### ❌ Chunks Too Small
+
+Very low threshold creates many tiny chunks.
+
+- **Symptom**: Hundreds of 1-2 sentence chunks
+- **Fix**: Increase threshold or use percentile method
+
+### ❌ Chunks Too Large
+
+Very high threshold rarely triggers breakpoints.
+
+- **Symptom**: Entire document becomes one chunk
+- **Fix**: Lower threshold or add size limits
+
+### ❌ Slow Processing
+
+Embedding every sentence is expensive.
+
+- **Symptom**: Minutes per document
+- **Fix**: Use faster model (MiniLM) or batch embedding
+
+### ❌ Not Respecting Document Structure
+
+Semantic chunking may split tables, code blocks, or lists.
+
+- **Fix**: Pre-split on structural boundaries, then apply semantic chunking to prose sections
+
+---
+
+## Production defaults
+
+| Setting              | Recommended Value                                 |
+| -------------------- | ------------------------------------------------- |
+| **Embedding model**  | all-MiniLM-L6-v2 (fast) or text-embedding-3-small |
+| **Window size**      | 2-3 sentences                                     |
+| **Threshold method** | Percentile                                        |
+| **Threshold value**  | 85-95 (depending on granularity needs)            |
+| **Max chunk size**   | Add hard cap (e.g., 2000 tokens)                  |
+| **Min chunk size**   | Merge tiny chunks (< 100 tokens)                  |
+
+<Callout title="Best Practice" variant="accent">
+  Combine semantic chunking with size limits. After semantic splits, merge
+  chunks smaller than 100 tokens with neighbors, and split chunks larger than
+  2000 tokens.
+</Callout>
+
+---
+
+## Do next
+
+- [Sentence-Window Retrieval](/learn/phase-2/sentence-window-retrieval) - Dynamic context expansion
+- [Auto-Merging Retrieval](/learn/phase-2/auto-merging-retrieval) - Hierarchical context assembly

@@ -3,6 +3,9 @@
  * Uses Resend (resend.com) for sending
  */
 
+import { getPlatformStats } from "@/lib/challenges/catalog";
+
+
 export interface EmailTemplate {
   subject: string;
   html: string;
@@ -111,7 +114,7 @@ export function getCountdown7DaysEmail(daysRemaining: number, currentPrice: numb
         </p>
         
         <ul style="color: #424245; font-size: 17px; line-height: 1.75;">
-          <li>All 185+ challenges (including 2025 advanced techniques)</li>
+          <li>All ${getPlatformStats().totalChallenges}+ challenges (including advanced techniques)</li>
           <li>Lifetime price lock at $${currentPrice}/month</li>
           <li>Progress tracking & analytics</li>
           <li>Certificate of completion</li>
@@ -135,7 +138,7 @@ Current Price: $${currentPrice}/mo
 Increases to $${nextPrice}/mo on April 5, 2026
 
 When you upgrade now, you'll get:
-- All 185+ challenges (including 2025 advanced techniques)
+- All ${getPlatformStats().totalChallenges}+ challenges (including 2025 advanced techniques)
 - Lifetime price lock at $${currentPrice}/month
 - Progress tracking & analytics
 - Certificate of completion
@@ -299,7 +302,7 @@ export function getThankYouEmail(userName: string, tier: string, price: number, 
         </p>
         
         <ul style="color: #424245; font-size: 17px; line-height: 1.75;">
-          <li><strong>All 185+ challenges</strong> including 2025 advanced techniques</li>
+          <li><strong>All ${getPlatformStats().totalChallenges}+ challenges</strong> including 2025 advanced techniques</li>
           <li><strong>Progress tracking</strong> to monitor your learning journey</li>
           <li><strong>Priority support</strong> via email and Discord</li>
           <li><strong>Certificates of completion</strong> for your portfolio</li>
@@ -361,7 +364,7 @@ Hi ${userName},
 Thank you for upgrading to RAG Academy ${tier === "team" ? "Team" : "Pro"}!
 
 You now have access to:
-- All 185+ challenges including 2025 advanced techniques
+- All ${getPlatformStats().totalChallenges}+ challenges including 2025 advanced techniques
 - Progress tracking to monitor your learning journey
 - Priority support via email and Discord
 - Certificates of completion for your portfolio

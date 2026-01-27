@@ -1,0 +1,229 @@
+---
+title: "Sentence-Window Retrieval"
+description: "Advanced retrieval technique that embeds sentences but retrieves surrounding context windows."
+order: 4
+estimatedMinutes: 25
+stage: production-ops
+prereqs:
+  - phase: phase-2
+    slug: chunking-mastery
+next:
+  phase: phase-2
+  slug: reranking-fundamentals
+outcomes:
+  - "Implement sentence-window retrieval for fine-grained matching with context"
+  - "Understand the trade-off between embedding granularity and context completeness"
+  - "Configure window sizes for different document types"
+tags: ["retrieval", "sentence-window", "chunking", "advanced"]
+sources:
+  - title: "LlamaIndex Sentence Window Retrieval"
+    url: "https://docs.llamaindex.ai/en/stable/examples/node_postprocessor/MetadataReplacementDemo/"
+    type: "docs"
+  - title: "Dense X Retrieval: What Retrieval Granularity Should We Use?"
+    url: "https://arxiv.org/abs/2312.06648"
+    type: "paper"
+---
+
+## Goals
+
+- Understand why small chunks match better but lack context.
+- Implement sentence-window retrieval as a solution.
+- Configure window sizes for production use cases.
+
+## Prereqs
+
+- **Chunking Mastery** (Phase 2).
+- Basic understanding of **vector similarity**.
+
+## Core idea
+
+### The Chunking Dilemma
+
+When building RAG systems, you face a fundamental trade-off:
+
+| Chunk Size                | Embedding Precision | Context Completeness |
+| ------------------------- | ------------------- | -------------------- |
+| **Small** (1-2 sentences) | ✅ High             | ❌ Low               |
+| **Large** (paragraphs)    | ❌ Low              | ✅ High              |
+
+**Small chunks** embed better because they capture a single concept. But when retrieved, they lack the surrounding context needed for the LLM to generate good answers.
+
+**Large chunks** provide more context but may contain multiple topics, diluting the embedding and causing retrieval misses.
+
+### Sentence-Window Retrieval: Best of Both Worlds
+
+The solution: **embed small units, but retrieve larger windows**.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                  SENTENCE-WINDOW RETRIEVAL                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Document: "The quick brown fox jumped. The lazy dog slept.     │
+│             The forest was quiet. Birds sang in the trees."     │
+│                                                                  │
+│  Step 1: Split into sentences and embed each:                   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ S1: "The quick brown fox jumped."     → embed → v1      │    │
+│  │ S2: "The lazy dog slept."             → embed → v2      │    │
+│  │ S3: "The forest was quiet."           → embed → v3      │    │
+│  │ S4: "Birds sang in the trees."        → embed → v4      │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  Step 2: Query matches S1 via similarity                        │
+│                                                                  │
+│  Step 3: Return WINDOW around S1 (window_size=2):               │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ "The quick brown fox jumped. The lazy dog slept.        │    │
+│  │  The forest was quiet."                                 │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Implementation
+
+```python
+from dataclasses import dataclass
+from typing import List, Optional
+import numpy as np
+
+@dataclass
+class SentenceNode:
+    """A sentence with reference to its position in the document."""
+    text: str
+    embedding: Optional[np.ndarray] = None
+    doc_id: str = ""
+    sentence_index: int = 0
+
+class SentenceWindowRetriever:
+    def __init__(self, embed_fn, window_size: int = 2):
+        """
+        Args:
+            embed_fn: Function to embed a sentence -> vector
+            window_size: Number of sentences before/after to include
+        """
+        self.embed_fn = embed_fn
+        self.window_size = window_size
+        self.nodes: List[SentenceNode] = []
+        self.doc_sentences: dict[str, List[str]] = {}  # doc_id -> sentences
+
+    def ingest(self, doc_id: str, text: str):
+        """Split document into sentences and embed each."""
+        sentences = self._split_sentences(text)
+        self.doc_sentences[doc_id] = sentences
+
+        for i, sent in enumerate(sentences):
+            node = SentenceNode(
+                text=sent,
+                embedding=self.embed_fn(sent),
+                doc_id=doc_id,
+                sentence_index=i
+            )
+            self.nodes.append(node)
+
+    def retrieve(self, query: str, top_k: int = 5) -> List[str]:
+        """Retrieve sentence windows for a query."""
+        query_vec = self.embed_fn(query)
+
+        # Find top matching sentences
+        scores = [(node, self._cosine_sim(query_vec, node.embedding))
+                  for node in self.nodes]
+        scores.sort(key=lambda x: x[1], reverse=True)
+        top_nodes = scores[:top_k]
+
+        # Expand each match to its window
+        windows = []
+        for node, score in top_nodes:
+            window = self._get_window(node)
+            windows.append(window)
+
+        return windows
+
+    def _get_window(self, node: SentenceNode) -> str:
+        """Get the context window around a sentence."""
+        sentences = self.doc_sentences[node.doc_id]
+        start = max(0, node.sentence_index - self.window_size)
+        end = min(len(sentences), node.sentence_index + self.window_size + 1)
+        return " ".join(sentences[start:end])
+
+    def _split_sentences(self, text: str) -> List[str]:
+        """Simple sentence splitting (use spaCy/NLTK in production)."""
+        import re
+        return [s.strip() for s in re.split(r'[.!?]+', text) if s.strip()]
+
+    def _cosine_sim(self, a: np.ndarray, b: np.ndarray) -> float:
+        return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+```
+
+### Choosing Window Size
+
+| Document Type          | Recommended Window         | Rationale                              |
+| ---------------------- | -------------------------- | -------------------------------------- |
+| **Legal/Technical**    | 3-5 sentences              | Context is critical for interpretation |
+| **News/Articles**      | 2-3 sentences              | Each sentence is more self-contained   |
+| **Chat/Dialogue**      | 4-6 turns                  | Conversation context is essential      |
+| **Code Documentation** | 1-2 sentences + code block | Keep code with its description         |
+
+## Production defaults
+
+### LlamaIndex Implementation
+
+```python
+from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
+from llama_index.core.node_parser import SentenceWindowNodeParser
+from llama_index.core.postprocessor import MetadataReplacementPostProcessor
+
+# 1. Parse documents with sentence windows
+node_parser = SentenceWindowNodeParser.from_defaults(
+    window_size=3,
+    window_metadata_key="window",
+    original_text_metadata_key="original_text",
+)
+
+documents = SimpleDirectoryReader("./data").load_data()
+nodes = node_parser.get_nodes_from_documents(documents)
+
+# 2. Build index (embeds individual sentences)
+index = VectorStoreIndex(nodes)
+
+# 3. Query with window replacement
+query_engine = index.as_query_engine(
+    similarity_top_k=5,
+    node_postprocessors=[
+        MetadataReplacementPostProcessor(target_metadata_key="window")
+    ]
+)
+
+response = query_engine.query("What is the return policy?")
+# Retrieved sentences are replaced with their surrounding windows
+```
+
+## Failure modes
+
+### ❌ Window Too Small
+
+If your window size is 0 (sentence only), the LLM lacks context to generate coherent answers.
+
+### ❌ Window Too Large
+
+If your window is huge (entire document), you lose the precision benefits and may hit token limits.
+
+### ❌ Breaking Semantic Boundaries
+
+Naive sentence splitting can break:
+
+- Tables (rows become separate sentences)
+- Lists (items lose their header)
+- Code blocks (split on periods in code)
+
+Use a parser that respects document structure.
+
+### ❌ Not Deduplicating Overlaps
+
+If two adjacent sentences both match, their windows overlap heavily. Deduplicate before sending to NLM.
+
+## Do next
+
+- [Reranking Fundamentals](/learn/phase-2/reranking-fundamentals) - Improve retrieval quality with rerankers
+- [Hybrid Search](/learn/phase-2/hybrid-search) - Combine BM25 with semantic search

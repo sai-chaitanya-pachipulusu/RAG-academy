@@ -83,9 +83,9 @@ const LEARNING_PATH = [
 const platformStats = getPlatformStats();
 const roundedChallenges = Math.floor(platformStats.totalChallenges / 5) * 5;
 const STATS = [
+  { value: `${platformStats.totalLessons}`, label: "Lessons" },
   { value: `${roundedChallenges}+`, label: "Challenges" },
   { value: `${platformStats.totalModules}`, label: "Modules" },
-  { value: `${platformStats.totalStages}`, label: "Stages" },
 ];
 
 export default function Home() {

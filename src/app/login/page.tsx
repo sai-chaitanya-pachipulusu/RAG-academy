@@ -93,9 +93,9 @@ return (
 
           <div className="grid grid-cols-3 gap-12">
             {[
+              { value: `${platformStats.totalLessons}`, label: "Lessons" },
               { value: `${platformStats.totalChallenges}+`, label: "Challenges" },
-              { value: String(platformStats.totalModules), label: "Modules" },
-              { value: "Free", label: "Access" },
+              { value: "Free", label: "To Start" },
             ].map((stat) => (
               <div key={stat.label}>
                 <p className="text-5xl font-bold">{stat.value}</p>

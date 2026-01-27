@@ -1,0 +1,241 @@
+---
+title: "RAG vs Long Context Windows"
+description: "When to use retrieval vs stuffing everything into a massive context window."
+order: 6
+estimatedMinutes: 20
+stage: foundations
+prereqs:
+  - phase: phase-0
+    slug: tokenizers-and-context
+next:
+  phase: phase-1
+  slug: query-transforms
+outcomes:
+  - "Compare cost, latency, and accuracy of RAG vs long context"
+  - "Understand the 'Lost in the Middle' phenomenon"
+  - "Make informed architectural decisions for your use case"
+tags: ["architecture", "context-windows", "cost", "trade-offs"]
+sources:
+  - title: "Lost in the Middle: How Language Models Use Long Contexts"
+    url: "https://arxiv.org/abs/2307.03172"
+    type: "paper"
+  - title: "Vinija AI - RAG vs Long Context"
+    url: "https://vinija.ai/nlp/RAG/#rag-vs-long-context-windows"
+    type: "blog"
+---
+
+## Goals
+
+- Understand when RAG beats long context windows (and vice versa).
+- Calculate real-world costs of each approach.
+- Know the "Lost in the Middle" failure mode.
+
+## Prereqs
+
+- **Tokenizers and Context** (Phase 0).
+- **Why RAG Exists** (Phase 0).
+
+## Core idea
+
+With models like Gemini 1.5 Pro (2M tokens) and Claude 3.5 (200K tokens), a natural question arises:
+
+> **"Why bother with RAG? Just stuff everything into the context!"**
+
+This lesson explains why that's often a bad idea.
+
+### The Naive Approach: "Just Use More Context"
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    LONG CONTEXT APPROACH                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  User Query: "What is the return policy?"                       │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │                                                          │   │
+│  │  [Entire 500-page knowledge base dumped into context]    │   │
+│  │                                                          │   │
+│  │  ... 2 million tokens ...                                │   │
+│  │                                                          │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                                                                  │
+│  LLM: "Based on the context... [answer]"                        │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+This works! But at what cost?
+
+---
+
+## The Hidden Costs of Long Context
+
+### 1. Computational Cost
+
+Processing extremely long contexts requires massive hardware resources.
+
+| Context Length | Hardware Required | Estimated Cost/Hour |
+| -------------- | ----------------- | ------------------- |
+| 128K tokens    | 1-2 H100 GPUs     | $5-10               |
+| 1M tokens      | 8-16 H100 GPUs    | $50-80              |
+| 10M tokens     | 32+ H100 GPUs     | **$100+**           |
+
+The KV-cache alone for a 10M token context can exceed **1 terabyte of VRAM**.
+
+### 2. Latency and Throughput
+
+As context length increases, inference time grows significantly:
+
+```python
+# Simplified latency relationship (attention is O(n²))
+def estimate_latency(tokens: int, base_latency_ms: float = 100) -> float:
+    """
+    Rough estimate: latency grows quadratically with context length.
+    Real-world implementations optimize this, but the trend holds.
+    """
+    base_tokens = 4096
+    scaling_factor = (tokens / base_tokens) ** 1.5  # Sub-quadratic in practice
+    return base_latency_ms * scaling_factor
+
+# Examples
+print(f"4K tokens: {estimate_latency(4096):.0f}ms")      # ~100ms
+print(f"128K tokens: {estimate_latency(128000):.0f}ms")  # ~5,600ms
+print(f"1M tokens: {estimate_latency(1000000):.0f}ms")   # ~176,000ms (3 min!)
+```
+
+### 3. The "Lost in the Middle" Problem
+
+This is the critical failure mode that makes long context unreliable.
+
+**Key finding from [Liu et al., 2023](https://arxiv.org/abs/2307.03172):**
+
+> LLMs are significantly better at using information at the **beginning** and **end** of the context. Information in the **middle** is often ignored.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              "LOST IN THE MIDDLE" PHENOMENON                     │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Context Position:   START -------- MIDDLE -------- END         │
+│                                                                  │
+│  Retrieval Accuracy:  HIGH -------- LOW -------- HIGH           │
+│                        ↑                           ↑             │
+│                     ~90%          ~50%          ~85%             │
+│                                    ↓                             │
+│                            DANGER ZONE!                          │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Practical implication:** If your critical information happens to land in the middle of a 1M token context, the model may simply not use it—even though it's right there!
+
+---
+
+## RAG: A Targeted, Cost-Efficient Solution
+
+RAG addresses all three problems:
+
+| Problem          | Long Context                     | RAG                                 |
+| ---------------- | -------------------------------- | ----------------------------------- |
+| **Compute Cost** | $100+/hour for 10M tokens        | $0.01-0.10 per query                |
+| **Latency**      | Seconds to minutes               | Milliseconds retrieval + normal LLM |
+| **Middle Loss**  | Information gets buried          | Only relevant chunks in context     |
+| **Freshness**    | Requires re-ingesting everything | Update individual documents         |
+
+### How RAG Stays Efficient
+
+```python
+# RAG keeps context small and focused
+def rag_query(question: str, knowledge_base: VectorDB, llm) -> str:
+    # Step 1: Retrieve only relevant chunks (fast, cheap)
+    relevant_chunks = knowledge_base.search(question, top_k=5)  # ~100ms
+
+    # Step 2: Context is small (~2K tokens, not 2M)
+    context = "\n".join([c.text for c in relevant_chunks])
+
+    # Step 3: LLM processes manageable context
+    prompt = f"Context:\n{context}\n\nQuestion: {question}"
+    return llm.generate(prompt)  # Fast, no middle-loss risk
+```
+
+---
+
+## When to Use Each Approach
+
+### Use Long Context When:
+
+- ✅ You have a **single document** that must be processed entirely (legal contract analysis)
+- ✅ You need **cross-document reasoning** over a small set of docs
+- ✅ **Latency isn't critical** and **cost is not a concern**
+- ✅ The task requires **seeing everything at once** (comprehensive summarization)
+
+### Use RAG When:
+
+- ✅ You have a **large corpus** (thousands of documents)
+- ✅ Questions are **specific** (looking for particular facts)
+- ✅ **Cost and latency matter** (production systems)
+- ✅ Knowledge needs **frequent updates**
+- ✅ You need **citations** (RAG can point to source documents)
+
+### The Best of Both: Hierarchical RAG
+
+For complex tasks, combine both approaches:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                 HIERARCHICAL RAG PIPELINE                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. RAG retrieves top 20 relevant chunks                        │
+│                     ↓                                            │
+│  2. These fit into ~16K token context                           │
+│                     ↓                                            │
+│  3. LLM reasons over full retrieved context                     │
+│                     ↓                                            │
+│  Result: Broad retrieval + deep reasoning                       │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Production defaults
+
+| Scenario                | Recommended Approach             |
+| ----------------------- | -------------------------------- |
+| Customer support bot    | RAG (fast, cheap, updatable)     |
+| Legal document analysis | Long context (need full doc)     |
+| Research assistant      | RAG + long context for synthesis |
+| Real-time chat          | RAG (latency critical)           |
+| Summarize single report | Long context                     |
+| Search across 10K docs  | RAG (only option that scales)    |
+
+<Callout title="Rule of Thumb" variant="accent">
+  **Start with RAG.** Only use long context when you genuinely need the model to
+  see everything at once. In most production scenarios, RAG wins on cost,
+  latency, and reliability.
+</Callout>
+
+---
+
+## Failure modes
+
+### ❌ Assuming Long Context is "Smarter"
+
+More context ≠ better answers. Middle-loss means the model might miss critical info.
+
+### ❌ Ignoring Cost at Scale
+
+What costs $1 in prototyping can cost $10,000/month in production with long context.
+
+### ❌ Not Testing Position Sensitivity
+
+If using long context, test what happens when key info is in different positions.
+
+---
+
+## Do next
+
+- [Query Transforms](/learn/phase-1/query-transforms) - Improve retrieval quality
+- [RAG Data Sizing](/learn/phase-1/rag-data-sizing) - Right-size your RAG system

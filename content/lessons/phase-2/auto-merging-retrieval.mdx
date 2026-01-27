@@ -1,0 +1,355 @@
+---
+title: "Auto-Merging Retrieval"
+description: "Hierarchical retrieval that automatically merges fragmented chunks into coherent context."
+order: 5
+estimatedMinutes: 25
+stage: production-ops
+prereqs:
+  - phase: phase-2
+    slug: sentence-window-retrieval
+next:
+  phase: phase-2
+  slug: reranking-strategies
+outcomes:
+  - "Understand the fragmentation problem with small chunks"
+  - "Implement auto-merging retrieval for coherent context"
+  - "Choose between sentence-window and auto-merging strategies"
+tags: ["retrieval", "auto-merge", "hierarchical", "chunking"]
+sources:
+  - title: "LlamaIndex Auto-Merging Retriever"
+    url: "https://docs.llamaindex.ai/en/stable/examples/retrievers/auto_merging_retriever/"
+    type: "docs"
+  - title: "DeepLearning.AI Advanced RAG"
+    url: "https://learn.deeplearning.ai/building-evaluating-advanced-rag"
+    type: "course"
+---
+
+## Goals
+
+- Understand why naive small-chunk retrieval causes fragmentation.
+- Learn the auto-merging algorithm for coherent context.
+- Choose the right retrieval strategy for your use case.
+
+## Prereqs
+
+- **Sentence-Window Retrieval** (Phase 2).
+- **Chunking Mastery** (Phase 2).
+
+## Core idea
+
+### The Problem: Chunk Fragmentation
+
+When you use small chunks for precise retrieval, you often get **fragmented results**:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              THE FRAGMENTATION PROBLEM                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Document: "Introduction. Background. Method. Results. Discuss." │
+│                                                                  │
+│  Small chunks (128 tokens each):                                 │
+│  [Chunk 1] [Chunk 2] [Chunk 3] [Chunk 4] [Chunk 5] [Chunk 6]     │
+│                                                                  │
+│  Query: "Explain the method and results"                         │
+│                                                                  │
+│  Naive retrieval returns:                                        │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ Chunk 3 (Method part 1)     ← Relevant                  │    │
+│  │ Chunk 5 (Results part 2)    ← Relevant but incomplete   │    │
+│  │ Chunk 4 (Results part 1)    ← Out of order!             │    │
+│  │ Chunk 2 (Background)        ← Irrelevant noise          │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  Result: Fragmented, incomplete, out-of-order context!           │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**The problem gets worse with smaller chunks** — you get more precise matches but more fragmented context.
+
+### The Solution: Auto-Merging Retrieval
+
+Auto-merging retrieval builds a **hierarchical index** and automatically merges child chunks back into their parent when enough children are retrieved.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                  AUTO-MERGING HIERARCHY                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Level 0 (Sections):    [Section A]        [Section B]          │
+│                              │                   │               │
+│  Level 1 (Paragraphs):  [P1]  [P2]  [P3]   [P4]  [P5]  [P6]     │
+│                          │     │     │      │     │     │       │
+│  Level 2 (Sentences):   [s1] [s2]  [s3]   [s4] [s5]  [s6]       │
+│                          ↑     ↑     ↑                          │
+│                         Retrieved sentences                      │
+│                                                                  │
+│  Auto-merge logic:                                              │
+│  - If 2+ children of P1 retrieved → Replace with P1            │
+│  - If 2+ children of Section A → Replace with Section A        │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## The Auto-Merging Algorithm
+
+### Step 1: Build Hierarchical Index
+
+Create a tree structure where leaves are small chunks and parents are larger segments.
+
+```python
+from dataclasses import dataclass, field
+from typing import List, Optional
+import uuid
+
+@dataclass
+class HierarchicalNode:
+    """Node in the hierarchy with parent/child relationships."""
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    text: str = ""
+    level: int = 0  # 0 = leaf, higher = parent
+    parent_id: Optional[str] = None
+    child_ids: List[str] = field(default_factory=list)
+    embedding: Optional[list] = None
+
+def build_hierarchy(
+    document: str,
+    levels: List[int] = [512, 256, 128]  # Token sizes per level
+) -> dict[str, HierarchicalNode]:
+    """
+    Build hierarchical node structure.
+
+    Args:
+        document: Full document text
+        levels: Chunk sizes for each level (largest to smallest)
+
+    Returns:
+        Dictionary mapping node IDs to nodes
+    """
+    nodes = {}
+
+    # Level 0: Largest chunks (e.g., sections)
+    level_0_chunks = split_into_chunks(document, levels[0])
+    level_0_nodes = []
+
+    for chunk in level_0_chunks:
+        node = HierarchicalNode(text=chunk, level=0)
+        nodes[node.id] = node
+        level_0_nodes.append(node)
+
+    # Build child levels
+    for level_idx, chunk_size in enumerate(levels[1:], start=1):
+        new_level_nodes = []
+
+        for parent in (level_0_nodes if level_idx == 1 else new_level_nodes):
+            child_chunks = split_into_chunks(parent.text, chunk_size)
+
+            for child_text in child_chunks:
+                child = HierarchicalNode(
+                    text=child_text,
+                    level=level_idx,
+                    parent_id=parent.id
+                )
+                parent.child_ids.append(child.id)
+                nodes[child.id] = child
+                new_level_nodes.append(child)
+
+    return nodes
+```
+
+### Step 2: Index Leaf Nodes Only
+
+Only embed and index the smallest (leaf) chunks for retrieval.
+
+```python
+def index_leaves(nodes: dict[str, HierarchicalNode], embed_fn) -> list[tuple]:
+    """
+    Embed only leaf nodes (highest level number).
+    """
+    max_level = max(n.level for n in nodes.values())
+    leaves = [n for n in nodes.values() if n.level == max_level]
+
+    indexed = []
+    for leaf in leaves:
+        leaf.embedding = embed_fn(leaf.text)
+        indexed.append((leaf.id, leaf.embedding))
+
+    return indexed
+```
+
+### Step 3: Retrieve and Auto-Merge
+
+The key algorithm: if enough children of a parent are retrieved, replace them with the parent.
+
+```python
+def auto_merge_retrieve(
+    query: str,
+    nodes: dict[str, HierarchicalNode],
+    embed_fn,
+    top_k: int = 10,
+    merge_threshold: float = 0.5  # Merge if 50%+ children retrieved
+) -> List[HierarchicalNode]:
+    """
+    Retrieve with automatic merging of sibling chunks.
+
+    Args:
+        query: User query
+        nodes: All hierarchical nodes
+        embed_fn: Embedding function
+        top_k: Number of leaves to retrieve initially
+        merge_threshold: Fraction of children needed to trigger merge
+
+    Returns:
+        List of (potentially merged) context nodes
+    """
+    query_embedding = embed_fn(query)
+
+    # Step 1: Retrieve top-k leaf nodes
+    leaves = [n for n in nodes.values() if n.embedding is not None]
+    scores = [(n, cosine_sim(query_embedding, n.embedding)) for n in leaves]
+    scores.sort(key=lambda x: x[1], reverse=True)
+    retrieved_ids = set(n.id for n, _ in scores[:top_k])
+
+    # Step 2: Check for merge opportunities
+    result_nodes = []
+    already_merged = set()
+
+    for node_id in retrieved_ids:
+        if node_id in already_merged:
+            continue
+
+        node = nodes[node_id]
+
+        # Try to merge with siblings
+        if node.parent_id:
+            parent = nodes[node.parent_id]
+            children_retrieved = sum(
+                1 for cid in parent.child_ids if cid in retrieved_ids
+            )
+            merge_ratio = children_retrieved / len(parent.child_ids)
+
+            if merge_ratio >= merge_threshold:
+                # Merge: use parent instead of children
+                result_nodes.append(parent)
+                already_merged.update(parent.child_ids)
+            else:
+                result_nodes.append(node)
+        else:
+            result_nodes.append(node)
+
+    return result_nodes
+```
+
+---
+
+## Sentence-Window vs Auto-Merging
+
+| Aspect                | Sentence-Window           | Auto-Merging                        |
+| --------------------- | ------------------------- | ----------------------------------- |
+| **Context expansion** | Fixed window around match | Dynamic based on retrieved siblings |
+| **Index structure**   | Flat (with metadata)      | Hierarchical tree                   |
+| **Best for**          | Uniform documents         | Documents with natural structure    |
+| **Implementation**    | Simpler                   | More complex                        |
+| **Context coherence** | Window may cross topics   | Respects document structure         |
+
+### When to Use Each
+
+**Use Sentence-Window when:**
+
+- Documents have uniform structure (news articles, chat logs)
+- You want simpler implementation
+- Fixed context windows work well
+
+**Use Auto-Merging when:**
+
+- Documents have natural hierarchy (textbooks, legal docs, technical manuals)
+- Queries often span related subsections
+- You need the context to respect document structure
+
+---
+
+## LlamaIndex Implementation
+
+```python
+from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
+from llama_index.core.node_parser import HierarchicalNodeParser, get_leaf_nodes
+from llama_index.core.retrievers import AutoMergingRetriever
+from llama_index.core.storage.docstore import SimpleDocumentStore
+
+# 1. Load and parse with hierarchy
+documents = SimpleDirectoryReader("./data").load_data()
+
+node_parser = HierarchicalNodeParser.from_defaults(
+    chunk_sizes=[2048, 512, 128]  # 3 levels
+)
+nodes = node_parser.get_nodes_from_documents(documents)
+
+# 2. Store all nodes in docstore (needed for merging)
+docstore = SimpleDocumentStore()
+docstore.add_documents(nodes)
+
+# 3. Index only leaf nodes
+leaf_nodes = get_leaf_nodes(nodes)
+index = VectorStoreIndex(leaf_nodes)
+
+# 4. Create auto-merging retriever
+retriever = AutoMergingRetriever(
+    index.as_retriever(similarity_top_k=12),
+    docstore,
+    simple_ratio_thresh=0.5  # Merge when 50%+ children retrieved
+)
+
+# 5. Query
+results = retriever.retrieve("Explain the methodology section")
+# Returns merged parent nodes when appropriate
+```
+
+---
+
+## Failure modes
+
+### ❌ Wrong Hierarchy Levels
+
+If chunk sizes don't match document structure, merging produces incoherent context.
+
+- **Fix**: Analyze your documents to determine natural boundaries (sections, paragraphs).
+
+### ❌ Merge Threshold Too Low
+
+Setting threshold too low (e.g., 0.2) causes over-merging, returning huge contexts.
+
+- **Fix**: Start with 0.5 and tune based on evaluation.
+
+### ❌ Merge Threshold Too High
+
+Setting threshold too high (e.g., 0.9) rarely triggers merging.
+
+- **Fix**: If you're seeing fragmented results, lower the threshold.
+
+### ❌ Ignoring Document Structure
+
+Using auto-merging on unstructured documents (chat logs, random notes) adds complexity without benefit.
+
+- **Fix**: Use sentence-window for unstructured content.
+
+---
+
+## Production defaults
+
+| Setting              | Recommended Value                  |
+| -------------------- | ---------------------------------- |
+| **Hierarchy levels** | 3 (section → paragraph → sentence) |
+| **Chunk sizes**      | [2048, 512, 128] tokens            |
+| **Merge threshold**  | 0.5 (50% of siblings)              |
+| **Initial top-k**    | 10-15 leaf nodes                   |
+| **Embedding model**  | Same for all levels                |
+
+---
+
+## Do next
+
+- [Reranking Strategies](/learn/phase-2/reranking-strategies) - Improve result quality after retrieval
+- [RAPTOR Retrieval](/learn/phase-3/raptor-retrieval) - Tree-structured summarization approach

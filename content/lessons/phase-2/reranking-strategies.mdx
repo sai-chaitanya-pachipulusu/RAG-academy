@@ -143,24 +143,125 @@ Neural rerankers are classified into three methodological paradigms based on how
 
 **ListBERT/ListT5** (Listwise): Consider the full list of documents simultaneously using listwise loss functions (ListMLE, Softmax Cross Entropy). [ListT5](https://arxiv.org/abs/2402.15838) uses Fusion-in-Decoder architecture and achieves state-of-the-art zero-shot retrieval.
 
-### ColBERT: Late interaction
+### ColBERT: Late Interaction for Fine-Grained Matching
 
-[ColBERT](https://arxiv.org/abs/2004.12832) offers a middle ground:
+[ColBERT](https://arxiv.org/abs/2004.12832) (Contextualized Late Interaction over BERT) offers a compelling middle ground between bi-encoders and cross-encoders.
 
-- Encode query and document into **multiple vectors** (one per token)
-- Score via **MaxSim**: max similarity between each query token and all doc tokens
-- Faster than cross-encoder because doc encodings can be precomputed
+#### The Late Interaction Paradigm
+
+Unlike cross-encoders that process query+doc together, ColBERT uses **late interaction**:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    COLBERT ARCHITECTURE                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Query: "sweet apple"          Document: "The apple is crisp"   │
+│         ↓                                    ↓                   │
+│  ┌─────────────────┐           ┌─────────────────────────────┐  │
+│  │ BERT Encoder    │           │ BERT Encoder (precomputed)  │  │
+│  └─────────────────┘           └─────────────────────────────┘  │
+│         ↓                                    ↓                   │
+│  Token embeddings:              Token embeddings:               │
+│  [v_sweet, v_apple]             [v_The, v_apple, v_is, v_crisp] │
+│         │                                    │                   │
+│         └──────────── MaxSim ────────────────┘                  │
+│                         ↓                                        │
+│                   Relevance Score                                │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### MaxSim: The Scoring Mechanism
+
+MaxSim computes the maximum similarity between each query token and ALL document tokens:
+
+$$\text{Score}(q, d) = \sum_{i=1}^{|q|} \max_{j=1}^{|d|} \cos(q_i, d_j)$$
 
 ```python
-def colbert_score(query_vectors, doc_vectors):
-    """MaxSim scoring for ColBERT."""
-    # For each query token, find max similarity to any doc token
-    max_sims = []
-    for q_vec in query_vectors:
-        similarities = [cosine_sim(q_vec, d_vec) for d_vec in doc_vectors]
-        max_sims.append(max(similarities))
-    return sum(max_sims)
+import numpy as np
+
+def maxsim_score(query_vectors: np.ndarray, doc_vectors: np.ndarray) -> float:
+    """
+    ColBERT MaxSim scoring.
+
+    Args:
+        query_vectors: Shape (num_query_tokens, embedding_dim)
+        doc_vectors: Shape (num_doc_tokens, embedding_dim)
+
+    Returns:
+        Relevance score (sum of max similarities)
+    """
+    # Compute all pairwise similarities at once
+    # Shape: (num_query_tokens, num_doc_tokens)
+    similarities = np.dot(query_vectors, doc_vectors.T)
+
+    # Normalize for cosine similarity
+    q_norms = np.linalg.norm(query_vectors, axis=1, keepdims=True)
+    d_norms = np.linalg.norm(doc_vectors, axis=1, keepdims=True)
+    similarities = similarities / (q_norms @ d_norms.T + 1e-8)
+
+    # MaxSim: for each query token, take max over all doc tokens
+    max_sims = similarities.max(axis=1)
+
+    return float(max_sims.sum())
+
+
+# Example
+query = "sweet apple"  # → 2 token embeddings
+doc = "The apple is sweet and crisp"  # → 6 token embeddings
+
+# "sweet" matches "sweet" in doc → high max sim
+# "apple" matches "apple" in doc → high max sim
+# Result: high relevance score
 ```
+
+#### Why MaxSim Works
+
+Consider query "sweet apple" and two documents:
+
+- **Doc 1**: "The apple is sweet and crisp" → High MaxSim (both tokens match)
+- **Doc 2**: "The banana is yellow" → Low MaxSim (neither token matches well)
+
+This **token-level matching** captures fine-grained relevance that bi-encoders miss.
+
+#### ColBERT vs Cross-Encoder Trade-offs
+
+| Aspect             | Cross-Encoder              | ColBERT                      |
+| ------------------ | -------------------------- | ---------------------------- |
+| **Accuracy**       | Slightly higher            | Very close                   |
+| **Latency**        | ~100-300ms/query           | ~50-100ms/query              |
+| **Precomputation** | None (recompute each time) | Doc embeddings precomputed   |
+| **Storage**        | Minimal                    | Heavy (all token embeddings) |
+
+#### Storage Considerations
+
+ColBERT's main drawback is storage. For each document:
+
+- Standard embedding: 1 vector (768 dims × 4 bytes = 3KB)
+- ColBERT: ~128 vectors (128 tokens × 128 dims × 4 bytes = **64KB per doc**)
+
+For 100,000 documents: **~6.4 GB** just for ColBERT embeddings.
+
+#### When to Use ColBERT
+
+✅ **Good fit:**
+
+- Large corpus with speed requirements
+- Queries benefit from fine-grained token matching
+- You have storage budget for token embeddings
+
+❌ **Not ideal:**
+
+- Storage is constrained
+- Simple queries (bi-encoder sufficient)
+- Very few documents (cross-encoder is fast enough)
+
+#### ColBERT v2 and ColPali
+
+**[ColBERTv2](https://arxiv.org/abs/2112.01488)**: Adds compression to reduce storage by 6-10x while maintaining quality.
+
+**[ColPali](https://arxiv.org/abs/2407.01449)**: Extends late interaction to **multimodal retrieval**, processing PDF screenshots directly instead of OCR text.
 
 ### LLM reranking (listwise)
 

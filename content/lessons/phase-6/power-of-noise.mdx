@@ -1,0 +1,166 @@
+---
+title: "The Power of Noise in RAG"
+description: "Surprising research finding: irrelevant documents can improve RAG performance."
+order: 8
+estimatedMinutes: 15
+stage: evaluation-ops
+prereqs:
+  - phase: phase-6
+    slug: measuring-rag-success
+next:
+  phase: phase-6
+  slug: debugging-rag-systems
+outcomes:
+  - "Understand the counter-intuitive role of noise in RAG."
+  - "Learn when to strategically include irrelevant documents."
+  - "Apply noise-aware retrieval strategies."
+tags: ["noise", "research", "retrieval-strategy", "surprising-findings"]
+sources:
+  - title: "The Power of Noise: Redefining Retrieval for RAG Systems"
+    url: "https://arxiv.org/abs/2401.14887"
+    type: "paper"
+    authors: "Cuconasu et al."
+    year: 2024
+---
+
+import { Callout } from "@/components/ui/Callout";
+import { Card } from "@/components/ui/Card";
+
+## Goals
+
+- Understand why irrelevant documents can help (not hurt!) RAG.
+- Learn the research behind the "power of noise" finding.
+- Apply noise-aware strategies in production systems.
+
+## Prereqs
+
+Before this lesson, ensure you understand:
+
+- Basic RAG pipeline architecture
+- Retrieval precision and recall
+- How LLMs process context windows
+
+## Core idea
+
+Conventional wisdom says: **only retrieve relevant documents**. But research by Cuconasu et al. (2024) found something shocking:
+
+> Including **irrelevant documents** in the RAG prompt can improve accuracy by **over 30%** compared to using only relevant documents!
+
+### The Experiment Results
+
+| Configuration         | Accuracy  |
+| --------------------- | --------- |
+| Gold only             | 67.2%     |
+| Gold + Related        | 71.8%     |
+| **Gold + Irrelevant** | **84.5%** |
+| Related only          | 45.3%     |
+
+### Why Does Noise Help?
+
+**1. Attention Calibration**: When all documents are relevant, the LLM's attention is diffused. Adding irrelevant documents creates **contrast**, making relevant info stand out.
+
+**2. Reducing Hallucination**: Related-but-not-answering documents introduce confusion:
+
+```text
+Query: "What is the capital of Australia?"
+
+Related docs (harmful):
+- "Sydney is Australia's largest city..."
+- "Melbourne hosts the Australian Open..."
+→ LLM might say Sydney or Melbourne
+
+Irrelevant docs (helpful):
+- "Photosynthesis converts light to energy..."
+- "The Roman Empire fell in 476 AD..."
+→ LLM ignores these, focuses on finding actual answer
+```
+
+**3. Verification Signal**: Clearly irrelevant content signals to the LLM that not all retrieved content is useful, encouraging critical evaluation.
+
+### Implementation
+
+```python
+def optimal_document_mix(gold_doc, candidates, k=5):
+    """Create optimal document mix based on noise research."""
+    # Classify candidates
+    relevant = [d for d in candidates if is_relevant(d)]
+    irrelevant = [d for d in candidates if not is_relevant(d)]
+
+    # Build mix: 1 gold + 1-2 relevant + 2-3 irrelevant
+    final = [gold_doc]
+    final.extend(relevant[:2])
+    final.extend(irrelevant[:k - len(final)])
+
+    return final
+```
+
+## Failure modes
+
+<Callout type="warning" title="Common Pitfalls">
+**Weak LLMs get confused**: This technique works best with strong models (GPT-4 class) that can filter noise.
+
+**Too much noise**: Beyond 30-40% irrelevant docs, performance degrades.
+
+**Wrong domain noise**: Noise should be clearly irrelevant, not subtly misleading.
+
+**Multi-hop queries**: For questions requiring synthesis across documents, noise hurts.
+
+**Retrieval failure masked**: If your gold documents aren't in the mix, noise doesn't help.
+
+</Callout>
+
+## Production defaults
+
+| Setting      | Recommended Value  | Notes                        |
+| ------------ | ------------------ | ---------------------------- |
+| Noise ratio  | 20-30%             | For factual QA               |
+| Noise ratio  | 0-10%              | For synthesis/research tasks |
+| Position     | Gold at start/end  | Avoid "lost in the middle"   |
+| Noise source | Random from corpus | Or anti-correlated retrieval |
+
+**When to apply:**
+
+- Factual QA with clear answers
+- Strong LLMs (GPT-4, Claude)
+- High-quality gold documents available
+
+**When NOT to apply:**
+
+- Code generation
+- Multi-step reasoning
+- Weaker models (7B parameter range)
+
+### A/B Test Before Deploying
+
+```python
+def evaluate_noise_strategy(test_queries, retriever, noise_ratios=[0, 0.2, 0.4]):
+    """A/B test different noise configurations."""
+    results = {}
+
+    for ratio in noise_ratios:
+        correct = 0
+        for query in test_queries:
+            docs = retriever.retrieve_with_noise(query, noise_ratio=ratio)
+            answer = generate(query, docs)
+            if is_correct(answer, query):
+                correct += 1
+        results[ratio] = correct / len(test_queries)
+
+    return results
+```
+
+## Do next
+
+<ChallengeLinks
+  slugs={["noise-injection-experiment", "document-classification"]}
+/>
+
+<Card className="mt-4 p-4">
+  <p className="text-sm font-medium">Related evaluation concepts:</p>
+  <a
+    href="/learn/phase-6/measuring-rag-success"
+    className="mt-2 inline-flex text-xs font-medium text-blue-700 hover:text-blue-500 dark:text-blue-400"
+  >
+    Measuring RAG Success →
+  </a>
+</Card>

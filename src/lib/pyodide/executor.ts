@@ -114,6 +114,15 @@ export const pyodideExec = {
   reset() {
     teardownWorker();
   },
+  /**
+   * Preload the Pyodide worker in advance to reduce first-run latency.
+   * Call this when the challenge page mounts.
+   */
+  preload() {
+    if (typeof window !== "undefined") {
+      // Just instantiate the worker - it will start loading Pyodide
+      getWorker();
+    }
+  },
 };
-
 

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { RAW_CHALLENGES } from "@/lib/challenges/defs/all";
+import { getPlatformStats } from "@/lib/challenges/catalog";
 
 interface CommandItem {
   id: string;
@@ -29,8 +30,9 @@ export function CommandPalette() {
       href: `/challenges/${c.slug}`,
     }));
 
+    const stats = getPlatformStats();
     const pages: CommandItem[] = [
-      { id: "learn", title: "Learn", subtitle: "10 phases, 103 challenges", category: "page", href: "/learn" },
+      { id: "learn", title: "Learn", subtitle: `${stats.totalLessons} lessons, ${stats.totalChallenges}+ challenges`, category: "page", href: "/learn" },
       { id: "challenges", title: "Practice", subtitle: "Daily challenge & drills", category: "page", href: "/challenges" },
       { id: "resources", title: "Resources", subtitle: "Playbooks & references", category: "page", href: "/resources" },
       { id: "progress", title: "Progress", subtitle: "Stats & achievements", category: "page", href: "/progress" },

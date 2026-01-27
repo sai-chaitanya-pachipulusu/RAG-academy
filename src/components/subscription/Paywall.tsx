@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePricing } from "@/lib/pricing/usePricing";
+import { getPlatformStats } from "@/lib/challenges/catalog";
 
 interface PaywallProps {
   challengeTitle: string;
@@ -10,6 +11,7 @@ interface PaywallProps {
 
 export function Paywall({ challengeTitle, challengeIndex }: PaywallProps) {
   const { currentPhase, daysRemaining, isEarlyBird, freeChallengeLimit } = usePricing();
+  const stats = getPlatformStats();
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-16">
@@ -27,7 +29,7 @@ export function Paywall({ challengeTitle, challengeIndex }: PaywallProps) {
         </h2>
         <p className="mt-3 text-zinc-600">
           You've completed {freeChallengeLimit} free challenges! Upgrade to Pro to access all{" "}
-          185+ challenges, advanced 2025 techniques, and priority support.
+          {stats.totalChallenges}+ challenges, advanced techniques, and priority support.
         </p>
 
         {/* Pricing */}
@@ -79,7 +81,7 @@ export function Paywall({ challengeTitle, challengeIndex }: PaywallProps) {
         {/* Features List */}
         <div className="mt-8 grid gap-3 text-left sm:grid-cols-2">
           {[
-            "All 185+ challenges",
+            `All ${stats.totalChallenges}+ challenges`,
             "Advanced 2025 techniques",
             "Progress tracking",
             "Certificate of completion",

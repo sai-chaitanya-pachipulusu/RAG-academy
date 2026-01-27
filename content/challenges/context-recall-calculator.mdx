@@ -1,0 +1,94 @@
+---
+title: "Context Recall Calculator"
+difficulty: "Medium"
+stage: "evaluation-ops"
+group: "Phase 6 — Evaluation"
+xpReward: 40
+estimatedMinutes: 15
+tags: ["evaluation", "metrics", "ragas", "recall"]
+---
+
+# Challenge: Context Recall Calculator
+
+Implement the **Context Recall** metric from the RAGAS framework. Context recall measures how well the retrieved context covers the ground truth answer.
+
+## Formula
+
+$$\text{Context Recall} = \frac{|\text{GT sentences attributable to context}|}{|\text{Total sentences in GT}|}$$
+
+## Task
+
+Complete the `context_recall` function that:
+
+1. Splits the ground truth into individual statements
+2. Checks if each statement is supported by the retrieved context
+3. Returns the fraction of supported statements
+
+```python
+from typing import List
+
+def context_recall(
+    retrieved_context: str,
+    ground_truth_answer: str,
+    statement_checker: callable
+) -> float:
+    """
+    Calculate Context Recall score.
+
+    Args:
+        retrieved_context: The context retrieved by the RAG system
+        ground_truth_answer: The expected correct answer
+        statement_checker: A function that takes (statement, context) and returns
+                          True if the statement is supported by the context
+
+    Returns:
+        Context Recall score between 0.0 and 1.0
+
+    Example:
+        >>> def simple_checker(stmt, ctx):
+        ...     return stmt.lower() in ctx.lower()
+        >>> context = "France is in Western Europe. Paris is its capital."
+        >>> gt = "France is in Western Europe. Its capital is Paris."
+        >>> context_recall(context, gt, simple_checker)
+        1.0
+
+        >>> context = "France is in Western Europe. Known for wine."
+        >>> gt = "France is in Western Europe. Its capital is Paris."
+        >>> context_recall(context, gt, simple_checker)
+        0.5
+    """
+    # TODO: implement
+    pass
+```
+
+## Test Cases
+
+```python
+def simple_checker(stmt, ctx):
+    """Check if statement keywords appear in context."""
+    keywords = [w.lower() for w in stmt.split() if len(w) > 3]
+    ctx_lower = ctx.lower()
+    return sum(1 for k in keywords if k in ctx_lower) >= len(keywords) * 0.5
+
+# Test 1: Perfect recall
+context1 = "France is in Western Europe. Paris is its capital city."
+gt1 = "France is in Western Europe. Its capital is Paris."
+assert abs(context_recall(context1, gt1, simple_checker) - 1.0) < 0.01
+
+# Test 2: Partial recall
+context2 = "France is in Western Europe. Known for wine and cheese."
+gt2 = "France is in Western Europe. Its capital is Paris."
+assert abs(context_recall(context2, gt2, simple_checker) - 0.5) < 0.01
+
+# Test 3: Zero recall
+context3 = "Germany is in Central Europe. Berlin is its capital."
+gt3 = "France is in Western Europe. Its capital is Paris."
+assert abs(context_recall(context3, gt3, simple_checker) - 0.0) < 0.01
+
+# Test 4: Empty ground truth
+context4 = "Some context here."
+gt4 = ""
+assert context_recall(context4, gt4, simple_checker) == 0.0
+
+print("All tests passed!")
+```

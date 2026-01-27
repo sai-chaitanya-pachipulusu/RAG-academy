@@ -8,11 +8,13 @@ import { ReviewDashboard, ReviewStats } from "@/components/gamification/ReviewBa
 import { ProfileSection } from "@/components/settings/ProfileSection";
 import { useSupabaseAuth } from "@/components/providers/SupabaseAuthProvider";
 import { getPolarCustomerPortalUrl } from "@/lib/payments/polar";
+import { getPlatformStats } from "@/lib/challenges/catalog";
 
 function SettingsContent() {
   const searchParams = useSearchParams();
   const { user, subscription, refreshSubscription, hasPaidAccess } = useSupabaseAuth();
   const [showSuccess, setShowSuccess] = useState(false);
+  const stats = getPlatformStats();
 
   // Handle checkout success
   useEffect(() => {
@@ -127,7 +129,7 @@ function SettingsContent() {
             {!hasPaidAccess && (
               <div className="mt-4 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
                 <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                  Upgrade to Pro to unlock all 220+ challenges, production datasets, and more.
+                  Upgrade to Pro to unlock all {stats.totalChallenges}+ challenges, production datasets, and more.
                 </p>
                 <Link
                   href="/pricing"

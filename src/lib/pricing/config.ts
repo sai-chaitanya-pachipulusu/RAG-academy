@@ -11,6 +11,13 @@
  * Build social proof first, then optimize revenue.
  */
 
+import { TOTAL_LESSONS_COUNT } from "@/lib/challenges/catalog";
+
+// Helper to get dynamic challenge count for features
+// Note: We can't import CHALLENGES directly here to avoid circular deps
+// So we use a reasonable upper estimate that gets updated periodically
+const CHALLENGE_COUNT_ESTIMATE = 250; // Update this when adding challenges
+
 export type PricingPhase = "phase1" | "phase2" | "phase3";
 export type BillingCycle = "monthly" | "annual" | "lifetime";
 

@@ -1,0 +1,156 @@
+---
+title: "RichRAG: Multi-Faceted Query Handling"
+description: "Generate comprehensive responses for broad, multi-intent queries."
+order: 15
+estimatedMinutes: 20
+stage: advanced-retrieval
+prereqs:
+  - phase: phase-3
+    slug: raft-domain-adaptation
+next:
+  phase: phase-4
+  slug: knowledge-graphs-intro
+outcomes:
+  - "Understand multi-faceted query decomposition."
+  - "Implement sub-aspect exploration for broad queries."
+  - "Build list-wise ranking for diverse document selection."
+tags: ["richrag", "multi-faceted", "sub-aspects", "comprehensive-answers"]
+sources:
+  - title: "RichRAG: Crafting Rich Responses for Multi-faceted Queries"
+    url: "https://arxiv.org/abs/2406.12566"
+    type: "paper"
+    authors: "Wang et al."
+    year: 2024
+---
+
+import { Callout } from "@/components/ui/Callout";
+import { Card } from "@/components/ui/Card";
+import Link from "next/link";
+
+## Goals
+
+- Recognize when queries have multiple sub-intents.
+- Decompose broad queries into specific aspects.
+- Retrieve and rank documents for comprehensive coverage.
+
+## Prereqs
+
+Before this lesson, ensure you understand:
+
+- Query expansion and multi-query RAG
+- Reranking and relevance scoring
+- RAG Fusion techniques
+
+## Core idea
+
+Standard RAG excels at narrow, factual queries but struggles with **broad, multi-faceted questions** like "Tell me about climate change." It typically retrieves documents about ONE aspect, producing incomplete answers.
+
+**RichRAG** handles multi-faceted queries through three components:
+
+1. **Sub-Aspect Explorer**: Identifies different aspects of the query
+2. **Multi-Faceted Retriever**: Retrieves documents for each aspect
+3. **List-wise Ranker**: Selects diverse, comprehensive document set
+
+### Sub-Aspect Exploration
+
+```python
+def explore_sub_aspects(query: str, llm, num_aspects: int = 5) -> list[str]:
+    """Discover sub-aspects of a broad query."""
+    prompt = f"""Identify {num_aspects} distinct sub-aspects a comprehensive
+    answer should cover for: "{query}"
+
+    List each as a brief phrase."""
+
+    response = llm.generate(prompt)
+    return parse_aspects(response)
+
+# Example:
+# Query: "What should I know about electric vehicles?"
+# Aspects: [
+#   "How EV batteries work",
+#   "Charging infrastructure",
+#   "Cost comparison with gas",
+#   "Environmental benefits",
+#   "Popular EV models"
+# ]
+```
+
+### Coverage-Based Selection
+
+Instead of ranking by relevance alone, select documents that **maximize coverage** of all aspects:
+
+```python
+def select_diverse_documents(candidates, sub_aspects, k=5):
+    """Greedily select docs that maximize aspect coverage."""
+    selected = []
+
+    for _ in range(k):
+        best_doc = None
+        best_marginal_coverage = 0
+
+        for doc in candidates:
+            # Calculate additional coverage this doc would add
+            marginal = calculate_marginal_coverage(
+                selected + [doc], sub_aspects
+            )
+            if marginal > best_marginal_coverage:
+                best_marginal_coverage = marginal
+                best_doc = doc
+
+        if best_doc:
+            selected.append(best_doc)
+            candidates.remove(best_doc)
+
+    return selected
+```
+
+## Failure modes
+
+<Callout type="warning" title="Common Pitfalls">
+**Aspect explosion**: Too many aspects dilute retrieval quality. Limit to 5-7.
+
+**Aspect overlap**: Similar aspects retrieve duplicate documents. Deduplicate before ranking.
+
+**False multi-faceted detection**: Simple queries get over-decomposed. Add a detection step.
+
+**Latency**: Multiple retrieval calls add latency. Parallelize aspect retrieval.
+
+**Coverage vs relevance**: Over-optimizing coverage may include low-relevance docs.
+
+</Callout>
+
+## Production defaults
+
+| Setting                 | Recommended Value | Notes                     |
+| ----------------------- | ----------------- | ------------------------- |
+| Max aspects             | 5-7               | Balance coverage vs noise |
+| Docs per aspect         | 3-5               | Then deduplicate          |
+| Final docs              | 5-10              | Input to generation       |
+| Multi-faceted threshold | LLM detection     | Filter simple queries     |
+
+**RichRAG paper results** (WikiPassageQA):
+
+- Standard RAG: ROUGE-L 0.34
+- Query Expansion: ROUGE-L 0.37
+- **RichRAG: ROUGE-L 0.44**
+
+**When to use RichRAG:**
+
+- Open-ended exploratory questions
+- Research and learning queries
+- "Tell me about X" style queries
+- Comparison and analysis requests
+
+## Do next
+
+<ChallengeLinks slugs={["sub-aspect-explorer", "coverage-maximization"]} />
+
+<Card className="mt-4 p-4">
+  <p className="text-sm font-medium">Compare with similar techniques:</p>
+  <Link
+    href="/learn/phase-3/rag-fusion-advanced"
+    className="mt-2 inline-flex text-xs font-medium text-blue-700 hover:text-blue-500 dark:text-blue-400"
+  >
+    RAG Fusion Advanced →
+  </Link>
+</Card>

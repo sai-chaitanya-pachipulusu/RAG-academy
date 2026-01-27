@@ -35,8 +35,8 @@ sources:
 
 ## Goals
 
-- Build the correct intuition for “meaning as geometry”.
-- Understand why similarity math matters, but isn’t the main bottleneck.
+- Build the correct intuition for "meaning as geometry".
+- Understand why similarity math matters, but isn't the main bottleneck.
 - Be ready to implement the primitives used by vector databases.
 
 ## Prereqs
@@ -52,25 +52,86 @@ An **embedding** maps content (text, image, code) into a vector of numbers:
 - similar meaning → vectors are close
 - different meaning → vectors are far
 
-This turns “search for meaning” into a geometry problem.
+This turns "search for meaning" into a geometry problem.
 
 ### Similarity vs distance
 
-You’ll see both in practice:
+You'll see both in practice:
 
 - **Cosine similarity** (most common for embeddings)
 - **Dot product** (often used directly, especially if vectors are normalized)
 - **Euclidean distance** (good for intuition; less common for modern text embeddings)
 
 <Callout title="Key idea" variant="success">
-  Retrieval quality often depends more on chunking + query formulation than the exact similarity metric.
+  Retrieval quality often depends more on chunking + query formulation than the
+  exact similarity metric.
+</Callout>
+
+## BERT vs Sentence Transformers: A Critical Distinction
+
+Understanding the difference between BERT and Sentence Transformers is essential for RAG.
+
+### Token-Level vs Sentence-Level Embeddings
+
+| Aspect                 | BERT                         | Sentence Transformers      |
+| ---------------------- | ---------------------------- | -------------------------- |
+| **Embedding Output**   | One vector per token         | One vector per sentence    |
+| **Training Objective** | Masked word prediction + NSP | Semantic similarity        |
+| **Network Structure**  | Single encoder               | Siamese/Triplet networks   |
+| **Best For**           | NER, token classification    | Semantic search, retrieval |
+
+### Why BERT's [CLS] Token Fails for Retrieval
+
+BERT's `[CLS]` token was trained for Next Sentence Prediction, not semantic similarity. Two sentences with different meanings can have similar `[CLS]` embeddings.
+
+```python
+# ❌ DON'T: Using raw BERT [CLS] for similarity
+from transformers import BertModel, BertTokenizer
+
+model = BertModel.from_pretrained('bert-base-uncased')
+tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+inputs = tokenizer("The quick brown fox", return_tensors="pt")
+outputs = model(**inputs)
+cls_embedding = outputs.last_hidden_state[:, 0, :]  # [CLS] token
+# This was NOT trained for sentence similarity!
+```
+
+### How Sentence Transformers Fix This
+
+Sentence Transformers modify BERT with:
+
+1. **Siamese Network Training**: Train on sentence pairs to learn similarity
+2. **Contrastive Loss**: Push dissimilar sentences apart
+3. **Mean Pooling**: Average all tokens instead of just `[CLS]`
+
+```python
+# ✅ DO: Using Sentence Transformers for semantic search
+from sentence_transformers import SentenceTransformer
+
+model = SentenceTransformer('all-MiniLM-L6-v2')
+embeddings = model.encode(["The quick brown fox", "A fast orange fox"])
+# Similar sentences will have high cosine similarity
+```
+
+### Training Data Difference
+
+| Training Data | BERT                         | Sentence Transformers           |
+| ------------- | ---------------------------- | ------------------------------- |
+| **Corpus**    | Wikipedia, Books (MLM)       | SNLI, MultiNLI (sentence pairs) |
+| **Signal**    | Predict missing words        | Are sentences similar?          |
+| **Result**    | Understands words in context | Understands sentence meaning    |
+
+<Callout title="Production Tip" variant="accent">
+  For RAG, **always use Sentence Transformers** or API embeddings (OpenAI,
+  Cohere). Never use raw BERT `[CLS]` embeddings for retrieval.
 </Callout>
 
 ## Failure modes
 
 - **Vectors-only retrieval**: you will miss exact terms (IDs/acronyms) unless you use hybrid retrieval.
 - **Model mismatch**: query and docs embedded with different models → similarity becomes meaningless.
-- **Wrong chunking**: embeddings can’t recover lost structure (garbage in → garbage out).
+- **Wrong chunking**: embeddings can't recover lost structure (garbage in → garbage out).
+- **Using raw BERT for retrieval**: The `[CLS]` token was not trained for similarity.
 
 ## Production defaults
 
@@ -84,5 +145,3 @@ You’ll see both in practice:
 <ChallengeLinks
   slugs={["dot-product", "cosine-similarity", "euclidean-distance"]}
 />
-
-

@@ -1,0 +1,379 @@
+---
+title: "RAPTOR: Hierarchical Tree Retrieval"
+description: "Recursive abstractive processing for multi-level document understanding."
+order: 13
+estimatedMinutes: 30
+stage: frontier
+prereqs:
+  - phase: phase-3
+    slug: modular-rag-architecture
+next:
+  phase: phase-4
+  slug: knowledge-graphs-intro
+outcomes:
+  - "Understand tree-structured document summarization"
+  - "Implement hierarchical clustering for RAG"
+  - "Handle complex multi-hop reasoning queries"
+tags: ["raptor", "hierarchical", "tree-retrieval", "advanced"]
+sources:
+  - title: "RAPTOR: Recursive Abstractive Processing for Tree-Organized Retrieval"
+    url: "https://arxiv.org/abs/2401.18059"
+    type: "paper"
+  - title: "Vinija AI - RAPTOR"
+    url: "https://vinija.ai/nlp/RAG/"
+    type: "blog"
+---
+
+## Goals
+
+- Understand why flat retrieval fails for complex queries.
+- Learn the RAPTOR tree-building algorithm.
+- Implement hierarchical retrieval for multi-hop reasoning.
+
+## Prereqs
+
+- **Modular RAG Architecture** (Phase 3).
+- Basic clustering concepts.
+
+## Core idea
+
+### The Problem: Flat Retrieval Limitations
+
+Traditional RAG retrieves small chunks, which works for simple factual questions but fails for:
+
+- **Multi-hop reasoning**: "What are the long-term implications of policy X on sector Y?"
+- **Thematic questions**: "What is the overall sentiment across all customer reviews?"
+- **Comparative questions**: "How do the approaches in chapters 1-5 differ?"
+
+**Why?** Small chunks capture local information but miss the big picture.
+
+### RAPTOR's Solution: Build a Tree
+
+**RAPTOR** (Recursive Abstractive Processing for Tree-Organized Retrieval) from [Sarthi et al., 2024](https://arxiv.org/abs/2401.18059) introduces a tree structure that provides **multi-level abstraction**.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    RAPTOR TREE STRUCTURE                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│                      [Root Summary]                              │
+│                    "Overall document theme"                      │
+│                           │                                      │
+│              ┌────────────┼────────────┐                         │
+│              │            │            │                         │
+│        [Summary A]   [Summary B]  [Summary C]                    │
+│        "Theme 1"     "Theme 2"    "Theme 3"                      │
+│              │            │            │                         │
+│        ┌────┴────┐   ┌───┴───┐   ┌───┴───┐                       │
+│        │         │   │       │   │       │                       │
+│     [Chunk1] [Chunk2] [Chunk3] [Chunk4] [Chunk5] [Chunk6]        │
+│        ↑         ↑       ↑        ↑        ↑        ↑            │
+│                   LEAF NODES (Original Text)                     │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Key insight:** Different queries need different abstraction levels:
+
+- "What years are mentioned?" → Leaf nodes (specific details)
+- "What is the main argument?" → Root node (high-level summary)
+- "How does chapter 3 relate to chapter 7?" → Mid-level nodes
+
+---
+
+## The RAPTOR Algorithm
+
+### Step 1: Chunk and Embed
+
+Split documents into leaf chunks and embed each with SBERT.
+
+```python
+from sentence_transformers import SentenceTransformer
+import numpy as np
+
+def create_leaf_nodes(documents: list[str], chunk_size: int = 500) -> list[dict]:
+    """Create leaf nodes from documents."""
+    model = SentenceTransformer('all-MiniLM-L6-v2')
+
+    leaves = []
+    for doc in documents:
+        chunks = split_into_chunks(doc, chunk_size)
+        for chunk in chunks:
+            leaves.append({
+                "text": chunk,
+                "embedding": model.encode(chunk),
+                "level": 0,  # Leaf level
+                "children": []
+            })
+    return leaves
+```
+
+### Step 2: Cluster Semantically Similar Chunks
+
+Use Gaussian Mixture Models (GMM) to cluster related chunks.
+
+```python
+from sklearn.mixture import GaussianMixture
+
+def cluster_nodes(nodes: list[dict], n_clusters: int = None) -> list[list[dict]]:
+    """
+    Cluster nodes by embedding similarity.
+    Uses GMM for soft clustering (nodes can belong to multiple clusters).
+    """
+    embeddings = np.array([n["embedding"] for n in nodes])
+
+    # Determine optimal clusters if not specified
+    if n_clusters is None:
+        n_clusters = max(2, len(nodes) // 5)
+
+    gmm = GaussianMixture(n_components=n_clusters, random_state=42)
+    labels = gmm.fit_predict(embeddings)
+
+    # Group nodes by cluster
+    clusters = [[] for _ in range(n_clusters)]
+    for node, label in zip(nodes, labels):
+        clusters[label].append(node)
+
+    return [c for c in clusters if len(c) > 0]
+```
+
+### Step 3: Summarize Clusters → Create Parent Nodes
+
+For each cluster, generate a summary that becomes a parent node.
+
+```python
+def summarize_cluster(cluster: list[dict], llm) -> dict:
+    """
+    Create a parent node by summarizing child nodes.
+    """
+    combined_text = "\n\n".join([n["text"] for n in cluster])
+
+    prompt = f"""Summarize the following text passages into a coherent summary
+    that captures the key themes and information:
+
+    {combined_text}
+
+    Summary:"""
+
+    summary = llm.generate(prompt)
+
+    return {
+        "text": summary,
+        "embedding": embed(summary),
+        "level": cluster[0]["level"] + 1,
+        "children": cluster
+    }
+```
+
+### Step 4: Recurse Until Root
+
+Repeat clustering and summarization until you reach a single root.
+
+```python
+def build_raptor_tree(documents: list[str], llm, min_nodes: int = 5) -> dict:
+    """
+    Build complete RAPTOR tree from documents.
+    """
+    # Create leaf nodes
+    current_level = create_leaf_nodes(documents)
+    all_nodes = current_level.copy()
+
+    # Build tree bottom-up
+    level = 0
+    while len(current_level) > min_nodes:
+        print(f"Level {level}: {len(current_level)} nodes")
+
+        # Cluster current level
+        clusters = cluster_nodes(current_level)
+
+        # Create parent nodes
+        parent_level = []
+        for cluster in clusters:
+            if len(cluster) > 1:  # Only summarize if multiple nodes
+                parent = summarize_cluster(cluster, llm)
+                parent_level.append(parent)
+                all_nodes.append(parent)
+            else:
+                parent_level.extend(cluster)  # Keep single nodes as-is
+
+        current_level = parent_level
+        level += 1
+
+    # Create root if multiple nodes remain
+    if len(current_level) > 1:
+        root = summarize_cluster(current_level, llm)
+        all_nodes.append(root)
+
+    return {
+        "root": root if len(current_level) > 1 else current_level[0],
+        "all_nodes": all_nodes
+    }
+```
+
+---
+
+## Retrieval Strategies
+
+### Strategy 1: Tree Traversal
+
+Start at root, traverse down based on query relevance.
+
+```python
+def tree_traversal_retrieve(query: str, root: dict, top_k: int = 5) -> list[dict]:
+    """
+    Top-down traversal: Go from root to relevant leaves.
+    """
+    query_embedding = embed(query)
+    results = []
+
+    def traverse(node, depth=0):
+        # Score this node
+        score = cosine_similarity(query_embedding, node["embedding"])
+        results.append((node, score, depth))
+
+        # Traverse relevant children
+        if node["children"]:
+            children_scores = [
+                (child, cosine_similarity(query_embedding, child["embedding"]))
+                for child in node["children"]
+            ]
+            children_scores.sort(key=lambda x: x[1], reverse=True)
+
+            # Visit top children
+            for child, _ in children_scores[:3]:
+                traverse(child, depth + 1)
+
+    traverse(root)
+    results.sort(key=lambda x: x[1], reverse=True)
+    return [r[0] for r in results[:top_k]]
+```
+
+### Strategy 2: Collapsed Tree (Recommended)
+
+Flatten all nodes and retrieve from any level.
+
+```python
+def collapsed_tree_retrieve(query: str, all_nodes: list[dict], top_k: int = 5) -> list[dict]:
+    """
+    Flat retrieval across all levels of the tree.
+    More flexible - can mix high-level summaries with specific chunks.
+    """
+    query_embedding = embed(query)
+
+    scores = [
+        (node, cosine_similarity(query_embedding, node["embedding"]))
+        for node in all_nodes
+    ]
+    scores.sort(key=lambda x: x[1], reverse=True)
+
+    return [s[0] for s in scores[:top_k]]
+```
+
+**Why collapsed tree works better:** Different queries need different abstraction levels, and collapsed tree automatically surfaces the right level.
+
+---
+
+## When RAPTOR Shines
+
+| Query Type                        | Standard RAG            | RAPTOR               |
+| --------------------------------- | ----------------------- | -------------------- |
+| "What year was X founded?"        | ✅ Good                 | ✅ Good              |
+| "What is the main theme?"         | ❌ Misses big picture   | ✅ Uses summaries    |
+| "How do parts A and B relate?"    | ❌ Retrieves separately | ✅ Mid-level nodes   |
+| "Summarize all customer feedback" | ❌ Gets random chunks   | ✅ Thematic clusters |
+
+### Benchmark Results
+
+From the RAPTOR paper:
+
+- **QuALITY benchmark**: 20% absolute accuracy improvement over DPR
+- **NarrativeQA**: Significant gains on long-document comprehension
+- **Multi-hop reasoning**: Particularly strong on questions requiring synthesis
+
+---
+
+## Production Considerations
+
+### Scalability
+
+RAPTOR scales linearly in both:
+
+- **Tokens**: Sum of all summaries ~ O(n) where n = leaf nodes
+- **Build time**: Each level processes fewer nodes
+
+### Storage
+
+You need to store:
+
+- All leaf embeddings
+- All intermediate summary embeddings
+- Summary texts for retrieval
+
+Roughly **2-3x** the storage of flat chunking.
+
+### Update Strategy
+
+When documents change:
+
+1. Rebuild affected leaf nodes
+2. Propagate changes up the tree
+3. Regenerate affected summaries
+
+---
+
+## Failure modes
+
+### ❌ Tree Too Deep or Too Shallow
+
+- **Too deep**: Excessive summarization loses important details
+- **Too shallow**: Not enough abstraction for thematic queries
+- **Fix**: Tune clustering granularity and stopping criteria
+
+### ❌ Low-Quality Summaries
+
+Poor summarization propagates errors up the tree.
+
+- **Fix**: Use stronger LLM for summarization, add quality checks
+
+### ❌ Cluster Imbalance
+
+Some clusters too large (poor summarization), others too small (wasted nodes).
+
+- **Fix**: Use GMM with appropriate component count, or hierarchical clustering
+
+### ❌ Ignoring Leaf Nodes
+
+Only retrieving from summaries misses specific facts.
+
+- **Fix**: Use collapsed tree retrieval to access all levels
+
+---
+
+## Production defaults
+
+| Setting                  | Recommended Value              |
+| ------------------------ | ------------------------------ |
+| **Chunk size (leaves)**  | 400-600 tokens                 |
+| **Clustering algorithm** | GMM with soft assignments      |
+| **Summarization model**  | GPT-3.5-turbo (cost-effective) |
+| **Retrieval strategy**   | Collapsed tree (more flexible) |
+| **Top-K per query**      | 5-10 nodes (mix of levels)     |
+
+---
+
+## Implementation Checklist
+
+- [ ] Chunk documents into leaf nodes
+- [ ] Choose clustering algorithm (GMM recommended)
+- [ ] Set up summarization LLM (GPT-3.5 sufficient)
+- [ ] Build tree recursively
+- [ ] Index all nodes for retrieval
+- [ ] Implement collapsed tree retrieval
+- [ ] Test on multi-hop queries
+
+---
+
+## Do next
+
+- [Knowledge Graphs Intro](/learn/phase-4/knowledge-graphs-intro) - Another approach to structured retrieval
+- [Graph RAG](/learn/phase-3/graph-rag) - Graph-based reasoning

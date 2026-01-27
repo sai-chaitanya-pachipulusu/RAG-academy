@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { Challenge } from "@/lib/challenges/catalog";
+import { type Challenge, getPlatformStats } from "@/lib/challenges/catalog";
 import { getCurrentPricingPhase } from "@/lib/pricing/config";
 
 type Props = {
@@ -11,6 +11,7 @@ type Props = {
 
 export function ChallengePaywall({ challenge, isLoggedIn }: Props) {
   const pricing = getCurrentPricingPhase();
+  const stats = getPlatformStats();
   const lifetimePrice = pricing.tiers.lifetime?.price.displayAnnual || "$35";
 
   return (
@@ -54,7 +55,7 @@ export function ChallengePaywall({ challenge, isLoggedIn }: Props) {
         {/* CTA */}
         <p className="mt-6 text-sm text-zinc-600 dark:text-zinc-400">
           {isLoggedIn
-            ? "Unlock all 220+ challenges with a Pro membership."
+            ? `Unlock all ${stats.totalChallenges}+ challenges with a Pro membership.`
             : "Sign up to track your progress. Upgrade to Pro for full access."}
         </p>
 
@@ -80,7 +81,7 @@ export function ChallengePaywall({ challenge, isLoggedIn }: Props) {
         <div className="mt-8 grid gap-3 text-left sm:grid-cols-2">
           <div className="rounded-xl border border-zinc-100 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
             <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-              220+ Challenges
+              {stats.totalChallenges}+ Challenges
             </p>
             <p className="mt-0.5 text-xs text-zinc-500">
               Python & TypeScript, all difficulty levels

@@ -1,0 +1,285 @@
+---
+title: "RAG vs Fine-Tuning: Decision Framework"
+description: "When to use retrieval, when to fine-tune, and how to combine both."
+order: 6
+estimatedMinutes: 20
+stage: foundations
+prereqs:
+  - phase: phase-0
+    slug: why-rag-exists
+next:
+  phase: phase-0
+  slug: embedding-fundamentals
+outcomes:
+  - "Compare RAG and fine-tuning across multiple dimensions"
+  - "Make informed architecture decisions based on your use case"
+  - "Understand how to combine both approaches effectively"
+tags: ["architecture", "fine-tuning", "decision-framework", "strategy"]
+sources:
+  - title: "RAG vs Fine-tuning: Pipelines, Tradeoffs, and a Case Study"
+    url: "https://arxiv.org/abs/2401.08406"
+    type: "paper"
+  - title: "Vinija AI - RAG vs Fine-tuning"
+    url: "https://vinija.ai/nlp/RAG/"
+    type: "blog"
+---
+
+## Goals
+
+- Understand the fundamental differences between RAG and fine-tuning.
+- Apply a decision framework to choose the right approach.
+- Learn when to combine both for optimal results.
+
+## Prereqs
+
+- **Why RAG Exists** (Phase 0).
+- Basic understanding of LLM training concepts.
+
+## Core idea
+
+Two main ways to give LLMs specialized knowledge:
+
+| Approach        | How It Works                                        |
+| --------------- | --------------------------------------------------- |
+| **RAG**         | Retrieve relevant docs at query time, add to prompt |
+| **Fine-Tuning** | Train the model's weights on your data              |
+
+Neither is universally better—the right choice depends on your specific needs.
+
+---
+
+## The Decision Framework
+
+### Dimension 1: What Are You Trying to Achieve?
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│           WHAT DO YOU NEED THE MODEL TO DO?                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ADD FACTUAL KNOWLEDGE                                          │
+│  "What's our return policy?"                                    │
+│  "What are the specs of Product X?"                             │
+│                           → RAG ✓                               │
+│                                                                  │
+│  CHANGE BEHAVIOR/STYLE                                          │
+│  "Always respond formally"                                      │
+│  "Use our brand voice"                                          │
+│  "Output in specific JSON format"                               │
+│                           → Fine-Tuning ✓                       │
+│                                                                  │
+│  BOTH                                                           │
+│  "Answer questions about our products in our brand voice"       │
+│                           → RAG + Fine-Tuning ✓                 │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Key insight from [Microsoft Research](https://arxiv.org/abs/2401.08406):**
+
+- RAG provides **factual, access-controlled, timely information**
+- Fine-tuning adapts **style, tone, and vocabulary**
+
+### Dimension 2: How Often Does Your Data Change?
+
+| Data Update Frequency   | Best Approach | Why                       |
+| ----------------------- | ------------- | ------------------------- |
+| **Real-time** (seconds) | RAG           | Fine-tuning can't keep up |
+| **Daily/Weekly**        | RAG           | Easy to update index      |
+| **Monthly**             | Either        | Both feasible             |
+| **Rarely/Never**        | Fine-tuning   | Worth the upfront cost    |
+
+### Dimension 3: Cost and Infrastructure
+
+| Factor             | RAG                          | Fine-Tuning             |
+| ------------------ | ---------------------------- | ----------------------- |
+| **Upfront cost**   | Low (just indexing)          | High (training)         |
+| **Per-query cost** | Higher (retrieval + context) | Lower (no retrieval)    |
+| **Latency**        | +50-200ms for retrieval      | Minimal overhead        |
+| **Infrastructure** | Vector DB required           | Training infrastructure |
+| **Updates**        | Re-index specific docs       | Full retraining         |
+
+### Dimension 4: Use Case Characteristics
+
+| Characteristic             | → RAG | → Fine-Tuning |
+| -------------------------- | ----- | ------------- |
+| Need citations/sources     | ✓     |               |
+| Access control per user    | ✓     |               |
+| Large knowledge base       | ✓     |               |
+| Consistent output format   |       | ✓             |
+| Domain-specific vocabulary |       | ✓             |
+| Reasoning patterns         |       | ✓             |
+| Reduce hallucination       | ✓     |               |
+
+---
+
+## Decision Flowchart
+
+```
+Do you need external/changing facts?
+         │
+    YES ──┴── NO
+    │         │
+  Use RAG     │
+    │         ▼
+    │    Do you need to change model behavior?
+    │         │
+    │    YES ──┴── NO
+    │    │         │
+    │    │    Use base model (no changes needed)
+    │    │
+    │    ▼
+    │  Fine-tune
+    │
+    ▼
+Do you also need to change behavior/style?
+         │
+    YES ──┴── NO
+    │         │
+Combine both   RAG only is sufficient
+```
+
+---
+
+## Combining RAG + Fine-Tuning
+
+For many production systems, the best approach is **RAG first, then fine-tune**.
+
+### The Optimal Workflow
+
+```python
+# Phase 1: Build RAG system
+# - Get working prototype quickly
+# - Identify patterns in user queries
+# - Collect feedback data
+
+# Phase 2: Fine-tune for specific improvements
+# - Style/format consistency
+# - Domain terminology
+# - Reasoning patterns from RAG interactions
+
+class HybridRAGSystem:
+    """RAG with a fine-tuned generator model."""
+
+    def __init__(self, retriever, fine_tuned_llm):
+        self.retriever = retriever
+        self.llm = fine_tuned_llm  # Fine-tuned for style/format
+
+    def query(self, question: str) -> str:
+        # RAG provides the facts
+        context = self.retriever.search(question, top_k=5)
+
+        # Fine-tuned model provides the style
+        prompt = self.format_prompt(question, context)
+
+        # Best of both worlds
+        return self.llm.generate(prompt)
+```
+
+### Case Study: Agriculture QA System
+
+From [Microsoft's research](https://arxiv.org/abs/2401.08406):
+
+| Configuration        | Accuracy       |
+| -------------------- | -------------- |
+| Base GPT-4           | 47%            |
+| Fine-tuned GPT-4     | 53% (+6%)      |
+| RAG only             | 52% (+5%)      |
+| **Fine-tuned + RAG** | **58% (+11%)** |
+
+The combination outperforms either approach alone.
+
+---
+
+## Comparison Table
+
+| Dimension          | RAG                   | Fine-Tuning          |
+| ------------------ | --------------------- | -------------------- |
+| **Best for**       | Factual knowledge     | Behavioral change    |
+| **Data freshness** | Up-to-date            | Point-in-time        |
+| **Cost model**     | Per-query (retrieval) | Upfront (training)   |
+| **Update speed**   | Minutes               | Hours/Days           |
+| **Hallucination**  | Lower (grounded)      | Higher (memorized)   |
+| **Citations**      | Easy (source docs)    | Hard (no provenance) |
+| **Latency**        | +retrieval time       | Minimal              |
+| **Access control** | Per-user possible     | All-or-nothing       |
+| **Implementation** | Moderate              | Complex              |
+
+---
+
+## Common Patterns
+
+### Pattern 1: RAG for Knowledge, Fine-Tune for Format
+
+```
+User: "What's the return policy?"
+
+RAG retrieves: "30-day return window, receipt required..."
+
+Fine-tuned model formats response in brand voice:
+"Great question! You have 30 days to return items with your receipt..."
+```
+
+### Pattern 2: Fine-Tune for Reasoning, RAG for Facts
+
+```
+User: "Should I buy Product A or B for my use case?"
+
+Fine-tuned model knows how to reason about comparisons.
+RAG provides current specs, pricing, and reviews.
+Result: Reasoned recommendation with accurate facts.
+```
+
+### Pattern 3: Fine-Tune for Efficiency
+
+```
+Before: RAG with complex prompts (2000 tokens context)
+After: Fine-tuned model needs less context (500 tokens)
+Result: 75% cost reduction, faster responses
+```
+
+---
+
+## Failure modes
+
+### ❌ "We'll just fine-tune on everything"
+
+Fine-tuning on facts leads to stale, hallucinated responses.
+
+- **Fix**: Use fine-tuning for behavior, RAG for facts.
+
+### ❌ Skipping RAG because "fine-tuning is more powerful"
+
+Fine-tuning cannot solve the freshness problem.
+
+- **Fix**: RAG first, fine-tune later for style.
+
+### ❌ Over-engineering before validation
+
+Building complex hybrid systems before proving value.
+
+- **Fix**: Start with basic RAG, measure, then optimize.
+
+---
+
+## Production defaults
+
+| Scenario            | Recommendation                            |
+| ------------------- | ----------------------------------------- |
+| **MVP/Prototype**   | RAG only                                  |
+| **Production v1**   | RAG with basic prompting                  |
+| **Production v2**   | RAG + fine-tuned for format/style         |
+| **High-volume**     | Fine-tune to reduce context → lower cost  |
+| **Domain-specific** | Fine-tune for terminology + RAG for facts |
+
+<Callout title="Golden Rule" variant="accent">
+  **Start with RAG.** Fine-tune only after you have a working RAG system and
+  clear evidence of what fine-tuning would improve.
+</Callout>
+
+---
+
+## Do next
+
+- [Embedding Fundamentals](/learn/phase-0/embedding-fundamentals) - Core concepts for RAG
+- [Your First RAG](/learn/phase-0/your-first-rag) - Build a working RAG system

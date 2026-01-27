@@ -1,0 +1,134 @@
+---
+title: "Answer Relevancy Score"
+difficulty: "Medium"
+stage: "evaluation-ops"
+group: "Phase 6 — Evaluation"
+xpReward: 45
+estimatedMinutes: 20
+tags: ["evaluation", "metrics", "ragas", "embeddings"]
+---
+
+# Challenge: Answer Relevancy Score
+
+Implement the embedding-based **Answer Relevancy** metric from RAGAS. This metric measures how well the generated answer addresses the original question by checking if questions generated from the answer are similar to the original.
+
+## Formula
+
+$$\text{Answer Relevancy} = \frac{1}{N} \sum_{i=1}^{N} \cos(E_{g_i}, E_o)$$
+
+Where:
+
+- $E_{g_i}$ is the embedding of generated question $i$
+- $E_o$ is the embedding of the original question
+- $N$ is the number of generated questions
+
+## Task
+
+Complete the `answer_relevancy` function:
+
+```python
+from typing import List, Callable
+import numpy as np
+
+def answer_relevancy(
+    original_question: str,
+    generated_answer: str,
+    question_generator: Callable[[str], List[str]],
+    embed_fn: Callable[[str], np.ndarray]
+) -> float:
+    """
+    Calculate Answer Relevancy using embedding similarity.
+
+    The idea: If an answer is relevant, we should be able to generate
+    questions from it that are similar to the original question.
+
+    Args:
+        original_question: The user's original question
+        generated_answer: The answer produced by the RAG system
+        question_generator: Function that generates N questions from an answer
+        embed_fn: Function that embeds text into a vector
+
+    Returns:
+        Answer relevancy score (typically 0-1, but can be negative due to cosine)
+
+    Example:
+        >>> def mock_gen(answer):
+        ...     return ["What is France?", "Where is France located?"]
+        >>> def mock_embed(text):
+        ...     return np.random.randn(128)  # In reality, use a real encoder
+        >>> score = answer_relevancy(
+        ...     "Where is France?",
+        ...     "France is in Western Europe.",
+        ...     mock_gen, mock_embed
+        ... )
+        >>> 0 <= score <= 1  # Typically true for good answers
+        True
+    """
+    # TODO: Implement this function
+    # Steps:
+    # 1. Generate questions from the answer
+    # 2. Embed the original question
+    # 3. Embed each generated question
+    # 4. Calculate cosine similarity between original and each generated
+    # 5. Return the mean similarity
+    pass
+
+
+def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
+    """Calculate cosine similarity between two vectors."""
+    # TODO: Implement this helper
+    pass
+```
+
+## Test Cases
+
+```python
+import numpy as np
+
+def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
+    """Reference implementation."""
+    return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+
+# Mock embeddings that are predictable for testing
+def deterministic_embed(text: str) -> np.ndarray:
+    """Create deterministic embeddings based on text content."""
+    np.random.seed(hash(text) % (2**32))
+    return np.random.randn(64)
+
+# Test 1: High relevancy (generated questions similar to original)
+def high_relevancy_generator(answer: str) -> List[str]:
+    return [
+        "Where is France located?",
+        "What region is France in?",
+        "In which part of Europe is France?"
+    ]
+
+original = "Where is France located?"
+answer = "France is located in Western Europe."
+score1 = answer_relevancy(original, answer, high_relevancy_generator, deterministic_embed)
+# Generated questions are very similar to original, score should be reasonable
+assert score1 is not None
+
+# Test 2: Low relevancy (answer doesn't address question)
+def low_relevancy_generator(answer: str) -> List[str]:
+    return [
+        "What is the weather like?",
+        "How many people live there?",
+        "What language is spoken?"
+    ]
+
+original = "Where is France located?"
+answer = "The weather is nice in summer."
+score2 = answer_relevancy(original, answer, low_relevancy_generator, deterministic_embed)
+# Generated questions are unrelated, score should differ from score1
+assert score2 is not None
+
+# Test 3: Empty generated questions
+def empty_generator(answer: str) -> List[str]:
+    return []
+
+score3 = answer_relevancy("Question?", "Answer.", empty_generator, deterministic_embed)
+assert score3 == 0.0  # No questions = 0 relevancy
+
+print("All tests passed!")
+```

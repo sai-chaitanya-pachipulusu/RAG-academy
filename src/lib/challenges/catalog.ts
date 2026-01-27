@@ -4,6 +4,12 @@ export type { Challenge, ChallengeDifficulty } from "@/lib/challenges/types";
 import { RAW_CHALLENGES } from "@/lib/challenges/defs/all";
 import { CHALLENGE_STAGE_BY_SLUG } from "@/lib/challenges/defs/stageBySlug";
 
+/**
+ * Total lessons count (update this when adding lessons)
+ * Run: (Get-ChildItem -Path "content\lessons" -Recurse -Filter "*.mdx").Count
+ */
+export const TOTAL_LESSONS_COUNT = 67;
+
 function assertUniqueSlugs(challenges: RawChallenge[]) {
   const seen = new Set<string>();
   for (const c of challenges) {
@@ -62,9 +68,11 @@ export function getPlatformStats() {
   
   return {
     totalChallenges: challenges.length,
+    totalLessons: TOTAL_LESSONS_COUNT,
     totalModules: uniqueGroups.size,
     totalStages: uniqueStages.size,
     challengesWithSolutions: challenges.filter(c => c.solution).length,
     portfolioProjects: Math.min(portfolioProjects, challenges.filter(c => c.difficulty === "hard" && c.realWorld).length),
   };
 }
+

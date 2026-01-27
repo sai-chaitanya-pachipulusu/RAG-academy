@@ -1,554 +1,371 @@
 ---
 title: "Seven Failure Points of RAG Systems"
-description: "Identify and diagnose the seven common failure points in production RAG pipelines."
-order: 1
+description: "Systematic diagnosis and fixes for the most common RAG failures."
+order: 5
 estimatedMinutes: 25
 stage: evaluation-ops
 prereqs:
-  - phase: phase-1
-    slug: evaluation-basics
+  - phase: phase-6
+    slug: measuring-rag-success
 next:
   phase: phase-6
-  slug: observability
+  slug: debugging-rag-systems
 outcomes:
-  - "Identify which failure point is causing issues in your RAG system."
-  - "Implement diagnostic checks for each failure point."
-  - "Design mitigations for each failure mode."
-tags: ["debugging", "failure-analysis", "production", "2024"]
+  - "Identify which of the 7 failure points is causing issues"
+  - "Apply targeted fixes for each failure mode"
+  - "Build systematic RAG debugging workflows"
+tags: ["debugging", "failure-modes", "production", "troubleshooting"]
 sources:
-  - title: "Seven Failure Points When Engineering a Retrieval Augmented Generation System"
+  - title: "Seven Failure Points When Engineering a RAG System"
     url: "https://arxiv.org/abs/2401.05856"
     type: "paper"
-    year: 2024
-  - title: "Barnett et al., Deakin University"
-    url: "https://arxiv.org/abs/2401.05856"
-    type: "paper"
+  - title: "Vinija AI - RAG Failure Points"
+    url: "https://vinija.ai/nlp/RAG/"
+    type: "blog"
 ---
-
-import { Callout } from "@/components/ui/Callout";
-import { Card } from "@/components/ui/Card";
-import Link from "next/link";
 
 ## Goals
 
-- Understand the seven distinct failure points in RAG systems.
-- Learn to diagnose which failure point is affecting your pipeline.
-- Implement targeted fixes for each failure mode.
+- Memorize the 7 canonical RAG failure points.
+- Diagnose which failure point is affecting your system.
+- Apply targeted fixes for each.
 
 ## Prereqs
 
-- **Evaluation Basics** (Phase 1).
-- **RAG Architecture** knowledge.
+- **Measuring RAG Success** (Phase 6).
+- Basic RAG pipeline understanding.
 
 ## Core idea
 
-[Barnett et al. (2024)](https://arxiv.org/abs/2401.05856) from Deakin University identified **seven distinct failure points** across three RAG case studies. Understanding this taxonomy helps you move from "it's broken" to "it's an FP2 ranking issue".
+Based on research from [Barnett et al., 2024](https://arxiv.org/abs/2401.05856), RAG systems fail in **7 predictable ways**. Understanding these helps you debug systematically instead of randomly tweaking parameters.
 
 ```
-┌──────────────────────────────────────────────────────────────────────────┐
-│                        RAG FAILURE TAXONOMY                               │
-├──────────────────────────────────────────────────────────────────────────┤
-│  FP1: Missing Content      │  Content doesn't exist in corpus            │
-│  FP2: Missed Top Ranked    │  Content exists but not in top-K            │
-│  FP3: Not in Context       │  Retrieved but dropped during consolidation │
-│  FP4: Not Extracted        │  In context but LLM didn't use it           │
-│  FP5: Wrong Format         │  Answer correct but format wrong            │
-│  FP6: Incorrect Specificity│  Too specific or too general                │
-│  FP7: Incomplete           │  Partial answer, missing information        │
-└──────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                   THE 7 RAG FAILURE POINTS                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  FP1: Missing Content       → Answer not in knowledge base      │
+│  FP2: Missed Top Ranks      → Right doc, wrong rank             │
+│  FP3: Not in Context        → Retrieved but not used            │
+│  FP4: Not Extracted         → In context but LLM missed it      │
+│  FP5: Wrong Format          → Right answer, wrong structure     │
+│  FP6: Incorrect Specificity → Too vague or too detailed         │
+│  FP7: Incomplete Response   → Partial answer only               │
+│                                                                  │
+│           FP1-2: RETRIEVAL │ FP3-7: GENERATION                  │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
 ```
-
-## Failure modes
-
-### FP1: Missing Content
-
-**What happens**: The answer to the question doesn't exist in your document corpus.
-
-**Symptoms**:
-
-- System generates plausible-sounding but incorrect answers
-- "Sorry, I don't know" responses when answer should exist
-- Hallucinations about related topics
-
-**Example**:
-
-```
-User: "What's the policy for remote work in 2024?"
-Issue: Only 2023 policy exists in corpus
-System: [Hallucinates a 2024 policy based on 2023]
-```
-
-**Diagnosis**:
-
-```python
-def check_fp1_missing_content(query: str, corpus, expected_answer: str) -> dict:
-    """Check if expected content exists in corpus."""
-    # Search with very high recall settings
-    results = corpus.search(query, k=100, threshold=0.0)  # No threshold
-
-    # Check if any result contains the expected answer
-    answer_keywords = extract_keywords(expected_answer)
-    best_match = 0
-
-    for doc in results:
-        keyword_coverage = sum(1 for kw in answer_keywords if kw in doc.text.lower())
-        coverage_ratio = keyword_coverage / len(answer_keywords)
-        best_match = max(best_match, coverage_ratio)
-
-    return {
-        "failure_point": "FP1",
-        "content_exists": best_match > 0.5,
-        "coverage_ratio": best_match,
-        "recommendation": "Add missing content to corpus" if best_match < 0.5 else "Content exists"
-    }
-```
-
-**Mitigations**:
-
-- Content gap analysis: Compare frequent queries to indexed content
-- "I don't know" detection: Train system to recognize out-of-scope questions
-- Web search fallback (CRAG pattern)
-- Regular corpus audits against user query patterns
 
 ---
 
-## FP2: Missed Top Ranked Documents
+## FP1: Missing Relevant Content
 
-**What happens**: The answer exists in the corpus but the relevant document(s) didn't rank in the top-K.
+### Symptom
 
-**Symptoms**:
+The answer to the user's question **does not exist** in your knowledge base.
 
-- Correct answer is in corpus but not retrieved
-- System says "I don't know" when retrieval recall is too low
-- Performance varies widely by query type
+### Example
 
-**Example**:
+- User asks: "What's the return policy for electronics?"
+- Knowledge base only has return policy for clothing.
+- System either hallucinates or says "I don't know."
 
-```
-User: "What's the TLS 1.3 handshake process?"
-Issue: Document exists but ranked #45 (outside top-20)
-System: "I couldn't find information about TLS handshakes."
-```
-
-**Diagnosis**:
+### Diagnosis
 
 ```python
-def check_fp2_missed_ranking(query: str, retriever, ground_truth_doc_ids: List[str], k: int = 10) -> dict:
-    """Check if relevant docs were missed due to ranking."""
-    # Retrieve with current settings
-    results_at_k = retriever.retrieve(query, k=k)
-
-    # Also retrieve with very high k to check if docs exist
-    results_at_100 = retriever.retrieve(query, k=100)
-
-    retrieved_ids_at_k = {doc.id for doc in results_at_k}
-    retrieved_ids_at_100 = {doc.id for doc in results_at_100}
-
-    relevant_in_top_k = len(set(ground_truth_doc_ids) & retrieved_ids_at_k)
-    relevant_in_top_100 = len(set(ground_truth_doc_ids) & retrieved_ids_at_100)
-
-    return {
-        "failure_point": "FP2",
-        "recall_at_k": relevant_in_top_k / len(ground_truth_doc_ids),
-        "recall_at_100": relevant_in_top_100 / len(ground_truth_doc_ids),
-        "is_ranking_issue": relevant_in_top_k < relevant_in_top_100,
-        "recommendation": "Increase k, add reranking, or improve query" if relevant_in_top_k < relevant_in_top_100 else "OK"
-    }
+def diagnose_fp1(question: str, knowledge_base: list[str]) -> bool:
+    """
+    Manual check: Can a human find the answer in the KB?
+    """
+    # Have a human annotator search the KB
+    # If they can't find it, it's FP1
+    return human_can_find_answer(question, knowledge_base)
 ```
 
-**Mitigations**:
+### Fixes
 
-- Increase retrieve k (but watch context limits)
-- Add reranking stage (cross-encoder, LLM rerank)
-- Improve query with HyDE, multi-query, or expansion
-- Use hybrid retrieval (BM25 + dense)
-- Better chunking for your domain
+| Fix                           | When to Use                              |
+| ----------------------------- | ---------------------------------------- |
+| Expand knowledge base         | Answer should exist but doesn't          |
+| Add "I don't know" guardrails | Prevent hallucination on missing content |
+| Log unanswerable queries      | Build queue for content creation         |
+| Fallback to web search        | For dynamic/current information          |
+
+---
+
+## FP2: Missed the Top Ranked Documents
+
+### Symptom
+
+The answer **exists** in the knowledge base but wasn't retrieved in top-K results.
+
+### Example
+
+- User asks: "What's the battery life of Product X?"
+- Answer is in document #247, but retrieval only returns top 10.
+- The correct document ranked at position 50.
+
+### Diagnosis
+
+```python
+def diagnose_fp2(question: str, retriever, ground_truth_doc_id: str, k: int = 10) -> dict:
+    """
+    Check if the correct document is retrieved but ranked too low.
+    """
+    results = retriever.search(question, top_k=1000)  # Get many results
+
+    for rank, doc in enumerate(results, 1):
+        if doc.id == ground_truth_doc_id:
+            return {
+                "failure_point": "FP2" if rank > k else None,
+                "actual_rank": rank,
+                "target_k": k,
+                "fix": "Improve retrieval" if rank > k else "Retrieval OK"
+            }
+
+    return {"failure_point": "FP1", "actual_rank": None}  # Not found at all
+```
+
+### Fixes
+
+| Fix                | Impact                                |
+| ------------------ | ------------------------------------- |
+| Increase top-K     | Quick fix, may add noise              |
+| Add reranker       | Reorder results with cross-encoder    |
+| Improve embeddings | Fine-tune or switch embedding model   |
+| Hybrid search      | Add BM25 for keyword matching         |
+| Query expansion    | Reformulate query for better matching |
 
 ---
 
 ## FP3: Not in Context (Consolidation Failure)
 
-**What happens**: Documents were retrieved but didn't make it to the LLM prompt due to context window limits or consolidation logic.
+### Symptom
 
-**Symptoms**:
+The correct documents were retrieved, but **not included in the LLM context** due to consolidation.
 
-- Good retrieval metrics but poor answer quality
-- Relevant info visible in retrieved docs but not in final answer
-- Context truncation warnings
+### Example
 
-**Example**:
+- Retriever returns 50 chunks (too many for context).
+- Consolidation picks 5 chunks.
+- The critical chunk is in the 50 but not the 5.
 
-```
-Retrieved: [Doc1: 2000 tokens, Doc2: 3000 tokens, Doc3: 1500 tokens, Doc4: (answer here)]
-Context limit: 4000 tokens
-Sent to LLM: Doc1 + partial Doc2
-Result: Doc4 (with the answer) was truncated out
-```
-
-**Diagnosis**:
+### Diagnosis
 
 ```python
-def check_fp3_context_consolidation(
-    query: str,
-    retrieved_docs: List[str],
-    context_sent_to_llm: str,
-    expected_answer_doc_idx: int
-) -> dict:
-    """Check if relevant content was dropped during consolidation."""
+def diagnose_fp3(retrieved_docs: list, context_docs: list, ground_truth_doc_id: str) -> dict:
+    """
+    Check if the answer was retrieved but dropped during consolidation.
+    """
+    in_retrieved = any(d.id == ground_truth_doc_id for d in retrieved_docs)
+    in_context = any(d.id == ground_truth_doc_id for d in context_docs)
 
-    expected_doc = retrieved_docs[expected_answer_doc_idx]
-
-    # Check if the key content made it to the context
-    key_sentences = split_into_sentences(expected_doc)
-    sentences_in_context = sum(1 for s in key_sentences if s in context_sent_to_llm)
-
-    return {
-        "failure_point": "FP3",
-        "expected_doc_rank": expected_answer_doc_idx,
-        "content_retention": sentences_in_context / len(key_sentences),
-        "context_length": len(context_sent_to_llm),
-        "is_consolidation_issue": sentences_in_context / len(key_sentences) < 0.5,
-        "recommendation": "Improve context assembly strategy"
-    }
+    if in_retrieved and not in_context:
+        return {
+            "failure_point": "FP3",
+            "fix": "Improve consolidation strategy"
+        }
+    return {"failure_point": None}
 ```
 
-**Mitigations**:
+### Fixes
 
-- Smarter context assembly: prioritize high-relevance chunks
-- Summarization before consolidation
-- Use reranking before context assembly
-- Increase context window model
-- Chunk deduplication
+| Fix                           | Description                          |
+| ----------------------------- | ------------------------------------ |
+| Better context selection      | Use MMR (Maximal Marginal Relevance) |
+| Increase context budget       | If using small context, expand       |
+| Hierarchical summarization    | Summarize chunks before context      |
+| Prioritize by query relevance | Re-score before consolidation        |
 
 ---
 
-## FP4: Not Extracted
+## FP4: Not Extracted (LLM Missed It)
 
-**What happens**: The answer is in the context, but the LLM failed to extract or use it correctly.
+### Symptom
 
-**Symptoms**:
+The answer is **in the context**, but the LLM failed to extract it correctly.
 
-- Context contains the answer but LLM ignores it
-- LLM gives generic response instead of context-specific answer
-- "Lost in the middle" phenomenon
+### Example
 
-**Example**:
+- Context contains: "Return window: 30 days"
+- User asks: "How long do I have to return items?"
+- LLM says: "I couldn't find the return window."
 
-```
-Context: "...The refund policy allows returns within 90 days for full refund..."
-Query: "What's the refund window?"
-LLM: "Typically, refund windows are 30-60 days." [Ignored the context!]
-```
+### Causes
 
-**Diagnosis**:
+- Too much noise or contradicting information in context
+- Answer buried among irrelevant text
+- LLM distracted by similar but wrong information
+
+### Diagnosis
 
 ```python
-def check_fp4_extraction_failure(
-    query: str,
-    context: str,
-    generated_answer: str,
-    expected_answer: str
-) -> dict:
-    """Check if LLM failed to extract information from context."""
+def diagnose_fp4(context: str, question: str, expected_answer: str, llm_answer: str) -> dict:
+    """
+    Human verification: Is the answer clearly in context but LLM missed it?
+    """
+    answer_in_context = expected_answer.lower() in context.lower()
+    llm_correct = expected_answer.lower() in llm_answer.lower()
 
-    # Check if expected answer is in context
-    expected_in_context = expected_answer.lower() in context.lower()
-
-    # Check if expected answer is in generated answer
-    expected_in_answer = expected_answer.lower() in generated_answer.lower()
-
-    # Check for generic/hedging language
-    hedging_phrases = [
-        "typically", "usually", "generally", "often", "might",
-        "could be", "it depends", "varies"
-    ]
-    uses_hedging = any(phrase in generated_answer.lower() for phrase in hedging_phrases)
-
-    return {
-        "failure_point": "FP4",
-        "answer_in_context": expected_in_context,
-        "answer_extracted": expected_in_answer,
-        "uses_hedging": uses_hedging,
-        "is_extraction_failure": expected_in_context and not expected_in_answer,
-        "recommendation": "Improve prompt, use instruction-tuned model, or reorder context"
-    }
+    if answer_in_context and not llm_correct:
+        return {
+            "failure_point": "FP4",
+            "fix": "Improve prompt or reduce context noise"
+        }
+    return {"failure_point": None}
 ```
 
-**Mitigations**:
+### Fixes
 
-- Better prompting: explicit instructions to use context
-- Lost-in-the-middle mitigation: put important info at start and end
-- Use instruction-tuned models
-- Reduce noise in context (fewer but more relevant chunks)
-- Chain-of-thought prompting
+| Fix                    | Description                          |
+| ---------------------- | ------------------------------------ |
+| Reduce context noise   | Remove low-relevance chunks          |
+| Improve prompting      | Add explicit extraction instructions |
+| Use stronger LLM       | GPT-4 extracts better than GPT-3.5   |
+| Chain-of-thought       | Ask LLM to reason step-by-step       |
+| Highlight key sections | Use markdown/formatting to emphasize |
 
 ---
 
 ## FP5: Wrong Format
 
-**What happens**: The answer content is correct but the format is wrong.
+### Symptom
 
-**Symptoms**:
+The answer is correct but in the **wrong format** (not a table, not a list, etc.).
 
-- User asked for table, got paragraph
-- User asked for list, got prose
-- Code returned as text or vice versa
+### Example
 
-**Example**:
+- User asks: "List the top 5 features as bullet points"
+- LLM returns a paragraph instead of bullets.
 
-```
-Query: "List the top 5 features in table format"
-Generated: "The top features are X, Y, Z..." [Paragraph, not table]
-```
+### Fixes
 
-**Diagnosis**:
-
-```python
-def check_fp5_format_mismatch(
-    query: str,
-    generated_answer: str
-) -> dict:
-    """Check if output format matches requested format."""
-
-    format_requests = {
-        "table": ["table", "tabular", "columns", "rows"],
-        "list": ["list", "bullet", "numbered", "enumerate"],
-        "code": ["code", "script", "function", "program"],
-        "json": ["json", "json format"],
-        "step-by-step": ["step by step", "step-by-step", "steps"]
-    }
-
-    requested_format = None
-    for fmt, keywords in format_requests.items():
-        if any(kw in query.lower() for kw in keywords):
-            requested_format = fmt
-            break
-
-    if not requested_format:
-        return {"failure_point": "FP5", "format_requested": None, "is_format_issue": False}
-
-    # Check if output matches format
-    format_detected = detect_format(generated_answer)
-
-    return {
-        "failure_point": "FP5",
-        "format_requested": requested_format,
-        "format_detected": format_detected,
-        "is_format_issue": requested_format != format_detected,
-        "recommendation": "Add explicit format instructions to prompt"
-    }
-```
-
-**Mitigations**:
-
-- Explicit format instructions in system prompt
-- Few-shot examples of correct format
-- Output parsers/validators
-- Post-processing formatters
+| Fix                          | Example                       |
+| ---------------------------- | ----------------------------- |
+| Explicit format instructions | "Return as a numbered list:"  |
+| Few-shot examples            | Show desired format in prompt |
+| JSON mode                    | Force structured output       |
+| Post-processing              | Parse and reformat output     |
 
 ---
 
 ## FP6: Incorrect Specificity
 
-**What happens**: The answer is too general or too specific for the user's needs.
+### Symptom
 
-**Symptoms**:
+The answer is **too vague** or **too detailed** for the user's needs.
 
-- "What is X?" gets a PhD thesis when user wanted a definition
-- "Explain in detail" gets a one-liner
-- Answer scope doesn't match query scope
+### Example (Too Vague)
 
-**Example**:
+- User: "How do I configure SSL for my server?"
+- Answer: "You need to set up certificates." (Not helpful)
 
-```
-Query: "What are the key points in document A, B, and C?"
-Generated: "The key point is X." [Only covered one document!]
-```
+### Example (Too Detailed)
 
-**Diagnosis**:
+- User: "What's Docker?"
+- Answer: [5000-word technical deep-dive] (Overwhelming)
 
-```python
-def check_fp6_specificity(
-    query: str,
-    generated_answer: str,
-    context_docs: List[str]
-) -> dict:
-    """Check if answer specificity matches query requirements."""
+### Fixes
 
-    # Detect query scope
-    multi_item_signals = ["and", "each", "all", "compare", "both", "pros and cons"]
-    is_multi_scope = any(signal in query.lower() for signal in multi_item_signals)
-
-    # Check answer coverage
-    doc_coverage = []
-    for i, doc in enumerate(context_docs):
-        key_terms = extract_key_terms(doc)[:5]
-        terms_in_answer = sum(1 for t in key_terms if t in generated_answer.lower())
-        doc_coverage.append(terms_in_answer / 5 if key_terms else 0)
-
-    # Calculate specificity score
-    if is_multi_scope:
-        expected_coverage = len(context_docs)
-        actual_coverage = sum(1 for c in doc_coverage if c > 0.3)
-        specificity_ok = actual_coverage >= expected_coverage * 0.7
-    else:
-        specificity_ok = True  # Single-scope queries harder to validate
-
-    return {
-        "failure_point": "FP6",
-        "is_multi_scope_query": is_multi_scope,
-        "doc_coverage": doc_coverage,
-        "is_specificity_issue": not specificity_ok,
-        "recommendation": "Break complex queries into sub-queries"
-    }
-```
-
-**Mitigations**:
-
-- Query decomposition for multi-part questions
-- Prompt engineering for scope control
-- Separate handling for "explain" vs "define" vs "list"
-- User feedback loops
+| Fix                        | Description                              |
+| -------------------------- | ---------------------------------------- |
+| User intent classification | Detect if user wants overview vs details |
+| Persona-based prompting    | "Explain like I'm a beginner"            |
+| Progressive disclosure     | Start high-level, offer to go deeper     |
+| Follow-up questions        | Ask user to clarify scope                |
 
 ---
 
-## FP7: Incomplete Responses
+## FP7: Incomplete Response
 
-**What happens**: The answer is partially correct but missing key information.
+### Symptom
 
-**Symptoms**:
+The answer is **correct but missing parts** of what was asked.
 
-- Answer addresses part of the question
-- Missing qualifications or caveats
-- Truncated responses
+### Example
 
-**Example**:
+- User: "Summarize documents A, B, and C"
+- Answer: Summarizes A and B, completely ignores C.
+
+### Causes
+
+- Multi-part questions are hard for LLMs
+- Context too long, later parts lost
+- Attention drifts to earlier items
+
+### Fixes
+
+| Fix                 | Description                                |
+| ------------------- | ------------------------------------------ |
+| Decompose questions | Ask about A, B, C separately, then combine |
+| Checklist prompting | "Make sure you cover: A, B, C"             |
+| Verify completeness | Ask LLM to check if all parts answered     |
+| Map-reduce          | Process each part independently            |
+
+---
+
+## Quick Reference: Diagnosis Flowchart
 
 ```
-Query: "What are the benefits AND risks of treatment X?"
-Generated: "Benefits include A, B, C..." [Risks not mentioned!]
+User reports bad answer
+         │
+         ▼
+Is the answer in the knowledge base?
+         │
+    NO ──┴── YES
+    │         │
+   FP1        ▼
+         Was it retrieved in top-K?
+              │
+         NO ──┴── YES
+         │         │
+        FP2        ▼
+              Was it in the LLM context?
+                   │
+              NO ──┴── YES
+              │         │
+             FP3        ▼
+                   Did LLM extract correctly?
+                        │
+                   NO ──┴── YES
+                   │         │
+                  FP4        ▼
+                        Check FP5/FP6/FP7
+                        (Format/Specificity/Completeness)
 ```
 
-**Diagnosis**:
+---
 
-```python
-def check_fp7_incompleteness(
-    query: str,
-    generated_answer: str,
-    required_aspects: List[str]
-) -> dict:
-    """Check if answer covers all required aspects."""
+## Failure modes
 
-    covered_aspects = []
-    missing_aspects = []
+This entire lesson covers the 7 failure modes. Here's a quick summary for reference:
 
-    for aspect in required_aspects:
-        aspect_keywords = aspect.lower().split()
-        if any(kw in generated_answer.lower() for kw in aspect_keywords):
-            covered_aspects.append(aspect)
-        else:
-            missing_aspects.append(aspect)
-
-    completeness = len(covered_aspects) / len(required_aspects)
-
-    return {
-        "failure_point": "FP7",
-        "required_aspects": required_aspects,
-        "covered": covered_aspects,
-        "missing": missing_aspects,
-        "completeness_score": completeness,
-        "is_incomplete": completeness < 0.8,
-        "recommendation": "Use structured extraction or multi-query"
-    }
-```
-
-**Mitigations**:
-
-- Query decomposition: split into sub-questions
-- Structured output (JSON with required fields)
-- Multi-pass generation with completeness checking
-- Checklists in prompts
+| Failure Point             | Category   | Quick Fix                    |
+| ------------------------- | ---------- | ---------------------------- |
+| **FP1** Missing Content   | Retrieval  | Expand KB, add fallbacks     |
+| **FP2** Missed Rankings   | Retrieval  | Rerank, hybrid search        |
+| **FP3** Not in Context    | Generation | Better consolidation         |
+| **FP4** Not Extracted     | Generation | Reduce noise, better prompts |
+| **FP5** Wrong Format      | Generation | Format instructions          |
+| **FP6** Wrong Specificity | Generation | Intent classification        |
+| **FP7** Incomplete        | Generation | Decompose questions          |
 
 ---
 
 ## Production defaults
 
-Use this decision tree to identify which failure point to investigate first:
+| Metric to Monitor   | Related Failure Points |
+| ------------------- | ---------------------- |
+| Recall@K            | FP1, FP2               |
+| Context Precision   | FP3                    |
+| Faithfulness        | FP4                    |
+| Answer Relevancy    | FP5, FP6               |
+| Answer Completeness | FP7                    |
 
-```python
-def diagnose_rag_failure(
-    query: str,
-    corpus,
-    retriever,
-    generator,
-    expected_answer: str
-) -> str:
-    """Systematic diagnosis of RAG failures."""
-
-    # Step 1: Check if content exists (FP1)
-    if not content_exists_in_corpus(query, corpus, expected_answer):
-        return "FP1: Missing Content - Add to corpus or use web fallback"
-
-    # Step 2: Check retrieval (FP2)
-    retrieved = retriever.retrieve(query, k=100)
-    if not answer_in_top_k(retrieved[:10], expected_answer):
-        if answer_in_top_k(retrieved[:100], expected_answer):
-            return "FP2: Ranking Issue - Add reranking or increase k"
-        return "FP2: Retrieval Issue - Improve query or embeddings"
-
-    # Step 3: Check context assembly (FP3)
-    context = assemble_context(retrieved[:10])
-    if not answer_in_context(context, expected_answer):
-        return "FP3: Consolidation Issue - Improve context assembly"
-
-    # Step 4: Generate and check (FP4-7)
-    answer = generator.generate(query, context)
-
-    if not answer_is_extracted(answer, expected_answer):
-        return "FP4: Extraction Failure - Improve prompt or model"
-
-    if not format_correct(answer, query):
-        return "FP5: Format Issue - Add format instructions"
-
-    if not scope_correct(answer, query):
-        return "FP6: Specificity Issue - Query decomposition needed"
-
-    if not answer_complete(answer, query):
-        return "FP7: Incomplete - Use structured extraction"
-
-    return "No failure detected"
-```
-
-## Summary Table
-
-| Failure Point | Stage      | Symptom               | Primary Fix                     |
-| ------------- | ---------- | --------------------- | ------------------------------- |
-| **FP1**       | Corpus     | Content doesn't exist | Corpus expansion, web fallback  |
-| **FP2**       | Retrieval  | Bad ranking           | Reranking, hybrid retrieval     |
-| **FP3**       | Context    | Truncated out         | Better consolidation            |
-| **FP4**       | Generation | Ignored context       | Better prompts, reorder context |
-| **FP5**       | Generation | Wrong format          | Format instructions             |
-| **FP6**       | Generation | Wrong scope           | Query decomposition             |
-| **FP7**       | Generation | Incomplete            | Structured extraction           |
+---
 
 ## Do next
 
-<ChallengeLinks
-  slugs={[
-    "rag-failure-diagnosis",
-    "retrieval-quality-check",
-    "grounded-answer-check",
-  ]}
-/>
-
-<Card className="mt-4 p-4">
-  <p className="text-sm font-medium">
-    Learn to monitor these failure points in production:
-  </p>
-  <Link
-    href="/learn/phase-6/observability"
-    className="mt-2 inline-flex text-xs font-medium text-blue-700 hover:text-blue-500 dark:text-blue-400"
-  >
-    Observability →
-  </Link>
-</Card>
+- [Debugging RAG Systems](/learn/phase-6/debugging-rag-systems) - Hands-on debugging techniques
+- [Observability](/learn/phase-6/observability) - Monitor for failure points in production

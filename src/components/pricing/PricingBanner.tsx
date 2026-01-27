@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePricing } from "@/lib/pricing/usePricing";
+import { getPlatformStats } from "@/lib/challenges/catalog";
 
 export function PricingBanner() {
   const { currentPhase, daysRemaining, priceIncrease, isEarlyBird } = usePricing();
@@ -62,7 +63,7 @@ export function UpgradeCTA({ context = "default" }: { context?: string }) {
         Unlock All {context === "challenge" ? "Challenges" : "Content"}
       </h3>
       <p className="mt-2 text-sm text-zinc-600">
-        Get access to 185+ challenges, advanced 2025 techniques, and priority support
+        Get access to {getPlatformStats().totalChallenges}+ challenges, advanced techniques, and priority support
         {isEarlyBird && " at the lowest price ever."}
       </p>
       <div className="mt-4 flex items-center justify-center gap-2">

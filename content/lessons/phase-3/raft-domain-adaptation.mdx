@@ -1,0 +1,159 @@
+---
+title: "RAFT: Domain-Specific RAG Fine-Tuning"
+description: "Adapt language models to excel at domain-specific RAG through specialized training."
+order: 14
+estimatedMinutes: 25
+stage: fine-tuning
+prereqs:
+  - phase: phase-3
+    slug: corrective-rag
+  - phase: phase-0
+    slug: rag-vs-finetuning
+next:
+  phase: phase-4
+  slug: knowledge-graphs-intro
+outcomes:
+  - "Understand the RAFT methodology for domain-specific RAG."
+  - "Learn how to generate training data for RAG fine-tuning."
+  - "Implement oracle and distractor document training."
+tags: ["raft", "fine-tuning", "domain-adaptation", "distractor-documents"]
+sources:
+  - title: "RAFT: Adapting Language Model to Domain Specific RAG"
+    url: "https://arxiv.org/abs/2403.10131"
+    type: "paper"
+    authors: "Zhang et al."
+    year: 2024
+  - title: "RAFT Project Page"
+    url: "https://gorilla.cs.berkeley.edu/blogs/9_raft.html"
+    type: "blog"
+---
+
+import { Callout } from "@/components/ui/Callout";
+import { Card } from "@/components/ui/Card";
+import Link from "next/link";
+
+## Goals
+
+- Understand why general LLMs underperform on domain-specific RAG.
+- Learn the RAFT (Retrieval Augmented Fine-Tuning) methodology.
+- Implement training data generation with oracle and distractor documents.
+
+## Prereqs
+
+Before this lesson, ensure you understand:
+
+- RAG vs fine-tuning trade-offs
+- How instruction tuning works
+- Basic retrieval pipeline architecture
+
+## Core idea
+
+General-purpose LLMs struggle with domain-specific RAG because they don't know **how to use** retrieved documents effectively. RAFT teaches the model to:
+
+1. **Identify relevant documents** among distractors
+2. **Extract key information** with chain-of-thought reasoning
+3. **Cite sources** in responses
+
+### The Study Analogy
+
+Standard RAG is like taking an open-book exam without studying—you have access to the textbook but don't know how to find answers quickly.
+
+**RAFT teaches the model HOW to use the book.**
+
+### Training Data Format
+
+Each training example includes:
+
+- **Question**: The query to answer
+- **Oracle document**: Contains the answer (included ~80% of the time)
+- **Distractor documents**: Related but don't answer the question
+- **Answer**: Chain-of-thought reasoning with citations
+
+```python
+def create_raft_example(qa_pair, corpus, retriever, num_distractors=4):
+    question = qa_pair["question"]
+    answer = qa_pair["answer"]
+    oracle_doc = qa_pair["oracle_doc"]
+
+    # Get distractors (similar but not answering)
+    retrieved = retriever.retrieve(question, k=num_distractors + 5)
+    distractors = [d for d in retrieved if d.content != oracle_doc][:num_distractors]
+
+    # Include oracle 80% of the time
+    include_oracle = random.random() < 0.8
+
+    if include_oracle:
+        context_docs = [oracle_doc] + [d.content for d in distractors]
+    else:
+        context_docs = [d.content for d in distractors]
+
+    random.shuffle(context_docs)
+
+    # Format with chain-of-thought answer
+    return {
+        "instruction": format_instruction(question, context_docs),
+        "output": f"Based on Document X, ... ##Final answer##"
+    }
+```
+
+### Chain-of-Thought Format
+
+Answers should include reasoning and citations:
+
+```text
+Looking at Document 2, it states that "Premium users get 1000 requests
+per minute." This is 10x higher than the free tier mentioned in
+Document 1. ##1000 requests per minute##
+```
+
+## Failure modes
+
+<Callout type="warning" title="Common Pitfalls">
+**Overfitting to format**: If all training examples have the same structure, the model may fail on variations.
+
+**Distractor leakage**: Distractors that accidentally contain partial answers corrupt training.
+
+**Oracle dependency**: Without the 20% no-oracle examples, the model can't handle "unanswerable" queries.
+
+**Domain shift**: Training on one domain may not transfer to related domains.
+
+**Quality of QA pairs**: Poor question-answer pairs lead to poor fine-tuning.
+
+</Callout>
+
+## Production defaults
+
+| Setting            | Recommended Value | Notes                                           |
+| ------------------ | ----------------- | ----------------------------------------------- |
+| Oracle probability | 0.7–0.9           | Higher = better with oracle, lower = robustness |
+| Num distractors    | 3–5               | More = harder task, more robust model           |
+| QA pairs per doc   | 3–5               | Balance coverage vs. training time              |
+| Fine-tuning epochs | 2–4               | Monitor for overfitting                         |
+| Learning rate      | 1e-5 to 5e-5      | Standard for instruction tuning                 |
+
+**RAFT paper results** (domain-specific benchmarks):
+
+- Llama-7B + RAG: 58.2%
+- GPT-4 + RAG: 78.4%
+- **Llama-7B + RAFT: 71.8%** (nearly GPT-4 level!)
+
+**When to use RAFT:**
+
+- High-stakes domains (medical, legal, financial)
+- Consistent document formats (APIs, manuals)
+- 100+ domain documents available
+- Performance > cost trade-off
+
+## Do next
+
+<ChallengeLinks slugs={["raft-training-data", "domain-qa-generation"]} />
+
+<Card className="mt-4 p-4">
+  <p className="text-sm font-medium">Review the fundamentals:</p>
+  <Link
+    href="/learn/phase-0/rag-vs-finetuning"
+    className="mt-2 inline-flex text-xs font-medium text-blue-700 hover:text-blue-500 dark:text-blue-400"
+  >
+    RAG vs Fine-Tuning Decision Framework →
+  </Link>
+</Card>

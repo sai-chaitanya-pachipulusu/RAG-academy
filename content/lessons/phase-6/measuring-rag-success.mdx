@@ -402,6 +402,85 @@ def multi_judge_score(context: str, answer: str, judges: list) -> float:
 
 ---
 
+### ARES: Automated Evaluation with Confidence Intervals
+
+**ARES** (Automated RAG Evaluation System) from [Stanford & UC Berkeley](https://arxiv.org/abs/2311.09476) provides a more rigorous approach than simple LLM-as-a-Judge. It generates **statistical confidence intervals** for your evaluation metrics.
+
+#### The 3-Stage ARES Pipeline
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          ARES FRAMEWORK                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Stage 1: Synthetic Dataset                                                  │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ Use FLAN-T5 XXL to generate Q&A pairs from your corpus passages      │    │
+│  │ Include both positive (correct) and negative (incorrect) examples    │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                              ↓                                               │
+│  Stage 2: Train LLM Judges                                                   │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ Fine-tune lightweight models on 3 classification tasks:              │    │
+│  │ • Context Relevance                                                  │    │
+│  │ • Answer Faithfulness                                                │    │
+│  │ • Answer Relevance                                                   │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                              ↓                                               │
+│  Stage 3: Prediction-Powered Inference (PPI)                                 │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ Combine LLM predictions on large unlabeled data with a small         │    │
+│  │ human-annotated validation set (50-150 examples) to produce          │    │
+│  │ confidence intervals with statistical guarantees (95% α)             │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Why ARES Over Simple LLM-as-a-Judge?
+
+| Approach             | Pros                             | Cons                                  |
+| -------------------- | -------------------------------- | ------------------------------------- |
+| **Simple LLM Judge** | Fast, cheap                      | No confidence bounds; subject to bias |
+| **Full Human Eval**  | Accurate                         | Slow, expensive, doesn't scale        |
+| **ARES**             | Statistical guarantees, scalable | Requires initial human annotations    |
+
+#### Implementing ARES Requirements
+
+To implement ARES, you need:
+
+1. **Human Preference Validation Set**: 50-150 annotated (query, document, answer) triples
+2. **Few-shot Examples**: 5 examples each for context relevance, faithfulness, and answer relevance
+3. **Unlabeled Evaluation Set**: Large set of query-document-answer triples from your RAG system
+
+```python
+# Pseudo-code for ARES-style evaluation
+class ARESEvaluator:
+    def __init__(self, synthetic_data, human_validation_set):
+        self.context_judge = self._train_judge("context_relevance", synthetic_data)
+        self.faith_judge = self._train_judge("faithfulness", synthetic_data)
+        self.relevance_judge = self._train_judge("answer_relevance", synthetic_data)
+        self.validation_set = human_validation_set
+
+    def evaluate_with_confidence(self, unlabeled_triples: list) -> dict:
+        """
+        Use PPI to get confidence intervals.
+        """
+        # Get predictions on unlabeled data
+        predictions = {
+            "context_relevance": [self.context_judge(t) for t in unlabeled_triples],
+            "faithfulness": [self.faith_judge(t) for t in unlabeled_triples],
+            "answer_relevance": [self.relevance_judge(t) for t in unlabeled_triples],
+        }
+
+        # Apply PPI rectifier using human validation set
+        intervals = self._apply_ppi(predictions, self.validation_set, alpha=0.95)
+
+        return intervals  # {"context_relevance": (0.82, 0.91), ...}
+```
+
+**Key Insight:** ARES's PPI method uses the small human validation set to "correct" potential biases in the LLM judge, resulting in tighter and more reliable confidence intervals.
+
 ### Traditional Metrics (Why Limit Them?)
 
 While measuring generation, you may encounter these legacy NLP metrics. They are often **insufficient for RAG** but good to know for benchmarking.

@@ -1,281 +1,171 @@
 ---
 title: "Corrective RAG (CRAG)"
-description: "Dynamically correct retrieval failures with web search and knowledge refinement."
-order: 3
-estimatedMinutes: 20
-stage: retrieval
+description: "Self-correcting retrieval with confidence evaluation and web search fallback."
+order: 13
+estimatedMinutes: 25
+stage: advanced-retrieval
 prereqs:
   - phase: phase-3
     slug: self-rag
+  - phase: phase-3
+    slug: adaptive-rag
 next:
   phase: phase-3
-  slug: rag-fusion-advanced
+  slug: reasoning-rag
 outcomes:
-  - "Understand the CRAG framework for correcting retrieval."
-  - "Implement retrieval evaluators and corrective actions."
-  - "Know when to fall back to web search."
-tags: ["crag", "corrective-rag", "retrieval-correction", "web-search"]
+  - "Understand the CRAG framework for self-correcting retrieval."
+  - "Implement retrieval confidence evaluation."
+  - "Build fallback strategies for low-confidence retrievals."
+tags: ["crag", "self-correcting", "confidence", "web-search", "evaluation"]
 sources:
-  - title: "Corrective RAG (Yan et al., 2024)"
+  - title: "CRAG: Corrective Retrieval Augmented Generation"
     url: "https://arxiv.org/abs/2401.15884"
     type: "paper"
+    authors: "Yan et al."
     year: 2024
-  - title: "LangGraph: CRAG Implementation"
-    url: "https://langchain-ai.github.io/langgraph/tutorials/rag/langgraph_crag/"
-    type: "docs"
+  - title: "CRAG GitHub"
+    url: "https://github.com/HuskyInSalt/CRAG"
+    type: "repo"
 ---
+
+import { Callout } from "@/components/ui/Callout";
+import { Card } from "@/components/ui/Card";
+import Link from "next/link";
 
 ## Goals
 
-- Understand how CRAG evaluates and corrects retrieval.
-- Implement the three corrective actions: Correct, Incorrect, Ambiguous.
-- Build fallback to web search for retrieval failures.
+- Understand why retrieval can fail silently in standard RAG.
+- Learn the CRAG framework's three-action system.
+- Implement retrieval evaluation with confidence scoring.
+- Build web search fallback for low-confidence results.
 
 ## Prereqs
 
-- Read: **Self-RAG** (understand self-reflection patterns).
+Before this lesson, ensure you understand:
+
+- Basic RAG pipeline architecture
+- Reranking and relevance scoring
+- Self-RAG concepts for self-reflection
 
 ## Core idea
 
-### What is Corrective RAG?
+Standard RAG assumes retrieved documents are relevant. But retrieval often fails silently—the LLM receives irrelevant context and hallucinates.
 
-From [Yan et al., 2024](https://arxiv.org/abs/2401.15884): CRAG adds a **retrieval evaluator** that triggers corrective actions:
+**CRAG (Corrective RAG)** adds a retrieval evaluator that:
 
-```
-Query
-  ↓
-Retrieve Documents
-  ↓
-Evaluate Retrieval Quality
-  ↓
-┌─────────────────────────────────────────────┐
-│ Correct      │ Ambiguous    │ Incorrect    │
-│ (confident)  │ (uncertain)  │ (failed)     │
-├─────────────────────────────────────────────┤
-│ Use docs     │ Refine +     │ Web search   │
-│ as-is        │ supplement   │ fallback     │
-└─────────────────────────────────────────────┘
-  ↓
-Knowledge Refinement
-  ↓
-Generate Answer
-```
+1. **Assesses document relevance** with a confidence score
+2. **Triggers corrective actions** based on confidence level
+3. **Falls back to web search** for low-confidence retrievals
 
-### The CRAG pipeline
+### Three-Action System
+
+| Confidence  | Action    | Behavior                               |
+| ----------- | --------- | -------------------------------------- |
+| **> 0.7**   | CORRECT   | Use retrieved docs, refine to key info |
+| **0.3–0.7** | AMBIGUOUS | Augment with additional sources + web  |
+| **< 0.3**   | INCORRECT | Abandon local retrieval, use web only  |
+
+### Implementation
 
 ```python
-class CorrectiveRAG:
-    def __init__(
-        self,
-        retriever,
-        generator,
-        evaluator,
-        web_searcher,
-        refiner,
-    ):
-        self.retriever = retriever
-        self.generator = generator
-        self.evaluator = evaluator
-        self.web_searcher = web_searcher
-        self.refiner = refiner
-    
-    def answer(self, query: str) -> Dict:
-        """
-        Corrective RAG pipeline.
-        """
-        # Step 1: Initial retrieval
-        docs = self.retriever.retrieve(query, k=10)
-        
-        # Step 2: Evaluate retrieval quality
-        evaluation = self.evaluator.evaluate(query, docs)
-        
-        # Step 3: Corrective action based on evaluation
-        if evaluation.action == "correct":
-            # High confidence: use docs as-is
-            refined_docs = docs
-        
-        elif evaluation.action == "ambiguous":
-            # Medium confidence: refine + supplement
-            refined_docs = self.refiner.refine(query, docs)
-            supplemental = self.web_searcher.search(query, k=3)
-            refined_docs = self.merge(refined_docs, supplemental)
-        
-        elif evaluation.action == "incorrect":
-            # Low confidence: web search fallback
-            refined_docs = self.web_searcher.search(query, k=5)
-        
-        # Step 4: Knowledge refinement
-        context = self.build_context(refined_docs)
-        
-        # Step 5: Generate
-        answer = self.generator.generate(query, context)
-        
-        return {
-            "answer": answer,
-            "sources": refined_docs,
-            "evaluation": evaluation,
-        }
+from enum import Enum
+
+class Action(Enum):
+    CORRECT = "correct"
+    AMBIGUOUS = "ambiguous"
+    INCORRECT = "incorrect"
+
+def evaluate_retrieval(query: str, docs: list, relevance_scores: list) -> tuple:
+    """Determine action based on max relevance score."""
+    if not relevance_scores:
+        return Action.INCORRECT, 0.0
+
+    max_score = max(relevance_scores)
+
+    if max_score > 0.7:
+        return Action.CORRECT, max_score
+    elif max_score >= 0.3:
+        return Action.AMBIGUOUS, max_score
+    else:
+        return Action.INCORRECT, max_score
+
+def crag_retrieve(query: str, retriever, web_searcher, evaluator):
+    """Complete CRAG pipeline."""
+    # Step 1: Initial retrieval
+    docs = retriever.retrieve(query, k=5)
+    scores = [evaluator.score(query, doc) for doc in docs]
+
+    # Step 2: Evaluate confidence
+    action, confidence = evaluate_retrieval(query, docs, scores)
+
+    # Step 3: Take corrective action
+    if action == Action.CORRECT:
+        return refine_documents(docs, query)
+    elif action == Action.AMBIGUOUS:
+        web_docs = web_searcher.search(query)
+        return docs + web_docs
+    else:
+        return web_searcher.search(query)
 ```
 
-### Implementing the retrieval evaluator
+### Decompose-Then-Recompose
+
+For CORRECT action, CRAG refines documents by extracting only relevant sentences:
 
 ```python
-class RetrievalEvaluator:
-    def __init__(self, threshold_correct: float = 0.8, threshold_ambiguous: float = 0.5):
-        self.threshold_correct = threshold_correct
-        self.threshold_ambiguous = threshold_ambiguous
-    
-    def evaluate(self, query: str, docs: List[Dict]) -> Evaluation:
-        """
-        Evaluate retrieval quality and decide corrective action.
-        """
-        if not docs:
-            return Evaluation(
-                action="incorrect",
-                confidence=0.0,
-                reason="No documents retrieved"
-            )
-        
-        # Score each document for relevance
-        relevance_scores = []
-        for doc in docs:
-            score = self.score_relevance(query, doc["text"])
-            relevance_scores.append(score)
-        
-        # Aggregate score
-        top_scores = sorted(relevance_scores, reverse=True)[:3]
-        avg_top_score = sum(top_scores) / len(top_scores)
-        
-        # Decide action
-        if avg_top_score >= self.threshold_correct:
-            return Evaluation(
-                action="correct",
-                confidence=avg_top_score,
-                reason="High relevance documents found"
-            )
-        elif avg_top_score >= self.threshold_ambiguous:
-            return Evaluation(
-                action="ambiguous",
-                confidence=avg_top_score,
-                reason="Moderate relevance, needs refinement"
-            )
-        else:
-            return Evaluation(
-                action="incorrect",
-                confidence=avg_top_score,
-                reason="Low relevance, retrieval likely failed"
-            )
-    
-    def score_relevance(self, query: str, doc: str) -> float:
-        """
-        Score document relevance to query (0-1).
-        Can use: cross-encoder, LLM judge, or heuristics.
-        """
-        # Option 1: Cross-encoder
-        return self.cross_encoder.predict([[query, doc]])[0]
-        
-        # Option 2: LLM judge
-        # prompt = f"Rate relevance of this document to the query (0-10)..."
-        # return float(llm.generate(prompt)) / 10
-```
+def decompose_recompose(doc: str, query: str, llm) -> str:
+    """Extract only the relevant portions of a document."""
+    # Decompose into atomic facts
+    facts = llm.extract_facts(doc)
 
-### Web search fallback
+    # Filter relevant facts
+    relevant = [f for f in facts if llm.is_relevant(f, query)]
 
-```python
-class WebSearchFallback:
-    def __init__(self, search_api: str = "serper"):
-        self.search_api = search_api
-    
-    def search(self, query: str, k: int = 5) -> List[Dict]:
-        """
-        Search the web when corpus retrieval fails.
-        """
-        # Call web search API
-        results = self.call_search_api(query, num_results=k * 2)
-        
-        # Extract and clean content
-        docs = []
-        for result in results[:k]:
-            content = self.extract_content(result["url"])
-            if content:
-                docs.append({
-                    "text": content[:2000],  # Truncate
-                    "url": result["url"],
-                    "title": result["title"],
-                    "source": "web",
-                })
-        
-        return docs
-    
-    def call_search_api(self, query: str, num_results: int) -> List[Dict]:
-        """
-        Call external search API.
-        """
-        if self.search_api == "serper":
-            response = requests.post(
-                "https://google.serper.dev/search",
-                json={"q": query, "num": num_results},
-                headers={"X-API-KEY": os.environ["SERPER_API_KEY"]}
-            )
-            return response.json().get("organic", [])
-        # Add other APIs as needed
-```
-
-### Knowledge refinement
-
-```python
-class KnowledgeRefiner:
-    def refine(self, query: str, docs: List[Dict]) -> List[Dict]:
-        """
-        Refine documents to extract most relevant information.
-        """
-        refined = []
-        
-        for doc in docs:
-            # Extract relevant sentences
-            sentences = split_sentences(doc["text"])
-            relevant_sentences = []
-            
-            for sent in sentences:
-                if self.is_relevant(query, sent):
-                    relevant_sentences.append(sent)
-            
-            if relevant_sentences:
-                refined.append({
-                    **doc,
-                    "text": " ".join(relevant_sentences),
-                    "original_length": len(doc["text"]),
-                    "refined_length": sum(len(s) for s in relevant_sentences),
-                })
-        
-        return refined
-    
-    def is_relevant(self, query: str, sentence: str) -> bool:
-        """
-        Check if sentence is relevant to query.
-        """
-        # Simple: keyword overlap
-        query_terms = set(query.lower().split())
-        sent_terms = set(sentence.lower().split())
-        overlap = len(query_terms & sent_terms) / len(query_terms)
-        return overlap > 0.2
+    # Recompose
+    return " ".join(relevant)
 ```
 
 ## Failure modes
 
-1. **Evaluator too strict**: Always falls back to web search.
-2. **Evaluator too lenient**: Never corrects bad retrieval.
-3. **Web search noise**: Web results may be less reliable than corpus.
-4. **Latency**: Multiple retrieval attempts add latency.
-5. **Cost**: Web search APIs cost money.
+<Callout type="warning" title="Common Pitfalls">
+**Evaluator hallucinations**: The relevance evaluator itself can be wrong—validate with human labels.
+
+**Web search latency**: Web fallback adds 500ms-2s latency. Cache frequent queries.
+
+**Rate limiting**: Web search APIs have rate limits. Implement backoff and caching.
+
+**Threshold sensitivity**: The 0.3/0.7 thresholds may not work for all domains—tune with evaluation data.
+
+**Cascading errors**: If web search also returns irrelevant results, the system has no fallback.
+
+</Callout>
 
 ## Production defaults
 
-- **Thresholds**: Start with correct=0.8, ambiguous=0.5.
-- **Web fallback**: Enable only for important queries.
-- **Caching**: Cache web search results.
-- **Monitoring**: Track evaluation distribution to tune thresholds.
+| Setting        | Recommended Value | Notes                                        |
+| -------------- | ----------------- | -------------------------------------------- |
+| High threshold | 0.7               | Tune based on your evaluator's calibration   |
+| Low threshold  | 0.3               | Below this, local retrieval is unreliable    |
+| Web search K   | 5                 | Balance coverage vs. noise                   |
+| Evaluator      | Cross-encoder     | ms-marco-MiniLM-L-12-v2 is fast and accurate |
+| Cache TTL      | 1 hour            | For web search results                       |
+
+**CRAG paper results** (PopQA dataset):
+
+- Standard RAG: 44.1%
+- Self-RAG: 52.3%
+- **CRAG: 54.9%**
 
 ## Do next
 
-<ChallengeLinks slugs={["crag-evaluator", "web-search-fallback", "knowledge-refiner"]} />
+<ChallengeLinks slugs={["crag-pipeline", "retrieval-evaluator"]} />
+
+<Card className="mt-4 p-4">
+  <p className="text-sm font-medium">Compare with similar techniques:</p>
+  <Link
+    href="/learn/phase-3/adaptive-rag"
+    className="mt-2 inline-flex text-xs font-medium text-blue-700 hover:text-blue-500 dark:text-blue-400"
+  >
+    Adaptive RAG →
+  </Link>
+</Card>
