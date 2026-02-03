@@ -1,47 +1,621 @@
 ---
-title: "Financial Analyst Agent"
-description: "Build an agent that analyzes financial data"
+title: "Project: The Crypto Analyst"
+description: "Build a multi-step agent that fetches live prices and retrieves analyst notes to form buy/sell investment theses"
+difficulty: "hard"
+xpReward: 200
+estimatedTime: "45-60 min"
 ---
 
-# Financial Analyst Agent
+<Callout title="Capstone Project" variant="info">
+  This is a **Phase 4 Capstone Project**. You'll build a sophisticated financial analysis agent that combines real-time market data with qualitative research to generate investment insights.
+</Callout>
 
-Build an agentic RAG system that can analyze financial data, retrieve market information, and generate investment insights.
+## Project Overview
 
-## Requirements
+Financial analysis requires synthesizing multiple data types:
+- **Quantitative data**: Prices, volumes, market cap, ratios
+- **Qualitative data**: Analyst notes, news sentiment, market trends
+- **Historical context**: Past performance, similar patterns
 
-1. Parse financial documents (10-K, earnings reports)
-2. Retrieve relevant market data
-3. Calculate financial metrics
-4. Generate analysis with citations
+This project builds an agent that mimics how professional analysts work—gathering data from multiple sources and synthesizing actionable insights.
 
-## Starter Code
+### What You'll Build
+
+A Crypto Analyst Agent that:
+1. **Fetches live market data** (prices, trading volumes)
+2. **Retrieves analyst research** from a knowledge base
+3. **Performs multi-step reasoning** to connect data points
+4. **Generates structured analysis** with confidence scores
+5. **Provides cited recommendations** (buy/hold/sell)
+
+### Real-World Impact
+
+This architecture mirrors systems used by:
+- **Bloomberg Terminal** - Professional financial data and analytics
+- **Goldman Sachs Marquee** - Institutional trading insights
+- **BlackRock Aladdin** - Risk analysis and portfolio management
+- **Kensho (S&P Global)** - AI-powered financial research
+
+---
+
+## Why This Matters
+
+### The Analyst Workflow
+
+Professional financial analysts follow a structured process:
+
+```
+1. DATA GATHERING
+   ├── Fetch current prices and market data
+   ├── Retrieve relevant research notes
+   └── Collect recent news and sentiment
+
+2. ANALYSIS
+   ├── Compare current price to historical trends
+   ├── Cross-reference with analyst opinions
+   └── Identify risk factors and catalysts
+
+3. SYNTHESIS
+   ├── Form investment thesis
+   ├── Assign confidence level
+   └── Generate actionable recommendation
+```
+
+### Multi-Step Agent Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    USER QUERY: "Analyze Bitcoin"                        │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    STEP 1: DATA COLLECTION                              │
+│                                                                         │
+│  ┌─────────────────────┐    ┌─────────────────────┐                    │
+│  │   Market Data API   │    │   Research Vector DB │                   │
+│  │                     │    │                      │                   │
+│  │ • BTC Price: $50k   │    │ • "BTC facing       │                   │
+│  │ • 24h Volume: $30B  │    │   resistance at 52k"│                   │
+│  │ • Market Cap: $980B │    │ • "Downside risk    │                   │
+│  │ • 24h Change: +2.3% │    │   below 48k"        │                   │
+│  └─────────────────────┘    └─────────────────────┘                    │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    STEP 2: REASONING & ANALYSIS                         │
+│                                                                         │
+│  Observation: Price ($50k) is below resistance ($52k)                   │
+│  Observation: Support level at $48k                                     │
+│  Inference: Current position is mid-range with 4% upside to resistance  │
+│  Inference: 4% downside to support if breaks lower                      │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    STEP 3: SYNTHESIS & OUTPUT                           │
+│                                                                         │
+│  Analysis: "BTC at $50,000 is trading below key resistance at $52k.    │
+│            Analyst notes suggest caution as breaking below $48k could   │
+│            trigger further downside. Risk/reward is balanced with       │
+│            limited upside until resistance is cleared."                 │
+│                                                                         │
+│  Confidence: 72%                                                        │
+│  Sources: CoinGecko API, Analyst Notes DB                               │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Learning Outcomes
+
+After completing this capstone, you will be able to:
+
+1. **Design multi-step agents** that break complex tasks into subtasks
+2. **Integrate structured and unstructured data** in a single pipeline
+3. **Implement reasoning chains** for financial analysis
+4. **Build confidence scoring** systems for recommendations
+5. **Apply proper attribution** for investment insights
+6. **Handle uncertainty** and edge cases in data
+
+---
+
+## Project Structure
+
+### Milestone 1: Data Layer Setup (10 min)
+Configure connections to market data and research databases.
+
+**Key Concepts:**
+- API integration patterns for financial data
+- Vector database setup for research notes
+- Data validation and error handling
+
+### Milestone 2: Tool Implementation (15 min)
+Build the tools the agent will use to gather information.
+
+**Key Concepts:**
+- Tool abstraction and interfaces
+- Caching for expensive API calls
+- Rate limiting and error recovery
+
+### Milestone 3: Analysis Engine (20 min)
+Implement the reasoning logic that synthesizes data into insights.
+
+**Key Concepts:**
+- Multi-step reasoning chains
+- Risk assessment frameworks
+- Confidence calculation
+
+### Milestone 4: Output Generation (10 min)
+Format the analysis into actionable recommendations.
+
+**Key Concepts:**
+- Structured output schemas
+- Source attribution
+- Uncertainty quantification
+
+### Milestone 5: Validation & Testing (5 min)
+Verify the agent produces sound analysis.
+
+**Key Concepts:**
+- Backtesting against historical data
+- Edge case handling
+- Safety checks for financial advice
+
+---
+
+## Implementation Guide
+
+### Data Sources
 
 ```python
-class FinancialAnalyst:
-    def __init__(self, document_store, market_api):
-        self.docs = document_store
-        self.market = market_api
-        self.tools = self._setup_tools()
+# Live Market Data (API simulation)
+MARKET_DATA = {
+    "BTC": {
+        "price": 50000,
+        "volume_24h": 30000000000,  # $30B
+        "market_cap": 980000000000,  # $980B
+        "change_24h": 2.3,
+        "high_24h": 51500,
+        "low_24h": 48500,
+    },
+    "ETH": {
+        "price": 3000,
+        "volume_24h": 15000000000,
+        "market_cap": 360000000000,
+        "change_24h": 5.1,
+        "high_24h": 3100,
+        "low_24h": 2850,
+    },
+    "DOGE": {
+        "price": 0.20,
+        "volume_24h": 2000000000,
+        "market_cap": 28000000000,
+        "change_24h": -1.5,
+        "high_24h": 0.22,
+        "low_24h": 0.19,
+    }
+}
+
+# Analyst Research Notes (Vector DB simulation)
+RESEARCH_DB = [
+    {
+        "ticker": "BTC",
+        "note": "BTC is facing strong resistance at $52k. Multiple rejections suggest 
+                 sellers are active at this level. Downside risk increases if support 
+                 at $48k breaks. Watch for volume confirmation on any breakout.",
+        "sentiment": "neutral",
+        "date": "2024-01-15"
+    },
+    {
+        "ticker": "ETH",
+        "note": "Ethereum's upgrade to 2.0 is progressing well. Staking yields remain 
+                 attractive at 4-5%. Long term bullish above $2,500 support level. 
+                 Institutional adoption continues to grow.",
+        "sentiment": "bullish",
+        "date": "2024-01-14"
+    },
+    {
+        "ticker": "DOGE",
+        "note": "DOGE remains purely meme-driven with no fundamental value proposition. 
+                 High volatility expected around social media mentions. Not suitable 
+                 for risk-averse portfolios. Treat as speculation only.",
+        "sentiment": "bearish",
+        "date": "2024-01-13"
+    }
+]
+```
+
+### Tool Functions
+
+```python
+def get_price(ticker: str) -> dict:
+    """
+    Fetch current market data for a cryptocurrency.
     
-    def _setup_tools(self):
-        """Setup analysis tools."""
+    In production, this would call:
+    - CoinGecko API (free tier available)
+    - CoinMarketCap API
+    - Binance/FTX exchange APIs
+    - Bloomberg Terminal API (institutional)
+    
+    Args:
+        ticker: Cryptocurrency symbol (BTC, ETH, etc.)
+        
+    Returns:
+        Dictionary with price, volume, and market data
+    """
+    data = MARKET_DATA.get(ticker.upper())
+    if not data:
+        return {"error": f"No data available for {ticker}"}
+    return {
+        "ticker": ticker.upper(),
+        "price": data["price"],
+        "change_24h": data["change_24h"],
+        "volume_24h": data["volume_24h"],
+        "market_cap": data["market_cap"],
+    }
+
+def retrieve_notes(ticker: str) -> list:
+    """
+    Retrieve analyst research notes for a cryptocurrency.
+    
+    In production, this would query:
+    - Vector database of research reports
+    - Internal analyst notes
+    - SEC filings (for stocks)
+    - News sentiment analysis
+    
+    Args:
+        ticker: Cryptocurrency symbol
+        
+    Returns:
+        List of relevant research notes
+    """
+    return [n for n in RESEARCH_DB if n["ticker"] == ticker.upper()]
+
+def calculate_metrics(price_data: dict) -> dict:
+    """
+    Calculate derived metrics from price data.
+    
+    Args:
+        price_data: Raw market data
+        
+    Returns:
+        Dictionary with calculated metrics
+    """
+    price = price_data.get("price", 0)
+    volume = price_data.get("volume_24h", 0)
+    market_cap = price_data.get("market_cap", 1)
+    
+    return {
+        "volume_to_mcap_ratio": volume / market_cap,
+        "price_change_pct": price_data.get("change_24h", 0),
+        "is_positive_change": price_data.get("change_24h", 0) > 0,
+    }
+```
+
+### The Analysis Agent
+
+```python
+def crypto_analysis(ticker: str) -> dict:
+    """
+    Generate comprehensive crypto analysis combining market data and research.
+    
+    This is a multi-step agent that:
+    1. Fetches current market data
+    2. Retrieves relevant analyst notes
+    3. Calculates derived metrics
+    4. Synthesizes an investment thesis
+    5. Assigns confidence and recommendation
+    
+    Args:
+        ticker: Cryptocurrency symbol to analyze
+        
+    Returns:
+        Structured analysis with thesis, confidence, and sources
+    """
+    # Step 1: Fetch market data
+    market_data = get_price(ticker)
+    if "error" in market_data:
         return {
-            "retrieve_filings": self._retrieve_filings,
-            "get_market_data": self._get_market_data,
-            "calculate_ratios": self._calculate_ratios,
+            "analysis": f"Unable to analyze {ticker}: {market_data['error']}",
+            "confidence": 0.0,
+            "recommendation": "unknown",
+            "sources": []
         }
     
-    def analyze(self, query: str) -> dict:
+    # Step 2: Retrieve research notes
+    notes = retrieve_notes(ticker)
+    
+    # Step 3: Calculate metrics
+    metrics = calculate_metrics(market_data)
+    
+    # Step 4: Synthesize analysis
+    price = market_data["price"]
+    price_str = f"Current {ticker.upper()} price: ${price:,}"
+    
+    # Build analysis based on available data
+    analysis_parts = [price_str]
+    
+    if notes:
+        # Combine analyst insights
+        note_texts = [n["note"] for n in notes]
+        analysis_parts.append("Analyst perspective: " + " ".join(note_texts))
+        
+        # Determine sentiment from notes
+        sentiments = [n["sentiment"] for n in notes]
+        dominant_sentiment = max(set(sentiments), key=sentiments.count)
+    else:
+        dominant_sentiment = "neutral"
+    
+    # Add metric-based observations
+    if metrics["is_positive_change"]:
+        analysis_parts.append(f"Up {metrics['price_change_pct']}% in the last 24h.")
+    else:
+        analysis_parts.append(f"Down {abs(metrics['price_change_pct'])}% in the last 24h.")
+    
+    # Step 5: Generate recommendation
+    recommendation = generate_recommendation(dominant_sentiment, metrics)
+    
+    # Step 6: Calculate confidence
+    confidence = calculate_confidence(notes, market_data)
+    
+    return {
+        "analysis": " ".join(analysis_parts),
+        "metrics": metrics,
+        "recommendation": recommendation,
+        "confidence": confidence,
+        "sources": ["Market Data API"] + [f"Analyst Note: {n['date']}" for n in notes]
+    }
+
+def generate_recommendation(sentiment: str, metrics: dict) -> str:
+    """Generate buy/hold/sell recommendation based on analysis."""
+    if sentiment == "bullish" and metrics["is_positive_change"]:
+        return "buy"
+    elif sentiment == "bearish" and not metrics["is_positive_change"]:
+        return "sell"
+    else:
+        return "hold"
+
+def calculate_confidence(notes: list, market_data: dict) -> float:
+    """Calculate confidence score based on data quality and quantity."""
+    base_confidence = 0.5
+    
+    # Increase confidence with more research
+    if len(notes) > 0:
+        base_confidence += 0.1 * min(len(notes), 3)
+    
+    # Increase confidence if we have full market data
+    if all(k in market_data for k in ["price", "volume_24h", "change_24h"]):
+        base_confidence += 0.2
+    
+    return min(base_confidence, 0.95)
+```
+
+---
+
+## Production Considerations
+
+### Real-Time Data Infrastructure
+
+```python
+import asyncio
+from dataclasses import dataclass
+from typing import Optional
+import aiohttp
+
+@dataclass
+class MarketDataStream:
+    """Production-grade market data streaming."""
+    
+    ticker: str
+    websocket_url: str
+    cache: dict
+    
+    async def connect(self):
+        """Establish WebSocket connection for real-time prices."""
+        async with aiohttp.ClientSession() as session:
+            async with session.ws_connect(self.websocket_url) as ws:
+                async for msg in ws:
+                    if msg.type == aiohttp.WSMsgType.TEXT:
+                        data = json.loads(msg.data)
+                        await self.process_update(data)
+    
+    async def process_update(self, data: dict):
+        """Process incoming price update."""
+        self.cache[self.ticker] = {
+            "price": data["price"],
+            "timestamp": data["timestamp"],
+            "volume": data["volume"]
+        }
+```
+
+### Risk Management & Compliance
+
+```python
+class FinancialAnalysisGuardrails:
+    """Safety checks for financial analysis."""
+    
+    def validate_analysis(self, analysis: dict) -> tuple[bool, str]:
         """
-        Analyze financial query using tools.
+        Ensure analysis meets compliance requirements.
         
         Returns:
-            {
-                "analysis": str,
-                "metrics": dict,
-                "sources": list[str],
-                "confidence": float
-            }
+            (is_valid, reason_if_invalid)
         """
-        pass
+        # Check confidence threshold
+        if analysis["confidence"] < 0.3:
+            return False, "Confidence too low for recommendation"
+        
+        # Ensure proper disclaimer
+        if "not financial advice" not in analysis["analysis"].lower():
+            analysis["analysis"] += "\n\nDisclaimer: This is not financial advice."
+        
+        # Verify sources are cited
+        if not analysis.get("sources"):
+            return False, "Analysis must cite sources"
+        
+        return True, ""
+    
+    def add_disclaimer(self, analysis: str) -> str:
+        """Add required regulatory disclaimer."""
+        disclaimer = """
+        \n\n---
+        **Disclaimer**: This analysis is for informational purposes only and does not 
+        constitute financial advice. Cryptocurrency investments carry significant risk 
+        including potential loss of capital. Past performance does not guarantee future 
+        results. Consult a qualified financial advisor before making investment decisions.
+        """
+        return analysis + disclaimer
 ```
+
+### Backtesting Framework
+
+```python
+class Backtester:
+    """Validate analysis quality against historical data."""
+    
+    def backtest_strategy(self, ticker: str, start_date: str, end_date: str) -> dict:
+        """
+        Test analysis accuracy on historical data.
+        
+        Returns:
+            Performance metrics for the strategy
+        """
+        historical_data = self.load_historical_data(ticker, start_date, end_date)
+        
+        correct_predictions = 0
+        total_predictions = 0
+        
+        for day in historical_data:
+            # Simulate analysis as of this day
+            analysis = self.simulate_analysis(ticker, day["date"])
+            
+            # Check if recommendation was correct
+            actual_return = day["next_day_return"]
+            recommendation = analysis["recommendation"]
+            
+            if (recommendation == "buy" and actual_return > 0) or \
+               (recommendation == "sell" and actual_return < 0) or \
+               (recommendation == "hold"):
+                correct_predictions += 1
+            
+            total_predictions += 1
+        
+        accuracy = correct_predictions / total_predictions if total_predictions > 0 else 0
+        
+        return {
+            "accuracy": accuracy,
+            "total_predictions": total_predictions,
+            "sharpe_ratio": self.calculate_sharpe(historical_data)
+        }
+```
+
+---
+
+## Testing Your Agent
+
+### Test Cases
+
+```python
+# Test 1: Bitcoin analysis
+btc_result = crypto_analysis("BTC")
+assert "50000" in btc_result["analysis"] or "50,000" in btc_result["analysis"]
+assert "resistance" in btc_result["analysis"].lower() or "52k" in btc_result["analysis"]
+assert 0 <= btc_result["confidence"] <= 1
+assert btc_result["recommendation"] in ["buy", "sell", "hold"]
+
+# Test 2: Ethereum analysis
+eth_result = crypto_analysis("ETH")
+assert "3000" in eth_result["analysis"] or "3,000" in eth_result["analysis"]
+assert "bullish" in eth_result["analysis"].lower()
+assert len(eth_result["sources"]) > 0
+
+# Test 3: Unknown ticker
+unknown_result = crypto_analysis("XYZ")
+assert "error" in unknown_result["analysis"].lower() or "unable" in unknown_result["analysis"].lower()
+assert unknown_result["confidence"] == 0.0
+
+print("All tests passed!")
+```
+
+### Evaluation Criteria
+
+| Criterion | Weight | Description |
+|-----------|--------|-------------|
+| **Data Accuracy** | 25% | Market data correctly retrieved and displayed |
+| **Research Integration** | 25% | Analyst notes properly synthesized |
+| **Reasoning Quality** | 20% | Logical connection between data and thesis |
+| **Output Structure** | 15% | Properly formatted with all required fields |
+| **Source Attribution** | 10% | All data sources cited |
+| **Safety** | 5% | Appropriate disclaimers and risk warnings |
+
+---
+
+## Common Pitfalls
+
+1. **Overfitting to Recent Data**
+   - ❌ Making predictions based solely on 24h price action
+   - ✅ Consider multiple timeframes and fundamental factors
+
+2. **Ignoring Risk**
+   - ❌ Providing recommendations without risk assessment
+   - ✅ Always include volatility metrics and downside scenarios
+
+3. **Hallucinating Data**
+   - ❌ Making up price targets or analyst opinions
+   - ✅ Only use retrieved data with proper attribution
+
+4. **Missing Disclaimers**
+   - ❌ Presenting analysis as definitive advice
+   - ✅ Include regulatory disclaimers and risk warnings
+
+5. **Stale Data**
+   - ❌ Using cached prices without freshness checks
+   - ✅ Implement real-time feeds with staleness detection
+
+---
+
+## Extensions & Next Steps
+
+### Level Up Your Analyst
+
+1. **Technical Analysis**: Add RSI, MACD, moving averages
+2. **Portfolio Context**: Analyze holdings in context of user's portfolio
+3. **News Sentiment**: Integrate real-time news sentiment scoring
+4. **Correlation Analysis**: Show correlations with other assets
+5. **Scenario Modeling**: "What if BTC drops 10%?" simulations
+6. **Alert System**: Notify when conditions change
+
+### Related Challenges
+
+- [react-implementation](react-implementation) - Build the full agent loop
+- [tool-use-basics](tool-use-basics) - Learn tool integration patterns
+- [multi-hop-qa](multi-hop-qa) - Multi-step reasoning
+- [rag-observability](rag-observability) - Monitor agent decisions
+- [llm-as-judge](llm-as-judge) - Evaluate analysis quality
+
+---
+
+## Summary
+
+You've built a **Crypto Analyst Agent** that demonstrates how AI can augment financial decision-making by:
+
+- **Gathering diverse data** from multiple sources
+- **Synthesizing insights** that connect quantitative and qualitative factors
+- **Providing structured output** with confidence scores and citations
+- **Maintaining safety** through disclaimers and risk awareness
+
+This pattern applies beyond crypto to:
+- **Equity research** - Stock analysis with 10-K filings
+- **Credit analysis** - Loan underwriting with multiple data sources
+- **Insurance underwriting** - Risk assessment from diverse signals
+- **Real estate** - Property valuation with market trends
+
+The key insight: **The best financial analysis combines hard data with contextual understanding—exactly what multi-step AI agents excel at.**
+
+---
+
+**🎉 Capstone Complete!** You've built a sophisticated financial analysis agent that showcases advanced RAG patterns including multi-step reasoning, structured data synthesis, and risk-aware recommendations. This project demonstrates your ability to build production-ready AI systems for complex domains.

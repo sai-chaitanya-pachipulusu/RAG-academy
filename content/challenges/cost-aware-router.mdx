@@ -1,4 +1,15 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "Cost-Aware Router"
+description: "Build a cost-aware router to optimize token usage by selecting the most appropriate model for each query."
+difficulty: "intermediate"
+estimatedMinutes: 40
+prerequisites: ["adaptive-rag-router", "rag-cost-calculator"]
+related: ["adaptive-rag-router", "route-by-difficulty", "query-complexity-classifier"]
+next: "route-by-difficulty"
+xpReward: 125
+---
+
+<Callout title="Goal" variant="info">
   Build a cost-aware router to optimize token usage by selecting the most
   appropriate model for each query.
 </Callout>
@@ -13,7 +24,408 @@ Not every query needs a flagship model like GPT-4o. Simple tasks like "Summarize
 2.  Routing to a "Small" model for simple tasks.
 3.  Routing to a "Large" model for complex tasks.
 
-## Task
+## Complexity Analysis
 
-Implement a routing function that uses heuristics (keywords and complexity signals) to decide which model tier to use.
+| Model | Cost (per 1M tokens) | Latency | Quality |
+|-------|---------------------|---------|---------|
+| GPT-4o-mini | $0.15 / $0.60 | Fast | Good |
+| GPT-4o | $2.50 / $10.00 | Medium | Excellent |
+| Claude 3.5 Sonnet | $3.00 / $15.00 | Medium | Excellent |
+| Claude 3 Opus | $15.00 / $75.00 | Slow | Best |
 
+## Real-World Context
+
+| Company | Strategy |
+|---------|----------|
+| **OpenAI** | GPT-4o-mini for simple, GPT-4o for complex |
+| **Anthropic** | Haiku for fast, Sonnet for balanced, Opus for complex |
+| **Microsoft** | Model routing in Copilot |
+| **Google** | Gemini model selection |
+
+## Resources
+
+### Papers
+- **"FrugalGPT: How to Use Large Language Models While Reducing Cost"** - Chen et al.
+- **"Model Cascading for Efficient Inference"** - Research on tiered models
+
+### Tools
+- **LiteLLM**: Unified API for model routing
+- **Routerify**: Cost-aware routing
+- **Helicone**: Cost tracking and optimization
+
+## Implementation
+
+```python
+from typing import Callable, Dict, List, Optional
+from dataclasses import dataclass
+import re
+
+@dataclass
+class ModelConfig:
+    """Configuration for a model tier."""
+    name: str
+    cost_per_1k_input: float
+    cost_per_1k_output: float
+    avg_latency_ms: float
+    model_fn: Callable[[str], str]
+
+
+class CostAwareRouter:
+    """
+    Router that selects models based on query complexity to optimize cost.
+    
+    Routes simple queries to cheaper models, complex queries to powerful models.
+    """
+    
+    def __init__(
+        self,
+        small_model: ModelConfig,
+        medium_model: ModelConfig,
+        large_model: ModelConfig
+    ):
+        """
+        Initialize with three model tiers.
+        
+        Args:
+            small_model: Cheap, fast model (e.g., GPT-4o-mini)
+            medium_model: Balanced model (e.g., GPT-4o)
+            large_model: Powerful model (e.g., Claude 3 Opus)
+        """
+        self.small_model = small_model
+        self.medium_model = medium_model
+        self.large_model = large_model
+        
+        # Complexity patterns
+        self.simple_patterns = [
+            r'^\s*\d+\s*[+\-*/]\s*\d+',  # Math
+            r'^(hi|hello|hey)\b',  # Greetings
+            r'\b(yes|no|true|false)\b',  # Boolean
+        ]
+        
+        self.complex_patterns = [
+            r'\b(compare|analyze|explain|why|how does)\b',
+            r'\b(design|implement|create|write)\s+(a|an|the)\s+\w+',
+            r'\b(code|function|algorithm|architecture)\b',
+        ]
+    
+    def estimate_complexity(self, query: str) -> str:
+        """
+        Estimate query complexity.
+        
+        Returns:
+            'simple', 'medium', or 'complex'
+        """
+        query_lower = query.lower().strip()
+        word_count = len(query_lower.split())
+        
+        # Check simple patterns
+        for pattern in self.simple_patterns:
+            if re.search(pattern, query_lower):
+                return 'simple'
+        
+        # Check complex patterns
+        for pattern in self.complex_patterns:
+            if re.search(pattern, query_lower):
+                return 'complex'
+        
+        # Length-based heuristics
+        if word_count <= 5:
+            return 'simple'
+        elif word_count >= 20:
+            return 'complex'
+        
+        return 'medium'
+    
+    def select_model(self, query: str) -> ModelConfig:
+        """
+        Select appropriate model for query.
+        
+        Args:
+            query: User query
+        
+        Returns:
+            Selected model configuration
+        """
+        complexity = self.estimate_complexity(query)
+        
+        if complexity == 'simple':
+            return self.small_model
+        elif complexity == 'complex':
+            return self.large_model
+        else:
+            return self.medium_model
+    
+    def route(self, query: str) -> Dict:
+        """
+        Route query to selected model and return result with cost info.
+        
+        Args:
+            query: User query
+        
+        Returns:
+            Dict with answer, model used, and estimated cost
+        """
+        model = self.select_model(query)
+        
+        # Call model
+        answer = model.model_fn(query)
+        
+        # Estimate cost (simplified)
+        input_tokens = len(query.split()) * 1.3  # Rough estimate
+        output_tokens = len(answer.split()) * 1.3
+        
+        input_cost = (input_tokens / 1000) * model.cost_per_1k_input
+        output_cost = (output_tokens / 1000) * model.cost_per_1k_output
+        total_cost = input_cost + output_cost
+        
+        return {
+            'answer': answer,
+            'model': model.name,
+            'complexity': self.estimate_complexity(query),
+            'estimated_cost_usd': total_cost,
+            'estimated_latency_ms': model.avg_latency_ms
+        }
+    
+    def compare_costs(self, query: str) -> Dict:
+        """
+        Show what each model tier would cost for this query.
+        
+        Useful for debugging and cost analysis.
+        """
+        input_tokens = len(query.split()) * 1.3
+        
+        results = {}
+        for model in [self.small_model, self.medium_model, self.large_model]:
+            # Assume similar output size for comparison
+            output_tokens = input_tokens * 2
+            
+            input_cost = (input_tokens / 1000) * model.cost_per_1k_input
+            output_cost = (output_tokens / 1000) * model.cost_per_1k_output
+            
+            results[model.name] = {
+                'input_cost': input_cost,
+                'output_cost': output_cost,
+                'total_cost': input_cost + output_cost,
+                'latency_ms': model.avg_latency_ms
+            }
+        
+        return results
+```
+
+## Challenge: Implement Cost-Aware Router
+
+### Requirements
+
+1. Implement `ModelConfig` dataclass
+2. Implement `estimate_complexity()` for query analysis
+3. Implement `select_model()` for model selection
+4. Implement `route()` with cost estimation
+5. Implement `compare_costs()` for analysis
+
+### Starter Code
+
+```python
+from typing import Callable, Dict
+from dataclasses import dataclass
+import re
+
+@dataclass
+class ModelConfig:
+    name: str
+    cost_per_1k_input: float
+    cost_per_1k_output: float
+    avg_latency_ms: float
+    model_fn: Callable[[str], str]
+
+
+class CostAwareRouter:
+    """Router that selects models based on query complexity."""
+    
+    def __init__(
+        self,
+        small_model: ModelConfig,
+        medium_model: ModelConfig,
+        large_model: ModelConfig
+    ):
+        self.small_model = small_model
+        self.medium_model = medium_model
+        self.large_model = large_model
+    
+    def estimate_complexity(self, query: str) -> str:
+        """Estimate query complexity."""
+        # TODO: Implement complexity estimation
+        pass
+    
+    def select_model(self, query: str) -> ModelConfig:
+        """Select appropriate model."""
+        # TODO: Implement model selection
+        pass
+    
+    def route(self, query: str) -> Dict:
+        """Route query and return result with cost."""
+        # TODO: Implement routing
+        pass
+
+
+# Mock models
+def mock_small_model(q): return f"[SMALL] {q}"
+def mock_medium_model(q): return f"[MEDIUM] {q}"
+def mock_large_model(q): return f"[LARGE] {q}"
+
+
+# Test
+def test_cost_router():
+    router = CostAwareRouter(
+        ModelConfig("gpt-4o-mini", 0.15, 0.60, 500, mock_small_model),
+        ModelConfig("gpt-4o", 2.50, 10.00, 1500, mock_medium_model),
+        ModelConfig("claude-opus", 15.00, 75.00, 3000, mock_large_model)
+    )
+    
+    # Test simple query
+    result = router.route("What is 2 + 2?")
+    assert result['model'] == "gpt-4o-mini"
+    print(f"Simple query: {result['model']} (${result['estimated_cost_usd']:.6f})")
+    
+    # Test complex query
+    result = router.route("Analyze the trade-offs between microservices and monoliths")
+    assert result['model'] == "claude-opus"
+    print(f"Complex query: {result['model']} (${result['estimated_cost_usd']:.6f})")
+    
+    # Compare costs
+    comparison = router.compare_costs("Explain quantum computing")
+    print("\nCost comparison:")
+    for model, costs in comparison.items():
+        print(f"  {model}: ${costs['total_cost']:.6f}")
+    
+    print("\nAll tests passed!")
+
+test_cost_router()
+```
+
+### Solution
+
+<details>
+<summary>Click to reveal solution</summary>
+
+```python
+from typing import Callable, Dict
+from dataclasses import dataclass
+import re
+
+@dataclass
+class ModelConfig:
+    name: str
+    cost_per_1k_input: float
+    cost_per_1k_output: float
+    avg_latency_ms: float
+    model_fn: Callable[[str], str]
+
+
+class CostAwareRouter:
+    """Router that selects models based on query complexity."""
+    
+    def __init__(
+        self,
+        small_model: ModelConfig,
+        medium_model: ModelConfig,
+        large_model: ModelConfig
+    ):
+        self.small_model = small_model
+        self.medium_model = medium_model
+        self.large_model = large_model
+        
+        self.simple_patterns = [
+            r'^\s*\d+\s*[+\-*/]\s*\d+',
+            r'^(hi|hello|hey)\b',
+        ]
+        self.complex_patterns = [
+            r'\b(compare|analyze|explain|why|how does)\b',
+            r'\b(design|implement|create)\b',
+        ]
+    
+    def estimate_complexity(self, query: str) -> str:
+        """Estimate query complexity."""
+        query_lower = query.lower().strip()
+        word_count = len(query_lower.split())
+        
+        for pattern in self.simple_patterns:
+            if re.search(pattern, query_lower):
+                return 'simple'
+        
+        for pattern in self.complex_patterns:
+            if re.search(pattern, query_lower):
+                return 'complex'
+        
+        if word_count <= 5:
+            return 'simple'
+        elif word_count >= 20:
+            return 'complex'
+        
+        return 'medium'
+    
+    def select_model(self, query: str) -> ModelConfig:
+        """Select appropriate model."""
+        complexity = self.estimate_complexity(query)
+        
+        if complexity == 'simple':
+            return self.small_model
+        elif complexity == 'complex':
+            return self.large_model
+        return self.medium_model
+    
+    def route(self, query: str) -> Dict:
+        """Route query and return result with cost."""
+        model = self.select_model(query)
+        answer = model.model_fn(query)
+        
+        input_tokens = len(query.split()) * 1.3
+        output_tokens = len(answer.split()) * 1.3
+        
+        input_cost = (input_tokens / 1000) * model.cost_per_1k_input
+        output_cost = (output_tokens / 1000) * model.cost_per_1k_output
+        
+        return {
+            'answer': answer,
+            'model': model.name,
+            'complexity': self.estimate_complexity(query),
+            'estimated_cost_usd': input_cost + output_cost,
+            'estimated_latency_ms': model.avg_latency_ms
+        }
+    
+    def compare_costs(self, query: str) -> Dict:
+        """Show cost comparison across models."""
+        input_tokens = len(query.split()) * 1.3
+        output_tokens = input_tokens * 2
+        
+        results = {}
+        for model in [self.small_model, self.medium_model, self.large_model]:
+            input_cost = (input_tokens / 1000) * model.cost_per_1k_input
+            output_cost = (output_tokens / 1000) * model.cost_per_1k_output
+            
+            results[model.name] = {
+                'input_cost': input_cost,
+                'output_cost': output_cost,
+                'total_cost': input_cost + output_cost,
+                'latency_ms': model.avg_latency_ms
+            }
+        
+        return results
+```
+
+</details>
+
+## Cost Savings Example
+
+| Query Volume | All GPT-4o | With Routing | Savings |
+|--------------|-----------|--------------|---------|
+| 10K/day | $250 | $85 | 66% |
+| 100K/day | $2,500 | $850 | 66% |
+| 1M/day | $25,000 | $8,500 | 66% |
+
+## Best Practices
+
+1. **Monitor accuracy**: Ensure cheap models maintain quality
+2. **Fallback gracefully**: Route to better model if cheap one fails
+3. **Track savings**: Measure actual cost reduction
+4. **A/B test**: Compare routing vs single model
+5. **User feedback**: Learn from corrections

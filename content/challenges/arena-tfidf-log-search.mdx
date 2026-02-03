@@ -1,38 +1,527 @@
 ---
 title: "Arena: TF-IDF Log Search"
 description: "Optimize retrieval for tech support logs"
+difficulty: "hard"
+estimatedMinutes: 60
+prerequisites: ["bm25-from-scratch", "retrieval-benchmarking-pipeline"]
+related: ["bm25-from-scratch", "retrieval-benchmarking-pipeline", "hybrid-search-tuning"]
+next: "retrieval-benchmarking-pipeline"
+xpReward: 200
 ---
 
-# Arena: TF-IDF Log Search
+<Callout title="Goal" variant="info">
+  Compete to build the fastest and most accurate log search system. Beat the
+  100ms benchmark while maintaining high precision.
+</Callout>
 
-Compete to build the fastest and most accurate log search system. Beat the 100ms benchmark while maintaining high precision.
+## The Arena Challenge
 
-## Challenge
+Build a production-grade log search system that balances speed and accuracy. This is a competitive challenge where you'll optimize TF-IDF retrieval for tech support logs.
 
-Build a log search system that:
-1. Indexes 100k+ log entries efficiently
-2. Returns relevant logs in under 100ms
-3. Achieves Recall@10 > 0.85
+## Challenge Requirements
 
-## Starter Code
+| Metric | Target | Description |
+|--------|--------|-------------|
+| **Index Time** | < 30s | Build index for 100k logs |
+| **Query Latency** | < 100ms | P95 search latency |
+| **Recall@10** | > 0.85 | Top-10 recall |
+| **Precision@10** | > 0.70 | Top-10 precision |
+| **Memory** | < 500MB | Index memory footprint |
+
+## Complexity Analysis
+
+| Operation | Time | Space |
+|-----------|------|-------|
+| Index building | O(N × avg_len) | O(V) vocabulary |
+| Query | O(V_q × log N) | O(K) results |
+| Where V = vocabulary size, N = docs, K = results |
+
+## Real-World Context
+
+| Company | Use Case | Scale |
+|---------|----------|-------|
+| **Datadog** | Log search | Billions/day |
+| **Splunk** | Log analytics | Petabytes |
+| **Elastic** | ELK stack | Enterprise |
+| **Grafana** | Loki logs | Cloud-native |
+
+## Resources
+
+### Papers
+- **"Okapi BM25: A Non-binary Ranking Model"** - Robertson et al.
+- **"Scalable TF-IDF Retrieval"** - Information Retrieval surveys
+
+### Tools
+- **scikit-learn**: TfidfVectorizer
+- **rank-bm25**: BM25 implementation
+- **Whoosh**: Pure Python search
+
+## Implementation
 
 ```python
+from typing import List, Dict, Tuple
+from collections import defaultdict
+import math
+import re
+import time
+
 class LogSearcher:
-    def __init__(self):
-        self.index = None
+    """
+    Optimized TF-IDF log search system.
     
-    def build_index(self, logs: list[str]):
-        """Build search index from logs."""
-        # Your implementation here
+    Features:
+    - Efficient indexing with term frequency tracking
+    - BM25-inspired scoring
+    - Fast query processing with pruning
+    """
+    
+    def __init__(self, k1: float = 1.5, b: float = 0.75):
+        """
+        Initialize searcher with BM25 parameters.
+        
+        Args:
+            k1: Term frequency saturation parameter
+            b: Length normalization parameter
+        """
+        self.k1 = k1
+        self.b = b
+        
+        # Index structures
+        self.documents: List[str] = []
+        self.doc_freqs: Dict[str, int] = defaultdict(int)
+        self.term_doc_freqs: Dict[str, Dict[int, int]] = defaultdict(lambda: defaultdict(int))
+        self.doc_lengths: List[int] = []
+        self.avg_doc_length: float = 0.0
+        self.N: int = 0
+        
+        # Precomputed IDF values
+        self.idf: Dict[str, float] = {}
+    
+    def _tokenize(self, text: str) -> List[str]:
+        """Tokenize text into terms."""
+        # Lowercase and extract alphanumeric tokens
+        text = text.lower()
+        tokens = re.findall(r'\b[a-z0-9]+\b', text)
+        return tokens
+    
+    def build_index(self, logs: List[str]):
+        """
+        Build search index from logs.
+        
+        Args:
+            logs: List of log strings
+        """
+        self.documents = logs
+        self.N = len(logs)
+        
+        # Build term frequencies
+        for doc_id, log in enumerate(logs):
+            tokens = self._tokenize(log)
+            self.doc_lengths.append(len(tokens))
+            
+            # Count term frequencies in this doc
+            term_counts = defaultdict(int)
+            for token in tokens:
+                term_counts[token] += 1
+            
+            # Update index
+            for term, count in term_counts.items():
+                self.doc_freqs[term] += 1
+                self.term_doc_freqs[term][doc_id] = count
+        
+        # Calculate average document length
+        if self.N > 0:
+            self.avg_doc_length = sum(self.doc_lengths) / self.N
+        
+        # Precompute IDF values
+        for term, df in self.doc_freqs.items():
+            # BM25 IDF
+            self.idf[term] = math.log((self.N - df + 0.5) / (df + 0.5) + 1)
+    
+    def _score_document(self, query_terms: List[str], doc_id: int) -> float:
+        """
+        Calculate BM25 score for a document.
+        
+        Args:
+            query_terms: Tokenized query
+            doc_id: Document ID
+        
+        Returns:
+            BM25 score
+        """
+        score = 0.0
+        doc_len = self.doc_lengths[doc_id]
+        
+        for term in query_terms:
+            if term not in self.term_doc_freqs:
+                continue
+            
+            tf = self.term_doc_freqs[term].get(doc_id, 0)
+            if tf == 0:
+                continue
+            
+            idf = self.idf.get(term, 0)
+            
+            # BM25 term scoring
+            numerator = tf * (self.k1 + 1)
+            denominator = tf + self.k1 * (1 - self.b + self.b * doc_len / self.avg_doc_length)
+            
+            score += idf * numerator / denominator
+        
+        return score
+    
+    def search(self, query: str, k: int = 10) -> List[int]:
+        """
+        Search and return top-k log indices.
+        
+        Args:
+            query: Search query
+            k: Number of results
+        
+        Returns:
+            List of document indices
+        """
+        query_terms = self._tokenize(query)
+        
+        if not query_terms:
+            return []
+        
+        # Find candidate documents (containing any query term)
+        candidates = set()
+        for term in query_terms:
+            if term in self.term_doc_freqs:
+                candidates.update(self.term_doc_freqs[term].keys())
+        
+        # Score candidates
+        scores = []
+        for doc_id in candidates:
+            score = self._score_document(query_terms, doc_id)
+            scores.append((score, doc_id))
+        
+        # Sort by score and return top-k
+        scores.sort(reverse=True)
+        return [doc_id for _, doc_id in scores[:k]]
+    
+    def search_with_scores(self, query: str, k: int = 10) -> List[Tuple[int, float]]:
+        """
+        Search and return top-k results with scores.
+        
+        Args:
+            query: Search query
+            k: Number of results
+        
+        Returns:
+            List of (doc_id, score) tuples
+        """
+        query_terms = self._tokenize(query)
+        
+        if not query_terms:
+            return []
+        
+        candidates = set()
+        for term in query_terms:
+            if term in self.term_doc_freqs:
+                candidates.update(self.term_doc_freqs[term].keys())
+        
+        scores = []
+        for doc_id in candidates:
+            score = self._score_document(query_terms, doc_id)
+            scores.append((score, doc_id))
+        
+        scores.sort(reverse=True)
+        return [(doc_id, score) for score, doc_id in scores[:k]]
+    
+    def benchmark(self, queries: List[str], ground_truth: List[List[int]], k: int = 10) -> Dict:
+        """
+        Run benchmark and return metrics.
+        
+        Args:
+            queries: Test queries
+            ground_truth: Relevant doc IDs for each query
+            k: Number of results to evaluate
+        
+        Returns:
+            Dict with metrics
+        """
+        latencies = []
+        recalls = []
+        precisions = []
+        
+        for query, relevant in zip(queries, ground_truth):
+            start = time.time()
+            results = self.search(query, k)
+            latency = (time.time() - start) * 1000  # ms
+            latencies.append(latency)
+            
+            # Calculate metrics
+            results_set = set(results)
+            relevant_set = set(relevant)
+            
+            if len(relevant_set) > 0:
+                recall = len(results_set & relevant_set) / len(relevant_set)
+                recalls.append(recall)
+            
+            if len(results_set) > 0:
+                precision = len(results_set & relevant_set) / len(results_set)
+                precisions.append(precision)
+        
+        return {
+            'avg_latency_ms': sum(latencies) / len(latencies),
+            'p95_latency_ms': sorted(latencies)[int(len(latencies) * 0.95)],
+            'avg_recall': sum(recalls) / len(recalls) if recalls else 0,
+            'avg_precision': sum(precisions) / len(precisions) if precisions else 0,
+        }
+```
+
+## Challenge: Optimize Log Search
+
+### Requirements
+
+1. Implement `LogSearcher` class
+2. Implement `build_index()` for efficient indexing
+3. Implement `search()` with BM25 scoring
+4. Achieve < 100ms P95 latency
+5. Achieve > 0.85 Recall@10
+
+### Starter Code
+
+```python
+from typing import List, Dict, Tuple
+from collections import defaultdict
+import math
+import re
+import time
+
+class LogSearcher:
+    """Optimized TF-IDF log search system."""
+    
+    def __init__(self, k1: float = 1.5, b: float = 0.75):
+        self.k1 = k1
+        self.b = b
+        self.documents: List[str] = []
+        self.doc_freqs: Dict[str, int] = defaultdict(int)
+        self.term_doc_freqs: Dict[str, Dict[int, int]] = defaultdict(lambda: defaultdict(int))
+        self.doc_lengths: List[int] = []
+        self.avg_doc_length: float = 0.0
+        self.N: int = 0
+        self.idf: Dict[str, float] = {}
+    
+    def _tokenize(self, text: str) -> List[str]:
+        """Tokenize text."""
+        # TODO: Implement tokenization
         pass
     
-    def search(self, query: str, k: int = 10) -> list[int]:
-        """Search and return top-k log indices."""
-        # Your implementation here
+    def build_index(self, logs: List[str]):
+        """Build search index."""
+        # TODO: Implement indexing
+        pass
+    
+    def _score_document(self, query_terms: List[str], doc_id: int) -> float:
+        """Calculate BM25 score."""
+        # TODO: Implement scoring
+        pass
+    
+    def search(self, query: str, k: int = 10) -> List[int]:
+        """Search and return top-k results."""
+        # TODO: Implement search
         pass
 
-# Benchmark
-# - Index 100k logs
-# - Search latency < 100ms
-# - Recall@10 > 0.85
+
+# Generate test data
+def generate_logs(n: int = 10000) -> List[str]:
+    """Generate synthetic log data."""
+    import random
+    
+    levels = ['INFO', 'WARN', 'ERROR', 'DEBUG']
+    services = ['api', 'auth', 'db', 'cache', 'worker']
+    messages = [
+        'Request processed successfully',
+        'Database connection established',
+        'Cache miss for key',
+        'Authentication failed',
+        'Rate limit exceeded',
+        'Invalid input parameters',
+        'Service unavailable',
+        'Timeout waiting for response',
+    ]
+    
+    logs = []
+    for i in range(n):
+        level = random.choice(levels)
+        service = random.choice(services)
+        message = random.choice(messages)
+        logs.append(f"[{level}] {service}: {message} - request_id={i}")
+    
+    return logs
+
+
+# Test
+def test_log_searcher():
+    print("Generating test logs...")
+    logs = generate_logs(10000)
+    
+    print("Building index...")
+    searcher = LogSearcher()
+    start = time.time()
+    searcher.build_index(logs)
+    index_time = time.time() - start
+    print(f"Index built in {index_time:.2f}s")
+    
+    print("\nRunning queries...")
+    queries = [
+        "ERROR database",
+        "authentication failed",
+        "cache miss",
+        "timeout",
+    ]
+    
+    for query in queries:
+        start = time.time()
+        results = searcher.search(query, k=5)
+        latency = (time.time() - start) * 1000
+        print(f"  '{query}' → {len(results)} results in {latency:.2f}ms")
+    
+    print("\n✓ Tests passed!")
+
+test_log_searcher()
 ```
+
+### Solution
+
+<details>
+<summary>Click to reveal solution</summary>
+
+```python
+from typing import List, Dict, Tuple
+from collections import defaultdict
+import math
+import re
+import time
+import heapq
+
+class LogSearcher:
+    """Optimized TF-IDF log search system."""
+    
+    def __init__(self, k1: float = 1.5, b: float = 0.75):
+        self.k1 = k1
+        self.b = b
+        self.documents: List[str] = []
+        self.doc_freqs: Dict[str, int] = defaultdict(int)
+        self.term_doc_freqs: Dict[str, Dict[int, int]] = defaultdict(lambda: defaultdict(int))
+        self.doc_lengths: List[int] = []
+        self.avg_doc_length: float = 0.0
+        self.N: int = 0
+        self.idf: Dict[str, float] = {}
+    
+    def _tokenize(self, text: str) -> List[str]:
+        """Tokenize text."""
+        text = text.lower()
+        return re.findall(r'\b[a-z0-9]+\b', text)
+    
+    def build_index(self, logs: List[str]):
+        """Build search index."""
+        self.documents = logs
+        self.N = len(logs)
+        
+        for doc_id, log in enumerate(logs):
+            tokens = self._tokenize(log)
+            self.doc_lengths.append(len(tokens))
+            
+            term_counts = defaultdict(int)
+            for token in tokens:
+                term_counts[token] += 1
+            
+            for term, count in term_counts.items():
+                self.doc_freqs[term] += 1
+                self.term_doc_freqs[term][doc_id] = count
+        
+        if self.N > 0:
+            self.avg_doc_length = sum(self.doc_lengths) / self.N
+        
+        for term, df in self.doc_freqs.items():
+            self.idf[term] = math.log((self.N - df + 0.5) / (df + 0.5) + 1)
+    
+    def _score_document(self, query_terms: List[str], doc_id: int) -> float:
+        """Calculate BM25 score."""
+        score = 0.0
+        doc_len = self.doc_lengths[doc_id]
+        
+        for term in query_terms:
+            if term not in self.term_doc_freqs:
+                continue
+            
+            tf = self.term_doc_freqs[term].get(doc_id, 0)
+            if tf == 0:
+                continue
+            
+            idf = self.idf.get(term, 0)
+            numerator = tf * (self.k1 + 1)
+            denominator = tf + self.k1 * (1 - self.b + self.b * doc_len / self.avg_doc_length)
+            score += idf * numerator / denominator
+        
+        return score
+    
+    def search(self, query: str, k: int = 10) -> List[int]:
+        """Search and return top-k results."""
+        query_terms = self._tokenize(query)
+        
+        if not query_terms:
+            return []
+        
+        # Find candidates
+        candidates = set()
+        for term in query_terms:
+            if term in self.term_doc_freqs:
+                candidates.update(self.term_doc_freqs[term].keys())
+        
+        # Score with heap for efficiency
+        heap = []
+        for doc_id in candidates:
+            score = self._score_document(query_terms, doc_id)
+            if len(heap) < k:
+                heapq.heappush(heap, (score, doc_id))
+            elif score > heap[0][0]:
+                heapq.heapreplace(heap, (score, doc_id))
+        
+        # Return sorted results
+        results = sorted(heap, reverse=True)
+        return [doc_id for _, doc_id in results]
+```
+
+</details>
+
+## Optimization Tips
+
+1. **Use heapq**: For top-k, use a min-heap instead of sorting all
+2. **Precompute IDF**: Calculate once at index time
+3. **Prune rare terms**: Skip terms with df < threshold
+4. **Early termination**: Stop scoring if score can't reach top-k
+5. **Cache tokenization**: For repeated queries
+
+## Benchmarking
+
+```python
+def run_benchmark(searcher, queries, ground_truth):
+    """Full benchmark suite."""
+    results = searcher.benchmark(queries, ground_truth)
+    
+    print("Benchmark Results:")
+    print(f"  Avg Latency: {results['avg_latency_ms']:.2f}ms")
+    print(f"  P95 Latency: {results['p95_latency_ms']:.2f}ms")
+    print(f"  Avg Recall@10: {results['avg_recall']:.3f}")
+    print(f"  Avg Precision@10: {results['avg_precision']:.3f}")
+    
+    # Check targets
+    assert results['p95_latency_ms'] < 100, "P95 latency too high"
+    assert results['avg_recall'] > 0.85, "Recall too low"
+    
+    print("\n✓ All benchmarks passed!")
+```
+
+## Best Practices
+
+1. **Profile first**: Identify bottlenecks before optimizing
+2. **Measure end-to-end**: Include tokenization and scoring
+3. **Test at scale**: Benchmark with realistic data sizes
+4. **Monitor memory**: Index size affects deployment
+5. **Iterate**: Small improvements compound

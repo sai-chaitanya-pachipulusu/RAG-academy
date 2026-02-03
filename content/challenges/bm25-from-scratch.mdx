@@ -1,4 +1,15 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "BM25 From Scratch"
+description: "Build BM25 from scratch to understand why hybrid retrieval wins in production"
+difficulty: "intermediate"
+estimatedMinutes: 50
+xpReward: 100
+prerequisites: ["basic-retrieval"]
+related: ["rrf-fusion", "hybrid-search-tuning", "bm25-field-boosting"]
+next: "rrf-fusion"
+---
+
+<Callout title="Goal" variant="info">
   Build BM25 from scratch to understand why hybrid retrieval wins in production.
 </Callout>
 
@@ -27,6 +38,142 @@ BM25 (sparse retrieval) is the "boring baseline" that keeps production systems h
 1. **Tokenize** the query
 2. For each doc, compute BM25 score using the formula below
 3. Return top-k candidates
+
+## The Algorithm
+
+```python
+import math
+from collections import defaultdict
+from typing import List, Dict, Tuple
+
+class BM25Index:
+    """
+    BM25 sparse retrieval index.
+    
+    Time Complexity:
+    - Indexing: O(N × avg_doc_length) to tokenize and build inverted index
+    - Search: O(|Q| × avg_df) where |Q| = query terms, avg_df = avg document frequency
+    
+    Space Complexity: O(V + N × avg_doc_length) where V = vocabulary size
+    """
+    
+    def __init__(self, k1: float = 1.5, b: float = 0.75):
+        """
+        Args:
+            k1: Term frequency saturation (1.2-2.0)
+            b: Length normalization (0.0-1.0)
+        """
+        self.k1 = k1
+        self.b = b
+        
+        self.documents = {}
+        self.doc_lengths = {}
+        self.inverted_index = defaultdict(list)  # term -> [(doc_id, tf)]
+        self.doc_freqs = defaultdict(int)  # term -> df
+        self.avgdl = 0.0
+        self.N = 0
+    
+    def _tokenize(self, text: str) -> List[str]:
+        """Simple tokenization (can be replaced with better tokenizer)."""
+        return text.lower().split()
+    
+    def add_document(self, doc_id: int, text: str):
+        """Add a document to the index."""
+        tokens = self._tokenize(text)
+        self.documents[doc_id] = text
+        self.doc_lengths[doc_id] = len(tokens)
+        
+        # Count term frequencies
+        tf = defaultdict(int)
+        for token in tokens:
+            tf[token] += 1
+        
+        # Update inverted index
+        for token, count in tf.items():
+            self.inverted_index[token].append((doc_id, count))
+            self.doc_freqs[token] += 1
+        
+        # Update stats
+        self.N += 1
+        self.avgdl = sum(self.doc_lengths.values()) / self.N
+    
+    def _idf(self, term: str) -> float:
+        """
+        Compute IDF with smoothing.
+        
+        IDF(t) = ln(1 + (N - df(t) + 0.5) / (df(t) + 0.5))
+        """
+        df = self.doc_freqs.get(term, 0)
+        if df == 0:
+            return 0.0
+        return math.log(1 + (self.N - df + 0.5) / (df + 0.5))
+    
+    def _score_document(self, doc_id: int, query_terms: List[str]) -> float:
+        """
+        Compute BM25 score for a document.
+        
+        Score = Σ IDF(t) × (tf × (k1 + 1)) / (tf + k1 × (1 - b + b × |d|/avgdl))
+        """
+        score = 0.0
+        doc_len = self.doc_lengths[doc_id]
+        
+        # Build tf dict for this document
+        doc_tf = defaultdict(int)
+        for term, tf in self.inverted_index.items():
+            for d, count in tf:
+                if d == doc_id:
+                    doc_tf[term] = count
+        
+        for term in query_terms:
+            tf = doc_tf.get(term, 0)
+            if tf == 0:
+                continue
+            
+            idf = self._idf(term)
+            
+            # Length normalization
+            norm = 1 - self.b + self.b * (doc_len / self.avgdl)
+            
+            # TF saturation
+            tf_component = (tf * (self.k1 + 1)) / (tf + self.k1 * norm)
+            
+            score += idf * tf_component
+        
+        return score
+    
+    def search(self, query: str, k: int = 10) -> List[Tuple[int, float]]:
+        """
+        Search for top-k documents.
+        
+        Time Complexity: O(|Q| × avg_df × scoring_cost)
+        """
+        query_terms = self._tokenize(query)
+        
+        # Find candidate documents (union of docs containing any query term)
+        candidates = set()
+        for term in query_terms:
+            for doc_id, _ in self.inverted_index.get(term, []):
+                candidates.add(doc_id)
+        
+        # Score candidates
+        scores = []
+        for doc_id in candidates:
+            score = self._score_document(doc_id, query_terms)
+            scores.append((doc_id, score))
+        
+        # Return top k
+        scores.sort(key=lambda x: x[1], reverse=True)
+        return scores[:k]
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Indexing | O(N × L) | N docs, L avg length |
+| Search | O(\|Q\| × D) | Q query terms, D avg df |
+| Space | O(V + N × L) | V vocabulary size |
+| Recall | High | Exact term matching |
 
 ## The BM25 Formula
 
@@ -66,6 +213,22 @@ Where:
 
 **Defaults**: `k1=1.5, b=0.75` work well for most corpora.
 
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Master the classic BM25 ranking algorithm used in Elasticsearch and Solr
+- Understand why sparse retrieval complements dense embeddings
+- Be able to build hybrid search systems that combine both approaches
+
+## Real-World Impact
+
+| Company | BM25 Use Case |
+|---------|--------------|
+| **Elastic** | The 'E' in ELK stack — millions of deployments |
+| **Amazon** | Product search with exact SKU matching |
+| **Wikipedia** | Full-text search with phrase matching |
+| **Home Depot** | Part number and product ID search |
+
 ## Edge Cases (Critical)
 
 | Scenario                 | Handling                                            |
@@ -78,49 +241,19 @@ Where:
 | Very rare terms          | High IDF, but not infinite (smoothing handles it)   |
 | Stop words               | Often removed, but BM25 handles them gracefully     |
 
-## IDF Variants (Know the Difference)
+## Resources
 
-| Variant            | Formula                      | Notes                            |
-| ------------------ | ---------------------------- | -------------------------------- |
-| **Classic TF-IDF** | log(N/df)                    | Can be negative for common terms |
-| **Smooth IDF**     | log(1 + N/df)                | Always positive                  |
-| **BM25 IDF**       | log(1 + (N-df+0.5)/(df+0.5)) | Penalizes common terms more      |
-| **Lucene**         | log(1 + (N-df+0.5)/(df+0.5)) | Same as BM25                     |
+### Papers
+- **"Okapi at TREC"** - Robertson et al. (BM25 original paper)
+- **"The Probabilistic Relevance Framework"** - BM25 theory
 
-## Common Implementation Mistakes
+### Tools
+- **Elasticsearch**: Built-in BM25 scoring
+- **Whoosh**: Python search library with BM25
+- **Rank-BM25**: Python BM25 implementation
 
-1. **df vs tf confusion**: `df` counts DOCUMENTS, `tf` counts OCCURRENCES in one doc
-2. **Forgetting length normalization**: Raw tf favors long documents
-3. **Integer division**: Use float division everywhere
-4. **Zero df handling**: Terms not in corpus should contribute 0, not crash
-5. **Case sensitivity**: Usually you want case-insensitive matching
+## Related Challenges
 
-## BM25 vs Dense Retrieval
-
-| Aspect      | BM25                       | Dense                 |
-| ----------- | -------------------------- | --------------------- |
-| Exact terms | Excellent                  | Poor                  |
-| Semantic    | Poor                       | Excellent             |
-| OOV terms   | Zero match                 | Subword partial match |
-| Speed       | Very fast (inverted index) | Fast (ANN)            |
-| Memory      | Low                        | High (vectors)        |
-| Updates     | Instant                    | Re-embed required     |
-
-## Production Best Practice: Hybrid Search
-
-```python
-# Retrieve from both
-bm25_results = bm25_search(query, k=50)
-dense_results = dense_search(embed(query), k=50)
-
-# Fuse with RRF
-hybrid = rrf_fusion(bm25_results, dense_results, k=60)
-
-# Rerank top candidates
-final = rerank(query, hybrid[:20])[:5]
-```
-
-## After you pass
-
-Next step: do dense retrieval too, then fuse BM25 + dense using **RRF**.
-
+- [rrf-fusion](rrf-fusion) - Combine BM25 + dense results
+- [hybrid-search-tuning](hybrid-search-tuning) - Optimize hybrid parameters
+- [bm25-field-boosting](bm25-field-boosting) - Field-level weighting

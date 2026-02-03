@@ -1,22 +1,452 @@
-﻿<Callout title="Goal" variant="warning">
+﻿---
+title: "PII Redaction"
+description: |
+  Redact common PII patterns from context before sending to LLMs. Learn techniques for 
+  irreversible redaction, reversible tokenization, and audit trail management.
+difficulty: beginner
+estimatedMinutes: 20
+topics: ["pii", "privacy", "redaction", "security", "compliance"]
+language: python
+prerequisites:
+  - pii-filtering
+  - basic-retrieval
+related:
+  - prompt-injection-defense
+  - output-safety-filter
+  - audit-logger
+next:
+  - prompt-injection-defense
+  - output-safety-filter
+xp: 60
+---
+
+# PII Redaction
+
+<Callout title="Goal" variant="warning">
   Redact common PII patterns from context **before** sending anything to an LLM.
 </Callout>
 
-## Why this matters in production
+## Why This Matters in Production
 
-Even if a user is authorized, you often need to avoid sending raw PII to third-party model providers.
+Even if a user is authorized, you often need to avoid sending raw PII to third-party model providers like OpenAI, Anthropic, or Google. This is critical for:
 
-This lab implements a basic deterministic redactor for:
+| Risk | Consequence | Mitigation |
+|------|-------------|------------|
+| Data residency violations | Legal penalties | Redact before cross-border transfer |
+| Training data contamination | PII in model outputs | Never send raw PII to APIs |
+| Insider access | Employee exposure | Tokenization with vault |
+| Audit failures | Compliance issues | Immutable redaction logs |
 
-- emails
-- phone numbers
-- SSN-like patterns
+### When to Redact
 
-## Production extensions (optional)
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Document Ingestion                        │
+└───────────────────────┬─────────────────────────────────────┘
+                        │
+                        ▼
+┌─────────────────────────────────────────────────────────────┐
+│  PII Detection                                               │
+│  • Pattern matching (regex)                                  │
+│  • Named Entity Recognition (NER)                            │
+│  • ML classification                                         │
+└───────────────────────┬─────────────────────────────────────┘
+                        │
+            ┌───────────┴───────────┐
+            │                       │
+            ▼                       ▼
+┌──────────────────┐    ┌──────────────────┐
+│  Before Indexing │    │  Before LLM Call │
+│  • Vector DB     │    │  • Context window│
+│  • Search index  │    │  • Prompt        │
+└────────┬─────────┘    └────────┬─────────┘
+         │                       │
+         ▼                       ▼
+┌──────────────────────────────────────────┐
+│         Redaction Strategy                │
+│  • Irreversible: [REDACTED]               │
+│  • Reversible: [TOKEN:abc123]             │
+│  • Synthetic replacement                  │
+└──────────────────────────────────────────┘
+```
 
-- use a dedicated PII detector (Microsoft Presidio) for higher recall
-- domain-specific patterns (account numbers, IBAN, PAN, health IDs)
-- reversible redaction for internal-only providers (tokenization + secure vault)
+## Theory: Redaction Strategies
 
+### Irreversible Redaction
 
+Simple replacement with no recovery possible:
 
+```python
+def irreversible_redact(text: str, entities: List[dict]) -> str:
+    """
+    Permanently replace PII with [REDACTED:type].
+    
+    Time: O(n * m) where n=text length, m=entities
+    Space: O(n)
+    """
+    # Sort by position (reverse to maintain indices)
+    sorted_entities = sorted(entities, key=lambda x: x['start'], reverse=True)
+    
+    result = text
+    for entity in sorted_entities:
+        pii_type = entity['type']
+        start, end = entity['start'], entity['end']
+        result = result[:start] + f"[REDACTED:{pii_type}]" + result[end:]
+    
+    return result
+```
+
+### Reversible Tokenization
+
+Replace PII with tokens that can be restored:
+
+```python
+import hashlib
+import secrets
+from typing import Dict, Tuple
+
+def reversible_tokenize(
+    text: str, 
+    entities: List[dict],
+    secret_key: str
+) -> Tuple[str, Dict[str, str]]:
+    """
+    Replace PII with reversible tokens.
+    
+    Returns:
+        (tokenized_text, token_map)
+    
+    Security: Tokens are deterministic for same value, 
+    but require secret_key to reverse.
+    """
+    token_map = {}
+    sorted_entities = sorted(entities, key=lambda x: x['start'], reverse=True)
+    
+    result = text
+    for entity in sorted_entities:
+        value = entity['value']
+        pii_type = entity['type']
+        start, end = entity['start'], entity['end']
+        
+        # Create deterministic token
+        token_input = f"{secret_key}:{pii_type}:{value}"
+        token = hashlib.sha256(token_input.encode()).hexdigest()[:12]
+        token_key = f"[TOKEN:{pii_type}:{token}]"
+        
+        token_map[token_key] = value
+        result = result[:start] + token_key + result[end:]
+    
+    return result, token_map
+
+def detokenize(text: str, token_map: Dict[str, str]) -> str:
+    """Restore original values from tokens."""
+    result = text
+    for token, value in token_map.items():
+        result = result.replace(token, value)
+    return result
+```
+
+## Your Task
+
+Implement a complete PII redaction system:
+
+```python
+import re
+from typing import List, Dict, Tuple, Optional
+from dataclasses import dataclass
+from enum import Enum
+
+class RedactionMode(Enum):
+    IRREVERSIBLE = "irreversible"  # [REDACTED:type]
+    REVERSIBLE = "reversible"       # [TOKEN:type:hash]
+    SYNTHETIC = "synthetic"         # Fake replacement
+
+@dataclass
+class RedactionResult:
+    text: str
+    mode: RedactionMode
+    entities_redacted: int
+    token_map: Optional[Dict[str, str]] = None
+    audit_log: Optional[Dict] = None
+
+# PII Patterns
+PII_PATTERNS = {
+    'email': r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
+    'phone': r'\b(?:\+?1[-.\s]?)?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}\b',
+    'ssn': r'\b\d{3}-\d{2}-\d{4}\b',
+    'credit_card': r'\b(?:\d{4}[-\s]?){3}\d{4}\b',
+}
+
+def detect_pii_simple(text: str) -> List[Dict]:
+    """
+    Detect PII using regex patterns.
+    
+    Returns list of dicts with:
+        - type: PII type
+        - value: matched text
+        - start: start position
+        - end: end position
+    """
+    entities = []
+    for pii_type, pattern in PII_PATTERNS.items():
+        for match in re.finditer(pattern, text):
+            entities.append({
+                'type': pii_type,
+                'value': match.group(),
+                'start': match.start(),
+                'end': match.end()
+            })
+    return entities
+
+def redact_text(
+    text: str,
+    mode: RedactionMode = RedactionMode.IRREVERSIBLE,
+    secret_key: Optional[str] = None
+) -> RedactionResult:
+    """
+    Redact PII from text using specified mode.
+    
+    Args:
+        text: Input text
+        mode: Redaction strategy
+        secret_key: Required for REVERSIBLE mode
+    
+    Returns:
+        RedactionResult with redacted text and metadata
+    
+    Example:
+        >>> text = "Contact john@email.com"
+        >>> result = redact_text(text, RedactionMode.IRREVERSIBLE)
+        >>> result.text
+        'Contact [REDACTED:email]'
+    """
+    # TODO: Implement redaction logic
+    pass
+
+def create_audit_log(
+    original_text: str,
+    redacted_text: str,
+    entities: List[Dict],
+    user_id: str,
+    operation: str
+) -> Dict:
+    """
+    Create immutable audit log for compliance.
+    
+    Args:
+        original_text: Original (before redaction)
+        redacted_text: After redaction
+        entities: Detected PII entities
+        user_id: Who performed the operation
+        operation: Type of operation (index/query)
+    
+    Returns:
+        Audit log entry
+    """
+    # TODO: Implement audit logging
+    pass
+
+class RedactionPipeline:
+    """
+    Production redaction pipeline with audit trails.
+    
+    Usage:
+        >>> pipeline = RedactionPipeline(
+        ...     mode=RedactionMode.REVERSIBLE,
+        ...     secret_key="my-secret",
+        ...     audit_enabled=True
+        ... )
+        >>> result = pipeline.process(
+        ...     text=user_query,
+        ...     user_id="user-123",
+        ...     operation="rag_query"
+        ... )
+    """
+    
+    def __init__(
+        self,
+        mode: RedactionMode = RedactionMode.IRREVERSIBLE,
+        secret_key: Optional[str] = None,
+        audit_enabled: bool = True
+    ):
+        self.mode = mode
+        self.secret_key = secret_key
+        self.audit_enabled = audit_enabled
+        
+        if mode == RedactionMode.REVERSIBLE and not secret_key:
+            raise ValueError("secret_key required for reversible redaction")
+    
+    def process(
+        self,
+        text: str,
+        user_id: str,
+        operation: str
+    ) -> RedactionResult:
+        """
+        Process text through redaction pipeline.
+        
+        Args:
+            text: Input text
+            user_id: User performing operation
+            operation: Operation type
+        
+        Returns:
+            RedactionResult with audit trail
+        """
+        # TODO: Implement full pipeline
+        pass
+```
+
+## Example Usage
+
+```python
+# Sample document with PII
+document = """
+Customer Support Request
+
+From: Sarah Johnson <sarah.johnson@company.com>
+Phone: (555) 123-4567
+SSN: 123-45-6789 for verification
+
+Issue: My account ending in 4532 is locked.
+Please call me back ASAP.
+"""
+
+# 1. Irreversible redaction (for external LLMs)
+result = redact_text(document, RedactionMode.IRREVERSIBLE)
+print("Irreversible:")
+print(result.text)
+# Output: "From: Sarah Johnson <[REDACTED:email]>..."
+
+# 2. Reversible tokenization (for internal use)
+pipeline = RedactionPipeline(
+    mode=RedactionMode.REVERSIBLE,
+    secret_key="my-secret-key-123"
+)
+result = pipeline.process(
+    text=document,
+    user_id="agent-001",
+    operation="support_ticket"
+)
+print("\nReversible:")
+print(result.text)
+print("Token map:", result.token_map)
+
+# Restore original
+detokenized = detokenize(result.text, result.token_map)
+print("\nRestored:", detokenized[:50])
+```
+
+## Test Cases
+
+```python
+def test_redaction():
+    # Test 1: Email redaction
+    text1 = "Contact john@email.com for help"
+    result = redact_text(text1, RedactionMode.IRREVERSIBLE)
+    assert "john@email.com" not in result.text
+    assert "[REDACTED:email]" in result.text
+    assert result.entities_redacted == 1
+    print("✓ Email redaction works")
+    
+    # Test 2: Multiple PII types
+    text2 = "Email: a@b.com, Phone: 555-123-4567"
+    result = redact_text(text2, RedactionMode.IRREVERSIBLE)
+    assert result.entities_redacted == 2
+    print("✓ Multiple PII redaction works")
+    
+    # Test 3: Reversible tokenization
+    text3 = "Contact john@email.com"
+    result = redact_text(text3, RedactionMode.REVERSIBLE, secret_key="key")
+    assert result.token_map is not None
+    assert "john@email.com" in result.token_map.values()
+    print("✓ Reversible tokenization works")
+    
+    # Test 4: Detokenization
+    restored = detokenize(result.text, result.token_map)
+    assert "john@email.com" in restored
+    print("✓ Detokenization works")
+    
+    # Test 5: Audit log
+    pipeline = RedactionPipeline(audit_enabled=True)
+    result = pipeline.process(text3, user_id="user-1", operation="test")
+    assert result.audit_log is not None
+    assert result.audit_log["user_id"] == "user-1"
+    print("✓ Audit logging works")
+    
+    print("\n✓ All redaction tests passed!")
+
+test_redaction()
+```
+
+## Production Extensions
+
+### Domain-Specific Redaction
+
+```python
+# Healthcare
+PHI_PATTERNS = {
+    'mrn': r'\b\d{8,10}\b',  # Medical Record Number
+    'diagnosis': r'\b(ICD-?10:?\\/)?\s*[A-Z]\d{2}(\.\d{1,2})?\b',
+}
+
+# Finance
+FINANCIAL_PATTERNS = {
+    'iban': r'\b[A-Z]{2}\d{2}[A-Z0-9]{4}\d{7}([A-Z0-9]?){0,16}\b',
+    'account': r'\b\d{10,12}\b',
+}
+
+# Legal
+LEGAL_PATTERNS = {
+    'case_number': r'\b(?:Case|No\.)?\s*#?\s*\d{2,4}[-\s]?[A-Z]{1,4}[-\s]?\d{1,6}\b',
+}
+```
+
+### Performance Optimization
+
+| Technique | Speedup | Use Case |
+|-----------|---------|----------|
+| Compiled regex | 10x | High-throughput |
+| Aho-Corasick | 100x | Multiple patterns |
+| Parallel processing | 4-8x | Batch processing |
+| Caching | Varies | Repeated content |
+
+## Company Examples
+
+| Company | Approach | Scale |
+|---------|----------|-------|
+| **Microsoft** | Presidio + Azure | Enterprise |
+| **AWS** | Macie for S3 | Cloud-wide |
+| **Google** | DLP API | Multi-cloud |
+| **OneTrust** | Privacy automation | Global compliance |
+| **BigID** | ML classification | Petabyte scale |
+
+## Resources
+
+### Papers
+- [Privacy-Preserving NLP](https://arxiv.org/abs/2010.14254)
+- [De-identification of Clinical Text](https://academic.oup.com/jamia/article/24/5/1042/2907907)
+- [Presidio: Context Aware Detection](https://microsoft.github.io/presidio/)
+
+### Tools
+- [Microsoft Presidio](https://github.com/microsoft/presidio) - Open-source PII detection
+- [AWS Comprehend](https://aws.amazon.com/comprehend/) - Cloud PII detection
+- [Google Cloud DLP](https://cloud.google.com/dlp) - Data loss prevention
+- [Spacy NER](https://spacy.io/) - Named entity recognition
+
+### Compliance
+- [GDPR Text](https://gdpr.eu/)
+- [CCPA Regulations](https://oag.ca.gov/privacy/ccpa)
+- [HIPAA Security Rule](https://www.hhs.gov/hipaa/for-professionals/security/index.html)
+
+## Related Challenges
+
+- [pii-filtering](/challenges/pii-filtering) - Comprehensive PII detection
+- [prompt-injection-defense](/challenges/prompt-injection-defense) - Security hardening
+- [audit-logger](/challenges/audit-logger) - Compliance logging
+
+## Next Steps
+
+- [prompt-injection-defense](/challenges/prompt-injection-defense) - Secure your prompts
+- [output-safety-filter](/challenges/output-safety-filter) - Filter LLM outputs
+- [audit-logger](/challenges/audit-logger) - Track all operations

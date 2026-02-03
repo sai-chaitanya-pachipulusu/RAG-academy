@@ -1,25 +1,256 @@
+---
+title: "Fixed-Size Chunker (TypeScript)"
+description: "Implement fixed-size text chunking with overlap — the foundation of RAG indexing."
+language: "typescript"
+difficulty: "beginner"
+category: "chunking"
+prerequisites: []
+related: ["fixed-size-chunking-fundamentals", "ts-sentence-chunker", "ts-sliding-window"]
+tags: ["chunking", "text-processing", "indexing", "fundamentals"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Implement fixed-size text chunking with overlap — the foundation of RAG indexing.
+  Implement fixed-size text chunking with overlap — the simplest and most common approach to RAG document processing.
 </Callout>
 
-## Why this matters in production
+## Why Fixed-Size Chunking Matters in Production
 
-Before you can search documents, you need to split them into chunks that fit in embedding model context windows. Fixed-size chunking is the simplest and most common approach.
+Before you can search documents, you need to split them into chunks that fit in embedding model context windows. Fixed-size chunking is the simplest and most common approach. LlamaIndex and LangChain both default to this strategy. Understanding it helps you tune chunk sizes for your use case.
 
-LlamaIndex and LangChain both default to this strategy. Understanding it helps you tune chunk sizes for your use case.
+### Real-World Scenario
 
-## What you're implementing
+Processing a 100-page legal contract:
 
-- Split text into chunks of `chunkSize` characters.
-- Support `overlap` for context continuity between chunks.
-- Track `startIndex` and `endIndex` for each chunk (useful for citations).
+- **Without chunking**: Document exceeds embedding model context (8K+ tokens)
+- **With fixed-size chunking**: 
+  - Chunk size: 512 tokens
+  - Overlap: 50 tokens
+  - Result: ~200 manageable chunks
+  - Each chunk can be embedded and retrieved independently
 
-## Common pitfalls
+### Trade-offs
 
-- Infinite loops when `overlap >= chunkSize`.
-- Off-by-one errors with the last chunk.
+| Chunk Size | Retrieval Quality | Context Efficiency | Best For |
+|------------|-------------------|-------------------|----------|
+| Small (256) | High precision | Low (more chunks) | Specific facts |
+| Medium (512) | Balanced | Balanced | General RAG |
+| Large (1024) | High recall | High (fewer chunks) | Narratives |
 
-## After you pass
+## The Mathematical Foundation
 
-Try **Sentence-Aware Chunker** for more semantically coherent chunks.
+### Chunk Generation
 
+```
+Document: "The quick brown fox jumps over the lazy dog"
+Chunk size: 20 characters
+Overlap: 5 characters
+
+Chunks:
+1. "The quick brown fox " (indices 0-19)
+2. "brown fox jumps over " (indices 15-34)  [overlap: "brown fox "]
+3. "jumps over the lazy " (indices 30-49)
+4. "the lazy dog" (indices 45-56)
+```
+
+### Overlap Calculation
+
+```
+step = chunkSize - overlap
+numberOfChunks = ceil((textLength - overlap) / step)
+```
+
+For text of length L, chunk size C, overlap O:
+- Step: C - O
+- Chunks: ⌈(L - O) / (C - O)⌉
+
+### Boundary Tracking
+
+Track chunk positions for citation and highlighting:
+
+```typescript
+interface Chunk {
+  text: string;
+  startIndex: number;
+  endIndex: number;
+  metadata: {
+    sourceDocument: string;
+    chunkIndex: number;
+  };
+}
+```
+
+## Theoretical Deep Dive
+
+### The Chunking Dilemma
+
+Chunk size involves fundamental trade-offs:
+
+```
+Small chunks → Fine-grained retrieval → May miss broader context
+Large chunks → Broader context → May include irrelevant information
+```
+
+Optimal size depends on:
+- Document type (code, prose, structured data)
+- Query patterns (specific facts vs. summaries)
+- Embedding model context window
+
+### Semantic Coherence
+
+Fixed-size chunking can split semantic units:
+
+```
+Text: "The quick brown fox jumps over the lazy dog."
+Chunk boundary: "...fox jum|ps over the..."
+                                    ^
+                                    Problem: split word
+```
+
+Solutions:
+1. **Overlap**: Smooths over boundary issues
+2. **Sentence-aware**: Respect sentence boundaries
+3. **Semantic chunking**: Group by meaning
+
+### Information Density
+
+Different content has different information density:
+
+| Content Type | Optimal Chunk Size | Reason |
+|--------------|-------------------|--------|
+| Code | 200-400 tokens | Functions, classes |
+| Legal text | 300-500 tokens | Paragraphs, clauses |
+| Conversations | 200-300 tokens | Turns, utterances |
+| Academic papers | 400-600 tokens | Sections, arguments |
+
+## Production Considerations
+
+### Token vs Character Chunking
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| **Character** | Fast, simple | Doesn't align with model tokens |
+| **Token** | Accurate for model | Requires tokenizer, slower |
+| **Word** | Human-readable | Language-dependent |
+
+For production, character-based with safety margin works well:
+
+```typescript
+const estimatedTokens = text.length / 4; // ~4 chars per token
+```
+
+### Parallel Processing
+
+Chunk large documents in parallel:
+
+```typescript
+const chunks = createChunks(document);
+const embeddings = await Promise.all(
+  chunks.map(chunk => embed(chunk.text))
+);
+```
+
+### Metadata Preservation
+
+Always preserve source information:
+
+```typescript
+interface ChunkMetadata {
+  sourceDocument: string;
+  chunkIndex: number;
+  totalChunks: number;
+  startIndex: number;
+  endIndex: number;
+}
+```
+
+## Your Task
+
+Implement a fixed-size chunker:
+
+```typescript
+interface Chunk {
+  text: string;
+  startIndex: number;
+  endIndex: number;
+}
+
+interface ChunkerConfig {
+  chunkSize: number;    // Target chunk size in characters
+  overlap: number;      // Overlap between chunks in characters
+}
+
+function createFixedSizeChunks(
+  text: string,
+  config: ChunkerConfig
+): Chunk[] {
+  /**
+   * Split text into fixed-size chunks with overlap.
+   * 
+   * Args:
+   *   text: Input text to chunk
+   *   config: Chunking parameters
+   *     - chunkSize: Size of each chunk in characters
+   *     - overlap: Number of characters to overlap between chunks
+   * 
+   * Returns:
+   *   Array of chunks with text and position information
+   * 
+   * Algorithm:
+   *   1. Validate: overlap < chunkSize (otherwise infinite loop)
+   *   2. Calculate step size: chunkSize - overlap
+   *   3. Iterate through text with step size
+   *   4. Extract chunk of chunkSize characters
+   *   5. Track start and end indices
+   *   6. Handle final chunk (may be shorter)
+   * 
+   * Edge Cases:
+   *   - Empty text: return empty array
+   *   - Text shorter than chunkSize: return single chunk
+   *   - overlap >= chunkSize: throw Error (infinite loop)
+   *   - overlap = 0: no overlap between chunks
+   */
+}
+
+function validateChunkerConfig(config: ChunkerConfig): void {
+  /**
+   * Validate chunker configuration.
+   * Throws Error if overlap >= chunkSize.
+   */
+}
+```
+
+### Validation Checklist
+
+- [ ] Empty text returns empty array
+- [ ] Short text returns single chunk
+- [ ] Overlap < chunkSize enforced
+- [ ] Overlap = 0 produces non-overlapping chunks
+- [ ] Indices tracked correctly (0-based, inclusive start, exclusive end)
+- [ ] Final chunk may be shorter than chunkSize
+- [ ] Overlapping content matches between adjacent chunks
+
+## Common Pitfalls
+
+- **Infinite loops when `overlap >= chunkSize`**: Always validate config
+- **Off-by-one errors with the last chunk**: Check boundary conditions
+- **Not handling Unicode correctly**: Use string length, not byte length
+- **Memory issues with huge texts**: Stream for very large documents
+- **Losing document structure**: Consider header-aware chunking
+
+## After You Pass
+
+Try **Sentence-Aware Chunker** for more semantically coherent chunks, or explore **Semantic Chunking** which groups by meaning rather than character count.
+
+## Resources
+
+### Documentation
+- [LangChain Text Splitters](https://python.langchain.com/docs/modules/data_connection/document_transformers/) - Chunking strategies
+- [LlamaIndex Node Parser](https://docs.llamaindex.ai/en/stable/module_guides/loading/node_parsers/) - Document parsing
+
+### Tutorials
+- ["Chunking Strategies for RAG"](https://www.pinecone.io/learn/chunking-strategies/) - Pinecone guide
+- ["Optimal Chunk Size"](https://blog.langchain.dev/retrieval/) - LangChain blog
+
+### Libraries
+- [LangChain JS](https://js.langchain.com/docs/modules/data_connection/document_transformers/) - Text splitters
+- [LlamaIndex TS](https://ts.llamaindex.ai/) - Node parsers

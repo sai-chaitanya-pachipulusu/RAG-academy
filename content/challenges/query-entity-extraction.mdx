@@ -2,100 +2,422 @@
 title: "Query Entity Extraction"
 description: "Extract named entities from queries to enable metadata filtering"
 difficulty: "medium"
-timeEstimate: "25-35 min"
-xpReward: 75
-prerequisites: []
+xpReward: 100
+topics: ["entity-extraction", "metadata-filtering", "query-analysis"]
+prerequisites: ["metadata-filtering"]
 ---
 
 # Query Entity Extraction
 
-## Why Entities Matter
+## Overview
 
-**Query**: "What was Apple's revenue in 2024?"
+Extracting entities from queries enables powerful metadata filtering. A query like "What was Apple's revenue in 2024?" contains entities: Organization (Apple) and Date (2024). With these entities, you can filter to Apple-related documents from 2024 BEFORE doing vector search—much more efficient than searching all documents!
 
-Entities:
+## Why This Matters
 
-- **Organization**: Apple
-- **Date**: 2024
+- **Search Efficiency**: Filter before vector search
+- **Accuracy**: More precise results with metadata filters
+- **Cost Savings**: Smaller search space = lower compute
+- **Latency**: Faster queries with pre-filtering
 
-Now you can:
+## Key Concepts
 
-1. Filter to Apple-related documents
-2. Filter to 2024 documents
-3. THEN do vector search
+- **Entity types**: Person, Organization, Date, Location, Product
+- **Extraction methods**: Regex, NER models, heuristics
+- **Filter mapping**: Entities → metadata filters
+- **Hybrid search**: Metadata filter + vector similarity
 
-This is WAY more efficient than searching all documents!
+## Real-World Applications
 
----
-
-## The Hybrid Approach
-
-```python
-def smart_retrieve(query: str):
-    # Step 1: Extract entities
-    entities = extract_query_entities(query)
-
-    # Step 2: Build metadata filter
-    filters = {}
-    if entities["organization"]:
-        filters["company"] = entities["organization"][0]
-    if entities["date"]:
-        filters["year"] = entities["date"][0]
-
-    # Step 3: Filtered vector search
-    return vector_db.search(
-        query=query,
-        filter=filters,  # Much smaller search space!
-        top_k=5
-    )
-```
-
----
-
-## Entity Types
-
-| Type         | Examples     | Detection        |
-| ------------ | ------------ | ---------------- |
-| Person       | "Elon Musk"  | Two capitals     |
-| Organization | "Apple Inc"  | Company suffixes |
-| Date         | "2024", "Q1" | Regex patterns   |
-| Location     | "New York"   | Known places     |
-| Product      | "iPhone"     | Domain knowledge |
-
----
+| Query | Entities | Filters Applied |
+|-------|----------|-----------------|
+| "Apple revenue 2024" | Apple, 2024 | company=Apple, year=2024 |
+| "Elon Musk Tesla" | Elon Musk, Tesla | person=Elon Musk, company=Tesla |
+| "iPhone 15 review" | iPhone 15 | product=iPhone 15 |
 
 ## Detection Techniques
 
 ### Simple Heuristics
+- Capitalized words (not at sentence start)
+- Company suffixes: Inc, Corp, LLC
+- Date patterns: 2024, Q1, January
+
+### Pattern Matching
+- Email addresses
+- Phone numbers
+- URLs
+
+## The Challenge
+
+### Part 1: Entity Extractor
 
 ```python
-# Capitalized words (not at sentence start)
-# Company suffixes: Inc, Corp, LLC
-# Date patterns: 2024, Q1, January
+from typing import List, Dict, Set
+from dataclasses import dataclass
+from enum import Enum
+import re
+
+class EntityType(Enum):
+    """Types of entities that can be extracted."""
+    PERSON = "person"
+    ORGANIZATION = "organization"
+    DATE = "date"
+    LOCATION = "location"
+    PRODUCT = "product"
+    EMAIL = "email"
+    PHONE = "phone"
+    URL = "url"
+    MONEY = "money"
+    PERCENT = "percent"
+
+@dataclass
+class Entity:
+    """An extracted entity."""
+    text: str
+    type: EntityType
+    start: int
+    end: int
+    confidence: float = 1.0
+
+class QueryEntityExtractor:
+    """Extract entities from queries for metadata filtering."""
+    
+    def __init__(self):
+        self.patterns = self._compile_patterns()
+        self.company_suffixes = {'inc', 'corp', 'llc', 'ltd', 'co', 'company'}
+        self.known_products = {'iphone', 'ipad', 'macbook', 'android', 'windows'}
+    
+    def _compile_patterns(self) -> Dict[EntityType, List[re.Pattern]]:
+        """Compile regex patterns for entity extraction."""
+        return {
+            EntityType.DATE: [
+                re.compile(r'\b(20\d{2})\b'),  # Years 2000-2099
+                re.compile(r'\b(Q[1-4])\b', re.I),  # Quarters
+                re.compile(r'\b(January|February|March|April|May|June|July|August|September|October|November|December)\b', re.I),
+            ],
+            EntityType.EMAIL: [
+                re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'),
+            ],
+            EntityType.PHONE: [
+                re.compile(r'\b\d{3}-\d{3}-\d{4}\b'),
+                re.compile(r'\(\d{3}\)\s*\d{3}-\d{4}'),
+            ],
+            EntityType.URL: [
+                re.compile(r'https?://[^\s]+'),
+                re.compile(r'www\.[^\s]+'),
+            ],
+            EntityType.MONEY: [
+                re.compile(r'\$[\d,]+(?:\.\d{2})?'),
+                re.compile(r'\b\d+\s*(million|billion|trillion)\s*dollars?\b', re.I),
+            ],
+            EntityType.PERCENT: [
+                re.compile(r'\b\d+(?:\.\d+)?%'),
+            ],
+        }
+    
+    def extract(self, query: str) -> List[Entity]:
+        """Extract all entities from query.
+        
+        Returns:
+            List of extracted entities
+        """
+        entities = []
+        
+        # Pattern-based extraction
+        entities.extend(self._extract_by_patterns(query))
+        
+        # Heuristic extraction
+        entities.extend(self._extract_by_heuristics(query))
+        
+        # Remove duplicates (keep highest confidence)
+        entities = self._deduplicate(entities)
+        
+        return entities
+    
+    def _extract_by_patterns(self, query: str) -> List[Entity]:
+        """Extract entities using regex patterns."""
+        entities = []
+        
+        for entity_type, patterns in self.patterns.items():
+            for pattern in patterns:
+                for match in pattern.finditer(query):
+                    entities.append(Entity(
+                        text=match.group(),
+                        type=entity_type,
+                        start=match.start(),
+                        end=match.end(),
+                        confidence=0.9
+                    ))
+        
+        return entities
+    
+    def _extract_by_heuristics(self, query: str) -> List[Entity]:
+        """Extract entities using heuristics."""
+        entities = []
+        words = query.split()
+        
+        for i, word in enumerate(words):
+            # Clean word
+            clean = word.strip('.,!?;:()[]{}"\'')
+            
+            # Skip if too short
+            if len(clean) < 2:
+                continue
+            
+            # Check for organizations (capitalized with company suffix)
+            if clean.lower() in self.company_suffixes:
+                if i > 0:
+                    org_name = words[i-1]
+                    if org_name[0].isupper():
+                        entities.append(Entity(
+                            text=f"{org_name} {clean}",
+                            type=EntityType.ORGANIZATION,
+                            start=query.find(org_name),
+                            end=query.find(clean) + len(clean),
+                            confidence=0.8
+                        ))
+            
+            # Check for products
+            if clean.lower() in self.known_products:
+                entities.append(Entity(
+                    text=clean,
+                    type=EntityType.PRODUCT,
+                    start=query.find(clean),
+                    end=query.find(clean) + len(clean),
+                    confidence=0.85
+                ))
+            
+            # Check for capitalized words (potential person/org)
+            if clean[0].isupper() and len(clean) > 2:
+                # Skip if it's the first word of the sentence
+                if i == 0 and query[0].isupper():
+                    continue
+                
+                # Check if it looks like a person (two capitals)
+                if ' ' in clean and all(w[0].isupper() for w in clean.split() if w):
+                    entities.append(Entity(
+                        text=clean,
+                        type=EntityType.PERSON,
+                        start=query.find(clean),
+                        end=query.find(clean) + len(clean),
+                        confidence=0.7
+                    ))
+                else:
+                    # Likely organization
+                    entities.append(Entity(
+                        text=clean,
+                        type=EntityType.ORGANIZATION,
+                        start=query.find(clean),
+                        end=query.find(clean) + len(clean),
+                        confidence=0.6
+                    ))
+        
+        return entities
+    
+    def _deduplicate(self, entities: List[Entity]) -> List[Entity]:
+        """Remove duplicate entities, keeping highest confidence."""
+        seen = {}
+        
+        for e in entities:
+            key = (e.text.lower(), e.type)
+            if key not in seen or seen[key].confidence < e.confidence:
+                seen[key] = e
+        
+        return list(seen.values())
 ```
 
-### NLP Libraries
+### Part 2: Filter Builder
 
 ```python
-import spacy
-nlp = spacy.load("en_core_web_sm")
-doc = nlp(query)
-entities = [(ent.text, ent.label_) for ent in doc.ents]
+class FilterBuilder:
+    """Build metadata filters from extracted entities."""
+    
+    def __init__(self):
+        self.entity_to_field = {
+            EntityType.ORGANIZATION: 'company',
+            EntityType.PERSON: 'person',
+            EntityType.DATE: 'year',
+            EntityType.PRODUCT: 'product',
+            EntityType.LOCATION: 'location',
+        }
+    
+    def build_filter(
+        self,
+        entities: List[Entity],
+        operator: str = "AND"
+    ) -> Dict:
+        """Build metadata filter from entities.
+        
+        Args:
+            entities: Extracted entities
+            operator: "AND" or "OR" for combining filters
+            
+        Returns:
+            Filter dictionary for vector store
+        """
+        conditions = []
+        
+        for entity in entities:
+            field = self.entity_to_field.get(entity.type)
+            if field:
+                conditions.append({
+                    'field': field,
+                    'operator': 'eq',
+                    'value': self._normalize_value(entity)
+                })
+        
+        if not conditions:
+            return {}
+        
+        return {
+            'operator': operator,
+            'conditions': conditions
+        }
+    
+    def _normalize_value(self, entity: Entity) -> str:
+        """Normalize entity value for filtering."""
+        value = entity.text
+        
+        if entity.type == EntityType.DATE:
+            # Extract year from date
+            year_match = re.search(r'20\d{2}', value)
+            if year_match:
+                return year_match.group()
+        
+        if entity.type == EntityType.ORGANIZATION:
+            # Remove company suffixes
+            for suffix in ['Inc', 'Corp', 'LLC', 'Ltd', 'Co']:
+                value = re.sub(rf'\s+{suffix}\.?$', '', value, flags=re.I)
+        
+        return value.strip()
 ```
 
----
+### Part 3: Hybrid Retriever
 
-## Real-World Usage
+```python
+class HybridEntityRetriever:
+    """Retriever that uses entity extraction for pre-filtering."""
+    
+    def __init__(
+        self,
+        extractor: QueryEntityExtractor,
+        filter_builder: FilterBuilder,
+        vector_store
+    ):
+        self.extractor = extractor
+        self.filter_builder = filter_builder
+        self.store = vector_store
+    
+    def retrieve(
+        self,
+        query: str,
+        top_k: int = 5,
+        use_entities: bool = True
+    ) -> Dict:
+        """Retrieve with entity-based pre-filtering.
+        
+        Returns:
+            Results with entity metadata
+        """
+        # Extract entities
+        entities = self.extractor.extract(query) if use_entities else []
+        
+        # Build filter
+        filter_dict = self.filter_builder.build_filter(entities)
+        
+        # Search with filter
+        results = self.store.search(
+            query=query,
+            filter=filter_dict if filter_dict else None,
+            top_k=top_k
+        )
+        
+        return {
+            'results': results,
+            'entities': [
+                {'text': e.text, 'type': e.type.value}
+                for e in entities
+            ],
+            'filter_applied': filter_dict,
+            'num_entities': len(entities)
+        }
+```
 
-- **Google**: Entity understanding in search
-- **Alexa**: Entity extraction for skills
-- **Enterprise Search**: Filtering by company, date
+### Part 4: Entity Analytics
 
----
+```python
+from collections import defaultdict
 
-## Related Challenges
+class EntityAnalytics:
+    """Track entity extraction performance."""
+    
+    def __init__(self):
+        self.extractions: List[Dict] = []
+    
+    def log_extraction(
+        self,
+        query: str,
+        entities: List[Entity],
+        filter_used: bool
+    ):
+        """Log an extraction event."""
+        self.extractions.append({
+            'query': query,
+            'num_entities': len(entities),
+            'entity_types': [e.type.value for e in entities],
+            'filter_used': filter_used
+        })
+    
+    def get_stats(self) -> Dict:
+        """Get extraction statistics."""
+        if not self.extractions:
+            return {}
+        
+        type_counts = defaultdict(int)
+        for e in self.extractions:
+            for t in e['entity_types']:
+                type_counts[t] += 1
+        
+        return {
+            'total_queries': len(self.extractions),
+            'queries_with_entities': sum(
+                1 for e in self.extractions if e['num_entities'] > 0
+            ),
+            'avg_entities_per_query': sum(
+                e['num_entities'] for e in self.extractions
+            ) / len(self.extractions),
+            'entity_type_distribution': dict(type_counts),
+            'filter_usage_rate': sum(
+                1 for e in self.extractions if e['filter_used']
+            ) / len(self.extractions)
+        }
+```
 
-- `metadata-filtering` - Use extracted entities
-- `intent-classification` - Understand query type
-- `query-decomposition` - Break complex queries
+## Example Usage
 
+```python
+# Setup
+extractor = QueryEntityExtractor()
+filter_builder = FilterBuilder()
+retriever = HybridEntityRetriever(extractor, filter_builder, vector_store)
+
+# Query with entities
+query = "What was Apple's revenue in 2024?"
+result = retriever.retrieve(query, top_k=5)
+
+print(f"Extracted {result['num_entities']} entities:")
+for e in result['entities']:
+    print(f"  - {e['text']} ({e['type']})")
+
+print(f"\nFilter applied: {result['filter_applied']}")
+```
+
+## Evaluation Criteria
+
+Your solution will be evaluated on:
+
+1. **Extraction Accuracy**: Correct entities identified
+2. **Type Classification**: Correct entity types assigned
+3. **Filter Quality**: Useful filters generated
+4. **Coverage**: Various entity types handled
+5. **Performance**: Fast extraction for real-time use

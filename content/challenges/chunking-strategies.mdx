@@ -1,4 +1,15 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "Chunking Strategies"
+description: "Master chunking strategies — the most underrated lever for RAG quality"
+difficulty: "intermediate"
+estimatedMinutes: 45
+xpReward: 100
+prerequisites: ["recursive-chunking"]
+related: ["semantic-chunking", "hierarchical-chunking", "agentic-chunking"]
+next: "semantic-chunking"
+---
+
+<Callout title="Goal" variant="info">
   Master chunking strategies — the most underrated lever for RAG quality.
 </Callout>
 
@@ -76,19 +87,19 @@ def semantic_chunk(sentences: list[str], threshold: float = 0.5) -> list[str]:
     embeddings = model.encode(sentences)
     chunks = []
     current_chunk = [sentences[0]]
-
+    
     for i in range(1, len(sentences)):
         similarity = np.dot(embeddings[i-1], embeddings[i])
-
+        
         if similarity < threshold:  # New topic detected
             chunks.append(" ".join(current_chunk))
             current_chunk = [sentences[i]]
         else:
             current_chunk.append(sentences[i])
-
+    
     if current_chunk:
         chunks.append(" ".join(current_chunk))
-
+    
     return chunks
 ```
 
@@ -127,17 +138,17 @@ def sentence_window_chunk(
 ) -> list[dict]:
     """Create chunks with surrounding context."""
     chunks = []
-
+    
     for i, sentence in enumerate(sentences):
         start = max(0, i - window_size)
         end = min(len(sentences), i + window_size + 1)
-
+        
         chunks.append({
             "center": sentence,  # Embed this
             "window": " ".join(sentences[start:end]),  # Return this
             "position": i
         })
-
+    
     return chunks
 ```
 
@@ -161,19 +172,19 @@ def sentence_window_chunk(
 def parent_child_chunk(document: str) -> list[dict]:
     # Create parents
     parents = fixed_chunk(document, size=2000, overlap=200)
-
+    
     result = []
     for parent_id, parent in enumerate(parents):
         # Create children
         children = fixed_chunk(parent, size=200, overlap=20)
-
+        
         for child in children:
             result.append({
                 "child_text": child,      # Embed this
                 "parent_text": parent,    # Return this
                 "parent_id": parent_id
             })
-
+    
     return result
 ```
 
@@ -196,7 +207,7 @@ Each proposition should be:
 Text: {text}
 
 Propositions (one per line):"""
-
+    
     response = llm.generate(prompt)
     return [p.strip() for p in response.split("\n") if p.strip()]
 
@@ -245,11 +256,11 @@ def count_tokens(text: str) -> int:
 def chunk_by_tokens(text: str, max_tokens: int = 500) -> list[str]:
     tokens = encoding.encode(text)
     chunks = []
-
+    
     for i in range(0, len(tokens), max_tokens):
         chunk_tokens = tokens[i:i + max_tokens]
         chunks.append(encoding.decode(chunk_tokens))
-
+    
     return chunks
 ```
 
@@ -275,11 +286,11 @@ def evaluate_chunking(
     retriever: Retriever
 ) -> float:
     """Evaluate chunking by measuring Recall@10."""
-
+    
     # Re-chunk and re-index
     chunks = chunking_fn(corpus)
     retriever.index(chunks)
-
+    
     # Measure recall
     recalls = []
     for query, relevant_passage in test_set:
@@ -287,7 +298,7 @@ def evaluate_chunking(
         # Check if relevant passage is in any retrieved chunk
         found = any(relevant_passage in chunk for chunk in retrieved)
         recalls.append(1.0 if found else 0.0)
-
+    
     return sum(recalls) / len(recalls)
 ```
 
@@ -305,3 +316,25 @@ Is your document structured (MD/HTML)?
         └── Recursive with 400-600 tokens, 10% overlap
 ```
 
+## Resources
+
+### Documentation
+- [LangChain Text Splitters](https://python.langchain.com/docs/concepts/text_splitters/)
+- [LlamaIndex Node Parsers](https://docs.llamaindex.ai/en/stable/module_guides/loading/node_parsers/)
+- [Pinecone Chunking Guide](https://www.pinecone.io/learn/chunking-strategies/)
+
+### Papers
+- **"Semantic Chunking for RAG"** - Greg Kamradt
+- **"Contextual Retrieval"** - Anthropic (2024)
+
+### Tools
+- **tiktoken**: Accurate token counting
+- **spaCy**: Sentence segmentation
+- **LangChain**: Multiple splitter implementations
+
+## Related Challenges
+
+- [semantic-chunking](semantic-chunking) - AI-detected boundaries
+- [hierarchical-chunking](hierarchical-chunking) - Multi-resolution chunks
+- [agentic-chunking](agentic-chunking) - AI-powered chunking
+- [proposition-chunking](proposition-chunking) - Atomic facts

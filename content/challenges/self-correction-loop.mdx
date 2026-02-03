@@ -1,13 +1,32 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "Self-Correction Loop"
+description: "Implement a Self-RAG style loop where the agent critiques its own answer"
+difficulty: "hard"
+estimatedMinutes: 40
+xpReward: 75
+prerequisites: ["faithfulness-judge", "rag-pipeline-generator"]
+related: ["self-rag", "corrective-rag", "faithfulness-judge"]
+---
+
+<Callout title="Goal" variant="info">
   Implement a "Self-RAG" style loop where the agent critiques its own answer.
 </Callout>
 
-## Hallucination is a feature, not a bug
+## Hallucination is a Feature, Not a Bug
 
 LLMs predict the next token. If they don't know the answer, they make up a plausible one.
 To fix this in production, we add a **Verification Step**.
 
-## The Check
+## Why This Matters in Production
+
+| Problem | Impact |
+|---------|--------|
+| **Hallucination** | Users receive false information |
+| **Unverified claims** | Damages trust and credibility |
+| **Context ignoring** | Model uses internal knowledge instead of retrieved context |
+| **Cost of errors** | Expensive to fix in production |
+
+## What You're Implementing
 
 After the LLM generates an answer, we run a check:
 
@@ -16,8 +35,340 @@ After the LLM generates an answer, we run a check:
 
 If the check fails, we send it back to the LLM: _"You hallucinated. Here is the context again. Fix it."_
 
-## Implementation details
+## The Self-Correction Pipeline
 
-In this challenge, you will implement a simple keyword-overlap heuristic to catch unsupported claims.
-In production, you would use a "Grader LLM" or NLI (Natural Language Inference) model like `DeBERTa`.
+```
+Query → Retrieve → Generate → Verify → [If Failed] → Regenerate → Final Answer
+  ↓        ↓          ↓          ↓                           ↓
+Context  Chunks    Answer    Grounded?                    Corrected
+                                ↓                           Answer
+                            [If Passed]
+                                ↓
+                            Final Answer
+```
 
+## Mathematical Foundations
+
+### Verification Scoring
+
+```
+Groundedness Score = Σ(claim_i is supported by context) / total_claims
+
+Relevance Score = similarity(answer, query) / max_similarity
+
+Overall Score = α × Groundedness + (1-α) × Relevance
+```
+
+### Iterative Refinement
+
+```
+Answer_{n+1} = LLM(Query, Context, Answer_n, Feedback_n)
+
+Convergence: Stop when Score > threshold or max_iterations reached
+```
+
+## Implementation Example
+
+```python
+from typing import List, Dict, Tuple
+from dataclasses import dataclass
+import re
+
+@dataclass
+class VerificationResult:
+    """Result of answer verification."""
+    is_grounded: bool
+    is_relevant: bool
+    unsupported_claims: List[str]
+    score: float
+    feedback: str
+
+class SelfCorrectionLoop:
+    """Self-RAG style correction loop for answer verification."""
+    
+    def __init__(
+        self,
+        llm_client,
+        max_iterations: int = 3,
+        groundedness_threshold: float = 0.8,
+        relevance_threshold: float = 0.7
+    ):
+        """
+        Initialize self-correction loop.
+        
+        Args:
+            llm_client: LLM client for generation and verification
+            max_iterations: Maximum correction attempts
+            groundedness_threshold: Minimum groundedness score
+            relevance_threshold: Minimum relevance score
+        """
+        self.llm_client = llm_client
+        self.max_iterations = max_iterations
+        self.groundedness_threshold = groundedness_threshold
+        self.relevance_threshold = relevance_threshold
+    
+    def generate_with_correction(
+        self,
+        query: str,
+        context: str,
+        initial_prompt: str = None
+    ) -> Dict:
+        """
+        Generate answer with self-correction loop.
+        
+        Time Complexity: O(I × (G + L)) where I = iterations, G = generation, L = LLM calls
+        Space Complexity: O(A) where A = answer length
+        
+        Args:
+            query: User question
+            context: Retrieved context for grounding
+            initial_prompt: Optional custom prompt
+            
+        Returns:
+            Dictionary with final answer and metadata
+            
+        Example:
+            >>> loop = SelfCorrectionLoop(llm_client)
+            >>> result = loop.generate_with_correction(
+            ...     query="What is RAG?",
+            ...     context="RAG stands for Retrieval-Augmented Generation..."
+            ... )
+            >>> print(result["answer"])
+            >>> print(result["iterations"])  # Number of correction loops
+        """
+        # Initial generation
+        if initial_prompt:
+            prompt = initial_prompt
+        else:
+            prompt = self._build_prompt(query, context)
+        
+        answer = self.llm_client.generate(prompt)
+        
+        # Correction loop
+        for iteration in range(self.max_iterations):
+            # Verify answer
+            verification = self._verify_answer(answer, query, context)
+            
+            # Check if acceptable
+            if verification.is_grounded and verification.is_relevant:
+                return {
+                    "answer": answer,
+                    "iterations": iteration + 1,
+                    "verification": verification,
+                    "corrected": iteration > 0
+                }
+            
+            # Generate correction prompt
+            correction_prompt = self._build_correction_prompt(
+                query, context, answer, verification.feedback
+            )
+            
+            # Regenerate
+            answer = self.llm_client.generate(correction_prompt)
+        
+        # Return best effort after max iterations
+        return {
+            "answer": answer,
+            "iterations": self.max_iterations,
+            "verification": verification,
+            "corrected": True,
+            "max_iterations_reached": True
+        }
+    
+    def _verify_answer(
+        self,
+        answer: str,
+        query: str,
+        context: str
+    ) -> VerificationResult:
+        """
+        Verify answer for groundedness and relevance.
+        
+        Uses simple heuristics; production would use NLI model or Grader LLM.
+        """
+        # Extract claims (simple sentence splitting)
+        claims = [s.strip() for s in re.split(r'[.!?]+', answer) if s.strip()]
+        
+        # Check groundedness
+        unsupported = []
+        supported_count = 0
+        
+        context_lower = context.lower()
+        for claim in claims:
+            claim_lower = claim.lower()
+            # Simple keyword overlap check
+            claim_words = set(claim_lower.split())
+            context_words = set(context_lower.split())
+            
+            overlap = len(claim_words & context_words)
+            overlap_ratio = overlap / len(claim_words) if claim_words else 0
+            
+            if overlap_ratio > 0.5:  # Threshold
+                supported_count += 1
+            else:
+                unsupported.append(claim)
+        
+        groundedness_score = supported_count / len(claims) if claims else 0
+        is_grounded = groundedness_score >= self.groundedness_threshold
+        
+        # Check relevance (simple keyword overlap with query)
+        query_words = set(query.lower().split())
+        answer_words = set(answer.lower().split())
+        relevance_overlap = len(query_words & answer_words)
+        relevance_score = relevance_overlap / len(query_words) if query_words else 0
+        is_relevant = relevance_score >= self.relevance_threshold
+        
+        # Build feedback
+        feedback_parts = []
+        if not is_grounded:
+            feedback_parts.append(f"The following claims are not supported by the context: {unsupported}")
+        if not is_relevant:
+            feedback_parts.append("The answer does not directly address the question.")
+        
+        feedback = " ".join(feedback_parts) if feedback_parts else "Answer is acceptable."
+        
+        overall_score = (groundedness_score + relevance_score) / 2
+        
+        return VerificationResult(
+            is_grounded=is_grounded,
+            is_relevant=is_relevant,
+            unsupported_claims=unsupported,
+            score=overall_score,
+            feedback=feedback
+        )
+    
+    def _build_prompt(self, query: str, context: str) -> str:
+        """Build initial generation prompt."""
+        return f"""Answer the following question using ONLY the provided context.
+If the context doesn't contain the answer, say "I don't have enough information."
+
+Context:
+{context}
+
+Question: {query}
+
+Answer:"""
+    
+    def _build_correction_prompt(
+        self,
+        query: str,
+        context: str,
+        previous_answer: str,
+        feedback: str
+    ) -> str:
+        """Build correction prompt with feedback."""
+        return f"""Your previous answer had issues. Please correct it.
+
+Context:
+{context}
+
+Question: {query}
+
+Your previous answer:
+{previous_answer}
+
+Feedback on issues:
+{feedback}
+
+Please provide a corrected answer that addresses the feedback:
+
+Corrected Answer:"""
+
+# Usage Example
+class MockLLM:
+    """Mock LLM for demonstration."""
+    def generate(self, prompt: str) -> str:
+        if "Feedback" in prompt:
+            return "RAG stands for Retrieval-Augmented Generation, which combines retrieval with generation."
+        return "RAG is a type of pasta from Italy."  # Hallucination!
+
+loop = SelfCorrectionLoop(MockLLM(), max_iterations=3)
+result = loop.generate_with_correction(
+    query="What is RAG?",
+    context="RAG (Retrieval-Augmented Generation) combines information retrieval with language model generation."
+)
+
+print(f"Answer: {result['answer']}")
+print(f"Iterations: {result['iterations']}")
+print(f"Was corrected: {result['corrected']}")
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Initial Generation | O(G) | G = generation time |
+| Verification | O(C × W) | C = claims, W = words |
+| Correction Loop | O(I × (G + V)) | I = iterations, V = verification |
+| Total | O(I × G) | Dominated by generation |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand the Self-RAG pattern for quality improvement
+- Be able to implement verification and correction loops
+- Know how to balance quality vs. latency trade-offs
+
+## Real-World Applications
+
+| System | Self-Correction Approach |
+|--------|-------------------------|
+| **Self-RAG** | Reflective tokens for retrieval and generation |
+| **Corrective RAG** | Retrieval evaluator + knowledge refinement |
+| **Chain-of-Verification** | Verify claims before final answer |
+| **RAG-Fusion** | Multiple queries with self-consistency |
+
+## Common Pitfalls
+
+- **Infinite loops**: No max iteration limit
+- **Over-correction**: Changing correct answers
+- **Latency explosion**: Too many iterations
+- **Weak verification**: Simple heuristics miss subtle hallucinations
+- **Feedback quality**: Poor feedback doesn't help correction
+
+## Production Extensions (Optional)
+
+- **NLI Verification**: Use DeBERTa for natural language inference
+- **Grader LLM**: Dedicated model for verification
+- **Claim Extraction**: Structured claim identification
+- **Citation Verification**: Check if citations support claims
+- **Human-in-the-Loop**: Escalate low-confidence answers
+
+## Resources
+
+### Documentation
+- [Self-RAG Paper](https://arxiv.org/abs/2310.11511)
+- [Corrective RAG](https://arxiv.org/abs/2401.15884)
+- [Chain-of-Verification](https://arxiv.org/abs/2309.11495)
+
+### Tools
+- **NLI Models**: DeBERTa, RoBERTa for entailment
+- **Grader LLMs**: GPT-4, Claude for verification
+- **RAGAS**: Evaluation framework for RAG
+
+### Papers
+- "Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection" (Asai et al., 2023)
+- "Corrective Retrieval Augmented Generation" (Yan et al., 2024)
+- "Chain-of-Verification Reduces Hallucination in Large Language Models" (Dhuliawala et al., 2023)
+
+## Interview Questions
+
+1. **Why use self-correction instead of just better prompting?**
+   - Self-correction catches issues after generation; prompting tries to prevent them
+
+2. **How do you balance quality vs. latency in correction loops?**
+   - Limit iterations, use fast verification, cache results
+
+3. **What makes good feedback for correction?**
+   - Specific, actionable, points to exact issues in the answer
+
+## After You Pass
+
+Build more advanced verification systems:
+- [self-rag](self-rag) - Full Self-RAG implementation
+- [corrective-rag](corrective-rag) - Retrieval-focused correction
+- [faithfulness-judge](faithfulness-judge) - Answer verification
+
+---
+
+**🔄 Iterate to Excellence:** Self-correction turns good answers into great ones through critical reflection!

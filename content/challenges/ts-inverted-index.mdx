@@ -1,23 +1,318 @@
+---
+title: "Inverted Index (TypeScript)"
+description: "Build an inverted index — the data structure that powers keyword search."
+language: "typescript"
+difficulty: "intermediate"
+category: "retrieval"
+prerequisites: ["ts-fixed-size-chunker"]
+related: ["bm25-from-scratch", "ts-bm25-score", "ts-sparse-embedding"]
+tags: ["inverted-index", "keyword-search", "information-retrieval", "indexing"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Build an inverted index — the data structure that powers keyword search.
+  Build an inverted index — the data structure that powers keyword search in Elasticsearch, Lucene, and every text search engine.
 </Callout>
 
-## Why this matters in production
+## Why Inverted Indexes Matter in Production
 
-Inverted indexes power Elasticsearch, Lucene, and every text search engine. Understanding this is foundational for hybrid RAG where you combine keyword and semantic search.
+Inverted indexes power Elasticsearch, Lucene, and every text search engine. Understanding this is foundational for hybrid RAG where you combine keyword and semantic search. The inverted index enables:
 
-## What you're implementing
+- **Fast keyword lookup**: O(1) term → documents mapping
+- **Boolean queries**: AND, OR, NOT operations
+- **Phrase search**: Find exact sequences of terms
+- **Efficient updates**: Add/remove documents incrementally
 
-- Build: map terms → list of (docId, positions).
-- Track document lengths for BM25 scoring.
-- Search: find documents containing all query terms.
+### Real-World Scenario
 
-## Common pitfalls
+Building search for a documentation site:
 
-- Not handling case sensitivity.
-- Forgetting to track term positions for phrase queries.
+**Documents:**
+1. "The quick brown fox"
+2. "The lazy dog"
+3. "Quick brown dogs"
 
-## After you pass
+**Inverted Index:**
+```
+"the" → [1, 2]
+"quick" → [1, 3]
+"brown" → [1, 3]
+"fox" → [1]
+"lazy" → [2]
+"dog" → [2]
+"dogs" → [3]
+```
 
-Use your inverted index with **BM25 Scoring** for full-text search.
+**Query "quick brown":**
+- "quick" → [1, 3]
+- "brown" → [1, 3]
+- Intersection → [1, 3]
 
+Result in O(k) where k = number of matching documents.
+
+## The Mathematical Foundation
+
+### Index Structure
+
+```typescript
+interface InvertedIndex {
+  // term → list of postings
+  index: Map<string, PostingList>;
+  
+  // document statistics
+  docCount: number;
+  totalDocLength: number;
+  docLengths: Map<string, number>;
+}
+
+interface PostingList {
+  // document ID → positions within document
+  postings: Map<string, number[]>;
+  // document frequency
+  docFreq: number;
+}
+```
+
+### Boolean Query Processing
+
+| Operation | Algorithm | Complexity |
+|-----------|-----------|------------|
+| **AND** | Intersection of posting lists | O(min(\|A\|, \|B\|)) |
+| **OR** | Union of posting lists | O(\|A\| + \|B\|) |
+| **NOT** | Set difference | O(\|A\| + \|all\|) |
+
+### Phrase Queries
+
+For exact phrase "quick brown":
+
+```
+1. Get posting lists: "quick" → {doc1: [2], doc3: [1]}
+                        "brown" → {doc1: [3], doc3: [2]}
+
+2. For each document, check if positions are consecutive:
+   doc1: quick at 2, brown at 3 → consecutive ✓
+   doc3: quick at 1, brown at 2 → consecutive ✓
+
+3. Return [doc1, doc3]
+```
+
+## Theoretical Deep Dive
+
+### Space Complexity
+
+```
+Space = O(T × D)
+
+Where:
+- T = number of unique terms
+- D = average number of documents per term
+
+For 1M documents, 10K unique terms, avg 100 docs/term:
+Space ≈ 10K × 100 × (overhead) ≈ 100MB
+```
+
+### Compression Techniques
+
+| Technique | Method | Savings |
+|-----------|--------|---------|
+| **Delta encoding** | Store gaps between doc IDs | 50-70% |
+| **Variable-byte encoding** | Shorter codes for small numbers | 30-50% |
+| **Blocked storage** | Group postings in blocks | 20-30% |
+
+### Index Construction
+
+**Single-pass (in-memory):**
+```
+For each document:
+  For each term:
+    Add to index[term].postings[docId]
+```
+
+**Multi-pass (disk-based):**
+```
+1. Parse documents → term-doc pairs
+2. Sort by term, then doc
+3. Group into posting lists
+4. Write to disk
+```
+
+## Production Considerations
+
+### Update Strategies
+
+| Strategy | Pros | Cons |
+|----------|------|------|
+| **Immediate** | Always current | Write amplification |
+| **Batch** | Efficient | Stale reads |
+| **Merge (LSM)** | Balance | Complexity |
+
+### Query Optimization
+
+Process terms in order of increasing document frequency:
+
+```typescript
+// Optimize: Process rarest term first
+const sortedTerms = terms.sort((a, b) => 
+  index.get(a).docFreq - index.get(b).docFreq
+);
+
+// Start with smallest posting list
+let result = index.get(sortedTerms[0]).getDocIds();
+
+// Intersect with remaining terms
+for (const term of sortedTerms.slice(1)) {
+  result = intersect(result, index.get(term).getDocIds());
+  if (result.length === 0) break; // Early termination
+}
+```
+
+### Distributed Index
+
+For large-scale search:
+
+```
+Term range partitioning: A-F, G-M, N-Z
+Document partitioning: Shard by doc ID
+```
+
+## Your Task
+
+Implement an inverted index:
+
+```typescript
+interface Document {
+  id: string;
+  text: string;
+}
+
+interface Posting {
+  docId: string;
+  positions: number[];  // Term positions in document
+}
+
+interface QueryResult {
+  docIds: string[];
+  scores?: Map<string, number>;  // Optional BM25 scores
+}
+
+class InvertedIndex {
+  private index: Map<string, Posting[]>;
+  private docLengths: Map<string, number>;
+  private totalDocs: number;
+
+  constructor() {
+    this.index = new Map();
+    this.docLengths = new Map();
+    this.totalDocs = 0;
+  }
+
+  addDocument(doc: Document): void {
+    /**
+     * Add a document to the index.
+     * 
+     * Process:
+     *   1. Tokenize text into terms
+     *   2. For each term, record document ID and positions
+     *   3. Update document statistics
+     * 
+     * Tokenization:
+     *   - Lowercase
+     *   - Split on whitespace
+     *   - Remove punctuation
+     */
+  }
+
+  search(query: string): QueryResult {
+    /**
+     * Search for documents containing all query terms (AND semantics).
+     * 
+     * Args:
+     *   query: Space-separated terms
+     * 
+     * Returns:
+     *   QueryResult with matching document IDs
+     * 
+     * Algorithm:
+     *   1. Tokenize query
+     *   2. Get posting lists for each term
+     *   3. Intersect posting lists
+     *   4. Return document IDs
+     * 
+     * Edge Cases:
+     *   - Term not in index: return empty
+     *   - Empty query: return empty
+     *   - Single term: return all docs with that term
+     */
+  }
+
+  searchPhrase(phrase: string): QueryResult {
+    /**
+     * Search for exact phrase match.
+     * 
+     * Algorithm:
+     *   1. Tokenize phrase into terms
+     *   2. Get posting lists
+     *   3. Find documents where terms appear consecutively
+     *   4. Return matching document IDs
+     */
+  }
+
+  getDocumentFrequency(term: string): number {
+    /**
+     * Return number of documents containing the term.
+     */
+  }
+
+  getTermFrequency(term: string, docId: string): number {
+    /**
+     * Return frequency of term in specific document.
+     */
+  }
+
+  getStats(): {
+    totalDocs: number;
+    uniqueTerms: number;
+    avgDocLength: number;
+  } {
+    /**
+     * Return corpus statistics for BM25 scoring.
+     */
+  }
+}
+```
+
+### Validation Checklist
+
+- [ ] Documents added correctly with positions
+- [ ] AND search returns intersection of posting lists
+- [ ] Phrase search finds consecutive terms
+- [ ] Document frequency calculated correctly
+- [ ] Term frequency per document tracked
+- [ ] Empty query returns empty result
+- [ ] Missing term returns empty result
+- [ ] Case insensitive search
+
+## Common Pitfalls
+
+- **Not handling case sensitivity**: Normalize to lowercase
+- **Forgetting to track term positions**: Needed for phrase queries
+- **Inefficient intersection**: Sort by posting list size first
+- **Memory bloat**: Consider compression for large indexes
+- **Not handling updates**: Plan for document deletion/modification
+
+## After You Pass
+
+Use your inverted index with **BM25 Scoring** for full-text search, or combine with vector search for hybrid retrieval.
+
+## Resources
+
+### Academic Papers
+- ["Managing Gigabytes for Java"](https://www.cs.mu.oz.au/mg4j/) - MG4J index structure
+- ["Inverted Index Compression"](https://dl.acm.org/doi/10.1561/1500000012) - Lemire & Boytsov
+
+### Documentation
+- [Lucene Index Format](https://lucene.apache.org/core/9_0_0/core/org/apache/lucene/codecs/lucene90/package-summary.html) - Implementation details
+- [Elasticsearch Inverted Index](https://www.elastic.co/guide/en/elasticsearch/reference/current/documents-indices.html) - Overview
+
+### Tutorials
+- ["Building a Search Engine"](https://www.youtube.com/watch?v=ZPQs5Dy00q8) - Information retrieval course
+- ["Inverted Index Explained"](https://www.geeksforgeeks.org/inverted-index/) - GeeksforGeeks

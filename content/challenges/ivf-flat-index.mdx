@@ -1,10 +1,146 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "IVF Flat Index"
+description: "Implement Inverted File (IVF) indexing to speed up search"
+difficulty: "intermediate"
+estimatedMinutes: 50
+xpReward: 100
+prerequisites: ["naive-flat-index"]
+related: ["hnsw-index", "ivf-pq-index", "product-quantization"]
+next: "ivf-pq-index"
+---
+
+<Callout title="Goal" variant="info">
   Implement Inverted File (IVF) indexing to speed up search.
 </Callout>
 
 ## Why this matters
 
-Flat search is O(N). IVF reduces search space by clustering vectors and searching only relevant variable lists (O(N/C)).
+Flat search is O(N). IVF reduces search space by clustering vectors and searching only relevant inverted lists (O(N/C)).
+
+## The Algorithm
+
+```python
+import numpy as np
+from typing import List, Tuple
+
+class IVFFlatIndex:
+    """
+    Inverted File Index with flat (exact) cluster search.
+    
+    Time Complexity:
+    - Indexing: O(N × nlist × d) for K-means
+    - Search: O(nprobe × (N/nlist) × d) = O(nprobe × N/nlist × d)
+    
+    Space Complexity: O(N × d) for vectors + O(nlist × d) for centroids
+    """
+    
+    def __init__(self, dim: int, nlist: int = 100, metric: str = "l2"):
+        self.dim = dim
+        self.nlist = nlist  # Number of clusters
+        self.metric = metric
+        self.nprobe = 10  # Default clusters to search
+        
+        self.centroids = None
+        self.inverted_lists = {}  # centroid_id -> [vector_ids]
+        self.vectors = {}
+    
+    def _kmeans(self, vectors: np.ndarray, k: int, max_iter: int = 20) -> np.ndarray:
+        """Simple K-means clustering."""
+        n = vectors.shape[0]
+        
+        # Random initialization
+        indices = np.random.choice(n, k, replace=False)
+        centroids = vectors[indices].copy()
+        
+        for _ in range(max_iter):
+            # Assign to nearest centroid
+            distances = np.linalg.norm(vectors[:, np.newaxis] - centroids, axis=2)
+            labels = np.argmin(distances, axis=1)
+            
+            # Update centroids
+            new_centroids = np.array([
+                vectors[labels == i].mean(axis=0) if np.any(labels == i) else centroids[i]
+                for i in range(k)
+            ])
+            
+            # Check convergence
+            if np.allclose(centroids, new_centroids):
+                break
+            centroids = new_centroids
+        
+        return centroids
+    
+    def train(self, vectors: List[List[float]]):
+        """Train K-means centroids on training data."""
+        vectors_np = np.array(vectors)
+        self.centroids = self._kmeans(vectors_np, self.nlist)
+    
+    def add(self, vectors: List[List[float]], ids: List[int] = None):
+        """Add vectors to the index."""
+        if self.centroids is None:
+            raise ValueError("Must train index before adding vectors")
+        
+        if ids is None:
+            ids = list(range(len(vectors)))
+        
+        vectors_np = np.array(vectors)
+        
+        # Assign each vector to nearest centroid
+        distances = np.linalg.norm(
+            vectors_np[:, np.newaxis] - self.centroids, axis=2
+        )
+        assignments = np.argmin(distances, axis=1)
+        
+        # Add to inverted lists
+        for vid, vec, centroid_id in zip(ids, vectors, assignments):
+            self.vectors[vid] = vec
+            if centroid_id not in self.inverted_lists:
+                self.inverted_lists[centroid_id] = []
+            self.inverted_lists[centroid_id].append(vid)
+    
+    def search(self, query: List[float], k: int = 10) -> List[Tuple[int, float]]:
+        """
+        Search for k nearest neighbors.
+        
+        Time Complexity: O(nprobe × (N/nlist) × d)
+        """
+        query_np = np.array(query)
+        
+        # Find nprobe nearest centroids
+        centroid_distances = np.linalg.norm(self.centroids - query_np, axis=1)
+        nearest_centroids = np.argsort(centroid_distances)[:self.nprobe]
+        
+        # Search vectors in selected clusters
+        candidates = []
+        for cid in nearest_centroids:
+            for vid in self.inverted_lists.get(cid, []):
+                vec = self.vectors[vid]
+                if self.metric == "l2":
+                    dist = np.linalg.norm(query_np - vec)
+                elif self.metric == "cosine":
+                    dist = -np.dot(query_np, vec) / (np.linalg.norm(query_np) * np.linalg.norm(vec))
+                candidates.append((vid, dist))
+        
+        # Return top k
+        candidates.sort(key=lambda x: x[1])
+        return candidates[:k]
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Training | O(N × nlist × d × iter) | K-means clustering |
+| Indexing | O(N × nlist × d) | Assign to centroids |
+| Search | O(nprobe × (N/nlist) × d) | Search selected clusters |
+| Space | O(N × d) | Vectors + centroids |
+
+## Tuning Parameters
+
+| Parameter | Recommended | Effect |
+|-----------|-------------|--------|
+| nlist | √N to 4√N | More clusters = faster search, more memory |
+| nprobe | nlist / 10 | More probes = better recall, slower query |
 
 ## Task
 
@@ -12,3 +148,18 @@ Flat search is O(N). IVF reduces search space by clustering vectors and searchin
 2. Assign vectors to centroids (inverted lists).
 3. Search: Find nearest centroid, scan its list.
 
+## Resources
+
+### Papers
+- **"Inverted File Indexing for Vector Search"** - FAISS documentation
+- **"Product Quantization for Nearest Neighbor Search"** - Jegou et al.
+
+### Tools
+- **FAISS**: `IndexIVFFlat`
+- **Scikit-learn**: `KMeans` for clustering
+
+## Related Challenges
+
+- [hnsw-index](hnsw-index) - Graph-based ANN
+- [ivf-pq-index](ivf-pq-index) - IVF with compression
+- [product-quantization](product-quantization) - Vector quantization

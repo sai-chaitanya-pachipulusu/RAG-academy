@@ -1,10 +1,12 @@
 ﻿---
 title: "Sliding Window Chunking: Maximum Coverage"
 description: "Dense overlapping for critical documents where missing content is unacceptable"
-difficulty: "medium"
-timeEstimate: "25-30 min"
+difficulty: "intermediate"
+estimatedMinutes: 30
 xpReward: 60
 prerequisites: ["overlapping-chunking-explained"]
+related: ["hierarchical-chunking", "metadata-aware-chunking", "sentence-window-retriever"]
+next: "sentence-window-retriever"
 ---
 
 # Sliding Window Chunking: Maximum Coverage
@@ -48,8 +50,17 @@ Sliding window (stride = 10% of window):
 def sliding_window(text: str, window_size: int, stride: int):
     """
     Generate overlapping windows with position tracking.
-
-    Returns: List of (chunk_text, start_position) tuples
+    
+    Time Complexity: O(N × W/S) where N = text length, W = window, S = stride
+    Space Complexity: O(N × W/S) for output
+    
+    Args:
+        text: Input text
+        window_size: Size of each window
+        stride: Step size between windows
+        
+    Returns:
+        List of (chunk_text, start_position) tuples
     """
     chunks = []
     for i in range(0, len(text) - window_size + 1, stride):
@@ -135,6 +146,19 @@ The math is obvious for critical documents.
 
 ---
 
+## Resources
+
+### Papers
+- **"Dense Passage Retrieval"** - Research on overlapping windows
+- **"Document Ranking with Sliding Windows"** - IR research
+
+### Tools
+- **spaCy**: `Doc` with windowing
+- **NLTK**: Sliding window utilities
+- **Custom**: Easy to implement from scratch
+
+---
+
 ## Key Insight
 
 Sliding window teaches us:
@@ -147,7 +171,7 @@ Know when perfect recall matters more than cost optimization.
 
 ## Related Challenges
 
-- `overlapping-chunking-explained` - More efficient for general use
-- `metadata-aware-chunking` - Each window needs source tracking
-- `hierarchical-chunking` - Alternative approach to multi-resolution
-
+- [overlapping-chunking-explained](overlapping-chunking-explained) - More efficient for general use
+- [metadata-aware-chunking](metadata-aware-chunking) - Each window needs source tracking
+- [hierarchical-chunking](hierarchical-chunking) - Alternative approach to multi-resolution
+- [sentence-window-retriever](sentence-window-retriever) - Similar concept for retrieval

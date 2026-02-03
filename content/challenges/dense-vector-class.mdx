@@ -1,4 +1,14 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "Dense Vector Class"
+description: "Create a formal DenseVector class to manage metadata and operations"
+difficulty: "beginner"
+estimatedMinutes: 20
+xpReward: 30
+prerequisites: ["dot-product"]
+related: ["naive-flat-index", "hnsw-index", "vector-normalization"]
+---
+
+<Callout title="Goal" variant="info">
   Create a formal `DenseVector` class to manage metadata and operations.
 </Callout>
 
@@ -10,7 +20,225 @@ Passing around raw lists of floats (`List[float]`) is fine for a single function
 2.  The **Primary Key** (ID).
 3.  **Metadata** (e.g., source file, timestamp).
 
-## Task
+## Why This Matters in Production
+
+| Problem | Solution with DenseVector |
+|---------|---------------------------|
+| **Lost provenance** | Store `doc_id`, `chunk_index` in metadata |
+| **Duplicate vectors** | Unique IDs enable deduplication |
+| **No filtering** | Metadata enables pre-filtering |
+| **Type safety** | Encapsulation prevents vector corruption |
+
+## What You're Implementing
 
 Implement a proper Python class that encapsulates a vector and provides utility methods for computing similarity and managing associated data. This will be the primitive "cell" of your `VectorDB`.
+
+## Mathematical Foundations
+
+### Vector Operations
+
+```
+Dot Product:     a · b = Σ(a_i × b_i)
+Cosine Similarity: cos(θ) = (a · b) / (||a|| × ||b||)
+Euclidean Distance: d = √Σ(a_i - b_i)²
+```
+
+### Normalization
+
+```
+Normalized vector: v̂ = v / ||v||
+```
+
+## Implementation Example
+
+```python
+from typing import Dict, Any, Optional
+import numpy as np
+from dataclasses import dataclass
+
+@dataclass
+class DenseVector:
+    """
+    A dense vector with metadata for vector database storage.
+    
+    Attributes:
+        id: Unique identifier for this vector
+        data: The vector values (numpy array)
+        metadata: Optional metadata dictionary
+    """
+    id: str
+    data: np.ndarray
+    metadata: Dict[str, Any] = None
+    
+    def __post_init__(self):
+        if self.metadata is None:
+            self.metadata = {}
+        self.data = np.array(self.data, dtype=np.float32)
+    
+    @property
+    def dimension(self) -> int:
+        """Return the dimension of the vector."""
+        return len(self.data)
+    
+    @property
+    def magnitude(self) -> float:
+        """Return the L2 norm (magnitude) of the vector."""
+        return np.linalg.norm(self.data)
+    
+    def normalize(self) -> 'DenseVector':
+        """Return a new normalized vector (unit length)."""
+        norm = self.magnitude
+        if norm == 0:
+            raise ValueError("Cannot normalize zero vector")
+        return DenseVector(
+            id=self.id,
+            data=self.data / norm,
+            metadata=self.metadata.copy()
+        )
+    
+    def dot(self, other: 'DenseVector') -> float:
+        """
+        Compute dot product with another vector.
+        
+        Time Complexity: O(d) where d = dimension
+        Space Complexity: O(1)
+        """
+        if self.dimension != other.dimension:
+            raise ValueError(f"Dimension mismatch: {self.dimension} vs {other.dimension}")
+        return np.dot(self.data, other.data)
+    
+    def cosine_similarity(self, other: 'DenseVector') -> float:
+        """
+        Compute cosine similarity with another vector.
+        
+        Returns value in range [-1, 1] where 1 = identical direction
+        """
+        dot_product = self.dot(other)
+        mag_product = self.magnitude * other.magnitude
+        if mag_product == 0:
+            raise ValueError("Cannot compute cosine similarity with zero vector")
+        return dot_product / mag_product
+    
+    def euclidean_distance(self, other: 'DenseVector') -> float:
+        """
+        Compute Euclidean (L2) distance to another vector.
+        
+        Returns non-negative distance (0 = identical)
+        """
+        if self.dimension != other.dimension:
+            raise ValueError(f"Dimension mismatch: {self.dimension} vs {other.dimension}")
+        return np.linalg.norm(self.data - other.data)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize to dictionary for storage."""
+        return {
+            "id": self.id,
+            "data": self.data.tolist(),
+            "metadata": self.metadata
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'DenseVector':
+        """Deserialize from dictionary."""
+        return cls(
+            id=data["id"],
+            data=data["data"],
+            metadata=data.get("metadata", {})
+        )
+
+# Usage Example
+vec1 = DenseVector(
+    id="doc_001_chunk_0",
+    data=[1.0, 2.0, 3.0],
+    metadata={"source": "document.pdf", "page": 1}
+)
+
+vec2 = DenseVector(
+    id="doc_001_chunk_1", 
+    data=[2.0, 3.0, 4.0],
+    metadata={"source": "document.pdf", "page": 1}
+)
+
+similarity = vec1.cosine_similarity(vec2)
+print(f"Similarity: {similarity:.4f}")
+```
+
+## Complexity Analysis
+
+| Operation | Complexity | Notes |
+|-----------|------------|-------|
+| Dot Product | O(d) | d = dimension |
+| Cosine Similarity | O(d) | Includes two norm calculations |
+| Euclidean Distance | O(d) | Single pass with subtraction |
+| Normalization | O(d) | One division per element |
+| Serialization | O(d) | Convert to/from list |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand why vector encapsulation matters in production
+- Be able to implement core vector operations efficiently
+- Know how to add metadata for filtering and traceability
+
+## Real-World Applications
+
+| Database | Vector Class Implementation |
+|----------|---------------------------|
+| **Pinecone** | Vectors with IDs and sparse-dense hybrid support |
+| **Weaviate** | Vectors with rich metadata and cross-references |
+| **Milvus** | Vectors with dynamic fields and partitions |
+| **Chroma** | Vectors with embeddings and documents |
+
+## Common Pitfalls
+
+- **Not validating dimensions**: Always check before operations
+- **Zero vector handling**: Division by zero in normalization
+- **Type inconsistency**: Mixing float32 and float64
+- **Missing metadata**: Losing provenance information
+- **Mutable default arguments**: Using `{}` as default in dataclass
+
+## Production Extensions (Optional)
+
+- **Sparse Vectors**: Support for SPLADE, BM25 sparse representations
+- **Binary Vectors**: Compressed binary representations for memory efficiency
+- **Quantization**: 8-bit or 4-bit quantization for storage savings
+- **Versioning**: Track vector version for model updates
+
+## Resources
+
+### Documentation
+- [NumPy Array Operations](https://numpy.org/doc/stable/reference/routines.array-manipulation.html)
+- [Python Dataclasses](https://docs.python.org/3/library/dataclasses.html)
+- [Pinecone Vector Guide](https://docs.pinecone.io/docs/vector-data)
+
+### Tools
+- **NumPy**: Efficient vector operations
+- **SciPy**: Advanced distance metrics
+- **Pydantic**: Data validation for vector classes
+
+### Papers
+- "Product Quantization for Nearest Neighbor Search" (Jégou et al., 2011)
+- "Efficient and Robust Approximate Nearest Neighbor Search" (Malkov & Yashunin, 2018)
+
+## Interview Questions
+
+1. **Why encapsulate vectors in a class instead of using raw arrays?**
+   - Type safety, metadata attachment, method encapsulation, and validation
+
+2. **When would you use cosine similarity vs Euclidean distance?**
+   - Cosine for semantic similarity (direction matters), Euclidean for absolute distance
+
+3. **How do you handle vectors with different dimensions?**
+   - Raise errors, pad shorter vectors, or use dimensionality reduction
+
+## After You Pass
+
+Use your `DenseVector` class in:
+- [naive-flat-index](naive-flat-index) - Simple vector index
+- [hnsw-index](hnsw-index) - Approximate nearest neighbors
+- [vector-normalization](vector-normalization) - Normalization strategies
+
+---
+
+**💡 Design Pattern:** The `DenseVector` class is the foundation of any vector database. Master this pattern and you'll understand how production vector DBs work under the hood.
 

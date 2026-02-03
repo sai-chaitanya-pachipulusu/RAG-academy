@@ -1,8 +1,18 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "Exact Deduplication"
+description: "Remove exact duplicate chunks safely using content hashes"
+difficulty: "beginner"
+estimatedMinutes: 20
+xpReward: 35
+prerequisites: []
+related: ["simhash-near-dedup", "stable-chunk-ids", "exact-dedup"]
+---
+
+<Callout title="Goal" variant="info">
   Remove exact duplicate chunks safely using content hashes.
 </Callout>
 
-## Why this matters in production
+## Why This Matters in Production
 
 Duplicates are everywhere:
 
@@ -10,22 +20,320 @@ Duplicates are everywhere:
 - the same policy repeated across versions
 - ingestion bugs causing re-indexing of identical content
 
-If you don’t dedupe, you get:
+If you don't dedupe, you get:
 
 - worse retrieval diversity
 - redundant context (token waste)
 - inflated index size and costs
 
-## Offline vs online
+## Why This Matters in Production
+
+| Problem | Impact |
+|---------|--------|
+| **Wasted storage** | Same content stored multiple times |
+| **Token waste** | Duplicate chunks in context window |
+| **Retrieval noise** | Same result appears multiple times |
+| **Embedding costs** | Pay to embed same content repeatedly |
+
+## What You're Implementing
+
+A deduplication system that:
+- Computes content hashes for chunks
+- Tracks seen content
+- Filters out exact duplicates
+
+## The Deduplication Pipeline
+
+```
+Chunks → Hash Content → Check Seen → Filter Duplicates → Unique Chunks
+   ↓          ↓             ↓              ↓                ↓
+ chunk1    SHA256      In set?         Skip if          [chunk1,
+ chunk1    a3f7b2...   Yes              duplicate         chunk2]
+ chunk2    b8c9d3...   No               Keep
+```
+
+## Mathematical Foundations
+
+### Cryptographic Hashing
+
+```
+Hash: {0,1}* → {0,1}^n
+
+Properties:
+- Deterministic: Same input → Same hash
+- Uniform: Output evenly distributed
+- Collision-resistant: Hard to find H(x) = H(y) for x ≠ y
+```
+
+### Deduplication Efficiency
+
+```
+Deduplication Ratio = (Total Input Size - Unique Size) / Total Input Size
+
+Space Savings = 1 - (Unique Size / Total Input Size)
+```
+
+## Implementation Example
+
+```python
+import hashlib
+from typing import List, Dict, Set, Tuple, Optional
+from dataclasses import dataclass
+
+@dataclass
+class Chunk:
+    """Represents a document chunk with content and metadata."""
+    content: str
+    chunk_id: str
+    metadata: Dict = None
+    
+    def __post_init__(self):
+        if self.metadata is None:
+            self.metadata = {}
+    
+    def compute_hash(self) -> str:
+        """Compute SHA-256 hash of content."""
+        return hashlib.sha256(self.content.encode('utf-8')).hexdigest()
+
+class ExactDeduplicator:
+    """Remove exact duplicate chunks using content hashing."""
+    
+    def __init__(self):
+        """Initialize deduplicator with empty seen set."""
+        self.seen_hashes: Set[str] = set()
+        self.hash_to_chunk: Dict[str, Chunk] = {}
+        self.stats = {
+            "input_count": 0,
+            "unique_count": 0,
+            "duplicate_count": 0
+        }
+    
+    def deduplicate(self, chunks: List[Chunk]) -> List[Chunk]:
+        """
+        Remove exact duplicate chunks.
+        
+        Time Complexity: O(N × L) where N = chunks, L = content length
+        Space Complexity: O(N) for hash storage
+        
+        Args:
+            chunks: List of chunks to deduplicate
+            
+        Returns:
+            List of unique chunks (preserving first occurrence order)
+            
+        Example:
+            >>> deduper = ExactDeduplicator()
+            >>> chunks = [
+            ...     Chunk("Hello world", "c1"),
+            ...     Chunk("Hello world", "c2"),  # Duplicate
+            ...     Chunk("Different text", "c3")
+            ... ]
+            >>> unique = deduper.deduplicate(chunks)
+            >>> len(unique)
+            2
+        """
+        unique_chunks = []
+        
+        for chunk in chunks:
+            self.stats["input_count"] += 1
+            
+            # Compute content hash
+            content_hash = chunk.compute_hash()
+            
+            # Check if seen
+            if content_hash in self.seen_hashes:
+                self.stats["duplicate_count"] += 1
+                continue
+            
+            # New unique chunk
+            self.seen_hashes.add(content_hash)
+            self.hash_to_chunk[content_hash] = chunk
+            unique_chunks.append(chunk)
+            self.stats["unique_count"] += 1
+        
+        return unique_chunks
+    
+    def is_duplicate(self, chunk: Chunk) -> bool:
+        """Check if a chunk is a duplicate without adding it."""
+        content_hash = chunk.compute_hash()
+        return content_hash in self.seen_hashes
+    
+    def add(self, chunk: Chunk) -> bool:
+        """
+        Add a chunk if not duplicate.
+        
+        Returns:
+            True if added (not duplicate), False if duplicate
+        """
+        content_hash = chunk.compute_hash()
+        
+        if content_hash in self.seen_hashes:
+            return False
+        
+        self.seen_hashes.add(content_hash)
+        self.hash_to_chunk[content_hash] = chunk
+        return True
+    
+    def get_stats(self) -> Dict[str, int]:
+        """Get deduplication statistics."""
+        return self.stats.copy()
+    
+    def get_deduplication_ratio(self) -> float:
+        """Calculate deduplication ratio."""
+        if self.stats["input_count"] == 0:
+            return 0.0
+        return self.stats["duplicate_count"] / self.stats["input_count"]
+    
+    def reset(self):
+        """Reset deduplicator state."""
+        self.seen_hashes.clear()
+        self.hash_to_chunk.clear()
+        self.stats = {
+            "input_count": 0,
+            "unique_count": 0,
+            "duplicate_count": 0
+        }
+
+class StreamingDeduplicator:
+    """Deduplicate chunks in a streaming fashion."""
+    
+    def __init__(self, max_memory_entries: int = 100000):
+        """
+        Initialize streaming deduplicator.
+        
+        Args:
+            max_memory_entries: Maximum hashes to keep in memory
+        """
+        self.deduplicator = ExactDeduplicator()
+        self.max_memory = max_memory_entries
+    
+    def process_stream(self, chunk_iterator) -> Chunk:
+        """
+        Process chunks from an iterator, yielding unique chunks.
+        
+        Args:
+            chunk_iterator: Iterator yielding chunks
+            
+        Yields:
+            Unique chunks
+        """
+        for chunk in chunk_iterator:
+            if self.deduplicator.add(chunk):
+                yield chunk
+            
+            # Memory management: could implement LRU eviction here
+            if len(self.deduplicator.seen_hashes) > self.max_memory:
+                # In production, use a Bloom filter or disk-backed storage
+                pass
+
+# Usage Example
+deduper = ExactDeduplicator()
+
+chunks = [
+    Chunk("This is a header", "c1", {"source": "doc1"}),
+    Chunk("Important content here", "c2", {"source": "doc1"}),
+    Chunk("This is a header", "c3", {"source": "doc2"}),  # Duplicate
+    Chunk("More important content", "c4", {"source": "doc2"}),
+    Chunk("This is a header", "c5", {"source": "doc3"}),  # Duplicate
+]
+
+unique_chunks = deduper.deduplicate(chunks)
+
+print(f"Input: {deduper.stats['input_count']}")
+print(f"Unique: {deduper.stats['unique_count']}")
+print(f"Duplicates: {deduper.stats['duplicate_count']}")
+print(f"Ratio: {deduper.get_deduplication_ratio():.2%}")
+
+for chunk in unique_chunks:
+    print(f"  - {chunk.chunk_id}: {chunk.content[:30]}...")
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Hash Computation | O(L) | L = content length |
+| Lookup | O(1) | Hash set membership |
+| Total Deduplication | O(N × L) | N chunks |
+| Space | O(N) | Store N hashes |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand content-based deduplication
+- Be able to implement hash-based duplicate detection
+- Know when exact dedup is sufficient vs. near-dedup needed
+
+## Real-World Applications
+
+| System | Deduplication Approach |
+|--------|----------------------|
+| **Web crawlers** | URL + content hashing |
+| **Backup systems** | Block-level deduplication |
+| **Email systems** | Attachment deduplication |
+| **RAG pipelines** | Chunk-level content hashing |
+
+## Common Pitfalls
+
+- **Hash collisions**: Extremely rare with SHA-256, but possible
+- **Whitespace sensitivity**: "hello" vs "hello " are different
+- **Encoding issues**: Different encodings produce different hashes
+- **Memory limits**: Large-scale dedup needs disk-backed storage
+- **Case sensitivity**: "Hello" vs "hello" treated as different
+
+## Production Extensions (Optional)
+
+- **Bloom Filters**: Probabilistic dedup with less memory
+- **Disk-backed Storage**: For large-scale deduplication
+- **Normalization**: Lowercase, strip whitespace before hashing
+- **Chunking-aware**: Consider overlapping chunks
+- **Parallel Processing**: Hash chunks in parallel
+
+## Resources
+
+### Documentation
+- [Python hashlib](https://docs.python.org/3/library/hashlib.html)
+- [Bloom Filters](https://llimllib.github.io/bloomfilter-tutorial/)
+- [Deduplication in Storage](https://en.wikipedia.org/wiki/Data_deduplication)
+
+### Tools
+- **hashlib**: Python cryptographic hashing
+- **pybloom-live**: Bloom filter implementation
+- **datasketch**: MinHash for near-deduplication
+
+### Papers
+- "A Survey of Data Deduplication Techniques" (Meyer & Bolosky, 2011)
+- "The Deduplication Taxonomy" (Paul et al., 2016)
+
+## Interview Questions
+
+1. **Why use SHA-256 instead of MD5 for deduplication?**
+   - SHA-256 has lower collision probability; MD5 is broken for security
+
+2. **How would you deduplicate at scale (billions of chunks)?**
+   - Use Bloom filters for memory efficiency, or distributed storage for hashes
+
+3. **What's the difference between exact and near-deduplication?**
+   - Exact: byte-identical; Near: semantically similar but not identical
+
+## After You Pass
+
+Explore advanced deduplication:
+- [simhash-near-dedup](simhash-near-dedup) - Near-duplicate detection
+- [stable-chunk-ids](stable-chunk-ids) - Content-addressable storage
+- [minhash-lsh](minhash-lsh) - Jaccard-based deduplication
+
+---
+
+**🎯 Exact Match:** Exact deduplication is the foundation of clean, efficient RAG indexes!
+
+## Offline vs Online
 
 - **Offline (ingestion)**: dedupe chunks before embedding/upserting.
 - **Online (context shaping)**: dedupe retrieved candidates before reranking/packing.
 
-## Production extension ideas
+## Production Extension Ideas
 
 - near-duplicate dedup (SimHash/MinHash)
 - store `content_sha1` in metadata
 - track `doc_id` + `chunk_id` provenance for debugging
-
-
-

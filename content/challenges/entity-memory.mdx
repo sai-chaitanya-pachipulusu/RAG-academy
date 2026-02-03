@@ -1,30 +1,394 @@
 ﻿---
-title: "Entity-Based Memory"
-description: "Track and recall entities mentioned in conversations"
+title: "Entity Memory"
+description: "Build entity tracking systems for coherent multi-turn conversations with pronoun resolution"
 difficulty: "hard"
+timeEstimate: "45-55 min"
 xpReward: 150
+topics: ["agentic-rag", "entity-tracking", "nlp"]
+prerequisites: ["entity-extraction", "conversation-buffer-memory"]
 ---
 
-# Entity-Based Memory
+# Entity Memory
 
 ## Overview
 
 Users refer to entities by pronouns ("it", "she", "them"). This challenge teaches you to track entities across conversation turns for pronoun resolution.
+
+```
+User: "Tell me about Apple's new iPhone"
+AI: "The iPhone 15 was released..."
+User: "What's its price?"  <- "its" refers to iPhone 15
+```
 
 ## Why This Matters
 
 - **Pronoun Resolution**: "What about _it_?" → resolve to previous entity
 - **Coherent Conversations**: Track people, companies, products mentioned
 - **Long Context**: Remember entities across many turns
+- **Implicit References**: Handle "the company", "that product"
 
 ## Key Concepts
 
-- Entity extraction using pattern matching
-- Entity type classification (person, company, product)
-- Recency-based pronoun resolution
-- Context summary generation
+### Entity Representation
+
+```python
+from dataclasses import dataclass, field
+from typing import List, Optional, Dict
+from datetime import datetime
+
+@dataclass
+class Entity:
+    """
+    Represents a tracked entity in conversation.
+    
+    Time Complexity for operations: O(1) for updates, O(n) for resolution
+    Space Complexity: O(e) where e = number of entities
+    """
+    id: str
+    name: str
+    type: str  # "person", "company", "product", "location", etc.
+    mentions: List[Dict] = field(default_factory=list)
+    attributes: Dict = field(default_factory=dict)
+    
+    def add_mention(self, text: str, turn: int):
+        """Record a mention of this entity."""
+        self.mentions.append({
+            "text": text,
+            "turn": turn,
+            "timestamp": datetime.now()
+        })
+    
+    @property
+    def mention_count(self) -> int:
+        return len(self.mentions)
+    
+    @property
+    def last_mentioned_turn(self) -> int:
+        return max(m["turn"] for m in self.mentions) if self.mentions else -1
+```
+
+### Entity Memory Architecture
+
+```python
+class EntityMemory:
+    """
+    Manages entity tracking for conversational AI.
+    
+    Uses a combination of:
+    - Named Entity Recognition (NER) for extraction
+    - Coreference resolution for pronoun mapping
+    - Recency scoring for ambiguous references
+    """
+    
+    def __init__(self, ner_model=None, coref_model=None):
+        self.entities: Dict[str, Entity] = {}
+        self.entity_by_name: Dict[str, str] = {}  # name -> id mapping
+        self.current_turn = 0
+        self.ner_model = ner_model
+        self.coref_model = coref_model
+    
+    def process_message(self, text: str, speaker: str) -> str:
+        """
+        Process a message, extract entities, resolve pronouns.
+        
+        Returns modified text with resolved pronouns.
+        """
+        self.current_turn += 1
+        
+        # Step 1: Extract named entities
+        extracted = self.extract_entities(text)
+        
+        # Step 2: Update entity store
+        for ent in extracted:
+            self._add_or_update_entity(ent)
+        
+        # Step 3: Resolve pronouns
+        resolved_text = self.resolve_pronouns(text)
+        
+        return resolved_text
+    
+    def extract_entities(self, text: str) -> List[Dict]:
+        """Extract entities from text using NER."""
+        if self.ner_model:
+            return self.ner_model.extract(text)
+        
+        # Fallback: Simple pattern matching
+        return self._simple_entity_extraction(text)
+    
+    def _simple_entity_extraction(self, text: str) -> List[Dict]:
+        """Simple regex-based entity extraction."""
+        import re
+        
+        entities = []
+        
+        # Company patterns
+        company_patterns = [
+            r'\b([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)*(?:\s+Inc\.?|\s+Corp\.?|\s+Ltd\.?)?)\b',
+        ]
+        
+        # Product patterns
+        product_patterns = [
+            r'\b(iPhone\s*\d*|iPad\s*\w*|Mac(?:Book)?\s*\w*)\b',
+        ]
+        
+        return entities
+```
+
+## Pronoun Resolution
+
+### Resolution Algorithm
+
+```python
+@dataclass
+class PronounResolver:
+    """
+    Resolves pronouns to entities based on:
+    1. Syntactic constraints (gender, number)
+    2. Recency (most recently mentioned)
+    3. Semantic fit (type compatibility)
+    4. Salience (mention frequency)
+    """
+    
+    def resolve(
+        self,
+        pronoun: str,
+        entities: List[Entity],
+        context: str
+    ) -> Optional[Entity]:
+        """
+        Resolve a pronoun to the most likely entity.
+        
+        Time Complexity: O(n) where n = number of entities
+        """
+        # Filter by compatibility
+        candidates = self._filter_compatible(pronoun, entities)
+        
+        if not candidates:
+            return None
+        
+        if len(candidates) == 1:
+            return candidates[0]
+        
+        # Score each candidate
+        scores = {}
+        for entity in candidates:
+            scores[entity.id] = self._score_entity(entity, pronoun, context)
+        
+        # Return highest scoring
+        best_id = max(scores, key=scores.get)
+        return next(e for e in candidates if e.id == best_id)
+    
+    def _filter_compatible(self, pronoun: str, entities: List[Entity]) -> List[Entity]:
+        """Filter entities compatible with pronoun constraints."""
+        pronoun_rules = {
+            "he": ["person"],
+            "she": ["person"],
+            "it": ["product", "company", "object"],
+            "they": ["person", "company", "group"],
+            "this": ["product", "idea", "concept"],
+            "that": ["product", "idea", "concept"],
+        }
+        
+        allowed_types = pronoun_rules.get(pronoun.lower(), [])
+        
+        return [e for e in entities if e.type in allowed_types]
+    
+    def _score_entity(
+        self,
+        entity: Entity,
+        pronoun: str,
+        context: str
+    ) -> float:
+        """
+        Score an entity for pronoun match.
+        
+        Score = 0.4 * recency + 0.3 * mention_freq + 0.3 * syntactic_fit
+        """
+        # Recency score (exponential decay)
+        recency = 1.0 / (1 + abs(self.current_turn - entity.last_mentioned_turn))
+        
+        # Mention frequency (normalized)
+        freq = min(entity.mention_count / 5, 1.0)
+        
+        # Syntactic/semantic fit
+        fit = self._compute_semantic_fit(entity, pronoun, context)
+        
+        return 0.4 * recency + 0.3 * freq + 0.3 * fit
+```
+
+## Entity Graph
+
+```python
+class EntityGraph:
+    """
+    Track relationships between entities.
+    
+    Useful for understanding complex references like:
+    "What about their CEO?" (need to know company → person relationship)
+    """
+    
+    def __init__(self):
+        self.nodes: Dict[str, Entity] = {}
+        self.edges: List[Dict] = []
+    
+    def add_relationship(
+        self,
+        entity1_id: str,
+        entity2_id: str,
+        relation_type: str
+    ):
+        """Add a relationship between entities."""
+        self.edges.append({
+            "source": entity1_id,
+            "target": entity2_id,
+            "type": relation_type,
+            "timestamp": datetime.now()
+        })
+    
+    def get_related(self, entity_id: str, relation_type: str = None) -> List[Entity]:
+        """Get entities related to given entity."""
+        related = []
+        for edge in self.edges:
+            if edge["source"] == entity_id:
+                if relation_type is None or edge["type"] == relation_type:
+                    related.append(self.nodes[edge["target"]])
+            elif edge["target"] == entity_id:
+                if relation_type is None or edge["type"] == relation_type:
+                    related.append(self.nodes[edge["source"]])
+        return related
+    
+    def resolve_possessive(self, pronoun: str, entity: Entity) -> Optional[Entity]:
+        """Resolve possessive pronouns like 'their CEO'."""
+        if pronoun in ["his", "her", "its", "their"]:
+            # Look for related entities with roles
+            related = self.get_related(entity.id)
+            for rel in related:
+                if rel.type == "person" and rel.attributes.get("role"):
+                    return rel
+        return None
+```
+
+## Context Enrichment
+
+```python
+class ContextEnricher:
+    """Enrich queries with entity information from memory."""
+    
+    def __init__(self, entity_memory: EntityMemory):
+        self.memory = entity_memory
+    
+    def enrich_query(self, query: str) -> str:
+        """
+        Expand query with entity context.
+        
+        "What's its price?" → "What is the iPhone 15's price?"
+        """
+        # Find pronouns
+        pronouns = self._find_pronouns(query)
+        
+        expanded = query
+        for pronoun in pronouns:
+            entity = self.memory.resolve_pronoun(pronoun, query)
+            if entity:
+                expanded = expanded.replace(
+                    pronoun,
+                    f"{entity.name} ({pronoun})",
+                    1
+                )
+        
+        return expanded
+    
+    def build_entity_context(self, max_entities: int = 5) -> str:
+        """Build a context string of recent entities."""
+        # Get most salient entities
+        sorted_entities = sorted(
+            self.memory.entities.values(),
+            key=lambda e: (e.mention_count, e.last_mentioned_turn),
+            reverse=True
+        )[:max_entities]
+        
+        context_parts = []
+        for entity in sorted_entities:
+            attrs = ", ".join(f"{k}={v}" for k, v in entity.attributes.items())
+            context_parts.append(f"- {entity.name} ({entity.type}): {attrs}")
+        
+        return "Recent entities:\n" + "\n".join(context_parts)
+```
 
 ## Real-World Applications
 
-LangChain's EntityMemory, Rasa, and advanced chatbots use entity tracking for coherent conversations.
+| System | Entity Memory Feature |
+|--------|----------------------|
+| **ChatGPT** | Multi-turn entity tracking |
+| **Google Assistant** | Contact and location memory |
+| **Siri** | Personal information understanding |
+| **Character.AI** | Persistent character memory |
+| **Claude** | Extended context entity tracking |
 
+## Evaluation Metrics
+
+| Metric | Description | Good Score |
+|--------|-------------|------------|
+| Resolution Accuracy | % of pronouns correctly resolved | >90% |
+| Coverage | % of pronouns that can be resolved | >85% |
+| Latency | Time to resolve | <50ms |
+| False Positive Rate | Wrong resolutions | <5% |
+
+## Resources
+
+### Papers
+- [Coreference Resolution for Chatbots](https://arxiv.org/abs/2105.04596)
+- [Entity Memory in Conversational AI](https://aclanthology.org/2020.emnlp-main.505/)
+- [Long-Term Memory in Task-Oriented Dialogue](https://arxiv.org/abs/2203.08825)
+
+### Libraries
+- **spaCy**: Industrial-strength NER and coreference
+- **Stanza**: Stanford NLP toolkit with coreference
+- **Hugging Face Coref**: Neural coreference models
+- **Allennlp**: Research-grade NLP toolkit
+
+### Code Examples
+```python
+# Using spaCy for NER and coreference
+import spacy
+
+nlp = spacy.load("en_coreference_web_trf")
+
+def extract_and_resolve(text: str):
+    doc = nlp(text)
+    
+    entities = []
+    for ent in doc.ents:
+        entities.append({
+            "text": ent.text,
+            "type": ent.label_,
+            "start": ent.start_char,
+            "end": ent.end_char
+        })
+    
+    # Coreference clusters
+    for cluster in doc._.coref_clusters:
+        print(f"Cluster: {[span.text for span in cluster.mentions]}")
+    
+    return entities
+```
+
+## Best Practices
+
+1. **Handle ambiguity gracefully**: When uncertain, ask for clarification
+2. **Maintain recency priority**: Recent mentions are more likely referents
+3. **Track attribute changes**: "The iPhone was expensive, now it's cheaper"
+4. **Consider discourse structure**: Main entities vs. background mentions
+5. **Test with edge cases**: "He told him about her" (multiple pronouns)
+
+## Related Challenges
+
+- **Prerequisites**: [entity-extraction](entity-extraction), [conversation-buffer-memory](conversation-buffer-memory)
+- **Next**: [agent-long-term-memory](agent-long-term-memory)
+- **Related**: [conversational-rag](conversational-rag), [conversational-query-rewrite](conversational-query-rewrite)
+
+---
+
+**🔗 Entity Mastery:** Entity memory transforms vague pronouns into clear references, enabling truly natural, context-aware conversations that flow like human dialogue!
+
+LangChain's EntityMemory, Rasa, and advanced chatbots use entity tracking for coherent conversations.

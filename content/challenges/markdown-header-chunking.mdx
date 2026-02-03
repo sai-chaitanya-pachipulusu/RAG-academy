@@ -1,5 +1,16 @@
-﻿<Callout title="Goal" variant="info">
-  Implement structure-aware chunking for Markdown. In production, “split by meaning/structure” beats “split by characters”.
+﻿---
+title: "Markdown Header Chunking"
+description: "Implement structure-aware chunking for Markdown. In production, 'split by meaning/structure' beats 'split by characters'"
+difficulty: "intermediate"
+estimatedMinutes: 35
+xpReward: 75
+prerequisites: ["section-based-chunking"]
+related: ["section-based-chunking", "hierarchical-chunking", "metadata-aware-chunking"]
+next: "hierarchical-chunking"
+---
+
+<Callout title="Goal" variant="info">
+  Implement structure-aware chunking for Markdown. In production, "split by meaning/structure" beats "split by characters".
 </Callout>
 
 ## Why this matters in production
@@ -20,9 +31,119 @@ If you chunk without structure, you often:
 ## Offline vs online
 
 - **Offline (ingestion)**: chunk by headers and store metadata (`h1/h2/h3`).
-- **Online (query time)**: use metadata filters and routing (e.g., “only search under Usage”).
+- **Online (query time)**: use metadata filters and routing (e.g., "only search under Usage").
 
-## What you’re building
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand why semantic boundaries matter more than character counts
+- Be able to implement structure-aware chunking for Markdown documents
+- Know how to preserve hierarchical context in chunks
+
+## Real-World Applications
+
+| Use Case | Why Header Chunking? |
+|----------|---------------------|
+| **Documentation sites** | Preserve section hierarchy |
+| **API docs** | Keep endpoints with their descriptions |
+| **README files** | Maintain logical sections |
+| **Knowledge bases** | Enable section-specific search |
+
+## The Structure Advantage
+
+```markdown
+# Installation
+pip install rag-academy
+
+## Quick Start
+Run this command...
+
+## Advanced Options
+Configure these settings...
+```
+
+**Without structure-aware chunking:**
+- "pip install rag-academy" (Installation heading lost!)
+- "Run this command... Configure these settings..." (Mixed sections!)
+
+**With structure-aware chunking:**
+- Chunk 1: `# Installation` + `pip install rag-academy`
+- Chunk 2: `## Quick Start` + `Run this command...`
+- Chunk 3: `## Advanced Options` + `Configure these settings...`
+
+## The Algorithm
+
+```python
+def markdown_header_chunk(text: str, headers: list[str] = None) -> list[dict]:
+    """
+    Chunk markdown by headers with hierarchical metadata.
+    
+    Time Complexity: O(L) where L = number of lines
+    Space Complexity: O(N) for output
+    
+    Args:
+        text: Markdown text
+        headers: List of header levels to split on (e.g., ['#', '##'])
+        
+    Returns:
+        List of chunks with header metadata
+    """
+    if headers is None:
+        headers = ['#', '##', '###']
+    
+    chunks = []
+    current_chunk = []
+    current_header = None
+    header_stack = []
+    
+    for line in text.split('\n'):
+        # Check if line is a header
+        stripped = line.lstrip()
+        header_level = 0
+        for i, char in enumerate(stripped):
+            if char == '#':
+                header_level += 1
+            else:
+                break
+        
+        if header_level > 0 and stripped[:header_level] in headers:
+            # Save previous chunk
+            if current_chunk:
+                chunks.append({
+                    'text': '\n'.join(current_chunk),
+                    'header': current_header,
+                    'breadcrumb': ' > '.join(header_stack)
+                })
+            
+            # Update header tracking
+            current_header = stripped[header_level:].strip()
+            header_stack = header_stack[:header_level-1] + [current_header]
+            current_chunk = [line]
+        else:
+            current_chunk.append(line)
+    
+    # Don't forget the last chunk
+    if current_chunk:
+        chunks.append({
+            'text': '\n'.join(current_chunk),
+            'header': current_header,
+            'breadcrumb': ' > '.join(header_stack)
+        })
+    
+    return chunks
+```
+
+## Complexity Analysis
+
+| Operation | Time | Space |
+|-----------|------|-------|
+| Line parsing | O(L) | O(1) |
+| Header tracking | O(L × H) | O(H) |
+| Chunk storage | O(N) | O(N) |
+
+Where L = lines, H = header depth, N = text length
+
+## What you're building
 
 A chunker that:
 
@@ -32,8 +153,26 @@ A chunker that:
 ## Production extensions (optional)
 
 - preserve a `path` array like `["Title", "Usage", "Advanced"]`
-- add `chunk_id` (combine this with the “Stable Chunk IDs” lab)
-- special-handle fenced code blocks so they don’t get split incorrectly
+- add `chunk_id` (combine this with the "Stable Chunk IDs" lab)
+- special-handle fenced code blocks so they don't get split incorrectly
 
+## Resources
 
+### Documentation
+- [CommonMark Specification](https://commonmark.org/)
+- [Markdown Guide](https://www.markdownguide.org/)
 
+### Tools
+- **markdown-it**: Fast markdown parser
+- **mistune**: Python markdown parser
+- **BeautifulSoup**: For HTML conversion
+
+## Related Challenges
+
+- [section-based-chunking](section-based-chunking) - Generic section chunking
+- [hierarchical-chunking](hierarchical-chunking) - Multi-level chunk relationships
+- [metadata-aware-chunking](metadata-aware-chunking) - Rich metadata handling
+
+---
+
+**🎓 Learning Path:** This is an advanced chunking technique. Master this after completing the basic chunking challenges to build truly production-ready document processing pipelines.

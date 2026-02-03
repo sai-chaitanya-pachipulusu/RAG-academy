@@ -1,23 +1,299 @@
+---
+title: "RAG Prompt Builder (TypeScript)"
+description: "Build a RAG prompt constructor with configurable citation formats."
+language: "typescript"
+difficulty: "intermediate"
+category: "orchestration"
+prerequisites: ["ts-context-builder", "ts-token-counter"]
+related: ["prompt-template", "ts-citation-extractor", "conversational-rag"]
+tags: ["prompt-engineering", "citations", "context-assembly", "orchestration"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Build a RAG prompt constructor with configurable citation formats.
+  Build a RAG prompt constructor with configurable citation formats — essential for production answer quality and traceability.
 </Callout>
 
-## Why this matters in production
+## Why Prompt Building Matters in Production
 
-How you format context in the prompt directly impacts answer quality and citation accuracy. A well-structured prompt template is essential for production RAG.
+How you format context in the prompt directly impacts answer quality and citation accuracy. A well-structured prompt template is essential for production RAG. The prompt builder:
 
-## What you're implementing
+- **Structures context**: Clear separation of sources
+- **Enables citations**: Source attribution for verification
+- **Controls behavior**: System prompts guide LLM responses
+- **Optimizes tokens**: Efficient use of context window
 
-- Assemble system prompt, context, and query.
-- Support citation formats: numbered, inline, none.
-- Include source attribution for traceability.
+### Real-World Scenario
 
-## Common pitfalls
+**Poorly structured prompt:**
+```
+Context: [wall of text with 10 documents mixed together]
+Question: What are the benefits?
+```
 
-- Not separating context clearly from the question.
-- Missing the system prompt for behavior control.
+**Well-structured prompt:**
+```
+You are a helpful assistant. Use the provided context to answer the question.
+Cite sources using [1], [2], etc.
 
-## After you pass
+Context:
+[1] Document about cardiovascular benefits...
+[2] Document about mental health benefits...
 
-Implement **Citation Extractor** to validate LLM citations.
+Question: What are the benefits of exercise?
+```
 
+Result: Better citations, clearer reasoning, more trustworthy answers.
+
+## The Mathematical Foundation
+
+### Prompt Structure
+
+```
+Prompt = System Instruction + Context Header + 
+         Numbered Sources + Query Header + Query + 
+         Response Format Instructions
+```
+
+### Token Budget Allocation
+
+```
+Total Budget = System (10%) + Context (70%) + Query (10%) + Response Buffer (10%)
+
+Example (4K context):
+- System: 400 tokens
+- Context: 2,800 tokens
+- Query: 400 tokens
+- Buffer: 400 tokens
+```
+
+### Citation Formats
+
+| Format | Example | Use Case |
+|--------|---------|----------|
+| **Numbered** | "According to [1]..." | Standard academic |
+| **Inline** | "...benefits (see Source A)." | Narrative style |
+| **Footnote** | "...benefits.¹" | Compact |
+| **None** | No citations | Speed prioritized |
+
+## Theoretical Deep Dive
+
+### Prompt Engineering Principles
+
+1. **Clear instructions**: Explicitly state what to do
+2. **Context separation**: Visually distinct sections
+3. **Examples (few-shot)**: Show desired output format
+4. **Constraints**: Limit response length, style
+
+### Context Ordering
+
+Research shows order matters:
+
+```
+Best: Most relevant first, least relevant last
+Avoid: Random order (LLM may miss important context)
+```
+
+The "lost in the middle" effect: LLMs pay less attention to middle context.
+
+### Citation Prompting
+
+Encourage accurate citations:
+
+```
+Instructions:
+- Cite every factual claim with [1], [2], etc.
+- Place citation immediately after the claim
+- If multiple sources support a claim, cite all: [1][2]
+- If unsure, say "I don't have enough information"
+```
+
+## Production Considerations
+
+### Dynamic System Prompts
+
+Adjust based on query type:
+
+```typescript
+function getSystemPrompt(queryType: string): string {
+  switch (queryType) {
+    case 'factual':
+      return 'Provide accurate, cited information.';
+    case 'creative':
+      return 'Be creative while staying grounded in context.';
+    case 'code':
+      return 'Provide working code examples with explanations.';
+    default:
+      return 'You are a helpful assistant.';
+  }
+}
+```
+
+### Context Truncation
+
+Handle oversized context:
+
+```typescript
+if (contextTokens > maxContextTokens) {
+  // Strategy 1: Truncate last source
+  sources = sources.slice(0, -1);
+  
+  // Strategy 2: Summarize overflow
+  overflow = summarize(overflowSources);
+  
+  // Strategy 3: Error and retry with smaller context
+  throw new ContextTooLargeError();
+}
+```
+
+### Multi-turn Conversations
+
+Include conversation history:
+
+```
+System: ...
+
+Previous conversation:
+User: What is RAG?
+Assistant: RAG stands for...
+
+Context:
+[1] ...
+
+Current question: How does it work?
+```
+
+## Your Task
+
+Implement a RAG prompt builder:
+
+```typescript
+interface Source {
+  id: string;
+  content: string;
+  metadata?: Record<string, any>;
+}
+
+interface PromptConfig {
+  systemPrompt?: string;
+  citationFormat: 'numbered' | 'inline' | 'none';
+  maxContextTokens?: number;
+  includeSourceMetadata?: boolean;
+  responseFormat?: string;
+}
+
+interface PromptResult {
+  prompt: string;
+  tokenCount: number;
+  sourcesIncluded: number;
+  wasTruncated: boolean;
+}
+
+class PromptBuilder {
+  constructor(private config: PromptConfig) {}
+
+  buildPrompt(query: string, sources: Source[]): PromptResult {
+    /**
+     * Build a RAG prompt from query and sources.
+     * 
+     * Args:
+     *   query: User question
+     *   sources: Retrieved context documents
+     * 
+     * Returns:
+     *   PromptResult with assembled prompt and metadata
+     * 
+     * Process:
+     *   1. Format system prompt
+     *   2. Format context with citations
+     *   3. Add query section
+     *   4. Add response format instructions
+     *   5. Check token count, truncate if needed
+     *   6. Return result
+     * 
+     * Citation formats:
+     *   - numbered: "[1] Source content..."
+     *   - inline: "Source: {id}\nContent..."
+     *   - none: Just content
+     * 
+     * Edge Cases:
+     *   - No sources: include "No relevant context found"
+     *   - Empty query: still build prompt (may error later)
+     *   - Oversized: truncate sources from end
+     */
+  }
+
+  private formatSystemPrompt(): string {
+    /**
+     * Format system instruction with citation guidance.
+     */
+  }
+
+  private formatContext(sources: Source[]): string {
+    /**
+     * Format sources with appropriate citation style.
+     */
+  }
+
+  private formatQuery(query: string): string {
+    /**
+     * Format user query section.
+     */
+  }
+
+  private estimateTokens(text: string): number {
+    /**
+     * Estimate token count (~4 chars per token).
+     */
+  }
+}
+
+// Convenience function
+function buildRAGPrompt(
+  query: string,
+  sources: Source[],
+  config?: Partial<PromptConfig>
+): string {
+  const builder = new PromptBuilder({
+    citationFormat: 'numbered',
+    ...config
+  });
+  return builder.buildPrompt(query, sources).prompt;
+}
+```
+
+### Validation Checklist
+
+- [ ] System prompt included
+- [ ] Sources formatted with citation style
+- [ ] Query clearly separated
+- [ ] Token count estimated
+- [ ] Truncation handled gracefully
+- [ ] No sources case handled
+- [ ] Citation instructions in system prompt
+- [ ] Source metadata optionally included
+
+## Common Pitfalls
+
+- **Not separating context clearly from the question**: Use headers
+- **Missing the system prompt for behavior control**: Always include
+- **Not accounting for prompt template tokens**: Count overhead
+- **Inconsistent citation format**: Match instructions to format
+- **Losing source order**: Maintain for citation mapping
+
+## After You Pass
+
+Implement **Citation Extractor** to validate LLM citations, or extend with multi-turn conversation support.
+
+## Resources
+
+### Documentation
+- [OpenAI Prompt Engineering](https://platform.openai.com/docs/guides/prompt-engineering) - Best practices
+- [Anthropic Prompt Design](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering) - Claude guidance
+
+### Tutorials
+- ["RAG Prompt Patterns"](https://blog.langchain.dev/prompt-engineering-for-rag/) - LangChain blog
+- ["Citation Prompting"](https://www.promptingguide.ai/techniques/citations) - Prompting guide
+
+### Libraries
+- [LangChain Prompt Templates](https://js.langchain.com/docs/modules/model_io/prompts/quick_start) - Template system
+- [Handlebars](https://handlebarsjs.com/) - Template engine

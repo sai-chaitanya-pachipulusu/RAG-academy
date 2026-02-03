@@ -296,4 +296,11 @@ export const CHALLENGE_STAGE_BY_SLUG: Record<string, CurriculumStage> = {
   "ts-chunk-deduplicator": "post-retrieval",
   "ts-answer-confidence": "evaluation-ops",
   "ts-rate-limiter": "production-ops",
+
+  // Vinija-inspired challenges
+  "late-chunking-implementation": "pre-retrieval",
+  "crag-pipeline": "agentic-rag",
+  "faithfulness-calculator": "evaluation-ops",
+  "bleu-rouge-scores": "evaluation-ops",
+  "multimodal-embedding-fusion": "multimodal",
 };

@@ -1,38 +1,489 @@
 ---
 title: "Graph-O1 Reasoning"
-description: "Implement graph-based chain-of-thought reasoning"
+description: "Implement graph-based chain-of-thought reasoning for complex multi-step problem solving"
+difficulty: "hard"
+xpReward: 150
+estimatedMinutes: 60
+stage: "advanced-retrieval"
+track: "graph-rag"
+tags: ["graph-rag", "reasoning", "chain-of-thought", "o1", "multi-step"]
+prerequisites: ["graph-traversal-rag", "multi-step-reasoning"]
+relatedChallenges: ["graph-traversal-rag", "reasoning-rag-implementation", "self-rag"]
+nextChallenges: ["raptor-tree"]
+theory:
+  overview: |
+    Graph-O1 Reasoning combines the structured exploration of knowledge graphs with 
+    the step-by-step reasoning of chain-of-thought (CoT) methods. Unlike linear CoT, 
+    Graph-O1 builds a reasoning graph where each node represents an intermediate 
+    conclusion, and edges represent logical dependencies.
+  keyFormulas:
+    - name: "Reasoning Path Score"
+      formula: "score(path) = Π(P(correct|step_i)) for i in path"
+    - name: "Node Confidence"
+      formula: "conf(n) = σ(LLM(n.evidence, n.conclusion))"
+    - name: "Graph Coverage"
+      formula: "coverage = |visited_nodes| / |total_relevant_nodes|"
+    - name: "Reasoning Depth"
+      formula: "depth = max(shortest_path(start, answer_node))"
+  visualIntuition: |
+    Linear CoT: A → B → C → D (single path)
+    
+    Graph-O1:
+    ```
+         A (Query)
+        / \
+       B   C (Branches)
+       |\ /|
+       D E F (Converge/Diverge)
+        \|/
+         G (Answer)
+    ```
+    
+    Graph-O1 explores multiple reasoning paths, backtracks from dead ends,
+    and converges on the best-supported answer.
+  whyItMatters: |
+    Graph-O1 reasoning addresses limitations of linear chain-of-thought:
+    1. **Branching**: Explore multiple hypotheses simultaneously
+    2. **Backtracking**: Recover from incorrect reasoning steps
+    3. **Convergence**: Combine evidence from multiple paths
+    4. **Verifiability**: Explicit reasoning structure for auditing
+  commonMistakes:
+    - "Not pruning low-confidence branches early"
+    - "Allowing graph explosion (too many nodes)"
+    - "Missing cycles in reasoning (circular logic)"
+    - "Not validating intermediate conclusions"
+  interviewTips:
+    - "Compare to tree-of-thought and graph-of-thought methods"
+    - "Discuss beam search vs best-first exploration"
+    - "Mention verification at each reasoning step"
+    - "Explain when graph reasoning beats linear CoT"
+realWorld:
+  description: |
+    OpenAI's o1 model uses implicit graph reasoning for complex problems. 
+    Google's DeepMind employs similar techniques for mathematical reasoning.
+    Enterprise systems use graph reasoning for compliance auditing and 
+    decision traceability.
+  companies: ["OpenAI", "Google DeepMind", "Microsoft", "IBM"]
+  useCases:
+    - "Complex mathematical proof verification"
+    - "Legal case precedent analysis"
+    - "Medical diagnosis reasoning"
+    - "Financial risk assessment chains"
+    - "Scientific hypothesis testing"
+complexity:
+  time: "O(b^d) where b = branching factor, d = depth"
+  space: "O(b^d) for storing reasoning graph"
+  latency: "2-10s depending on graph size and LLM calls"
+resources:
+  papers:
+    - title: "Tree of Thoughts: Deliberate Problem Solving"
+      url: "https://arxiv.org/abs/2305.10601"
+      authors: "Yao et al."
+      year: 2023
+    - title: "Graph of Thoughts: Solving Elaborate Problems"
+      url: "https://arxiv.org/abs/2308.09687"
+      authors: "Besta et al."
+      year: 2023
+    - title: "Learning to Reason with LLMs"
+      url: "https://openai.com/index/learning-to-reason-with-llms/"
+      authors: "OpenAI"
+      year: 2024
+    - title: "Chain-of-Thought Prompting Elicits Reasoning"
+      url: "https://arxiv.org/abs/2201.11903"
+      authors: "Wei et al., Google"
+      year: 2022
+  documentation:
+    - title: "LangChain Reasoning Chains"
+      url: "https://python.langchain.com/docs/modules/chains/additional/analyze_document/"
+    - title: "OpenAI o1 System Card"
+      url: "https://openai.com/index/openai-o1-system-card/"
+  tutorials:
+    - title: "Building Reasoning Systems with LLMs"
+      url: "https://www.anthropic.com/research/building-reasoning-systems"
+    - title: "Graph of Thoughts Tutorial"
+      url: "https://github.com/spcl/graph-of-thoughts"
+  tools:
+    - name: "Graph of Thoughts"
+      description: "Framework for graph-based reasoning with LLMs"
+      url: "https://github.com/spcl/graph-of-thoughts"
+    - name: "Tree of Thoughts"
+      description: "Implementation of tree-based reasoning"
+      url: "https://github.com/kyegomez/tree-of-thoughts"
+    - name: "Guidance"
+      description: "Controlled generation for structured reasoning"
+      url: "https://github.com/guidance-ai/guidance"
 ---
 
 # Graph-O1 Reasoning
 
-Implement a reasoning system that builds and traverses a graph of intermediate reasoning steps.
+Implement a reasoning system that builds and traverses a graph of intermediate reasoning steps, enabling complex multi-hop problem solving with backtracking and hypothesis exploration.
 
-## Requirements
+## The Problem
 
-1. Decompose query into sub-questions
-2. Build reasoning graph
-3. Retrieve evidence for each node
-4. Synthesize final answer from graph
+Standard chain-of-thought (CoT) reasoning follows a single linear path:
 
-## Starter Code
+```
+Query → Step 1 → Step 2 → Step 3 → Answer
+```
+
+But complex problems require:
+- **Exploring multiple hypotheses** (branching)
+- **Recovering from errors** (backtracking)
+- **Combining partial solutions** (convergence)
+- **Verifying each step** (validation)
+
+## Your Task
+
+Implement a `GraphReasoner` class that performs graph-based reasoning:
 
 ```python
 class GraphReasoner:
-    def __init__(self, decomposer, retriever, synthesizer):
-        self.decomposer = decomposer
-        self.retriever = retriever
-        self.synthesizer = synthesizer
+    def __init__(self, llm, retriever, max_depth: int = 5):
+        """
+        Initialize graph reasoner.
+        
+        Args:
+            llm: Language model for reasoning
+            retriever: RAG retriever for evidence
+            max_depth: Maximum reasoning depth
+        """
+        pass
+    
+    def decompose_query(self, query: str) -> list[str]:
+        """
+        Decompose complex query into sub-questions.
+        
+        Args:
+            query: Complex user query
+            
+        Returns:
+            List of sub-questions to answer
+        """
+        pass
+    
+    def build_reasoning_graph(self, query: str) -> dict:
+        """
+        Build graph of reasoning steps.
+        
+        Args:
+            query: User query
+            
+        Returns:
+            Graph structure:
+            {
+                "nodes": [
+                    {
+                        "id": str,
+                        "type": "question|evidence|conclusion",
+                        "content": str,
+                        "confidence": float,
+                        "evidence": list[str]
+                    }
+                ],
+                "edges": [
+                    {"source": str, "target": str, "relation": str}
+                ]
+            }
+        """
+        pass
+    
+    def traverse_and_reason(self, graph: dict, query: str) -> dict:
+        """
+        Traverse reasoning graph to find best answer path.
+        
+        Args:
+            graph: Reasoning graph
+            query: Original query
+            
+        Returns:
+            {
+                "answer": str,
+                "reasoning_path": list[dict],
+                "confidence": float,
+                "alternative_paths": list[list[dict]]
+            }
+        """
+        pass
     
     def reason(self, query: str) -> dict:
         """
-        Graph-based reasoning.
+        Full graph reasoning pipeline.
         
+        Args:
+            query: User question
+            
         Returns:
             {
                 "answer": str,
                 "reasoning_graph": dict,
-                "intermediate_steps": list[str]
+                "reasoning_path": list[str],
+                "intermediate_steps": list[str],
+                "confidence": float,
+                "verification": dict
             }
         """
         pass
 ```
+
+## Example
+
+```python
+reasoner = GraphReasoner(llm, retriever)
+
+# Complex query requiring multi-step reasoning
+query = """
+If Company A acquired Company B in 2020, and Company B had acquired 
+Company C in 2018, what intellectual property does Company A now 
+control that was originally developed by Company C?
+"""
+
+result = reasoner.reason(query)
+
+print(result["answer"])
+# "Company A controls all IP originally developed by Company C, 
+#  including patents X, Y, and Z, through the acquisition chain..."
+
+print(result["reasoning_path"])
+# [
+#   "Identify: Company A acquired Company B (2020)",
+#   "Identify: Company B acquired Company C (2018)",
+#   "Infer: Company A indirectly owns Company C assets",
+#   "Retrieve: Company C's IP portfolio from 2018",
+#   "Conclude: Company A controls patents X, Y, Z"
+# ]
+
+# The reasoning graph would show:
+# Query → [Acquisition Chain] → [IP Ownership] → [Specific Assets]
+#            ↓                      ↓
+#      [Company A→B]          [Transfer Rights]
+#            ↓                      ↓
+#      [Company B→C] → [Original C Assets]
+```
+
+## Algorithm Details
+
+### Query Decomposition
+
+```python
+def decompose_query(self, query: str) -> list[str]:
+    """Break complex query into manageable sub-questions."""
+    prompt = f"""Decompose this complex query into 2-4 sub-questions 
+    that need to be answered to solve the main problem.
+    
+    Query: {query}
+    
+    Output as JSON list of sub-questions."""
+    
+    response = self.llm.generate(prompt)
+    sub_questions = json.loads(response)
+    return sub_questions
+```
+
+### Graph Construction
+
+```python
+def build_reasoning_graph(self, query: str) -> dict:
+    """Build graph by iteratively expanding nodes."""
+    # Initialize with query node
+    graph = {
+        "nodes": [{"id": "root", "content": query, "type": "question"}],
+        "edges": []
+    }
+    
+    # Decompose into sub-questions
+    sub_questions = self.decompose_query(query)
+    
+    for i, sq in enumerate(sub_questions):
+        node_id = f"q_{i}"
+        graph["nodes"].append({
+            "id": node_id,
+            "content": sq,
+            "type": "question"
+        })
+        graph["edges"].append({
+            "source": "root",
+            "target": node_id,
+            "relation": "decomposes_to"
+        })
+        
+        # Retrieve evidence for each sub-question
+        evidence = self.retriever.retrieve(sq, k=3)
+        for j, doc in enumerate(evidence):
+            ev_id = f"e_{i}_{j}"
+            graph["nodes"].append({
+                "id": ev_id,
+                "content": doc,
+                "type": "evidence"
+            })
+            graph["edges"].append({
+                "source": node_id,
+                "target": ev_id,
+                "relation": "supported_by"
+            })
+    
+    return graph
+```
+
+### Best-First Graph Traversal
+
+```python
+def traverse_best_first(self, graph: dict, query: str) -> list:
+    """Use best-first search to find optimal reasoning path."""
+    import heapq
+    
+    # Priority queue: (negative_score, node_id, path)
+    pq = [(0, "root", ["root"])]
+    visited = set()
+    best_path = None
+    best_score = float('-inf')
+    
+    while pq:
+        score, node_id, path = heapq.heappop(pq)
+        score = -score  # Negated for min-heap
+        
+        if node_id in visited:
+            continue
+        visited.add(node_id)
+        
+        node = self.get_node(graph, node_id)
+        
+        # Score this node
+        node_score = self.score_node(node, query)
+        total_score = score + node_score
+        
+        # Check if this is an answer node
+        if node["type"] == "conclusion":
+            if total_score > best_score:
+                best_score = total_score
+                best_path = path
+            continue
+        
+        # Add neighbors to queue
+        for edge in graph["edges"]:
+            if edge["source"] == node_id:
+                neighbor_id = edge["target"]
+                if neighbor_id not in visited:
+                    new_path = path + [neighbor_id]
+                    heapq.heappush(pq, (-total_score, neighbor_id, new_path))
+    
+    return best_path
+```
+
+### Verification at Each Step
+
+```python
+def verify_step(self, step: dict, context: list[str]) -> dict:
+    """Verify correctness of a reasoning step."""
+    prompt = f"""Verify this reasoning step. Is the conclusion 
+    properly supported by the evidence?
+    
+    Step: {step['content']}
+    Evidence: {context}
+    
+    Respond with JSON:
+    {{
+        "valid": bool,
+        "confidence": float (0-1),
+        "issues": list[str]
+    }}"""
+    
+    response = self.llm.generate(prompt)
+    return json.loads(response)
+```
+
+## Reasoning Graph Structure
+
+```
+                    [Query Node]
+                         |
+        +----------------+----------------+
+        |                |                |
+   [Sub-Q 1]       [Sub-Q 2]        [Sub-Q 3]
+        |                |                |
+   +----+----+      +----+----+      +----+----+
+   |         |      |         |      |         |
+[Ev 1.1] [Ev 1.2] [Ev 2.1] [Ev 2.2] [Ev 3.1] [Ev 3.2]
+   |         |      |         |      |         |
+   +----+----+      +----+----+      +----+----+
+        |                |                |
+   [Conclusion 1]   [Conclusion 2]   [Conclusion 3]
+        |                |                |
+        +----------------+----------------+
+                         |
+                   [Final Answer]
+```
+
+## Evaluation Criteria
+
+Your implementation will be tested on:
+
+1. **Correctness**: Reaches correct conclusions
+2. **Completeness**: Explores relevant reasoning paths
+3. **Efficiency**: Prunes low-value branches
+4. **Verifiability**: Each step can be validated
+
+## Test Cases
+
+```python
+def test_acquisition_chain():
+    """Test multi-hop business reasoning."""
+    reasoner = GraphReasoner(llm, retriever)
+    
+    query = "If A owns B and B owns C, what does A control from C?"
+    result = reasoner.reason(query)
+    
+    assert "transitive" in result["answer"].lower() or \
+           "indirectly" in result["answer"].lower()
+    assert len(result["reasoning_path"]) >= 3
+
+def test_mathematical_proof():
+    """Test step-by-step mathematical reasoning."""
+    query = "Prove that the sum of angles in a triangle is 180 degrees"
+    result = reasoner.reason(query)
+    
+    assert any("180" in step for step in result["reasoning_path"])
+    assert result["confidence"] > 0.7
+
+def test_backtracking():
+    """Test recovery from incorrect paths."""
+    # Query with misleading information
+    query = "Given X is prime and X > 2, is X always odd?"
+    result = reasoner.reason(query)
+    
+    # Should explore both possibilities and conclude correctly
+    assert "yes" in result["answer"].lower() or \
+           "true" in result["answer"].lower()
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|-----------|-------|
+| Graph Construction | O(k × r × d) | k=sub-questions, r=retrievals, d=docs |
+| Traversal | O(b^d) | b=branching factor, d=depth |
+| Verification | O(n × c) | n=nodes, c=cost per verification |
+| Total | O(b^d + n × c) | Dominated by graph exploration |
+
+## Comparison: Linear CoT vs Graph-O1
+
+| Feature | Linear CoT | Graph-O1 |
+|---------|-----------|----------|
+| Branching | ❌ No | ✅ Yes |
+| Backtracking | ❌ No | ✅ Yes |
+| Convergence | ❌ No | ✅ Yes |
+| Verification | ⚠️ Limited | ✅ Per-node |
+| Latency | ⚡ Fast | 🐢 Slower |
+| Cost | 💰 Low | 💰💰 Higher |
+
+## Production Considerations
+
+1. **Beam width**: Limit concurrent branches to control cost
+2. **Early stopping**: Stop when confidence threshold reached
+3. **Caching**: Cache reasoning graphs for similar queries
+4. **Human review**: Flag low-confidence paths for review
+
+## Further Reading
+
+- [Tree of Thoughts Paper](https://arxiv.org/abs/2305.10601)
+- [Graph of Thoughts Paper](https://arxiv.org/abs/2308.09687)
+- [OpenAI o1 Blog Post](https://openai.com/index/learning-to-reason-with-llms/)

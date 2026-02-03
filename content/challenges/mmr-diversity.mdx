@@ -1,35 +1,706 @@
-﻿<Callout title="Goal" variant="info">
-  Implement MMR to select a diverse context set (less redundancy, better evidence coverage).
-</Callout>
+﻿# MMR Diversity
 
-## Why this matters in production
+**Difficulty**: Tier 3 - Advanced Retrieval  
+**Prerequisites**: Cosine Similarity, Re-ranking Basics  
+**Time Estimate**: 3-4 hours
 
-Retrieval often returns **near-duplicates**:
+## Objective
 
-- the same paragraph repeated across pages
-- boilerplate policy headers/footers
-- multiple chunks from the same section saying the same thing
+Implement Maximal Marginal Relevance (MMR) to select diverse, non-redundant context from retrieval results, balancing relevance with coverage.
 
-If you feed redundant chunks into the LLM, you get:
+## Purpose
 
-- wasted tokens (cost)
-- worse attention (“lost in the middle”)
-- lower factual coverage
+Standard top-k retrieval often returns near-duplicate documents that waste context window space and limit information coverage. MMR ensures the LLM sees diverse perspectives, improving answer quality and reducing hallucination.
 
-MMR helps pick a set that’s still relevant **but more diverse**.
+### Real-World Impact
+- **News aggregation**: Multiple sources on same event (not 5 identical articles)
+- **Legal research**: Different case law interpretations
+- **Medical diagnosis**: Various symptoms and treatment options
+- **Product research**: Pros and cons from different reviews
 
-## The rule (greedy selection)
+## The Problem
 
-At each step, pick the doc \(d\) that maximizes:
+**Redundancy in Retrieval:**
+- Same paragraph repeated across pages
+- Boilerplate headers/footers
+- Multiple chunks from same section
+- Near-duplicate content with minor variations
 
-\[
-\lambda\cdot rel(d) - (1-\lambda)\cdot \max_{s\in selected} sim(d,s)
-\]
+**Consequences of Redundancy:**
+- Wasted tokens (cost)
+- Lost in the middle (attention degradation)
+- Lower factual coverage
+- Echo chamber effect (single viewpoint)
 
-## Practical advice
+## Theory
 
-- Use MMR after you have candidates (e.g., retrieve 50 → pick final 8).
-- Combine with dedup (exact hash) and metadata filters first.
+### The MMR Formula
 
+At each step, select the document that maximizes:
 
+```
+MMR_score(d) = λ × rel(d) - (1-λ) × max_{s∈selected} sim(d, s)
+```
 
+Where:
+- `rel(d)` = relevance score of document d to query
+- `sim(d, s)` = similarity between d and already selected documents
+- `λ` (lambda) = trade-off parameter between relevance and diversity
+
+### Lambda Trade-off
+
+| Lambda | Behavior | Best For |
+|--------|----------|----------|
+| λ = 1.0 | Pure relevance | Single-topic queries, known unique docs |
+| λ = 0.7 | Relevance-biased | Most RAG applications (recommended) |
+| λ = 0.5 | Balanced | Exploration, multi-aspect queries |
+| λ = 0.3 | Diversity-biased | Discovery, brainstorming |
+| λ = 0.0 | Pure diversity | Maximum coverage, serendipity |
+
+### Similarity Metrics
+
+Common choices for `sim(d, s)`:
+
+**Cosine Similarity** (most common):
+```
+sim(d, s) = (d · s) / (||d|| × ||s||)
+```
+
+**Jaccard Similarity** (for sets):
+```
+sim(d, s) = |d ∩ s| / |d ∪ s|
+```
+
+**Embedding Distance**:
+```
+sim(d, s) = 1 - ||embed(d) - embed(s)||
+```
+
+### Greedy Selection Algorithm
+
+```
+Input: candidates C, relevance scores R, similarity matrix S, k, λ
+Output: selected set S_selected
+
+1. S_selected = ∅
+2. while |S_selected| < k and C ≠ ∅:
+3.   for each d in C:
+4.     max_sim = max_{s∈S_selected} S[d, s]  (or 0 if S_selected empty)
+5.     mmr_score[d] = λ × R[d] - (1-λ) × max_sim
+6.   d* = argmax_{d∈C} mmr_score[d]
+7.   S_selected = S_selected ∪ {d*}
+8.   C = C \ {d*}
+9. return S_selected
+```
+
+**Time Complexity**: O(k × n²) where n = candidates, k = selections
+
+## Setup
+
+You have:
+- 50 retrieved documents per query
+- Pre-computed relevance scores (0-1)
+- Pre-computed similarity matrix (cosine similarity)
+- Target: Select 8 diverse documents
+
+## Challenges
+
+### Challenge 1: Basic MMR Implementation
+
+Implement the core MMR algorithm.
+
+**Acceptance Criteria:**
+- Correctly compute MMR scores using the formula
+- Handle empty selected set (pure relevance for first pick)
+- Return exactly k documents (or all if fewer available)
+- Time complexity O(k × n²)
+
+**Example:**
+```
+Candidates: [A, B, C, D]
+Relevance:  {A: 0.95, B: 0.94, C: 0.80, D: 0.79}
+Similarity: sim(A,B) = 0.98, sim(A,C) = 0.10, ...
+λ = 0.7, k = 2
+
+Step 1 (empty selected):
+  A: 0.7 × 0.95 - 0.3 × 0 = 0.665
+  B: 0.7 × 0.94 - 0.3 × 0 = 0.658
+  → Pick A (highest)
+
+Step 2 (selected = {A}):
+  B: 0.7 × 0.94 - 0.3 × 0.98 = 0.658 - 0.294 = 0.364
+  C: 0.7 × 0.80 - 0.3 × 0.10 = 0.560 - 0.030 = 0.530
+  D: 0.7 × 0.79 - 0.3 × 0.10 = 0.553 - 0.030 = 0.523
+  → Pick C (diverse, despite lower relevance)
+
+Result: [A, C] (not [A, B] which would be redundant)
+```
+
+### Challenge 2: Lambda Tuning
+
+Find optimal λ for your use case.
+
+**Acceptance Criteria:**
+- Evaluate MMR with λ ∈ {0.0, 0.3, 0.5, 0.7, 1.0}
+- Measure diversity (average pairwise distance)
+- Measure relevance (average relevance of selected)
+- Plot diversity vs relevance trade-off curve
+- Select λ maximizing combined metric
+
+**Combined Metric:**
+```
+score(λ) = α × normalized_relevance + (1-α) × normalized_diversity
+```
+
+### Challenge 3: Efficient Similarity Computation
+
+Pre-compute and cache similarities for speed.
+
+**Acceptance Criteria:**
+- Implement similarity matrix pre-computation
+- Cache similarities across queries
+- Reduce MMR time to < 10ms for 100 candidates
+- Handle sparse similarity (only compute for likely candidates)
+
+## Evaluation Metrics
+
+| Metric | Target | Description |
+|--------|--------|-------------|
+| Avg Relevance | > 0.75 | Mean relevance of selected docs |
+| Avg Pairwise Dist | > 0.5 | Mean distance between selected docs |
+| Coverage | > 0.8 | % of relevant aspects covered |
+| Latency | < 10ms | Selection time for 100 candidates |
+
+## Starter Code
+
+```python
+from typing import List, Dict, Tuple, Callable
+from dataclasses import dataclass
+import numpy as np
+from collections import defaultdict
+
+@dataclass
+class Document:
+    id: str
+    text: str
+    embedding: np.ndarray = None
+    relevance: float = 0.0
+
+class MMRSelector:
+    """
+    Maximal Marginal Relevance for diverse document selection.
+    """
+    
+    def __init__(self, 
+                 lambda_param: float = 0.7,
+                 similarity_fn: Callable[[Document, Document], float] = None):
+        """
+        Args:
+            lambda_param: Trade-off between relevance (1.0) and diversity (0.0)
+            similarity_fn: Function to compute similarity between documents
+        """
+        self.lambda_param = lambda_param
+        self.similarity_fn = similarity_fn or self._cosine_similarity
+        self.similarity_cache = {}
+        
+    def _cosine_similarity(self, d1: Document, d2: Document) -> float:
+        """Compute cosine similarity between document embeddings."""
+        if d1.embedding is None or d2.embedding is None:
+            # Fallback to text-based Jaccard
+            return self._jaccard_similarity(d1.text, d2.text)
+            
+        v1 = d1.embedding / np.linalg.norm(d1.embedding)
+        v2 = d2.embedding / np.linalg.norm(d2.embedding)
+        return float(np.dot(v1, v2))
+        
+    def _jaccard_similarity(self, text1: str, text2: str) -> float:
+        """Jaccard similarity for text without embeddings."""
+        words1 = set(text1.lower().split())
+        words2 = set(text2.lower().split())
+        
+        if not words1 or not words2:
+            return 0.0
+            
+        intersection = len(words1 & words2)
+        union = len(words1 | words2)
+        
+        return intersection / union if union > 0 else 0.0
+        
+    def _get_similarity(self, d1: Document, d2: Document) -> float:
+        """Get cached similarity or compute."""
+        key = tuple(sorted([d1.id, d2.id]))
+        
+        if key not in self.similarity_cache:
+            self.similarity_cache[key] = self.similarity_fn(d1, d2)
+            
+        return self.similarity_cache[key]
+        
+    def compute_mmr_score(self, 
+                         doc: Document,
+                         selected: List[Document]) -> float:
+        """
+        Compute MMR score for a document.
+        
+        MMR = λ × rel - (1-λ) × max_sim_to_selected
+        """
+        relevance_term = self.lambda_param * doc.relevance
+        
+        if not selected:
+            diversity_penalty = 0.0
+        else:
+            max_sim = max(self._get_similarity(doc, s) for s in selected)
+            diversity_penalty = (1 - self.lambda_param) * max_sim
+            
+        return relevance_term - diversity_penalty
+        
+    def select(self, 
+              candidates: List[Document],
+              k: int) -> List[Document]:
+        """
+        Select k diverse documents using MMR.
+        
+        Args:
+            candidates: Pool of documents with relevance scores
+            k: Number of documents to select
+            
+        Returns:
+            Selected documents in order of selection
+        """
+        if not candidates:
+            return []
+            
+        if k >= len(candidates):
+            return candidates
+            
+        selected = []
+        remaining = candidates.copy()
+        
+        while len(selected) < k and remaining:
+            # Compute MMR score for each remaining candidate
+            mmr_scores = []
+            for doc in remaining:
+                score = self.compute_mmr_score(doc, selected)
+                mmr_scores.append((doc, score))
+                
+            # Select document with highest MMR score
+            # Tie-break by relevance, then by ID
+            mmr_scores.sort(key=lambda x: (-x[1], -x[0].relevance, x[0].id))
+            best_doc = mmr_scores[0][0]
+            
+            selected.append(best_doc)
+            remaining.remove(best_doc)
+            
+        return selected
+        
+    def select_with_precomputed(self,
+                               candidates: List[Document],
+                               k: int,
+                               similarity_matrix: np.ndarray) -> List[Document]:
+        """
+        Faster selection with pre-computed similarity matrix.
+        
+        Args:
+            similarity_matrix: n×n matrix where [i,j] = sim(candidates[i], candidates[j])
+        """
+        if not candidates or k <= 0:
+            return []
+            
+        n = len(candidates)
+        if k >= n:
+            return candidates
+            
+        selected_indices = []
+        remaining_indices = set(range(n))
+        
+        while len(selected_indices) < k and remaining_indices:
+            best_idx = None
+            best_score = float('-inf')
+            
+            for idx in remaining_indices:
+                doc = candidates[idx]
+                relevance_term = self.lambda_param * doc.relevance
+                
+                if not selected_indices:
+                    diversity_penalty = 0.0
+                else:
+                    max_sim = max(similarity_matrix[idx, s] for s in selected_indices)
+                    diversity_penalty = (1 - self.lambda_param) * max_sim
+                    
+                score = relevance_term - diversity_penalty
+                
+                if score > best_score:
+                    best_score = score
+                    best_idx = idx
+                    
+            if best_idx is not None:
+                selected_indices.append(best_idx)
+                remaining_indices.remove(best_idx)
+                
+        return [candidates[i] for i in selected_indices]
+        
+    def evaluate_diversity(self, selected: List[Document]) -> Dict[str, float]:
+        """
+        Compute diversity metrics for selected documents.
+        """
+        if len(selected) < 2:
+            return {'avg_pairwise_sim': 0.0, 'min_pairwise_sim': 0.0}
+            
+        similarities = []
+        for i in range(len(selected)):
+            for j in range(i + 1, len(selected)):
+                sim = self._get_similarity(selected[i], selected[j])
+                similarities.append(sim)
+                
+        return {
+            'avg_pairwise_sim': np.mean(similarities),
+            'min_pairwise_sim': np.min(similarities),
+            'max_pairwise_sim': np.max(similarities),
+            'avg_pairwise_dist': 1 - np.mean(similarities)  # Distance = 1 - similarity
+        }
+        
+    def tune_lambda(self,
+                   validation_queries: List[str],
+                   candidates_per_query: List[List[Document]],
+                   ground_truth_aspects: List[set],
+                   lambda_values: List[float] = None) -> float:
+        """
+        Find optimal lambda parameter on validation set.
+        
+        Args:
+            ground_truth_aspects: Set of relevant aspects per query
+            lambda_values: List of lambda values to try
+            
+        Returns:
+            Optimal lambda value
+        """
+        if lambda_values is None:
+            lambda_values = [0.0, 0.3, 0.5, 0.7, 0.9, 1.0]
+            
+        best_lambda = None
+        best_score = 0.0
+        
+        for lam in lambda_values:
+            self.lambda_param = lam
+            
+            total_coverage = 0.0
+            total_relevance = 0.0
+            
+            for query, candidates, aspects in zip(
+                validation_queries, candidates_per_query, ground_truth_aspects
+            ):
+                selected = self.select(candidates, k=8)
+                
+                # Measure coverage (how many aspects are represented)
+                covered_aspects = set()
+                for doc in selected:
+                    # Simplified: assume aspect overlap correlates with similarity
+                    for aspect in aspects:
+                        if aspect.lower() in doc.text.lower():
+                            covered_aspects.add(aspect)
+                            
+                coverage = len(covered_aspects) / len(aspects) if aspects else 1.0
+                avg_rel = np.mean([d.relevance for d in selected]) if selected else 0.0
+                
+                total_coverage += coverage
+                total_relevance += avg_rel
+                
+            # Combined score: balance coverage and relevance
+            avg_coverage = total_coverage / len(validation_queries)
+            avg_relevance = total_relevance / len(validation_queries)
+            combined_score = 0.6 * avg_coverage + 0.4 * avg_relevance
+            
+            if combined_score > best_score:
+                best_score = combined_score
+                best_lambda = lam
+                
+        self.lambda_param = best_lambda
+        return best_lambda
+```
+
+## Advanced Techniques
+
+### 1. Aspect-Based MMR
+
+Group documents by aspect/topic before MMR:
+
+```python
+def aspect_based_mmr(candidates: List[Document],
+                    aspects: List[str],
+                    k: int,
+                    lambda_param: float = 0.7) -> List[Document]:
+    """
+    Ensure representation from multiple aspects.
+    
+    Strategy:
+    1. Assign each doc to nearest aspect
+    2. Run MMR within each aspect
+    3. Round-robin select from aspects
+    """
+    # Assign to aspects
+    aspect_docs = defaultdict(list)
+    for doc in candidates:
+        best_aspect = max(aspects, 
+                         key=lambda a: aspect_similarity(doc, a))
+        aspect_docs[best_aspect].append(doc)
+        
+    # Run MMR per aspect
+    aspect_selections = {}
+    for aspect, docs in aspect_docs.items():
+        selector = MMRSelector(lambda_param=lambda_param)
+        aspect_selections[aspect] = selector.select(docs, k=len(docs))
+        
+    # Round-robin selection
+    selected = []
+    aspect_iters = {a: iter(docs) for a, docs in aspect_selections.items()}
+    
+    while len(selected) < k:
+        for aspect in aspects:
+            if len(selected) >= k:
+                break
+            try:
+                doc = next(aspect_iters[aspect])
+                if doc not in selected:
+                    selected.append(doc)
+            except StopIteration:
+                continue
+                
+    return selected
+```
+
+### 2. Submodular Optimization
+
+MMR is a greedy approximation to submodular optimization:
+
+```python
+def submodular_selection(candidates: List[Document],
+                        k: int,
+                        lambda_param: float = 0.7) -> List[Document]:
+    """
+    Use submodular function for diversity.
+    
+    f(S) = Σ_{d∈S} rel(d) + λ × coverage(S)
+    
+    where coverage(S) is a submodular function.
+    """
+    def objective(selected: List[Document]) -> float:
+        relevance = sum(d.relevance for d in selected)
+        
+        # Coverage: reward diverse embeddings
+        if not selected:
+            return 0.0
+            
+        # Facility location function
+        embeddings = np.array([d.embedding for d in selected])
+        # Coverage = sum of max similarities to selected set
+        # (simplified - would need all candidates)
+        coverage = np.sum(np.max(embeddings @ embeddings.T, axis=1))
+        
+        return relevance + lambda_param * coverage
+        
+    # Greedy maximization
+    selected = []
+    remaining = candidates.copy()
+    
+    while len(selected) < k and remaining:
+        best_gain = 0
+        best_doc = None
+        
+        for doc in remaining:
+            gain = objective(selected + [doc]) - objective(selected)
+            if gain > best_gain:
+                best_gain = gain
+                best_doc = doc
+                
+        if best_doc:
+            selected.append(best_doc)
+            remaining.remove(best_doc)
+            
+    return selected
+```
+
+### 3. Query-Specific Lambda
+
+Adjust λ based on query characteristics:
+
+```python
+def adaptive_lambda(query: str, 
+                   candidates: List[Document]) -> float:
+    """
+    More diversity for ambiguous/broad queries.
+    More relevance for specific queries.
+    """
+    # Query features
+    query_length = len(query.split())
+    has_entities = len(extract_entities(query)) > 0
+    is_question = any(w in query.lower() for w in ['what', 'how', 'why'])
+    
+    # Candidate variance
+    rel_variance = np.var([d.relevance for d in candidates])
+    
+    # Heuristic rules
+    if query_length < 3 and not has_entities:
+        # Broad query → more diversity
+        return 0.4
+    elif rel_variance > 0.1:
+        # Clear winners → more relevance
+        return 0.8
+    else:
+        # Balanced
+        return 0.6
+```
+
+## Production Tips
+
+### 1. Pre-filtering
+
+Apply cheaper filters before MMR:
+
+```python
+def efficient_mmr_pipeline(candidates: List[Document],
+                          k: int,
+                          lambda_param: float = 0.7) -> List[Document]:
+    """
+    Multi-stage filtering for efficiency.
+    """
+    # Stage 1: Exact dedup (hash-based)
+    unique = exact_deduplication(candidates)
+    
+    # Stage 2: Threshold filter
+    filtered = [d for d in unique if d.relevance > 0.5]
+    
+    # Stage 3: MMR on reduced set
+    selector = MMRSelector(lambda_param)
+    return selector.select(filtered, k)
+```
+
+### 2. Approximate Similarity
+
+Use approximate methods for large candidate sets:
+
+```python
+def approximate_mmr(candidates: List[Document],
+                   k: int,
+                   n_clusters: int = 10) -> List[Document]:
+    """
+    Cluster candidates, then MMR on cluster representatives.
+    """
+    from sklearn.cluster import KMeans
+    
+    # Cluster embeddings
+    embeddings = np.array([d.embedding for d in candidates])
+    kmeans = KMeans(n_clusters=n_clusters)
+    labels = kmeans.fit_predict(embeddings)
+    
+    # Pick best from each cluster
+    representatives = []
+    for i in range(n_clusters):
+        cluster_docs = [candidates[j] for j in range(len(candidates)) 
+                       if labels[j] == i]
+        if cluster_docs:
+            best = max(cluster_docs, key=lambda d: d.relevance)
+            representatives.append(best)
+            
+    # Run MMR on representatives
+    selector = MMRSelector()
+    return selector.select(representatives, k)
+```
+
+### 3. Streaming MMR
+
+For very large candidate sets:
+
+```python
+def streaming_mmr(candidate_stream: Iterator[Document],
+                 k: int,
+                 buffer_size: int = 1000) -> List[Document]:
+    """
+    Process candidates in batches for memory efficiency.
+    """
+    selector = MMRSelector()
+    selected = []
+    buffer = []
+    
+    for doc in candidate_stream:
+        buffer.append(doc)
+        
+        if len(buffer) >= buffer_size:
+            # Run MMR on buffer + current selected
+            combined = selected + buffer
+            selected = selector.select(combined, k)
+            buffer = []
+            
+    # Final selection
+    if buffer:
+        combined = selected + buffer
+        selected = selector.select(combined, k)
+        
+    return selected
+```
+
+## Company Examples
+
+- **Google Search**: Diversity in news results (avoiding duplicate sources)
+- **Amazon**: Product recommendations from different categories
+- **Spotify**: Diverse playlist generation
+- **LinkedIn**: Diverse job recommendations
+
+## Resources
+
+### Academic Papers
+- "The Use of MMR, Diversity-Based Reranking for Reordering Documents and Producing Summaries" - Carbonell & Goldstein (SIGIR 1998)
+- "Diversity in Document Retrieval" - Clarke et al. (SIGIR 2008)
+- "Submodular Optimization for Diverse Document Selection" - Lin & Bilmes (NAACL 2010)
+- "Maximal Marginal Relevance in RAG" - Various industry papers
+
+### Official Documentation
+- [scikit-learn: Clustering for Diversity](https://scikit-learn.org/stable/modules/clustering.html)
+- [Sentence Transformers: Semantic Search](https://www.sbert.net/examples/applications/semantic-search/README.html)
+
+### Tools & Libraries
+- [NLTK: Text Similarity](https://www.nltk.org/api/nltk.metrics.html)
+- [scikit-learn: Pairwise Metrics](https://scikit-learn.org/stable/modules/metrics.html)
+
+### GitHub Repositories
+- [UKPLab/sentence-transformers](https://github.com/UKPLab/sentence-transformers) - Embeddings for MMR
+- [facebookresearch/faiss](https://github.com/facebookresearch/faiss) - Efficient similarity search
+
+## Challenge Links
+
+### Prerequisites
+- [Cosine Similarity](/challenges/cosine-similarity) - Similarity metric
+- [Re-ranker Selection](/challenges/reranker-selection) - Re-ranking basics
+- [Exact Dedup](/challenges/exact-dedup) - Pre-filtering duplicates
+
+### Related Challenges
+- [Lost in the Middle Ordering](/challenges/lost-in-the-middle-ordering) - Context ordering
+- [Parent Document Chunking](/challenges/parent-document-chunking) - Context expansion
+
+### Next Challenges
+- [Re-ranker Cascade](/challenges/reranker-cascade) - Multi-stage selection
+- [Contextual Compression LLM](/challenges/contextual-compression-llm) - Post-selection compression
+
+## Implementation Checklist
+
+- [ ] Implement basic MMR algorithm
+- [ ] Add cosine similarity computation
+- [ ] Implement Jaccard fallback
+- [ ] Add similarity caching
+- [ ] Implement pre-computed matrix version
+- [ ] Add lambda tuning
+- [ ] Implement diversity metrics
+- [ ] Add aspect-based selection
+- [ ] Optimize for large candidate sets
+- [ ] Document lambda selection guidance
+
+## Summary
+
+MMR is one of the simplest yet most effective ways to improve RAG quality without changing your embedding model.
+
+**Key Takeaways:**
+1. **Start with λ = 0.7** for most applications
+2. **Pre-filter duplicates** before MMR
+3. **Tune λ** on your specific use case
+4. **Cache similarities** for repeated queries
+5. **Measure both relevance and diversity**
+
+MMR prevents the echo chamber effect and ensures your LLM sees multiple perspectives!

@@ -1,15 +1,46 @@
 ---
 title: "Real-Time Document Sync"
 description: |
-  Build a system that keeps your RAG knowledge base in sync with document changes in real-time.
+  Build an event-driven system that keeps your RAG knowledge base in sync with document changes in real-time. Handle document events, stable chunking, and deduplication for production RAG systems.
 difficulty: advanced
+xp: 180
 estimatedMinutes: 40
-topics: ["real-time", "streaming", "event-driven", "production"]
-language: python
 prerequisites:
   - basic-retrieval
   - stable-chunk-ids
-xp: 180
+  - live-index-updates
+topics:
+  - real-time
+  - streaming
+  - event-driven
+  - production
+  - sync
+language: python
+related:
+  - live-index-updates
+  - embedding-cache
+  - rag-observability
+next:
+  - rag-observability
+resources:
+  papers:
+    - title: "Kafka: a Distributed Messaging System for Log Processing"
+      url: "https://www.microsoft.com/en-us/research/publication/kafka-a-distributed-messaging-system-for-log-processing/"
+      authors: "Kreps et al. (LinkedIn)"
+    - title: "Debezium: Change Data Capture from Databases to Streaming"
+      url: "https://debezium.io/documentation/"
+  docs:
+    - title: "CDC with Debezium"
+      url: "https://debezium.io/documentation/reference/stable/index.html"
+    - title: "Kafka Connect"
+      url: "https://kafka.apache.org/documentation/#connect"
+    - title: "Vectorize.io Real-time Sync"
+      url: "https://vectorize.io/docs/sync/"
+  tools:
+    - Apache Kafka
+    - Debezium
+    - Vectorize.io
+    - Airbyte
 ---
 
 # Real-Time Document Sync
@@ -17,6 +48,22 @@ xp: 180
 Traditional RAG systems re-index documents in batches, leading to stale knowledge. Production systems need real-time updates.
 
 **Your task**: Build an event-driven system that keeps the vector index in sync with document changes.
+
+## Why Real-Time Sync Matters
+
+| Use Case | Without Sync | With Real-Time Sync |
+|----------|--------------|---------------------|
+| Support tickets | 5-15 min delay | < 1 second |
+| Knowledge base | Hourly batch | Instant updates |
+| News RAG | Daily refresh | Streaming updates |
+| Code changes | Nightly build | Commit-driven |
+
+### Event Sources
+
+- **Database CDC**: PostgreSQL logical replication, MySQL binlog
+- **File systems**: iNotify, S3 events
+- **Webhooks**: Stripe, GitHub, Notion API
+- **Message queues**: Kafka, RabbitMQ, SQS
 
 ## Setup
 
@@ -97,204 +144,181 @@ class RealTimeRAGSync:
         """
         Chunk document into smaller pieces with stable IDs.
         
+        Stable IDs mean the same text always gets the same chunk ID.
+        This enables efficient updates (only changed chunks).
+        
         Returns:
-            List of Chunk objects with embeddings
+            List of chunks with deterministic IDs
         """
         # YOUR CODE HERE
         pass
     
     def compute_content_hash(self, content: str) -> str:
-        """
-        Compute hash of content for change detection.
-        """
-        return hashlib.sha256(content.encode()).hexdigest()[:16]
+        """Compute hash of content for deduplication."""
+        # YOUR CODE HERE
+        pass
     
-    async def process_event(self, event: DocumentEvent) -> Dict:
+    async def process_event(self, event: DocumentEvent) -> bool:
         """
         Process a single document event.
         
+        Args:
+            event: The document change event
+            
         Returns:
-            {"action": str, "chunks_affected": int, "skipped": bool}
+            True if event was processed, False if deduplicated/no-op
         """
         # YOUR CODE HERE
         pass
     
-    async def enqueue_event(self, event: DocumentEvent):
+    async def handle_create(self, event: DocumentEvent) -> bool:
+        """Handle document creation event."""
+        # YOUR CODE HERE
+        pass
+    
+    async def handle_update(self, event: DocumentEvent) -> bool:
         """
-        Add event to processing queue.
+        Handle document update event.
+        
+        Strategy:
+        1. Delete old chunks
+        2. Chunk new content
+        3. Upsert new chunks
         """
+        # YOUR CODE HERE
+        pass
+    
+    async def handle_delete(self, event: DocumentEvent) -> bool:
+        """Handle document deletion event."""
+        # YOUR CODE HERE
+        pass
+    
+    async def start_processing(self):
+        """Start the event processing loop."""
+        self.processing = True
+        while self.processing:
+            try:
+                event = await asyncio.wait_for(
+                    self.event_queue.get(),
+                    timeout=1.0
+                )
+                await self.process_event(event)
+            except asyncio.TimeoutError:
+                continue
+    
+    def stop_processing(self):
+        """Stop the event processing loop."""
+        self.processing = False
+    
+    async def submit_event(self, event: DocumentEvent):
+        """Submit an event for processing."""
         await self.event_queue.put(event)
     
-    async def start_worker(self):
-        """
-        Start background worker to process events.
-        """
-        # YOUR CODE HERE
-        pass
-    
-    async def process_batch(self, events: List[DocumentEvent]) -> List[Dict]:
-        """
-        Process multiple events efficiently.
-        
-        - Deduplicate events for same doc_id (keep latest)
-        - Batch vector store operations
-        
-        Returns:
-            List of processing results
-        """
-        # YOUR CODE HERE
-        pass
-    
     def get_stats(self) -> Dict:
-        """
-        Get sync statistics.
-        
-        Returns:
-            {"docs_indexed": int, "total_chunks": int, "events_processed": int}
-        """
-        # YOUR CODE HERE
-        pass
+        """Get sync statistics."""
+        return {
+            "tracked_documents": len(self.doc_versions),
+            "queue_size": self.event_queue.qsize(),
+            "vector_count": len(self.vector_store.vectors)
+        }
 ```
 
 ## Requirements
 
-1. **Idempotent updates**: Processing same event twice has same result
-2. **Change detection**: Skip re-indexing if content unchanged
-3. **Batch efficiency**: Process multiple events together when possible
-4. **Proper deletion**: Remove all chunks when document deleted
+1. **Stable Chunking**: Same text → same chunk ID (deterministic hashing)
+2. **Deduplication**: Skip processing if content hasn't changed
+3. **Event Types**: Handle create, update, delete events
+4. **Async Processing**: Non-blocking event queue
+5. **Efficient Updates**: Only re-embed changed chunks
 
-## Test Events
+## Example Usage
 
 ```python
-TEST_EVENTS = [
-    # Create a new document
-    DocumentEvent(
-        type="created",
-        doc_id="doc-001",
-        content="This is a new document about machine learning. It covers neural networks, transformers, and embeddings. The content is quite detailed.",
-        metadata={"author": "alice", "category": "tech"}
-    ),
+async def main():
+    store = MockVectorStore()
+    sync = RealTimeRAGSync(store)
     
-    # Create another document
-    DocumentEvent(
-        type="created",
-        doc_id="doc-002",
-        content="Product documentation for our API. Includes authentication, rate limits, and example code.",
-        metadata={"author": "bob", "category": "docs"}
-    ),
+    # Start processing in background
+    processor = asyncio.create_task(sync.start_processing())
     
-    # Update the first document
-    DocumentEvent(
+    # Submit events
+    await sync.submit_event(DocumentEvent(
+        type="created",
+        doc_id="doc1",
+        content="This is a test document about machine learning." * 10
+    ))
+    
+    await asyncio.sleep(0.1)  # Let it process
+    
+    # Update the document
+    await sync.submit_event(DocumentEvent(
         type="updated",
-        doc_id="doc-001",
-        content="This is an UPDATED document about machine learning. Now includes GPT-4 and Claude. More content about RAG systems.",
-        metadata={"author": "alice", "category": "tech", "version": 2}
-    ),
+        doc_id="doc1",
+        content="This is an updated document about deep learning." * 10
+    ))
     
-    # Duplicate update (should be skipped)
-    DocumentEvent(
-        type="updated",
-        doc_id="doc-001",
-        content="This is an UPDATED document about machine learning. Now includes GPT-4 and Claude. More content about RAG systems.",
-        metadata={"author": "alice", "category": "tech", "version": 2}
-    ),
+    await asyncio.sleep(0.1)
     
-    # Delete a document
-    DocumentEvent(
-        type="deleted",
-        doc_id="doc-002"
-    ),
+    # Check operations
+    print(store.operations)
+    # ['UPSERT doc1_...', 'UPSERT doc1_...', 'DELETE doc1_...', 'UPSERT doc1_...']
     
-    # Create replacement document
-    DocumentEvent(
-        type="created",
-        doc_id="doc-003",
-        content="New API documentation v2. Better examples and tutorials.",
-        metadata={"author": "bob", "category": "docs"}
-    ),
-]
+    sync.stop_processing()
+    await processor
+
+asyncio.run(main())
 ```
 
 ## Hints
 
 <details>
-<summary>Hint 1: Stable chunk IDs</summary>
+<summary>Hint 1: Stable Chunking</summary>
 
-Use content hash for stable, reproducible chunk IDs:
+Use text position and doc_id for stable IDs:
 
 ```python
 def chunk_document(self, doc_id: str, content: str) -> List[Chunk]:
     chunks = []
-    
-    # Simple chunking by character count
     for i in range(0, len(content), self.chunk_size):
-        chunk_text = content[i:i + self.chunk_size]
-        
-        # Stable ID based on position and content
-        chunk_id = f"{doc_id}_chunk_{i//self.chunk_size}"
+        text = content[i:i + self.chunk_size]
+        # Stable ID based on doc_id and content position
+        chunk_id = f"{doc_id}_{hashlib.md5(text.encode()).hexdigest()[:12]}"
         
         chunks.append(Chunk(
             id=chunk_id,
             doc_id=doc_id,
-            text=chunk_text,
-            embedding=mock_embed([chunk_text])[0],
+            text=text,
+            embedding=mock_embed([text])[0],
             metadata={"position": i}
         ))
-    
     return chunks
 ```
 
 </details>
 
 <details>
-<summary>Hint 2: Change detection</summary>
+<summary>Hint 2: Event Processing</summary>
 
-Skip processing if content hash matches:
-
-```python
-async def process_event(self, event: DocumentEvent) -> Dict:
-    if event.type == "deleted":
-        await self.vector_store.delete({"doc_id": event.doc_id})
-        self.doc_versions.pop(event.doc_id, None)
-        return {"action": "deleted", "chunks_affected": 1, "skipped": False}
-    
-    # Check for unchanged content
-    content_hash = self.compute_content_hash(event.content)
-    if self.doc_versions.get(event.doc_id) == content_hash:
-        return {"action": "skipped", "chunks_affected": 0, "skipped": True}
-    
-    # Delete old chunks, add new ones
-    await self.vector_store.delete({"doc_id": event.doc_id})
-    chunks = self.chunk_document(event.doc_id, event.content)
-    await self.vector_store.upsert(chunks)
-    
-    self.doc_versions[event.doc_id] = content_hash
-    return {"action": event.type, "chunks_affected": len(chunks), "skipped": False}
-```
-
-</details>
-
-<details>
-<summary>Hint 3: Batch processing</summary>
-
-Deduplicate and process efficiently:
+Route events to appropriate handlers:
 
 ```python
-async def process_batch(self, events: List[DocumentEvent]) -> List[Dict]:
-    # Keep only latest event per doc_id
-    latest_by_doc: Dict[str, DocumentEvent] = {}
-    for event in events:
-        existing = latest_by_doc.get(event.doc_id)
-        if not existing or event.timestamp > existing.timestamp:
-            latest_by_doc[event.doc_id] = event
+async def process_event(self, event: DocumentEvent) -> bool:
+    # Deduplication check
+    content_hash = self.compute_content_hash(event.content or "")
     
-    # Process deduplicated events
-    results = []
-    for event in latest_by_doc.values():
-        result = await self.process_event(event)
-        results.append(result)
+    if event.doc_id in self.doc_versions:
+        if self.doc_versions[event.doc_id] == content_hash:
+            return False  # No change
     
-    return results
+    # Route to handler
+    if event.type == "created":
+        return await self.handle_create(event)
+    elif event.type == "updated":
+        return await self.handle_update(event)
+    elif event.type == "deleted":
+        return await self.handle_delete(event)
+    
+    return False
 ```
 
 </details>
@@ -303,66 +327,153 @@ async def process_batch(self, events: List[DocumentEvent]) -> List[Dict]:
 
 ```python
 async def test_realtime_sync():
-    vector_store = MockVectorStore()
-    sync = RealTimeRAGSync(vector_store)
+    store = MockVectorStore()
+    sync = RealTimeRAGSync(store, chunk_size=100)
     
-    results = []
-    for event in TEST_EVENTS:
-        result = await sync.process_event(event)
-        results.append(result)
-        print(f"{event.type} {event.doc_id}: {result}")
+    # Test create
+    await sync.submit_event(DocumentEvent(
+        type="created",
+        doc_id="doc1",
+        content="Hello world " * 20  # 200 chars → 2 chunks
+    ))
     
-    # Check results
-    stats = sync.get_stats()
-    print(f"\nFinal stats: {stats}")
+    await sync.process_event(DocumentEvent(
+        type="created",
+        doc_id="doc1",
+        content="Hello world " * 20
+    ))
     
-    # Verify state
-    assert stats["docs_indexed"] == 2, f"Expected 2 docs, got {stats['docs_indexed']}"
+    assert len(store.vectors) == 2, "Should have 2 chunks"
     
-    # Verify duplicate was skipped
-    skipped = sum(1 for r in results if r.get("skipped"))
-    assert skipped == 1, f"Expected 1 skipped, got {skipped}"
+    # Test duplicate detection (same content)
+    result = await sync.process_event(DocumentEvent(
+        type="updated",
+        doc_id="doc1",
+        content="Hello world " * 20
+    ))
+    assert result == False, "Should skip duplicate"
     
-    # Verify doc-002 was deleted
-    doc2_chunks = [c for c in vector_store.vectors.values() if c.doc_id == "doc-002"]
-    assert len(doc2_chunks) == 0, "doc-002 should be deleted"
+    # Test actual update
+    result = await sync.process_event(DocumentEvent(
+        type="updated",
+        doc_id="doc1",
+        content="Goodbye world " * 20
+    ))
+    assert result == True
+    assert len(store.vectors) == 2, "Still 2 chunks (replaced)"
     
-    # Verify operations order
-    print(f"\nOperations: {vector_store.operations}")
+    # Test delete
+    await sync.process_event(DocumentEvent(
+        type="deleted",
+        doc_id="doc1"
+    ))
+    assert len(store.vectors) == 0
     
-    print("\n✓ All tests passed!")
+    print("✅ All tests passed!")
 
-# Run test
 asyncio.run(test_realtime_sync())
 ```
 
-## Bonus: Webhook Handler
+## Architecture Patterns
 
-Implement a webhook endpoint for document updates:
+### Change Data Capture (CDC)
 
-```python
-# app/api/webhooks/documents/route.ts (Next.js)
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse
-
-app = FastAPI()
-
-@app.post("/webhooks/documents")
-async def handle_document_webhook(request: Request):
-    # Verify webhook signature
-    signature = request.headers.get("X-Webhook-Signature")
-    if not verify_signature(signature, await request.body()):
-        raise HTTPException(401, "Invalid signature")
-    
-    event = await request.json()
-    
-    # Enqueue for async processing
-    await sync.enqueue_event(DocumentEvent(**event))
-    
-    return JSONResponse({"status": "queued"})
+```
+Database → CDC (Debezium) → Kafka → Consumer → Vector DB
+     ↓           ↓             ↓          ↓
+  commits    events        topics    embedding
 ```
 
-## Resources
+### Webhook Architecture
 
-- [Event-Driven Architecture for ML](https://www.oreilly.com/library/view/designing-event-driven/9781098151621/)
-- [Pinecone Real-Time RAG](https://www.pinecone.io/learn/real-time-rag/)
+```
+Notion API → Webhook → Queue (SQS) → Lambda → Chunk → Vector DB
+   ↓              ↓         ↓          ↓
+ page-edit    trigger   buffer    embedding
+```
+
+### Conflict Resolution
+
+```python
+class ConflictResolver:
+    def resolve(self, local_doc, remote_doc):
+        # Strategy 1: Last write wins
+        if remote_doc.timestamp > local_doc.timestamp:
+            return remote_doc
+        return local_doc
+        
+        # Strategy 2: Version vector
+        if remote_doc.vector_clock > local_doc.vector_clock:
+            return remote_doc
+            
+        # Strategy 3: CRDT merge
+        return automerge.merge(local_doc, remote_doc)
+```
+
+## Production Considerations
+
+### Rate Limiting
+
+```python
+class RateLimitedSync(RealTimeRAGSync):
+    def __init__(self, *args, max_embeddings_per_min=1000, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.token_bucket = TokenBucket(max_embeddings_per_min)
+    
+    async def process_event(self, event):
+        chunks = self.chunk_document(event.doc_id, event.content)
+        
+        if not await self.token_bucket.consume(len(chunks)):
+            # Delay processing
+            await asyncio.sleep(60)
+            return await self.process_event(event)
+        
+        return await super().process_event(event)
+```
+
+### Error Handling
+
+```python
+class RobustSync(RealTimeRAGSync):
+    def __init__(self, *args, retry_config=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.retry_config = retry_config or RetryConfig(
+            max_retries=3,
+            backoff=ExponentialBackoff()
+        )
+        self.dlq = DeadLetterQueue()
+    
+    async def process_event(self, event):
+        try:
+            return await super().process_event(event)
+        except Exception as e:
+            if self.retry_config.should_retry(event, e):
+                await self.retry(event)
+            else:
+                await self.dlq.enqueue(event, error=str(e))
+```
+
+### Monitoring
+
+```python
+class MonitoredSync(RealTimeRAGSync):
+    async def process_event(self, event):
+        with tracer.start_as_current_span("process_event") as span:
+            span.set_attribute("doc_id", event.doc_id)
+            span.set_attribute("event_type", event.type)
+            
+            start = time.time()
+            result = await super().process_event(event)
+            
+            latency = time.time() - start
+            metrics.histogram("sync.latency", latency)
+            metrics.counter("sync.events", 1, tags={"type": event.type})
+            
+            return result
+```
+
+## Related Challenges
+
+- [Live Index Updates](challenges/live-index-updates) - Concurrent indexing
+- [Embedding Cache](challenges/embedding-cache) - Skip redundant embeddings
+- [RAG Observability](challenges/rag-observability) - Monitor sync metrics

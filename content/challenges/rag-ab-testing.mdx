@@ -1,4 +1,15 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "RAG A/B Testing"
+description: "Implement A/B testing for RAG systems — experiment with different configurations to optimize quality and cost."
+difficulty: "hard"
+estimatedMinutes: 60
+prerequisites: ["rag-evaluation-suite", "retrieval-regression-tests"]
+related: ["rag-evaluation-suite", "retrieval-regression-tests", "cost-aware-router"]
+next: null
+xpReward: 175
+---
+
+<Callout title="Goal" variant="info">
   Implement A/B testing for RAG systems — experiment with different
   configurations to optimize quality and cost.
 </Callout>
@@ -15,372 +26,541 @@ RAG has many tunable parameters:
 
 Intuition often fails. Data-driven decisions win.
 
-## A/B Testing Framework
+## Complexity Analysis
 
-### Basic Experiment Structure
+| Operation | Time Complexity | Space Complexity | Sample Size |
+|-----------|-----------------|------------------|-------------|
+| Variant assignment | O(1) | O(1) | - |
+| Metric collection | O(Q) | O(Q) | Q queries |
+| Statistical test | O(Q) | O(Q) | Q queries |
+| Full experiment | O(Q × V) | O(Q × V) | Q × V samples |
+
+Where Q = queries, V = variants
+
+## Real-World Context
+
+| Company | Use Case |
+|---------|----------|
+| **Google** | Search ranking experiments |
+| **Amazon** | Product recommendation A/B tests |
+| **Netflix** | Content recommendation testing |
+| **OpenAI** | Model selection experiments |
+| **Microsoft** | Copilot feature testing |
+
+## Resources
+
+### Papers
+- **"Overlapping Experiment Infrastructure"** - Google's A/B testing paper
+- **"Statistical Methods for A/B Testing"** - Methodology
+
+### Tools
+- **Statsig**: Feature flagging and experimentation
+- **LaunchDarkly**: Feature management
+- **Optimizely**: A/B testing platform
+- **Eppo**: Experimentation platform
+
+## Implementation
 
 ```python
+from typing import Dict, List, Callable, Optional
 from dataclasses import dataclass
-from typing import Callable
-import random
 import hashlib
+import random
+from datetime import datetime
+import statistics
+from scipy import stats
+
+@dataclass
+class Variant:
+    """Experiment variant configuration."""
+    name: str
+    weight: float  # 0.0 to 1.0
+    config: Dict   # RAG configuration
+
+@dataclass
+class Experiment:
+    """A/B test experiment definition."""
+    name: str
+    variants: List[Variant]
+    metrics: List[str]
+    start_date: datetime
+    end_date: Optional[datetime] = None
+
+
+class ABTestFramework:
+    """
+    Framework for A/B testing RAG configurations.
+    
+    Features:
+    - Consistent user assignment
+    - Metric collection
+    - Statistical analysis
+    - Winner selection
+    """
+    
+    def __init__(self):
+        self.experiments: Dict[str, Experiment] = {}
+        self.assignments: Dict[str, Dict] = {}  # user_id -> {exp: variant}
+        self.metrics: Dict[str, List[Dict]] = {}  # exp_name -> metrics
+    
+    def create_experiment(
+        self,
+        name: str,
+        variants: List[Variant],
+        metrics: List[str]
+    ) -> Experiment:
+        """Create a new experiment."""
+        # Normalize weights
+        total_weight = sum(v.weight for v in variants)
+        for v in variants:
+            v.weight = v.weight / total_weight
+        
+        exp = Experiment(
+            name=name,
+            variants=variants,
+            metrics=metrics,
+            start_date=datetime.utcnow()
+        )
+        self.experiments[name] = exp
+        self.metrics[name] = []
+        return exp
+    
+    def assign_variant(
+        self,
+        user_id: str,
+        experiment_name: str
+    ) -> Variant:
+        """
+        Deterministically assign user to variant.
+        
+        Uses hash for consistent assignment across sessions.
+        """
+        exp = self.experiments.get(experiment_name)
+        if not exp:
+            raise ValueError(f"Experiment {experiment_name} not found")
+        
+        # Check if already assigned
+        if user_id in self.assignments:
+            assigned = self.assignments[user_id].get(experiment_name)
+            if assigned:
+                for v in exp.variants:
+                    if v.name == assigned:
+                        return v
+        
+        # Deterministic assignment using hash
+        hash_input = f"{experiment_name}:{user_id}"
+        hash_value = int(hashlib.md5(hash_input.encode()).hexdigest(), 16)
+        bucket = (hash_value % 10000) / 10000  # 0.0 to 0.9999
+        
+        cumulative = 0.0
+        for variant in exp.variants:
+            cumulative += variant.weight
+            if bucket < cumulative:
+                # Store assignment
+                if user_id not in self.assignments:
+                    self.assignments[user_id] = {}
+                self.assignments[user_id][experiment_name] = variant.name
+                return variant
+        
+        # Fallback to last variant
+        return exp.variants[-1]
+    
+    def log_metric(
+        self,
+        experiment_name: str,
+        user_id: str,
+        variant_name: str,
+        metric_name: str,
+        value: float
+    ):
+        """Log a metric for analysis."""
+        if experiment_name not in self.metrics:
+            self.metrics[experiment_name] = []
+        
+        self.metrics[experiment_name].append({
+            "user_id": user_id,
+            "variant": variant_name,
+            "metric": metric_name,
+            "value": value,
+            "timestamp": datetime.utcnow()
+        })
+    
+    def analyze_experiment(
+        self,
+        experiment_name: str,
+        metric_name: str,
+        control_variant: str = "control"
+    ) -> Dict:
+        """
+        Analyze experiment results.
+        
+        Returns:
+            Dict with statistical analysis
+        """
+        data = self.metrics.get(experiment_name, [])
+        
+        # Group by variant
+        by_variant: Dict[str, List[float]] = {}
+        for record in data:
+            if record["metric"] == metric_name:
+                variant = record["variant"]
+                if variant not in by_variant:
+                    by_variant[variant] = []
+                by_variant[variant].append(record["value"])
+        
+        if control_variant not in by_variant:
+            return {"error": f"Control variant {control_variant} not found"}
+        
+        control_data = by_variant[control_variant]
+        results = {
+            "experiment": experiment_name,
+            "metric": metric_name,
+            "control": self._compute_stats(control_data),
+            "variants": {}
+        }
+        
+        # Compare each variant to control
+        for variant_name, variant_data in by_variant.items():
+            if variant_name == control_variant:
+                continue
+            
+            comparison = self._compare_groups(control_data, variant_data)
+            results["variants"][variant_name] = {
+                "stats": self._compute_stats(variant_data),
+                "comparison": comparison
+            }
+        
+        return results
+    
+    def _compute_stats(self, data: List[float]) -> Dict:
+        """Compute descriptive statistics."""
+        if not data:
+            return {}
+        
+        return {
+            "count": len(data),
+            "mean": statistics.mean(data),
+            "median": statistics.median(data),
+            "std": statistics.stdev(data) if len(data) > 1 else 0,
+            "min": min(data),
+            "max": max(data)
+        }
+    
+    def _compare_groups(
+        self,
+        control: List[float],
+        treatment: List[float]
+    ) -> Dict:
+        """Statistical comparison of two groups."""
+        control_mean = statistics.mean(control)
+        treatment_mean = statistics.mean(treatment)
+        
+        # Relative lift
+        lift = (treatment_mean - control_mean) / control_mean if control_mean else 0
+        
+        # T-test
+        t_stat, p_value = stats.ttest_ind(control, treatment)
+        
+        # Confidence interval (95%)
+        diff = treatment_mean - control_mean
+        se = (statistics.stdev(control)**2 / len(control) +
+              statistics.stdev(treatment)**2 / len(treatment)) ** 0.5
+        ci_low = diff - 1.96 * se
+        ci_high = diff + 1.96 * se
+        
+        return {
+            "lift_pct": lift * 100,
+            "p_value": p_value,
+            "significant": p_value < 0.05,
+            "confidence_interval": (ci_low, ci_high),
+            "t_statistic": t_stat
+        }
+    
+    def required_sample_size(
+        self,
+        baseline_rate: float,
+        mde: float,  # Minimum detectable effect
+        alpha: float = 0.05,
+        power: float = 0.8
+    ) -> int:
+        """
+        Calculate required sample size per variant.
+        
+        Args:
+            baseline_rate: Baseline conversion rate
+            mde: Minimum detectable effect (relative)
+            alpha: Significance level
+            power: Statistical power
+        
+        Returns:
+            Required samples per variant
+        """
+        p1 = baseline_rate
+        p2 = baseline_rate * (1 + mde)
+        
+        pooled_p = (p1 + p2) / 2
+        
+        z_alpha = stats.norm.ppf(1 - alpha / 2)
+        z_beta = stats.norm.ppf(power)
+        
+        n = (
+            (z_alpha * (2 * pooled_p * (1 - pooled_p)) ** 0.5 +
+             z_beta * (p1 * (1 - p1) + p2 * (1 - p2)) ** 0.5) ** 2
+        ) / (p1 - p2) ** 2
+        
+        return int(n) + 1
+```
+
+## Challenge: Implement A/B Testing Framework
+
+### Requirements
+
+1. Implement `create_experiment()` with variant configuration
+2. Implement `assign_variant()` with deterministic hashing
+3. Implement `log_metric()` for data collection
+4. Implement `analyze_experiment()` with statistical tests
+5. Implement `required_sample_size()` calculator
+
+### Starter Code
+
+```python
+from typing import Dict, List
+from dataclasses import dataclass
+import hashlib
+from datetime import datetime
 
 @dataclass
 class Variant:
     name: str
-    weight: float  # Percentage of traffic
-    config: dict
+    weight: float
+    config: Dict
 
 @dataclass
 class Experiment:
     name: str
-    variants: list[Variant]
+    variants: List[Variant]
+    metrics: List[str]
+    start_date: datetime
 
-    def assign(self, user_id: str) -> Variant:
-        """Deterministically assign user to variant."""
-        # Hash for consistent assignment
-        hash_input = f"{self.name}:{user_id}"
-        hash_value = int(hashlib.md5(hash_input.encode()).hexdigest(), 16)
-        bucket = (hash_value % 100) / 100
 
-        cumulative = 0
-        for variant in self.variants:
-            cumulative += variant.weight
-            if bucket < cumulative:
-                return variant
-
-        return self.variants[-1]  # Fallback
-
-# Example experiment
-chunk_size_experiment = Experiment(
-    name="chunk_size_v1",
-    variants=[
-        Variant("control", 0.5, {"chunk_size": 500}),
-        Variant("small_chunks", 0.25, {"chunk_size": 300}),
-        Variant("large_chunks", 0.25, {"chunk_size": 800}),
-    ]
-)
-```
-
-### Experiment Manager
-
-```python
-class ExperimentManager:
+class ABTestFramework:
+    """Framework for A/B testing RAG configurations."""
+    
     def __init__(self):
         self.experiments = {}
-        self.results_store = ResultsStore()
+        self.assignments = {}
+        self.metrics = {}
+    
+    def create_experiment(
+        self,
+        name: str,
+        variants: List[Variant],
+        metrics: List[str]
+    ) -> Experiment:
+        """Create a new experiment."""
+        # TODO: Implement
+        pass
+    
+    def assign_variant(self, user_id: str, experiment_name: str) -> Variant:
+        """Assign user to variant."""
+        # TODO: Implement
+        pass
+    
+    def log_metric(
+        self,
+        experiment_name: str,
+        user_id: str,
+        variant_name: str,
+        metric_name: str,
+        value: float
+    ):
+        """Log a metric."""
+        # TODO: Implement
+        pass
 
-    def register(self, experiment: Experiment):
-        self.experiments[experiment.name] = experiment
 
-    def get_config(self, user_id: str) -> dict:
-        """Get merged config from all active experiments."""
-        config = {}
-        assignments = {}
+# Test your implementation
+def test_ab_framework():
+    framework = ABTestFramework()
+    
+    # Create experiment
+    variants = [
+        Variant("control", 0.5, {"chunk_size": 500}),
+        Variant("treatment", 0.5, {"chunk_size": 1000})
+    ]
+    
+    exp = framework.create_experiment(
+        "chunk_size_test",
+        variants,
+        ["recall@10", "latency_ms"]
+    )
+    
+    assert exp.name == "chunk_size_test"
+    
+    # Test assignment (deterministic)
+    variant1 = framework.assign_variant("user_123", "chunk_size_test")
+    variant2 = framework.assign_variant("user_123", "chunk_size_test")
+    assert variant1.name == variant2.name  # Should be consistent
+    
+    # Test metric logging
+    framework.log_metric(
+        "chunk_size_test",
+        "user_123",
+        variant1.name,
+        "recall@10",
+        0.75
+    )
+    
+    assert len(framework.metrics["chunk_size_test"]) == 1
+    
+    print("All tests passed!")
 
-        for name, exp in self.experiments.items():
-            variant = exp.assign(user_id)
-            config.update(variant.config)
-            assignments[name] = variant.name
+test_ab_framework()
+```
 
-        return {
-            "config": config,
-            "assignments": assignments
-        }
+### Solution
 
-    def log_result(self, user_id: str, metric: str, value: float):
-        """Log metric for analysis."""
-        assignments = self.get_config(user_id)["assignments"]
+<details>
+<summary>Click to reveal solution</summary>
 
-        self.results_store.log({
+```python
+from typing import Dict, List
+from dataclasses import dataclass
+import hashlib
+from datetime import datetime
+import statistics
+from scipy import stats
+
+@dataclass
+class Variant:
+    name: str
+    weight: float
+    config: Dict
+
+@dataclass
+class Experiment:
+    name: str
+    variants: List[Variant]
+    metrics: List[str]
+    start_date: datetime
+
+
+class ABTestFramework:
+    """Framework for A/B testing RAG configurations."""
+    
+    def __init__(self):
+        self.experiments = {}
+        self.assignments = {}
+        self.metrics = {}
+    
+    def create_experiment(
+        self,
+        name: str,
+        variants: List[Variant],
+        metrics: List[str]
+    ) -> Experiment:
+        """Create a new experiment."""
+        total_weight = sum(v.weight for v in variants)
+        for v in variants:
+            v.weight = v.weight / total_weight
+        
+        exp = Experiment(
+            name=name,
+            variants=variants,
+            metrics=metrics,
+            start_date=datetime.utcnow()
+        )
+        self.experiments[name] = exp
+        self.metrics[name] = []
+        return exp
+    
+    def assign_variant(self, user_id: str, experiment_name: str) -> Variant:
+        """Assign user to variant using deterministic hashing."""
+        exp = self.experiments[experiment_name]
+        
+        # Check cache
+        if user_id in self.assignments:
+            assigned_name = self.assignments[user_id].get(experiment_name)
+            if assigned_name:
+                for v in exp.variants:
+                    if v.name == assigned_name:
+                        return v
+        
+        # Hash-based assignment
+        hash_input = f"{experiment_name}:{user_id}"
+        hash_val = int(hashlib.md5(hash_input.encode()).hexdigest(), 16)
+        bucket = (hash_val % 10000) / 10000
+        
+        cumulative = 0.0
+        for variant in exp.variants:
+            cumulative += variant.weight
+            if bucket < cumulative:
+                if user_id not in self.assignments:
+                    self.assignments[user_id] = {}
+                self.assignments[user_id][experiment_name] = variant.name
+                return variant
+        
+        return exp.variants[-1]
+    
+    def log_metric(
+        self,
+        experiment_name: str,
+        user_id: str,
+        variant_name: str,
+        metric_name: str,
+        value: float
+    ):
+        """Log a metric for analysis."""
+        self.metrics[experiment_name].append({
             "user_id": user_id,
-            "timestamp": datetime.utcnow(),
-            "assignments": assignments,
-            "metric": metric,
-            "value": value
+            "variant": variant_name,
+            "metric": metric_name,
+            "value": value,
+            "timestamp": datetime.utcnow()
         })
-```
-
-## Key Metrics to Track
-
-### Quality Metrics
-
-```python
-def track_quality_metrics(query: str, response: str, context: list[str]) -> dict:
-    """Track quality metrics for A/B analysis."""
-    return {
-        # Retrieval metrics
-        "retrieval_score": compute_retrieval_score(query, context),
-        "context_relevance": compute_relevance(query, context),
-
-        # Generation metrics
-        "response_length": len(response),
-        "faithfulness": compute_faithfulness(response, context),
-
-        # User feedback (collected async)
-        # "user_rating": None,  # Filled later
-        # "was_helpful": None,
-    }
-```
-
-### Latency Metrics
-
-```python
-def track_latency(func: Callable) -> Callable:
-    """Decorator to track latency by component."""
-    def wrapper(*args, **kwargs):
-        start = time.time()
-        result = func(*args, **kwargs)
-        latency_ms = (time.time() - start) * 1000
-
-        metrics.record(f"{func.__name__}_latency_ms", latency_ms)
-        return result
-    return wrapper
-
-# Usage
-class RAGPipeline:
-    @track_latency
-    def embed(self, query): ...
-
-    @track_latency
-    def retrieve(self, embedding): ...
-
-    @track_latency
-    def rerank(self, query, docs): ...
-
-    @track_latency
-    def generate(self, query, context): ...
-```
-
-### Cost Metrics
-
-```python
-def track_cost(model: str, input_tokens: int, output_tokens: int) -> float:
-    """Calculate and track cost."""
-    costs = {
-        "gpt-4o-mini": {"input": 0.15 / 1_000_000, "output": 0.60 / 1_000_000},
-        "gpt-4o": {"input": 2.50 / 1_000_000, "output": 10.00 / 1_000_000},
-    }
-
-    model_costs = costs.get(model, costs["gpt-4o-mini"])
-    total = (input_tokens * model_costs["input"] +
-             output_tokens * model_costs["output"])
-
-    metrics.record("query_cost_usd", total)
-    return total
-```
-
-## Statistical Analysis
-
-### Sample Size Calculator
-
-```python
-import scipy.stats as stats
-import numpy as np
-
-def required_sample_size(
-    baseline_rate: float,
-    mde: float,  # Minimum detectable effect
-    alpha: float = 0.05,
-    power: float = 0.8
-) -> int:
-    """Calculate required sample size per variant."""
-    # For proportions (e.g., success rate)
-    p1 = baseline_rate
-    p2 = baseline_rate * (1 + mde)
-
-    pooled_p = (p1 + p2) / 2
-
-    z_alpha = stats.norm.ppf(1 - alpha / 2)
-    z_beta = stats.norm.ppf(power)
-
-    n = (
-        (z_alpha * np.sqrt(2 * pooled_p * (1 - pooled_p)) +
-         z_beta * np.sqrt(p1 * (1 - p1) + p2 * (1 - p2))) ** 2
-    ) / (p1 - p2) ** 2
-
-    return int(np.ceil(n))
-
-# Example: Detect 5% improvement in satisfaction from 70% baseline
-sample_size = required_sample_size(0.70, 0.05)
-print(f"Need {sample_size} samples per variant")  # ~1,200
-```
-
-### Significance Testing
-
-```python
-def analyze_experiment(control_data: list[float], treatment_data: list[float]) -> dict:
-    """Analyze A/B experiment results."""
-    # Descriptive stats
-    control_mean = np.mean(control_data)
-    treatment_mean = np.mean(treatment_data)
-    lift = (treatment_mean - control_mean) / control_mean
-
-    # T-test for continuous metrics
-    t_stat, p_value = stats.ttest_ind(control_data, treatment_data)
-
-    # Confidence interval
-    diff = treatment_mean - control_mean
-    se = np.sqrt(np.var(control_data)/len(control_data) +
-                 np.var(treatment_data)/len(treatment_data))
-    ci_low = diff - 1.96 * se
-    ci_high = diff + 1.96 * se
-
-    return {
-        "control_mean": control_mean,
-        "treatment_mean": treatment_mean,
-        "lift": lift,
-        "p_value": p_value,
-        "significant": p_value < 0.05,
-        "confidence_interval": (ci_low, ci_high)
-    }
-```
-
-## Common RAG Experiments
-
-### Experiment 1: Chunk Size
-
-```python
-chunk_experiment = Experiment(
-    name="chunk_size_2024_01",
-    variants=[
-        Variant("small", 0.33, {"chunk_size": 256, "chunk_overlap": 50}),
-        Variant("medium", 0.34, {"chunk_size": 512, "chunk_overlap": 100}),
-        Variant("large", 0.33, {"chunk_size": 1024, "chunk_overlap": 200}),
-    ]
-)
-
-# Metrics to track:
-# Recall@10
-# Answer quality (human rating)
-# Tokens per query (cost)
-```
-
-### Experiment 2: Retrieval Strategy
-
-```python
-retrieval_experiment = Experiment(
-    name="retrieval_strategy_2024_01",
-    variants=[
-        Variant("dense_only", 0.33, {"retrieval": "dense", "k": 10}),
-        Variant("hybrid_rrf", 0.34, {"retrieval": "hybrid", "k": 10}),
-        Variant("hybrid_rerank", 0.33, {"retrieval": "hybrid", "k": 20, "rerank": True}),
-    ]
-)
-```
-
-### Experiment 3: Model Selection
-
-```python
-model_experiment = Experiment(
-    name="model_routing_2024_01",
-    variants=[
-        Variant("always_mini", 0.5, {"model": "gpt-4o-mini"}),
-        Variant("always_4o", 0.25, {"model": "gpt-4o"}),
-        Variant("complexity_routing", 0.25, {"model": "route_by_complexity"}),
-    ]
-)
-```
-
-## RAG-Specific A/B Patterns
-
-### Multi-Armed Bandit (Auto-Optimize)
-
-```python
-class ThompsonSamplingRAG:
-    """Automatically shift traffic to winning variants."""
-
-    def __init__(self, variants: list[str]):
-        self.variants = variants
-        # Beta distribution parameters
-        self.successes = {v: 1 for v in variants}
-        self.failures = {v: 1 for v in variants}
-
-    def select_variant(self) -> str:
-        """Sample from posterior and select best."""
-        samples = {
-            v: np.random.beta(self.successes[v], self.failures[v])
-            for v in self.variants
+    
+    def analyze_experiment(
+        self,
+        experiment_name: str,
+        metric_name: str,
+        control_variant: str = "control"
+    ) -> Dict:
+        """Analyze experiment results."""
+        data = self.metrics[experiment_name]
+        
+        by_variant = {}
+        for record in data:
+            if record["metric"] == metric_name:
+                v = record["variant"]
+                by_variant.setdefault(v, []).append(record["value"])
+        
+        control_data = by_variant.get(control_variant, [])
+        results = {
+            "control_mean": statistics.mean(control_data) if control_data else 0,
+            "variants": {}
         }
-        return max(samples, key=samples.get)
-
-    def update(self, variant: str, success: bool):
-        """Update beliefs based on outcome."""
-        if success:
-            self.successes[variant] += 1
-        else:
-            self.failures[variant] += 1
+        
+        for v_name, v_data in by_variant.items():
+            if v_name == control_variant:
+                continue
+            
+            v_mean = statistics.mean(v_data)
+            lift = (v_mean - results["control_mean"]) / results["control_mean"] if results["control_mean"] else 0
+            
+            # T-test
+            _, p_value = stats.ttest_ind(control_data, v_data)
+            
+            results["variants"][v_name] = {
+                "mean": v_mean,
+                "lift_pct": lift * 100,
+                "p_value": p_value,
+                "significant": p_value < 0.05
+            }
+        
+        return results
 ```
 
-### Staged Rollout
-
-```python
-class StagedRollout:
-    """Gradually increase traffic to new config."""
-
-    def __init__(self, new_config: dict, stages: list[float]):
-        self.new_config = new_config
-        self.stages = stages  # [0.01, 0.05, 0.25, 0.50, 1.0]
-        self.current_stage = 0
-        self.metrics = []
-
-    def get_traffic_percentage(self) -> float:
-        return self.stages[min(self.current_stage, len(self.stages) - 1)]
-
-    def advance_stage(self, min_samples: int = 100):
-        """Advance if metrics look good."""
-        if len(self.metrics) < min_samples:
-            return False
-
-        if self.check_guardrails():
-            self.current_stage += 1
-            return True
-        return False
-
-    def check_guardrails(self) -> bool:
-        """Ensure new config isn't degrading quality."""
-        # Compare recent metrics to baseline
-        recent = self.metrics[-100:]
-        return np.mean(recent) > self.baseline_threshold
-```
-
-## Results Dashboard
-
-```python
-def generate_experiment_report(experiment_name: str) -> dict:
-    """Generate report for experiment."""
-    data = results_store.get_by_experiment(experiment_name)
-
-    # Group by variant
-    by_variant = {}
-    for record in data:
-        variant = record["variant"]
-        if variant not in by_variant:
-            by_variant[variant] = []
-        by_variant[variant].append(record["value"])
-
-    # Analyze each variant
-    report = {
-        "experiment": experiment_name,
-        "total_samples": len(data),
-        "variants": {}
-    }
-
-    control = by_variant.get("control", [])
-    for variant, values in by_variant.items():
-        report["variants"][variant] = {
-            "samples": len(values),
-            "mean": np.mean(values),
-            "std": np.std(values),
-            "p95": np.percentile(values, 95),
-        }
-
-        if variant != "control" and control:
-            analysis = analyze_experiment(control, values)
-            report["variants"][variant]["vs_control"] = analysis
-
-    return report
-```
+</details>
 
 ## Production Checklist
 
@@ -393,3 +573,12 @@ def generate_experiment_report(experiment_name: str) -> dict:
 - [ ] Create results dashboard
 - [ ] Document rollback procedures
 
+## Common RAG Experiments
+
+| Experiment | Variants | Key Metrics |
+|------------|----------|-------------|
+| Chunk Size | 256, 512, 1024 | Recall, Precision, Latency |
+| Retrieval k | 5, 10, 20 | Recall@k, Cost |
+| Reranking | None, Cross-encoder, LLM | Precision, Latency |
+| Model | GPT-3.5, GPT-4 | Quality, Cost |
+| Prompt | V1, V2, V3 | Faithfulness, Relevance |

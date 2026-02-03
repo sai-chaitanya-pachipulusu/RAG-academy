@@ -1,9 +1,41 @@
 ﻿---
 title: "RAG Cost Tracker"
-description: "Track API costs with budget alerts"
-difficulty: "medium"
-xpReward: 100
-prerequisites: ["rag-usage-dashboard"]
+description: |
+  Track API costs with budget alerts. Monitor token usage, estimate costs in real-time, and prevent budget overruns with intelligent thresholds.
+difficulty: intermediate
+xp: 130
+estimatedMinutes: 30
+prerequisites:
+  - rag-cost-calculator
+  - embedding-cache
+topics:
+  - cost
+  - monitoring
+  - production
+  - api
+language: python
+related:
+  - rag-cost-calculator
+  - rag-usage-dashboard
+  - cost-aware-router
+next:
+  - rag-usage-dashboard
+resources:
+  papers:
+    - title: "The Cost of AI: Measuring the Infrastructure of Machine Learning"
+      url: "https://www.nature.com/articles/s41586-022-05138-5"
+  docs:
+    - title: "OpenAI Pricing"
+      url: "https://openai.com/pricing"
+    - title: "Anthropic Claude Pricing"
+      url: "https://www.anthropic.com/pricing"
+    - title: "Helicone Cost Analysis"
+      url: "https://docs.helicone.ai/features/advanced-usage/cost-optimization"
+  tools:
+    - Helicone
+    - Langfuse
+    - OpenMeter
+    - Portkey
 ---
 
 # RAG Cost Tracker
@@ -14,32 +46,485 @@ Build a cost tracking system for RAG API usage.
 
 LLM costs can explode unexpectedly. Real-time cost visibility and budget alerts prevent overruns.
 
-## What You'll Learn
+### Cost Explosion Scenarios
 
-- Token-based pricing models
-- Budget management patterns
-- Alert thresholds
-- Cost allocation
+| Scenario | Normal Cost | Exploded Cost | Factor |
+|----------|-------------|---------------|--------|
+| Retry storm | $500/day | $12,000/day | 24x |
+| Infinite loop | $100/day | $8,000/day | 80x |
+| Bot traffic flood | $1,000/day | $50,000/day | 50x |
+| Prompt injection attack | $200/day | $15,000/day | 75x |
 
-## Real-World Application
+### Real-World Cost Monitoring
 
-**Companies:** Helicone, Langfuse, OpenMeter, Portkey
-**Use Cases:** Budget management, Cost allocation, Usage optimization
+**Companies**: Helicone, Langfuse, OpenMeter, Portkey
+
+**Use Cases**:
+- Budget management and allocation
+- Cost attribution by user/team/feature
+- Anomaly detection for cost spikes
+- Usage-based billing for customers
 
 ## Key Concepts
 
-### Pricing Tiers
+### Pricing Tiers (Per 1K Tokens)
+
+| Model | Input | Output | Typical Query |
+|-------|-------|--------|---------------|
+| GPT-4o | $2.50 | $10.00 | $0.05-0.15 |
+| GPT-4o-mini | $0.15 | $0.60 | $0.003-0.01 |
+| Claude 3.5 Sonnet | $3.00 | $15.00 | $0.06-0.20 |
+| Claude 3.5 Haiku | $0.25 | $1.25 | $0.005-0.02 |
+
+### Budget Alert Thresholds
+
+```
+┌─────────────────────────────────────────┐
+│           Budget: $1000/day             │
+├─────────────────────────────────────────┤
+│  🟢 OK:        < $800  (80%)           │
+│  🟡 Warning:   $800-$990 (80-99%)      │
+│  🔴 Critical:  $990-$1000 (99-100%)    │
+│  🚨 Exceeded:  > $1000 (100%+)         │
+└─────────────────────────────────────────┘
+```
+
+## Setup
 
 ```python
-PRICING = {
-    "gpt-4": PricingTier("gpt-4", 0.03, 0.06),  # per 1K tokens
-    "gpt-3.5-turbo": PricingTier("gpt-3.5-turbo", 0.0005, 0.0015),
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Callable
+from datetime import datetime, timedelta
+from enum import Enum
+import time
+
+class AlertLevel(Enum):
+    OK = "ok"
+    WARNING = "warning"
+    CRITICAL = "critical"
+    EXCEEDED = "exceeded"
+
+@dataclass
+class PricingTier:
+    """Pricing for a specific model."""
+    model: str
+    input_cost_per_1k: float  # USD per 1K input tokens
+    output_cost_per_1k: float  # USD per 1K output tokens
+
+@dataclass
+class UsageRecord:
+    """Single API usage record."""
+    timestamp: datetime
+    model: str
+    input_tokens: int
+    output_tokens: int
+    cost: float
+    user_id: Optional[str] = None
+    request_id: Optional[str] = None
+
+@dataclass
+class BudgetAlert:
+    """Budget alert notification."""
+    level: AlertLevel
+    current_cost: float
+    budget: float
+    percentage: float
+    message: str
+    timestamp: datetime
+
+# Default pricing (as of 2024)
+DEFAULT_PRICING = {
+    "gpt-4o": PricingTier("gpt-4o", 2.50, 10.00),
+    "gpt-4o-mini": PricingTier("gpt-4o-mini", 0.15, 0.60),
+    "claude-3-5-sonnet": PricingTier("claude-3-5-sonnet", 3.00, 15.00),
+    "claude-3-5-haiku": PricingTier("claude-3-5-haiku", 0.25, 1.25),
+    "text-embedding-3-small": PricingTier("text-embedding-3-small", 0.02, 0.00),
+    "text-embedding-3-large": PricingTier("text-embedding-3-large", 0.13, 0.00),
 }
 ```
 
-### Budget Alerts
+## Your Task
 
-- `ok` - Under 80% of budget
-- `warning` - 80-99% of budget
-- `exceeded` - Over 100% of budget
+Implement the `RAGCostTracker` class:
 
+```python
+class RAGCostTracker:
+    """
+    Track RAG API costs with budget alerts.
+    
+    Features:
+    - Real-time cost calculation
+    - Budget thresholds and alerts
+    - Usage attribution by user/model
+    - Historical tracking
+    """
+    
+    def __init__(
+        self,
+        daily_budget: float = 100.0,
+        pricing: Dict[str, PricingTier] = None,
+        warning_threshold: float = 0.8,
+        critical_threshold: float = 0.99
+    ):
+        """
+        Initialize cost tracker.
+        
+        Args:
+            daily_budget: Daily spending limit in USD
+            pricing: Model pricing configuration
+            warning_threshold: Alert at this % of budget (0.0-1.0)
+            critical_threshold: Critical alert at this % of budget
+        """
+        self.daily_budget = daily_budget
+        self.pricing = pricing or DEFAULT_PRICING
+        self.warning_threshold = warning_threshold
+        self.critical_threshold = critical_threshold
+        
+        # Usage history
+        self.usage_history: List[UsageRecord] = []
+        
+        # Alert callbacks
+        self.alert_callbacks: List[Callable[[BudgetAlert], None]] = []
+        
+        # Current day tracking
+        self._current_day: Optional[datetime] = None
+        self._daily_cost: float = 0.0
+    
+    def record_usage(
+        self,
+        model: str,
+        input_tokens: int,
+        output_tokens: int,
+        user_id: str = None,
+        request_id: str = None
+    ) -> float:
+        """
+        Record API usage and calculate cost.
+        
+        Args:
+            model: Model identifier
+            input_tokens: Number of input tokens
+            output_tokens: Number of output tokens
+            user_id: Optional user attribution
+            request_id: Optional request identifier
+            
+        Returns:
+            Cost in USD for this request
+            
+        Raises:
+            ValueError: If model not in pricing
+        """
+        # YOUR CODE HERE
+        # 1. Validate model exists in pricing
+        # 2. Calculate cost
+        # 3. Check for day rollover
+        # 4. Add to usage history
+        # 5. Update daily cost
+        # 6. Check alert thresholds
+        # 7. Return cost
+        pass
+    
+    def calculate_cost(
+        self,
+        model: str,
+        input_tokens: int,
+        output_tokens: int
+    ) -> float:
+        """
+        Calculate cost for a request without recording.
+        
+        Args:
+            model: Model identifier
+            input_tokens: Number of input tokens
+            output_tokens: Number of output tokens
+            
+        Returns:
+            Cost in USD
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def get_daily_cost(self, date: datetime = None) -> float:
+        """
+        Get total cost for a specific day.
+        
+        Args:
+            date: Date to query (defaults to today)
+            
+        Returns:
+            Total cost in USD
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def get_cost_by_model(self, days: int = 7) -> Dict[str, float]:
+        """
+        Get cost breakdown by model.
+        
+        Args:
+            days: Number of days to look back
+            
+        Returns:
+            Dict mapping model name to total cost
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def get_cost_by_user(self, days: int = 7) -> Dict[str, float]:
+        """
+        Get cost breakdown by user.
+        
+        Args:
+            days: Number of days to look back
+            
+        Returns:
+            Dict mapping user_id to total cost
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def check_budget(self) -> BudgetAlert:
+        """
+        Check current budget status and generate alert if needed.
+        
+        Returns:
+            BudgetAlert with current status
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def register_alert_callback(self, callback: Callable[[BudgetAlert], None]):
+        """Register a callback to be called when budget thresholds are crossed."""
+        self.alert_callbacks.append(callback)
+    
+    def should_allow_request(self, estimated_cost: float = 0.0) -> bool:
+        """
+        Check if a new request should be allowed based on budget.
+        
+        Args:
+            estimated_cost: Estimated cost of the request
+            
+        Returns:
+            True if request should be allowed
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def get_stats(self) -> Dict:
+        """
+        Get comprehensive cost statistics.
+        
+        Returns:
+            Dict with various cost metrics
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def _reset_daily_if_needed(self):
+        """Reset daily cost counter if day has changed."""
+        # YOUR CODE HERE
+        pass
+```
+
+## Requirements
+
+1. **Cost Calculation**: Accurately calculate costs using pricing tiers
+2. **Budget Tracking**: Track daily spending against budget
+3. **Alert Levels**: OK, Warning, Critical, Exceeded
+4. **Attribution**: Track costs by model and user
+5. **Request Gating**: Block requests when budget exceeded
+
+## Example Usage
+
+```python
+# Initialize tracker
+tracker = RAGCostTracker(
+    daily_budget=100.0,
+    warning_threshold=0.8,
+    critical_threshold=0.95
+)
+
+# Set up alert handler
+def on_alert(alert: BudgetAlert):
+    print(f"🚨 {alert.level.value.upper()}: {alert.message}")
+    if alert.level == AlertLevel.EXCEEDED:
+        # Send Slack notification, page on-call, etc.
+        send_emergency_alert(alert)
+
+tracker.register_alert_callback(on_alert)
+
+# Record usage
+cost = tracker.record_usage(
+    model="gpt-4o",
+    input_tokens=2000,
+    output_tokens=500,
+    user_id="user_123"
+)
+print(f"Request cost: ${cost:.4f}")
+
+# Check budget status
+alert = tracker.check_budget()
+print(f"Daily spend: ${alert.current_cost:.2f} / ${alert.budget:.2f}")
+
+# Check if we can afford another request
+if tracker.should_allow_request(estimated_cost=0.50):
+    # Proceed with request
+    pass
+else:
+    # Queue for tomorrow or use cheaper model
+    print("Budget limit reached!")
+
+# Get breakdowns
+print("By model:", tracker.get_cost_by_model())
+print("By user:", tracker.get_cost_by_user())
+```
+
+## Hints
+
+<details>
+<summary>Hint 1: Cost Calculation</summary>
+
+```python
+def calculate_cost(self, model, input_tokens, output_tokens):
+    if model not in self.pricing:
+        raise ValueError(f"Unknown model: {model}")
+    
+    tier = self.pricing[model]
+    input_cost = (input_tokens / 1000) * tier.input_cost_per_1k
+    output_cost = (output_tokens / 1000) * tier.output_cost_per_1k
+    
+    return input_cost + output_cost
+```
+
+</details>
+
+<details>
+<summary>Hint 2: Alert Levels</summary>
+
+```python
+def check_budget(self):
+    percentage = self._daily_cost / self.daily_budget
+    
+    if percentage >= 1.0:
+        level = AlertLevel.EXCEEDED
+    elif percentage >= self.critical_threshold:
+        level = AlertLevel.CRITICAL
+    elif percentage >= self.warning_threshold:
+        level = AlertLevel.WARNING
+    else:
+        level = AlertLevel.OK
+    
+    return BudgetAlert(
+        level=level,
+        current_cost=self._daily_cost,
+        budget=self.daily_budget,
+        percentage=percentage,
+        message=f"Daily spend at {percentage:.1%}",
+        timestamp=datetime.now()
+    )
+```
+
+</details>
+
+## Test Your Solution
+
+```python
+def test_cost_tracker():
+    tracker = RAGCostTracker(daily_budget=10.0)
+    
+    # Test cost calculation
+    cost = tracker.calculate_cost("gpt-4o-mini", 1000, 500)
+    expected = (1000/1000)*0.15 + (500/1000)*0.60  # $0.15 + $0.30 = $0.45
+    assert abs(cost - expected) < 0.001, f"Expected ${expected}, got ${cost}"
+    
+    # Test recording
+    recorded = tracker.record_usage("gpt-4o-mini", 1000, 500)
+    assert abs(recorded - expected) < 0.001
+    
+    # Test budget tracking
+    assert tracker.get_daily_cost() == recorded
+    
+    # Test alert levels
+    # Add enough usage to trigger warning
+    for _ in range(20):
+        tracker.record_usage("gpt-4o", 1000, 1000)  # ~$12.50 each
+    
+    alert = tracker.check_budget()
+    assert alert.level in [AlertLevel.WARNING, AlertLevel.CRITICAL, AlertLevel.EXCEEDED]
+    
+    # Test request gating
+    assert not tracker.should_allow_request(estimated_cost=1.0)
+    
+    print("✅ All tests passed!")
+
+test_cost_tracker()
+```
+
+## Production Integration
+
+### Middleware Pattern
+
+```python
+class CostTrackingMiddleware:
+    def __init__(self, tracker: RAGCostTracker):
+        self.tracker = tracker
+    
+    async def __call__(self, request, call_next):
+        # Pre-request budget check
+        if not self.tracker.should_allow_request():
+            return JSONResponse(
+                status_code=429,
+                content={"error": "Daily budget exceeded"}
+            )
+        
+        response = await call_next(request)
+        
+        # Post-request cost tracking
+        if response.status_code == 200:
+            self.tracker.record_usage(
+                model=request.state.model,
+                input_tokens=response.state.input_tokens,
+                output_tokens=response.state.output_tokens,
+                user_id=request.state.user_id
+            )
+        
+        return response
+```
+
+### Cost Attribution Dashboard
+
+```python
+class CostDashboard:
+    def __init__(self, tracker: RAGCostTracker):
+        self.tracker = tracker
+    
+    def render(self):
+        stats = tracker.get_stats()
+        
+        return {
+            "daily_spend": {
+                "current": stats["daily_cost"],
+                "budget": stats["daily_budget"],
+                "percentage": stats["daily_cost"] / stats["daily_budget"]
+            },
+            "breakdown": {
+                "by_model": tracker.get_cost_by_model(),
+                "by_user": tracker.get_cost_by_user()
+            },
+            "trend": self.calculate_trend(days=7)
+        }
+```
+
+## Related Challenges
+
+- [RAG Cost Calculator](challenges/rag-cost-calculator) - Estimate costs before running
+- [RAG Usage Dashboard](challenges/rag-usage-dashboard) - Visualize usage metrics
+- [Cost-Aware Router](challenges/cost-aware-router) - Route by cost constraints
+- [RAG Observability](challenges/rag-observability) - Full system monitoring
+
+## Resources
+
+- [OpenAI Pricing](https://openai.com/pricing)
+- [Anthropic Pricing](https://www.anthropic.com/pricing)
+- [Helicone Cost Tracking](https://docs.helicone.ai/features/advanced-usage/cost-optimization)
+- [Langfuse Cost Tracking](https://langfuse.com/docs/cost-tracking)

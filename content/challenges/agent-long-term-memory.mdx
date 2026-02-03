@@ -1,13 +1,18 @@
 ﻿---
-title: "Long-term Conversational Memory"
-description: "Implement a memory manager that summarizes and prunes conversational history to stay within context limits."
+title: "Agent Long-Term Memory"
+description: "Implement persistent memory systems that allow agents to learn and recall across sessions"
+difficulty: "advanced"
+timeEstimate: "45-55 min"
+xpReward: 150
+topics: ["agentic-rag", "memory", "persistence"]
+prerequisites: ["conversation-buffer-memory", "entity-memory"]
 ---
 
-# Long-term Conversational Memory
+# Agent Long-Term Memory
 
 In long-running conversations, the history of messages can quickly exceed the LLM's **context window**. If you simply pass everything, the model will eventually crash or "forget" the earlier parts of the talk.
 
-### The Strategy: Summarization + Truncation
+## The Strategy: Summarization + Truncation
 
 Modern agents use a "Sliding Window" approach combined with "Recursive Summarization":
 
@@ -15,7 +20,31 @@ Modern agents use a "Sliding Window" approach combined with "Recursive Summariza
 2.  **Summarize the past**: For messages older than `N`, create a concise summary and prepend it to the context.
 3.  **Manage Budget**: Ensure the total tokens (summary + recent messages) stay within a safe limit.
 
-### Your Task
+## Theoretical Framework
+
+### Memory Hierarchy
+
+Agent memory operates at multiple levels:
+
+| Level | Time Horizon | Storage | Access Pattern |
+|-------|-------------|---------|----------------|
+| **Working** | Current turn | RAM | Immediate |
+| **Short-term** | Session | RAM | Fast |
+| **Long-term** | Cross-session | Vector DB | Semantic search |
+| **Episodic** | Events | Structured DB | Query-based |
+
+### Memory Retrieval Formula
+
+The relevance of a memory $m$ to a query $q$ is computed as:
+
+$$R(m, q) = \alpha \cdot \text{cosine}(E(m), E(q)) + \beta \cdot \text{recency}(m) + \gamma \cdot \text{importance}(m)$$
+
+Where:
+- $E(x)$ = embedding of $x$
+- $\alpha, \beta, \gamma$ = weighting coefficients
+- $\text{recency}(m) = e^{-\lambda \cdot \text{age}(m)}$
+
+## Your Task
 
 Implement a `MemoryManager` that:
 
@@ -23,5 +52,342 @@ Implement a `MemoryManager` that:
 - Has a `get_context()` method that returns a string.
 - If the history exceeds a `max_tokens` threshold, it should prioritize keeping the **most recent** messages.
 
-> **Pro Tip**: In a real system, you would call an LLM to generate the summary of the older messages. For this lab, you can simulate this by keeping only the recent ones or using a placeholder summary.
+### Implementation Template
 
+```python
+from dataclasses import dataclass, field
+from typing import List, Optional, Dict
+import time
+
+@dataclass
+class Message:
+    role: str  # "user" or "assistant"
+    content: str
+    timestamp: float = field(default_factory=time.time)
+    importance: float = 1.0  # For prioritization
+
+class MemoryManager:
+    """
+    Manages conversation memory with sliding window and summarization.
+    
+    Time Complexity:
+    - add_message: O(1)
+    - get_context: O(n) where n = number of messages
+    - summarize: O(L) where L = LLM call cost
+    
+    Space Complexity: O(n) for storing messages
+    """
+    
+    def __init__(
+        self,
+        max_tokens: int = 4000,
+        recent_window: int = 10,
+        summarizer=None
+    ):
+        self.max_tokens = max_tokens
+        self.recent_window = recent_window
+        self.summarizer = summarizer
+        
+        self.messages: List[Message] = []
+        self.summary: str = ""
+        self.token_count = 0
+    
+    def add_message(self, role: str, content: str, importance: float = 1.0):
+        """Add a message to memory."""
+        msg = Message(role=role, content=content, importance=importance)
+        self.messages.append(msg)
+        self._update_token_count()
+        
+        # Trigger summarization if needed
+        if self.token_count > self.max_tokens:
+            self._compress_memory()
+    
+    def get_context(self) -> str:
+        """
+        Get conversation context within token budget.
+        
+        Returns summary + recent messages.
+        """
+        recent_msgs = self.messages[-self.recent_window:]
+        recent_text = self._format_messages(recent_msgs)
+        
+        if self.summary:
+            return f"Previous conversation summary:\n{self.summary}\n\nRecent messages:\n{recent_text}"
+        return recent_text
+    
+    def _compress_memory(self):
+        """Compress older messages into summary."""
+        if len(self.messages) <= self.recent_window:
+            return
+        
+        # Messages to summarize
+        to_summarize = self.messages[:-self.recent_window]
+        
+        if self.summarizer:
+            new_summary = self.summarizer.summarize(
+                existing_summary=self.summary,
+                messages=to_summarize
+            )
+            self.summary = new_summary
+        
+        # Keep only recent messages
+        self.messages = self.messages[-self.recent_window:]
+        self._update_token_count()
+    
+    def _format_messages(self, messages: List[Message]) -> str:
+        """Format messages for context."""
+        return "\n".join([
+            f"{m.role}: {m.content}" for m in messages
+        ])
+    
+    def _update_token_count(self):
+        """Estimate token count (rough approximation)."""
+        self.token_count = sum(
+            len(m.content.split()) for m in self.messages
+        )
+```
+
+## Long-Term Memory with Vector Storage
+
+For cross-session memory, use vector databases:
+
+```python
+class LongTermMemory:
+    """Persistent memory using vector storage."""
+    
+    def __init__(self, vector_store, embedding_model):
+        self.vector_store = vector_store
+        self.embedding_model = embedding_model
+    
+    def store_interaction(
+        self,
+        query: str,
+        response: str,
+        metadata: Dict = None
+    ):
+        """Store an interaction for future retrieval."""
+        # Create memory entry
+        memory_text = f"User asked: {query}\nAssistant responded: {response}"
+        
+        # Generate embedding
+        embedding = self.embedding_model.encode(memory_text)
+        
+        # Store with metadata
+        self.vector_store.add({
+            "text": memory_text,
+            "embedding": embedding,
+            "metadata": {
+                "timestamp": time.time(),
+                "query": query,
+                "response": response,
+                **(metadata or {})
+            }
+        })
+    
+    def recall(self, query: str, k: int = 3) -> List[Dict]:
+        """
+        Recall relevant past interactions.
+        
+        Time Complexity: O(log n) with HNSW index
+        """
+        query_embedding = self.embedding_model.encode(query)
+        return self.vector_store.search(query_embedding, k=k)
+    
+    def get_recent_topics(self, n: int = 5) -> List[str]:
+        """Extract recent conversation topics."""
+        recent = self.vector_store.get_recent(n)
+        # Extract topics using simple keyword extraction
+        # or more sophisticated NLP
+        return [r["metadata"]["topic"] for r in recent if "topic" in r["metadata"]]
+```
+
+## Memory Types for Agents
+
+### 1. Semantic Memory
+General knowledge and facts:
+
+```python
+class SemanticMemory:
+    """Factual knowledge storage."""
+    
+    def store_fact(self, fact: str, category: str):
+        """Store a factual piece of information."""
+        self.vector_store.add({
+            "text": fact,
+            "metadata": {"type": "fact", "category": category}
+        })
+    
+    def query_fact(self, query: str, category: str = None) -> List[str]:
+        """Query for relevant facts."""
+        filter_dict = {"type": "fact"}
+        if category:
+            filter_dict["category"] = category
+        return self.vector_store.search(query, filter=filter_dict)
+```
+
+### 2. Episodic Memory
+Specific experiences and events:
+
+```python
+class EpisodicMemory:
+    """Event-based memory storage."""
+    
+    def store_episode(
+        self,
+        situation: str,
+        action: str,
+        outcome: str,
+        success: bool
+    ):
+        """Store a learning episode."""
+        episode = {
+            "situation": situation,
+            "action": action,
+            "outcome": outcome,
+            "success": success,
+            "timestamp": time.time()
+        }
+        
+        # Store for future retrieval
+        text = f"When {situation}, I {action} and {outcome}"
+        self.vector_store.add({
+            "text": text,
+            "metadata": episode
+        })
+    
+    def recall_similar_episodes(
+        self,
+        situation: str,
+        k: int = 3
+    ) -> List[Dict]:
+        """Recall similar past experiences."""
+        return self.vector_store.search(situation, k=k)
+```
+
+### 3. Procedural Memory
+How to do things (skills, workflows):
+
+```python
+class ProceduralMemory:
+    """Skill and workflow storage."""
+    
+    def store_procedure(
+        self,
+        name: str,
+        steps: List[str],
+        success_rate: float = 1.0
+    ):
+        """Store a learned procedure."""
+        self.procedures[name] = {
+            "steps": steps,
+            "success_rate": success_rate,
+            "uses": 0
+        }
+    
+    def get_procedure(self, name: str) -> Optional[List[str]]:
+        """Retrieve a procedure."""
+        if name in self.procedures:
+            self.procedures[name]["uses"] += 1
+            return self.procedures[name]["steps"]
+        return None
+    
+    def find_procedure(self, task_description: str) -> Optional[str]:
+        """Find a procedure matching the task."""
+        # Use semantic search to find relevant procedure
+        results = self.vector_store.search(task_description, k=1)
+        if results and results[0]["score"] > 0.8:
+            return results[0]["metadata"]["procedure_name"]
+        return None
+```
+
+## Memory Consolidation
+
+Over time, compress and organize memories:
+
+```python
+class MemoryConsolidator:
+    """Consolidate memories to prevent bloat."""
+    
+    def consolidate(self, memories: List[Dict]) -> List[Dict]:
+        """
+        Consolidate similar memories.
+        
+        1. Cluster similar memories
+        2. Summarize each cluster
+        3. Remove redundant information
+        """
+        # Cluster by similarity
+        clusters = self._cluster_memories(memories)
+        
+        consolidated = []
+        for cluster in clusters:
+            if len(cluster) == 1:
+                consolidated.append(cluster[0])
+            else:
+                # Summarize cluster
+                summary = self._summarize_cluster(cluster)
+                consolidated.append(summary)
+        
+        return consolidated
+    
+    def _cluster_memories(self, memories: List[Dict]) -> List[List[Dict]]:
+        """Cluster memories by semantic similarity."""
+        # Use embeddings + clustering algorithm
+        from sklearn.cluster import DBSCAN
+        
+        embeddings = [m["embedding"] for m in memories]
+        clustering = DBSCAN(eps=0.3, min_samples=2).fit(embeddings)
+        
+        clusters = {}
+        for i, label in enumerate(clustering.labels_):
+            if label not in clusters:
+                clusters[label] = []
+            clusters[label].append(memories[i])
+        
+        return list(clusters.values())
+```
+
+## Real-World Examples
+
+| System | Memory Approach | Scale |
+|--------|----------------|-------|
+| **ChatGPT** | Sliding window + summarization | Billions of conversations |
+| **Claude** | Extended context + caching | 200K tokens |
+| **Character.AI** | Persistent personas + episodic | Millions of users |
+| **Replika** | Emotional memory + long-term | Years of user history |
+
+## Best Practices
+
+1. **Token Budget Management**: Always stay within context limits
+2. **Importance Scoring**: Not all messages are equally important
+3. **Privacy Considerations**: Handle sensitive memories carefully
+4. **Forgetting Mechanism**: Remove or deprioritize old/irrelevant memories
+5. **Memory Refresh**: Periodically re-encode important memories
+
+## Resources
+
+### Papers
+- [MemoryBank: Enhancing Large Language Models with Long-Term Memory](https://arxiv.org/abs/2305.10250)
+- [Unlimiformer: Long-Range Transformers with Unlimited Length Input](https://arxiv.org/abs/2305.01625)
+- [StreamingLLM: Efficient Streaming Language Models with Attention Sinks](https://arxiv.org/abs/2309.17453)
+
+### Documentation
+- [LangChain Memory](https://python.langchain.com/docs/modules/memory/)
+- [LlamaIndex Memory](https://docs.llamaindex.ai/en/stable/module_guides/deploying/agents/memory/)
+
+### Tools
+- **MemGPT**: OS-inspired memory management for LLMs
+- **LangChain Memory**: Various memory implementations
+- **Vector DBs**: Pinecone, Weaviate, Chroma for long-term storage
+
+## Related Challenges
+
+- **Prerequisites**: [conversation-buffer-memory](conversation-buffer-memory), [entity-memory](entity-memory)
+- **Next**: [agentic-rag-workflows](agentic-rag-workflows)
+- **Related**: [conversational-rag](conversational-rag), [conversational-query-rewrite](conversational-query-rewrite)
+
+---
+
+**🧠 Memory Mastery:** Long-term memory transforms agents from stateless functions into learning systems that grow and adapt with every interaction!
+
+> **Pro Tip**: In a real system, you would call an LLM to generate the summary of the older messages. For this lab, you can simulate this by keeping only the recent ones or using a placeholder summary.

@@ -1,20 +1,34 @@
 ﻿---
 title: "Synthetic Question Generation"
-description: "Use an LLM to generate high-quality (Question, Context, Answer) triplets from raw text."
+description: "Use an LLM to generate high-quality (Question, Context, Answer) triplets from raw text"
+difficulty: "medium"
+estimatedMinutes: 35
+xpReward: 70
+prerequisites: ["prompt-template"]
+related: ["custom-eval-dataset", "eval-dataset-curation", "rag-evaluation-suite"]
 ---
 
 # Synthetic Question Generation
 
 Training and evaluating RAG systems requires large amounts of labeled data: **(Question, Context, Answer)** triplets. Manually creating these is slow and expensive.
 
-### The Solution: LLM-as-a-Data-Labeler
+## Why This Matters in Production
+
+| Challenge | Solution with Synthetic Data |
+|-----------|------------------------------|
+| **Limited labeled data** | Generate unlimited training examples |
+| **Domain adaptation** | Create data for specific industries |
+| **Evaluation coverage** | Test on diverse question types |
+| **Cost reduction** | Avoid expensive human labeling |
+
+## The Solution: LLM-as-a-Data-Labeler
 
 We can use a strong model (like GPT-4 or Claude 3) to "read" a chunk of text and generate:
 
 1.  A question that can be answered using _only_ that chunk.
 2.  A gold-standard answer derived from that chunk.
 
-### Your Task
+## What You're Implementing
 
 Implement a basic generator that:
 
@@ -22,7 +36,390 @@ Implement a basic generator that:
 - Formulates a plausible question.
 - Returns the full triplet.
 
-### Why it Matters
+## The Synthetic Data Pipeline
+
+```
+Context Chunk → LLM Prompt → Generated Question → Generated Answer
+      ↓              ↓               ↓                  ↓
+  "RAG is..."   "Generate a    "What is RAG?"    "RAG stands
+                 question..."                      for..."
+```
+
+## Mathematical Foundations
+
+### Data Generation as Sampling
+
+```
+P(Q, A | C) = P(Q | C) × P(A | Q, C)
+
+Where:
+- C = Context
+- Q = Question
+- A = Answer
+```
+
+### Quality Metrics
+
+```
+Answerability: Can the question be answered from context?
+Relevance: Is the question relevant to the domain?
+Diversity: Are questions varied in type and phrasing?
+```
+
+## Implementation Example
+
+```python
+from typing import List, Dict, Optional, Tuple
+from dataclasses import dataclass
+import json
+
+@dataclass
+class QA triplet:
+    """Question-Answer triplet with context."""
+    question: str
+    context: str
+    answer: str
+    metadata: Dict = None
+    
+    def __post_init__(self):
+        if self.metadata is None:
+            self.metadata = {}
+    
+    def to_dict(self) -> Dict:
+        return {
+            "question": self.question,
+            "context": self.context,
+            "answer": self.answer,
+            "metadata": self.metadata
+        }
+
+class SyntheticDataGenerator:
+    """Generate synthetic QA triplets from text chunks."""
+    
+    # Prompt templates for different question types
+    QUESTION_PROMPTS = {
+        "factual": """Given the following context, generate a factual question that can be answered using ONLY the information provided.
+
+Context:
+{context}
+
+Generate a specific question that tests understanding of the facts in this context. The question should be answerable in 1-2 sentences.
+
+Question:""",
+        
+        "inferential": """Given the following context, generate an inferential question that requires connecting information from the text.
+
+Context:
+{context}
+
+Generate a question that requires reasoning about the context, not just extracting a direct quote.
+
+Question:""",
+        
+        "procedural": """Given the following context, generate a procedural "how-to" question.
+
+Context:
+{context}
+
+Generate a question asking how to do something described in the context.
+
+Question:"""
+    }
+    
+    ANSWER_PROMPT = """Given the context and question, provide a concise, accurate answer using ONLY the information in the context.
+
+Context:
+{context}
+
+Question: {question}
+
+Answer (1-2 sentences maximum):"""
+    
+    def __init__(self, llm_client, temperature: float = 0.7):
+        """
+        Initialize synthetic data generator.
+        
+        Args:
+            llm_client: LLM client for generation
+            temperature: Sampling temperature for diversity
+        """
+        self.llm_client = llm_client
+        self.temperature = temperature
+    
+    def generate_questions(
+        self,
+        context: str,
+        num_questions: int = 3,
+        question_types: Optional[List[str]] = None
+    ) -> List[str]:
+        """
+        Generate questions from a context chunk.
+        
+        Time Complexity: O(N × L) where N = questions, L = LLM latency
+        Space Complexity: O(N) for storing questions
+        
+        Args:
+            context: Text chunk to generate questions from
+            num_questions: Number of questions to generate
+            question_types: Types of questions (factual, inferential, procedural)
+            
+        Returns:
+            List of generated questions
+            
+        Example:
+            >>> generator = SyntheticDataGenerator(llm_client)
+            >>> questions = generator.generate_questions(
+            ...     context="RAG combines retrieval with generation.",
+            ...     num_questions=2
+            ... )
+            >>> print(questions)
+            ["What is RAG?", "How does RAG improve answer quality?"]
+        """
+        if question_types is None:
+            question_types = ["factual"]
+        
+        questions = []
+        
+        for i in range(num_questions):
+            # Cycle through question types
+            q_type = question_types[i % len(question_types)]
+            prompt = self.QUESTION_PROMPTS[q_type].format(context=context)
+            
+            # Generate question
+            question = self.llm_client.generate(
+                prompt,
+                temperature=self.temperature,
+                max_tokens=100
+            ).strip()
+            
+            # Clean up
+            question = self._clean_question(question)
+            
+            if question and question not in questions:
+                questions.append(question)
+        
+        return questions
+    
+    def generate_answer(self, context: str, question: str) -> str:
+        """Generate answer for a question given context."""
+        prompt = self.ANSWER_PROMPT.format(context=context, question=question)
+        
+        answer = self.llm_client.generate(
+            prompt,
+            temperature=0.3,  # Lower temp for factual answers
+            max_tokens=150
+        ).strip()
+        
+        return self._clean_answer(answer)
+    
+    def generate_triplets(
+        self,
+        contexts: List[str],
+        questions_per_context: int = 2
+    ) -> List[QA triplet]:
+        """
+        Generate QA triplets from multiple context chunks.
+        
+        Args:
+            contexts: List of text chunks
+            questions_per_context: Questions to generate per chunk
+            
+        Returns:
+            List of QA triplets
+        """
+        triplets = []
+        
+        for context in contexts:
+            questions = self.generate_questions(context, questions_per_context)
+            
+            for question in questions:
+                answer = self.generate_answer(context, question)
+                
+                triplet = QA triplet(
+                    question=question,
+                    context=context,
+                    answer=answer,
+                    metadata={
+                        "generated": True,
+                        "context_length": len(context)
+                    }
+                )
+                triplets.append(triplet)
+        
+        return triplets
+    
+    def filter_quality(
+        self,
+        triplets: List[QA triplet],
+        min_context_overlap: float = 0.3
+    ) -> List[QA triplet]:
+        """
+        Filter triplets by quality heuristics.
+        
+        Args:
+            triplets: Generated triplets
+            min_context_overlap: Minimum word overlap between answer and context
+            
+        Returns:
+            Filtered list of quality triplets
+        """
+        filtered = []
+        
+        for triplet in triplets:
+            # Check answer is not empty
+            if not triplet.answer or len(triplet.answer) < 10:
+                continue
+            
+            # Check answer has overlap with context
+            context_words = set(triplet.context.lower().split())
+            answer_words = set(triplet.answer.lower().split())
+            
+            if context_words:
+                overlap = len(answer_words & context_words) / len(answer_words)
+                if overlap < min_context_overlap:
+                    continue
+            
+            # Check question is valid
+            if not triplet.question.endswith("?"):
+                continue
+            
+            filtered.append(triplet)
+        
+        return filtered
+    
+    def _clean_question(self, question: str) -> str:
+        """Clean generated question."""
+        # Remove quotes if present
+        question = question.strip('"\'')
+        # Ensure ends with question mark
+        if not question.endswith("?"):
+            question += "?"
+        return question
+    
+    def _clean_answer(self, answer: str) -> str:
+        """Clean generated answer."""
+        # Remove "Answer:" prefix if present
+        answer = re.sub(r'^(Answer|A):\s*', '', answer, flags=re.IGNORECASE)
+        return answer.strip()
+    
+    def export_dataset(
+        self,
+        triplets: List[QA triplet],
+        filepath: str,
+        format: str = "jsonl"
+    ):
+        """Export triplets to file."""
+        if format == "jsonl":
+            with open(filepath, 'w') as f:
+                for triplet in triplets:
+                    f.write(json.dumps(triplet.to_dict()) + '\n')
+        elif format == "json":
+            with open(filepath, 'w') as f:
+                json.dump([t.t.to_dict() for t in triplets], f, indent=2)
+
+# Usage Example
+class MockLLM:
+    """Mock LLM for demonstration."""
+    def generate(self, prompt: str, **kwargs) -> str:
+        if "factual" in prompt.lower():
+            return "What is RAG and how does it work?"
+        return "RAG (Retrieval-Augmented Generation) combines information retrieval with language model generation."
+
+generator = SyntheticDataGenerator(MockLLM())
+
+contexts = [
+    "RAG stands for Retrieval-Augmented Generation. It combines retrieval systems with language models.",
+    "Vector databases store embeddings for efficient similarity search. Pinecone and Weaviate are popular options."
+]
+
+triplets = generator.generate_triplets(contexts, questions_per_context=1)
+print(f"Generated {len(triplets)} QA triplets")
+
+for t in triplets:
+    print(f"\nQ: {t.question}")
+    print(f"A: {t.answer}")
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Question Generation | O(N × L) | N questions, L = LLM latency |
+| Answer Generation | O(N × L) | One per question |
+| Quality Filtering | O(N × W) | W = words per triplet |
+| Total | O(N × L) | Dominated by LLM calls |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand synthetic data generation for RAG
+- Be able to implement LLM-based data labeling
+- Know how to filter and quality-control generated data
+
+## Real-World Applications
+
+| Framework | Synthetic Data Approach |
+|-----------|------------------------|
+| **RAGAS** | Automated evaluation dataset generation |
+| **LangChain** | Synthetic data generators |
+| **LlamaIndex** | Evaluation dataset builders |
+| **OpenAI Evals** | Custom evaluation data creation |
+
+## Common Pitfalls
+
+- **Low diversity**: Similar questions generated repeatedly
+- **Unanswerable questions**: Questions not supported by context
+- **Hallucinated answers**: Model adds outside knowledge
+- **Poor filtering**: Low-quality examples in dataset
+- **Domain mismatch**: Generic questions for specialized content
+
+## Production Extensions (Optional)
+
+- **Few-shot Prompting**: Use examples to guide generation
+- **Multi-model Ensemble**: Generate with multiple models
+- **Human-in-the-Loop**: Review and approve generated data
+- **Active Learning**: Generate data for weak areas
+- **Style Matching**: Match question style to target domain
+
+## Resources
+
+### Documentation
+- [RAGAS Documentation](https://docs.ragas.io/)
+- [LangChain Data Generation](https://python.langchain.com/docs/use_cases/data_generation)
+- [OpenAI Fine-tuning](https://platform.openai.com/docs/guides/fine-tuning)
+
+### Tools
+- **RAGAS**: RAG evaluation framework
+- **LangChain**: Synthetic data tools
+- **Hugging Face Datasets**: Dataset management
+
+### Papers
+- "Self-Instruct: Aligning Language Models with Self-Generated Instructions" (Wang et al., 2022)
+- "Alpaca: A Strong, Replicable Instruction-Following Model" (Taori et al., 2023)
+- "RAGAS: Automated Evaluation of Retrieval Augmented Generation" (Es et al., 2023)
+
+## Interview Questions
+
+1. **Why use synthetic data instead of human-labeled data?**
+   - Cost, speed, scalability; but requires quality control
+
+2. **How do you ensure synthetic questions are answerable from context?**
+   - Constrained generation, post-hoc verification, overlap metrics
+
+3. **What are the risks of training on synthetic data?**
+   - Distribution shift, amplification of model biases, quality ceiling
+
+## After You Pass
+
+Build complete evaluation pipelines:
+- [custom-eval-dataset](custom-eval-dataset) - Create custom evaluation sets
+- [eval-dataset-curation](eval-dataset-curation) - Curate high-quality datasets
+- [rag-evaluation-suite](rag-evaluation-suite) - Full evaluation framework
+
+---
+
+**🤖 Data at Scale:** Synthetic generation unlocks unlimited training data for RAG systems!
+
+## Why it Matters
 
 Synthetic data is the primary way modern RAG systems are benchmarked. Frameworks like **RAGAS** use this exact technique to generate evaluation datasets in minutes rather than weeks.
-

@@ -1,40 +1,478 @@
-﻿<Callout title="Goal" variant="info">
-  Implement an embedding cache keyed by **(model, text hash)**. This is one of the highest ROI production optimizations.
-</Callout>
+﻿---
+title: "Embedding Cache"
+description: "Implement embedding cache keyed by (model, text hash) for 20-60% cost reduction"
+difficulty: "medium"
+xpReward: 100
+estimatedMinutes: 30
+stage: "production"
+track: "production-ops"
+tags: ["caching", "embeddings", "optimization", "cost-reduction", "production"]
+prerequisites: ["embed-and-search"]
+relatedChallenges: ["semantic-caching", "kv-cache-optimization", "retrieval-cache-key"]
+nextChallenges: ["semantic-caching"]
+theory:
+  overview: |
+    Embedding caching stores computed embeddings keyed by (model, text hash) to 
+    avoid redundant API calls. In production systems, embedding calls are expensive 
+    and often repeated - users ask similar questions, apps re-embed identical text, 
+    and re-indexing processes re-process unchanged documents. Caching provides 
+    20-60% cost reduction with minimal implementation effort.
+  keyFormulas:
+    - name: "Cache Key"
+      formula: "key = hash(model_name || text_content)"
+    - name: "Hit Rate"
+      formula: "HR = hits / (hits + misses)"
+    - name: "Cost Savings"
+      formula: "savings = (1 - HR) × total_embedding_cost"
+    - name: "Cache Efficiency"
+      formula: "η = hits × embedding_cost / cache_storage_cost"
+  visualIntuition: |
+    Embedding Cache Flow:
+    
+    ```
+    Query: "What is RAG?"
+           ↓
+    [Compute Cache Key]
+           ↓
+    ┌─────────────────┐
+    │  Check Cache    │
+    └─────────────────┘
+           ↓
+      ┌────┴────┐
+      ↓         ↓
+    HIT       MISS
+      ↓         ↓
+   Return   Call API
+   Cached   (expensive)
+   Result      ↓
+              ↓
+         Store in Cache
+              ↓
+         Return Result
+    
+    Subsequent identical queries: HIT!
+    ```
+  whyItMatters: |
+    Embedding caching provides:
+    1. **Cost reduction**: 20-60% fewer embedding API calls
+    2. **Latency improvement**: Sub-millisecond cache hits vs 100ms+ API calls
+    3. **Rate limit protection**: Reduces API quota consumption
+    4. **Determinism**: Same text always produces same embedding
+  commonMistakes:
+    - "Not including model version in cache key"
+    - "Unbounded cache growth (no eviction)"
+    - "Not handling cache invalidation on model updates"
+    - "Using text directly as key instead of hash"
+  interviewTips:
+    - "Compare embedding cache vs semantic response cache"
+    - "Discuss LRU vs LFU eviction policies"
+    - "Mention distributed caching with Redis"
+    - "Explain cache warming strategies"
+realWorld:
+  description: |
+    Embedding caching is standard practice in production RAG systems. OpenAI's 
+    embedding API customers often implement caching layers. Enterprise platforms 
+    like Pinecone and Weaviate include embedding caching. Multi-tenant systems 
+    use shared caches across users for common queries.
+  companies: ["OpenAI", "Pinecone", "Weaviate", "Redis", "AWS"]
+  useCases:
+    - "Query embedding deduplication"
+    - "Document re-indexing optimization"
+    - "Batch processing efficiency"
+    - "Multi-tenant query sharing"
+    - "Offline embedding pipelines"
+complexity:
+  time: "O(1) for cache lookup, O(1) for storage"
+  space: "O(n × d) where n = cached items, d = embedding dimension"
+  latency: "<1ms for cache hit, 50-200ms for cache miss"
+resources:
+  papers:
+    - title: "CacheBlend: Fast Large Language Model Serving with Cached Knowledge"
+      url: "https://arxiv.org/abs/2405.16444"
+      authors: "Liu et al."
+      year: 2024
+  documentation:
+    - title: "Redis Caching Patterns"
+      url: "https://redis.io/docs/manual/patterns/"
+    - title: "Python functools.lru_cache"
+      url: "https://docs.python.org/3/library/functools.html#functools.lru_cache"
+  tutorials:
+    - title: "Embedding Caching Best Practices"
+      url: "https://www.pinecone.io/learn/embedding-caching/"
+    - title: "Building Cost-Effective RAG"
+      url: "https://blog.langchain.dev/cost-effective-rag/"
+  tools:
+    - name: "Redis"
+      description: "In-memory data store for distributed caching"
+      url: "https://redis.io/"
+    - name: "DiskCache"
+      description: "Python disk-based caching"
+      url: "https://grantjenks.com/docs/diskcache/"
+    - name: "cachetools"
+      description: "Python caching utilities"
+      url: "https://cachetools.readthedocs.io/"
+---
 
-## Why this matters in production
+# Embedding Cache
+
+Implement an embedding cache keyed by (model, text hash) to achieve 20-60% cost reduction on embedding API calls.
+
+## Why This Matters in Production
 
 In real systems, embedding calls are expensive and often repeated:
 
-- users ask the same question in different wording
-- your app re-embeds identical text by accident
-- you re-index unchanged docs during ingestion
+- Users ask the same question in different wording
+- Your app re-embeds identical text by accident
+- You re-index unchanged docs during ingestion
 
-Caching embeddings is usually:
+**Caching embeddings** provides:
+- **Cheap to implement**: Simple hash-based lookup
+- **Huge savings**: Often 20-60% fewer embed calls
+- **Safer than semantic caching**: Simpler invalidation logic
 
-- **cheap to implement**
-- **huge savings** (often 20–60% fewer embed calls)
-- safer than semantic response caching (simpler invalidation)
+## Offline vs Online
 
-## Offline vs online
+- **Offline (ingestion)**: Cache document/chunk embeddings so re-runs don't re-embed unchanged text
+- **Online (query time)**: Cache query embeddings (same query text should not be re-embedded)
 
-- **Offline (ingestion)**: cache document/chunk embeddings so re-runs don’t re-embed unchanged text.
-- **Online (query time)**: cache query embeddings (same query text should not be re-embedded).
+## Your Task
 
-## What the test enforces
+Implement an `EmbeddingCache` class:
 
-The provided `expensive_embed()` increments `EMBED_CALLS`.
+```python
+import hashlib
+from typing import Optional, Dict, Any
+from collections import OrderedDict
 
-If your cache is correct:
+class EmbeddingCache:
+    def __init__(self, 
+                 max_size: int = 10000,
+                 eviction_policy: str = "lru"):
+        """
+        Initialize embedding cache.
+        
+        Args:
+            max_size: Maximum number of cached embeddings
+            eviction_policy: "lru" or "lfu"
+        """
+        pass
+    
+    def _make_key(self, text: str, model: str) -> str:
+        """
+        Create cache key from text and model.
+        
+        Args:
+            text: Text to embed
+            model: Model name/version
+            
+        Returns:
+            Cache key string
+        """
+        pass
+    
+    def get(self, text: str, model: str) -> Optional[list[float]]:
+        """
+        Retrieve cached embedding.
+        
+        Args:
+            text: Text to look up
+            model: Model name
+            
+        Returns:
+            Cached embedding or None
+        """
+        pass
+    
+    def set(self, text: str, model: str, embedding: list[float]) -> None:
+        """
+        Store embedding in cache.
+        
+        Args:
+            text: Original text
+            model: Model name
+            embedding: Embedding vector
+        """
+        pass
+    
+    def get_stats(self) -> dict:
+        """
+        Get cache statistics.
+        
+        Returns:
+            {
+                "size": int,
+                "max_size": int,
+                "hits": int,
+                "misses": int,
+                "hit_rate": float
+            }
+        """
+        pass
 
-- repeated `(model, text)` only calls `expensive_embed()` once
-- changing model or text causes a new embedding
+class CachedEmbedder:
+    """Wrapper that adds caching to any embedder."""
+    
+    def __init__(self, embedder, cache: EmbeddingCache):
+        """
+        Initialize cached embedder.
+        
+        Args:
+            embedder: Base embedder (e.g., OpenAI, local model)
+            cache: Embedding cache instance
+        """
+        pass
+    
+    def embed(self, text: str, model: str = "default") -> list[float]:
+        """
+        Embed text with caching.
+        
+        Args:
+            text: Text to embed
+            model: Model name
+            
+        Returns:
+            Embedding vector
+        """
+        pass
+    
+    def embed_batch(self, texts: list[str], model: str = "default") -> list[list[float]]:
+        """
+        Embed multiple texts with caching.
+        
+        Args:
+            texts: List of texts
+            model: Model name
+            
+        Returns:
+            List of embeddings
+        """
+        pass
+```
 
-## Production extensions (optional)
+## Example
 
-- add an LRU cap (memory bounded)
-- store cache in Redis for multi-instance deployments
-- include an `index_version` or `doc_version` in the key for safe invalidation
+```python
+# Create cache
+cache = EmbeddingCache(max_size=1000)
 
+# Wrap embedder
+cached_embedder = CachedEmbedder(
+    embedder=OpenAIEmbedder(),
+    cache=cache
+)
 
+# First call - cache miss
+text = "What is retrieval-augmented generation?"
+emb1 = cached_embedder.embed(text, model="text-embedding-3-small")
+print(f"Cache stats: {cache.get_stats()}")
+# {"size": 1, "hits": 0, "misses": 1, "hit_rate": 0.0}
 
+# Second call - cache hit!
+emb2 = cached_embedder.embed(text, model="text-embedding-3-small")
+print(f"Cache stats: {cache.get_stats()}")
+# {"size": 1, "hits": 1, "misses": 1, "hit_rate": 0.5}
+
+# Same text, different model - cache miss (different key)
+emb3 = cached_embedder.embed(text, model="text-embedding-3-large")
+print(f"Cache stats: {cache.get_stats()}")
+# {"size": 2, "hits": 1, "misses": 2, "hit_rate": 0.33}
+
+# Batch embedding with caching
+texts = ["Query 1", "Query 2", "Query 1"]  # Duplicate!
+embs = cached_embedder.embed_batch(texts)
+# Only 2 API calls made (Query 1 cached after first occurrence)
+```
+
+## Algorithm Details
+
+### Cache Key Generation
+
+```python
+def _make_key(self, text: str, model: str) -> str:
+    """Create deterministic cache key."""
+    # Normalize text (optional)
+    normalized = text.strip().lower()
+    
+    # Combine model and text
+    key_content = f"{model}:{normalized}"
+    
+    # Hash for fixed-size key
+    return hashlib.sha256(key_content.encode()).hexdigest()
+```
+
+### LRU Cache Implementation
+
+```python
+def __init__(self, max_size: int = 10000, eviction_policy: str = "lru"):
+    self.max_size = max_size
+    self.cache = OrderedDict()  # For LRU ordering
+    self.stats = {"hits": 0, "misses": 0}
+
+def get(self, text: str, model: str) -> Optional[list[float]]:
+    key = self._make_key(text, model)
+    
+    if key in self.cache:
+        # Move to end (most recently used)
+        self.cache.move_to_end(key)
+        self.stats["hits"] += 1
+        return self.cache[key]["embedding"]
+    
+    self.stats["misses"] += 1
+    return None
+
+def set(self, text: str, model: str, embedding: list[float]) -> None:
+    key = self._make_key(text, model)
+    
+    # Add to cache
+    self.cache[key] = {
+        "embedding": embedding,
+        "text_hash": hashlib.sha256(text.encode()).hexdigest()[:16]
+    }
+    
+    # Evict if over capacity
+    if len(self.cache) > self.max_size:
+        # Remove oldest (first item)
+        self.cache.popitem(last=False)
+```
+
+### Cached Embedder
+
+```python
+class CachedEmbedder:
+    def __init__(self, embedder, cache: EmbeddingCache):
+        self.embedder = embedder
+        self.cache = cache
+    
+    def embed(self, text: str, model: str = "default") -> list[float]:
+        # Check cache
+        cached = self.cache.get(text, model)
+        if cached is not None:
+            return cached
+        
+        # Cache miss - call embedder
+        embedding = self.embedder.embed(text, model)
+        
+        # Store in cache
+        self.cache.set(text, model, embedding)
+        
+        return embedding
+    
+    def embed_batch(self, texts: list[str], model: str = "default") -> list[list[float]]:
+        results = []
+        to_embed = []
+        to_embed_indices = []
+        
+        # Check cache for each text
+        for i, text in enumerate(texts):
+            cached = self.cache.get(text, model)
+            if cached is not None:
+                results.append((i, cached))
+            else:
+                to_embed.append(text)
+                to_embed_indices.append(i)
+        
+        # Batch embed uncached texts
+        if to_embed:
+            embeddings = self.embedder.embed_batch(to_embed, model)
+            
+            # Store in cache and add to results
+            for idx, text, emb in zip(to_embed_indices, to_embed, embeddings):
+                self.cache.set(text, model, emb)
+                results.append((idx, emb))
+        
+        # Sort by original index
+        results.sort(key=lambda x: x[0])
+        return [emb for _, emb in results]
+```
+
+## Production Extensions
+
+### Redis Backend
+
+```python
+import redis
+import json
+
+class RedisEmbeddingCache(EmbeddingCache):
+    """Distributed embedding cache using Redis."""
+    
+    def __init__(self, redis_client: redis.Redis, ttl_seconds: int = 86400):
+        self.redis = redis_client
+        self.ttl = ttl_seconds
+    
+    def get(self, text: str, model: str) -> Optional[list[float]]:
+        key = self._make_key(text, model)
+        cached = self.redis.get(key)
+        
+        if cached:
+            return json.loads(cached)
+        return None
+    
+    def set(self, text: str, model: str, embedding: list[float]) -> None:
+        key = self._make_key(text, model)
+        self.redis.setex(key, self.ttl, json.dumps(embedding))
+```
+
+### Versioned Cache Keys
+
+```python
+def _make_key(self, text: str, model: str, version: str = "v1") -> str:
+    """Include version for cache invalidation on model updates."""
+    key_content = f"{model}:{version}:{text.strip().lower()}"
+    return hashlib.sha256(key_content.encode()).hexdigest()
+```
+
+## Evaluation Criteria
+
+1. **Correctness**: Same (model, text) returns cached embedding
+2. **Eviction**: LRU/LFU eviction when capacity reached
+3. **Statistics**: Accurate hit/miss tracking
+4. **Batch Efficiency**: Deduplicates within batch
+
+## Test Cases
+
+```python
+def test_cache_hit():
+    """Test that identical queries hit cache."""
+    cache = EmbeddingCache()
+    
+    text = "test query"
+    model = "test-model"
+    embedding = [0.1, 0.2, 0.3]
+    
+    cache.set(text, model, embedding)
+    result = cache.get(text, model)
+    
+    assert result == embedding
+    assert cache.get_stats()["hits"] == 1
+
+def test_model_specific():
+    """Test that different models have different cache entries."""
+    cache = EmbeddingCache()
+    
+    text = "test"
+    cache.set(text, "model-a", [1.0, 2.0])
+    cache.set(text, "model-b", [3.0, 4.0])
+    
+    assert cache.get(text, "model-a") == [1.0, 2.0]
+    assert cache.get(text, "model-b") == [3.0, 4.0]
+
+def test_lru_eviction():
+    """Test LRU eviction policy."""
+    cache = EmbeddingCache(max_size=2)
+    
+    cache.set("a", "model", [1.0])
+    cache.set("b", "model", [2.0])
+    cache.get("a", "model")  # Access "a" to make it recently used
+    cache.set("c", "model", [3.0])  # Should evict "b"
+    
+    assert cache.get("a", "model") is not None
+    assert cache.get("b", "model") is None  # Evicted
+    assert cache.get("c", "model") is not None
+```
+
+## Further Reading
+
+- [Redis Caching Patterns](https://redis.io/docs/manual/patterns/)
+- [Cache Replacement Policies](https://en.wikipedia.org/wiki/Cache_replacement_policies)
+- [Embedding API Cost Optimization](https://openai.com/pricing)

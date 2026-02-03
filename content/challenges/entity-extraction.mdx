@@ -1,4 +1,14 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "Entity Extraction for Knowledge Graphs"
+description: "Extract structured triples to build the foundation of a Knowledge Graph"
+difficulty: "medium"
+estimatedMinutes: 30
+xpReward: 60
+prerequisites: []
+related: ["knowledge-graph-extraction", "graphrag-knowledge-graph", "entity-memory"]
+---
+
+<Callout title="Goal" variant="info">
   Extract structured triples to build the foundation of a Knowledge Graph.
 </Callout>
 
@@ -12,7 +22,266 @@ Vector search is great at finding "similar" text, but it fails at complex reason
 2.  Extracting **Relations** (Alice -> WORKS_AT -> Apple).
 3.  Querying the resulting graph.
 
-## Task
+## Why This Matters in Production
+
+| Problem | Vector Search | Knowledge Graph |
+|---------|--------------|-----------------|
+| **Multi-hop reasoning** | ❌ Fails | ✅ Traverses edges |
+| **Structured relationships** | ❌ Weak | ✅ Native support |
+| **Explainability** | ⚠️ Black box | ✅ Clear paths |
+| **Complex queries** | ❌ Limited | ✅ Cypher/GQL |
+
+## What You're Implementing
 
 Implement a basic triple extractor that identifies relationships based on predefined sentential patterns.
+
+## The Knowledge Graph Pipeline
+
+```
+Raw Text → Entity Extraction → Relation Extraction → Triples → Graph
+    ↓              ↓                    ↓                ↓        ↓
+"Alice works    [Alice,            WORKS_AT          (Alice,   Node:
+ at Apple"      Apple, Company]    relation          works,    Alice
+                                                      Apple)    Node:
+                                                                Apple
+                                                                Edge:
+                                                                works
+```
+
+## Mathematical Foundations
+
+### Triple Representation
+
+```
+Triple = (Subject, Predicate, Object)
+
+Where:
+- Subject: Entity (Alice, Apple)
+- Predicate: Relation type (WORKS_AT, FOUNDED)
+- Object: Entity or value (Apple, 1976)
+```
+
+### Graph Properties
+
+```
+Graph G = (V, E)
+V = set of vertices (entities)
+E = set of edges (relations)
+
+Degree of node: Number of connections
+Path length: Number of edges between entities
+```
+
+## Implementation Example
+
+```python
+import re
+from typing import List, Tuple, Dict
+from dataclasses import dataclass
+
+@dataclass
+class Triple:
+    """Represents a subject-predicate-object triple."""
+    subject: str
+    predicate: str
+    object: str
+    confidence: float = 1.0
+    
+    def __repr__(self):
+        return f"({self.subject}) --[{self.predicate}]--> ({self.object})"
+
+class TripleExtractor:
+    """Extract subject-predicate-object triples from text."""
+    
+    # Common relation patterns
+    PATTERNS = {
+        "WORKS_AT": [
+            r"(\w+) works at (\w+)",
+            r"(\w+) is employed by (\w+)",
+            r"(\w+) joined (\w+)"
+        ],
+        "FOUNDED": [
+            r"(\w+) founded (\w+)",
+            r"(\w+) started (\w+)",
+            r"(\w+) established (\w+)"
+        ],
+        "LOCATED_IN": [
+            r"(\w+) is located in (\w+)",
+            r"(\w+) is based in (\w+)",
+            r"(\w+) headquarters in (\w+)"
+        ],
+        "CEO_OF": [
+            r"(\w+) is CEO of (\w+)",
+            r"(\w+) leads (\w+)",
+            r"(\w+) heads (\w+)"
+        ]
+    }
+    
+    def extract(self, text: str) -> List[Triple]:
+        """
+        Extract triples from text using pattern matching.
+        
+        Time Complexity: O(P × L) where P = patterns, L = text length
+        Space Complexity: O(T) where T = number of triples
+        
+        Args:
+            text: Input text to extract from
+            
+        Returns:
+            List of extracted triples
+            
+        Example:
+            >>> extractor = TripleExtractor()
+            >>> extractor.extract("Alice works at Apple")
+            [Triple(subject="Alice", predicate="WORKS_AT", object="Apple")]
+        """
+        triples = []
+        
+        for predicate, patterns in self.PATTERNS.items():
+            for pattern in patterns:
+                matches = re.finditer(pattern, text, re.IGNORECASE)
+                for match in matches:
+                    subject = match.group(1).strip()
+                    obj = match.group(2).strip()
+                    triples.append(Triple(
+                        subject=subject,
+                        predicate=predicate,
+                        object=obj
+                    ))
+        
+        return triples
+    
+    def extract_with_entities(self, text: str, entities: List[str]) -> List[Triple]:
+        """
+        Extract triples given a list of known entities.
+        
+        More robust than pattern-only extraction.
+        """
+        triples = []
+        
+        # Look for co-occurrences of entities
+        for i, ent1 in enumerate(entities):
+            for ent2 in entities[i+1:]:
+                # Check if both appear close together
+                pattern = rf"{re.escape(ent1)}.+{re.escape(ent2)}"
+                if re.search(pattern, text, re.IGNORECASE):
+                    # Infer relation from context
+                    relation = self._infer_relation(text, ent1, ent2)
+                    triples.append(Triple(
+                        subject=ent1,
+                        predicate=relation,
+                        object=ent2
+                    ))
+        
+        return triples
+    
+    def _infer_relation(self, text: str, subj: str, obj: str) -> str:
+        """Infer relation type from context."""
+        # Simple heuristic based on keywords
+        context = text.lower()
+        if any(word in context for word in ["works", "employed", "joined"]):
+            return "WORKS_AT"
+        elif any(word in context for word in ["founded", "started", "established"]):
+            return "FOUNDED"
+        elif any(word in context for word in ["located", "based", "headquarters"]):
+            return "LOCATED_IN"
+        return "RELATED_TO"
+
+# Usage Example
+extractor = TripleExtractor()
+text = """
+Alice works at Apple. Apple was founded by Steve Jobs.
+Apple is headquartered in Cupertino. Tim Cook is CEO of Apple.
+"""
+
+triples = extractor.extract(text)
+for triple in triples:
+    print(triple)
+# Output:
+# (Alice) --[WORKS_AT]--> (Apple)
+# (Steve) --[FOUNDED]--> (Jobs)
+# (Apple) --[LOCATED_IN]--> (Cupertino)
+# (Tim) --[CEO_OF]--> (Cook)
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Pattern Matching | O(P × L) | P patterns, L text length |
+| Entity Recognition | O(E × L) | E entities to find |
+| Triple Storage | O(T) | T triples extracted |
+| Graph Construction | O(T) | Add nodes and edges |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand how to extract structured knowledge from unstructured text
+- Be able to build pattern-based entity extractors
+- Know how triples form the basis of knowledge graphs
+
+## Real-World Applications
+
+| Company | Entity Extraction Use |
+|---------|----------------------|
+| **Google** | Knowledge Graph construction |
+| **Microsoft** | Academic graph (authors, papers, institutions) |
+| **Amazon** | Product attribute extraction |
+| **Neo4j** | Graph database population |
+
+## Common Pitfalls
+
+- **Over-extraction**: Too many false positives from loose patterns
+- **Under-extraction**: Missing valid relations due to strict patterns
+- **Entity normalization**: "Apple" vs "Apple Inc" vs "Apple, Inc."
+- **Ambiguous relations**: Same pattern matches multiple relation types
+- **Coreference resolution**: "She founded it" → need to resolve pronouns
+
+## Production Extensions (Optional)
+
+- **Named Entity Recognition**: Use spaCy, Stanza for entity detection
+- **Relation Classification**: Train classifier for relation types
+- **Coreference Resolution**: Link pronouns to entities
+- **Entity Linking**: Map to knowledge bases (Wikidata, DBpedia)
+- **LLM-based Extraction**: Use GPT-4 for complex extraction
+
+## Resources
+
+### Documentation
+- [spaCy NER](https://spacy.io/usage/linguistic-features#named-entities)
+- [Neo4j Graph Data Science](https://neo4j.com/docs/graph-data-science/current/)
+- [Stanford OpenIE](https://nlp.stanford.edu/software/openie.html)
+
+### Tools
+- **spaCy**: Industrial-strength NLP
+- **Stanford CoreNLP**: Complete NLP pipeline
+- **OpenIE**: Open information extraction
+- **Hugging Face**: Transformer-based extraction
+
+### Papers
+- "Open Information Extraction from the Web" (Banko et al., 2007)
+- "GraphRAG: Knowledge Graphs for RAG" (Microsoft Research)
+- "REBEL: Relation Extraction By End-to-end Language generation" (Huguet Cabot & Navigli, 2021)
+
+## Interview Questions
+
+1. **Why use knowledge graphs instead of just vector search?**
+   - Multi-hop reasoning, explicit relationships, explainability
+
+2. **How do you handle entity disambiguation?**
+   - Context analysis, entity linking to knowledge bases, type constraints
+
+3. **What are the challenges in relation extraction?**
+   - Pattern coverage, ambiguity, domain adaptation, scalability
+
+## After You Pass
+
+Build complete GraphRAG systems:
+- [knowledge-graph-extraction](knowledge-graph-extraction) - Full KG construction
+- [graphrag-knowledge-graph](graphrag-knowledge-graph) - Graph-based retrieval
+- [entity-memory](entity-memory) - Entity-centric memory systems
+
+---
+
+**🔗 Graph Power:** Knowledge graphs transform RAG from similarity search to structured reasoning!
 

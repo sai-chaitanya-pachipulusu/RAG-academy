@@ -1,4 +1,15 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "Recall@K Evaluator"
+description: "Implement Recall@K to measure how often the correct document appears in your top search results"
+difficulty: "beginner"
+estimatedMinutes: 15
+xpReward: 25
+prerequisites: ["basic-retrieval"]
+related: ["evaluator-precision-at-k", "evaluator-f1-score", "retrieval-metrics"]
+next: "evaluator-precision-at-k"
+---
+
+<Callout title="Goal" variant="info">
   Implement Recall@K to measure how often the correct document appears in your
   top search results.
 </Callout>
@@ -22,6 +33,50 @@ For single-ground-truth scenarios (most common in RAG):
 - **1.0** if the relevant document is anywhere in top-K
 - **0.0** if it's not found
 
+## The Algorithm
+
+```python
+def recall_at_k(
+    retrieved: list[str],
+    relevant: set[str],
+    k: int
+) -> float:
+    """
+    Compute Recall@K for retrieval evaluation.
+    
+    Time Complexity: O(K) where K = cutoff
+    Space Complexity: O(1) additional
+    
+    Args:
+        retrieved: Ordered list of retrieved document IDs
+        relevant: Set of ground-truth relevant document IDs
+        k: Cutoff position (top-K)
+    
+    Returns:
+        Recall@K score between 0.0 and 1.0
+    
+    Edge cases:
+        - k <= 0: returns 0.0
+        - Empty retrieved: returns 0.0
+        - Empty relevant set: returns 1.0 (convention: nothing to find)
+    """
+    if k <= 0 or not retrieved or not relevant:
+        return 0.0 if not relevant else 1.0
+    
+    top_k = set(retrieved[:k])
+    relevant_found = len(top_k & relevant)
+    
+    return relevant_found / len(relevant)
+```
+
+## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity |
+|-----------|-----------------|------------------|
+| Recall@K computation | O(K) | O(1) |
+
+Computing Recall@K involves checking each of the K retrieved documents against the set of relevant documents, which is an O(K) operation with constant additional space.
+
 ## Common variants
 
 - **Recall@1**: Strictest — must be the top result (same as Precision@1)
@@ -41,3 +96,35 @@ For single-ground-truth scenarios (most common in RAG):
 
 Always compute Recall@K **before and after** reranking to isolate retrieval failures from reranking failures.
 
+## Real-World Context
+
+| Company | Use Case | Metric Focus |
+|---------|----------|--------------|
+| **Google Search** | Web search quality | Recall@1000 for initial retrieval |
+| **Amazon** | Product recommendation | Recall@50 for candidate generation |
+| **Notion** | Semantic search | Recall@20 for document discovery |
+| **Microsoft** | Enterprise search | Recall@10 with re-ranking |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand the fundamental metric for retrieval completeness
+- Be able to measure whether your RAG system finds relevant documents
+- Know how to debug retrieval vs. reranking issues
+
+## Resources
+
+### Documentation
+- [Information Retrieval Evaluation](https://en.wikipedia.org/wiki/Evaluation_measures_(information_retrieval))
+- [Recall in ML](https://developers.google.com/machine-learning/crash-course/classification/recall)
+
+### Tools
+- **scikit-learn**: `recall_score()`
+- **ir-measures**: Comprehensive IR metrics
+- **pytrec_eval**: TREC evaluation framework
+
+## Related Challenges
+
+- [evaluator-precision-at-k](evaluator-precision-at-k) - Precision metric
+- [evaluator-f1-score](evaluator-f1-score) - Balanced metric
+- [retrieval-metrics](retrieval-metrics) - Full metrics suite

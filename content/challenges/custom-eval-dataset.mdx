@@ -1,14 +1,17 @@
 ﻿---
 title: "Build Custom Evaluation Dataset"
-description: "Create domain-specific evaluation datasets for your RAG system"
+description: "Create domain-specific evaluation datasets for your RAG system — production RAG needs custom evaluation suites."
 difficulty: "medium"
+estimatedMinutes: 45
+prerequisites: ["beir-evaluation-setup", "retrieval-metrics"]
+related: ["eval-dataset-curation", "beir-evaluation-setup", "mteb-evaluation"]
+next: "eval-dataset-curation"
 xpReward: 100
-prerequisites: ["beir-evaluation-setup"]
 ---
 
-# Build Custom Evaluation Dataset
-
-Create a domain-specific evaluation dataset for your RAG system.
+<Callout title="Goal" variant="info">
+  Create a domain-specific evaluation dataset for your RAG system.
+</Callout>
 
 ## Why This Matters
 
@@ -23,8 +26,13 @@ Generic benchmarks (BEIR, MTEB) don't capture your domain's specific challenges.
 
 ## Real-World Application
 
-**Companies:** Every enterprise RAG deployment, Legal tech, Healthcare AI
-**Use Cases:** Domain-specific RAG, Quality assurance, Regression testing
+| Company | Use Case |
+|---------|----------|
+| **Legal Tech** | Case law retrieval evaluation |
+| **Healthcare AI** | Medical literature QA |
+| **Financial Services** | SEC filing analysis |
+| **Enterprise RAG** | Internal knowledge base evaluation |
+| **E-commerce** | Product search quality |
 
 ## The Challenge
 
@@ -61,3 +69,456 @@ dataset = builder.build()
 
 Track difficulty distribution, tag frequencies, and coverage metrics.
 
+## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity |
+|-----------|-----------------|------------------|
+| Add document | O(1) | O(D) |
+| Add example | O(R) | O(R) |
+| Validate | O(D + R) | O(D) |
+| Export | O(D + R) | O(D + R) |
+
+Where D = documents, R = relevance judgments
+
+## Resources
+
+### Papers
+- **"Building Evaluation Datasets for Information Retrieval"** - Best practices
+- **"Domain-Specific Retrieval Evaluation"** - Industry case studies
+
+### Documentation
+- [BEIR Dataset Format](https://github.com/beir-cellar/beir)
+- [RAGAS Test Set Generation](https://docs.ragas.io/en/stable/concepts/testset_generation/)
+
+### Tools
+- **RAGAS**: Automated test set generation
+- **LangSmith**: Dataset management for LLM apps
+- **Argilla**: Data labeling and curation
+
+## Implementation
+
+```python
+from typing import List, Dict, Set, Optional
+from dataclasses import dataclass, asdict
+import json
+from collections import defaultdict
+
+@dataclass
+class EvalExample:
+    """Single evaluation example."""
+    query: str
+    relevant_doc_ids: List[str]
+    difficulty: str  # "easy", "medium", "hard"
+    tags: List[str]
+    metadata: Optional[Dict] = None
+
+@dataclass
+class EvalDataset:
+    """Complete evaluation dataset."""
+    name: str
+    domain: str
+    documents: Dict[str, str]  # doc_id -> text
+    examples: List[EvalExample]
+    
+    def to_json(self) -> str:
+        """Export to JSON string."""
+        data = {
+            "name": self.name,
+            "domain": self.domain,
+            "documents": self.documents,
+            "examples": [
+                {
+                    "query": ex.query,
+                    "relevant_doc_ids": ex.relevant_doc_ids,
+                    "difficulty": ex.difficulty,
+                    "tags": ex.tags,
+                    "metadata": ex.metadata
+                }
+                for ex in self.examples
+            ]
+        }
+        return json.dumps(data, indent=2)
+    
+    @classmethod
+    def from_json(cls, json_str: str) -> "EvalDataset":
+        """Load from JSON string."""
+        data = json.loads(json_str)
+        examples = [
+            EvalExample(**ex) for ex in data["examples"]
+        ]
+        return cls(
+            name=data["name"],
+            domain=data["domain"],
+            documents=data["documents"],
+            examples=examples
+        )
+    
+    def get_stats(self) -> Dict:
+        """Compute dataset statistics."""
+        stats = {
+            "num_documents": len(self.documents),
+            "num_examples": len(self.examples),
+            "difficulty_distribution": defaultdict(int),
+            "tag_frequency": defaultdict(int),
+            "avg_relevant_docs": 0.0
+        }
+        
+        total_relevant = 0
+        for ex in self.examples:
+            stats["difficulty_distribution"][ex.difficulty] += 1
+            total_relevant += len(ex.relevant_doc_ids)
+            for tag in ex.tags:
+                stats["tag_frequency"][tag] += 1
+        
+        if self.examples:
+            stats["avg_relevant_docs"] = total_relevant / len(self.examples)
+        
+        return dict(stats)
+
+
+class EvalDatasetBuilder:
+    """Builder for creating evaluation datasets."""
+    
+    def __init__(self, name: str, domain: str):
+        self.name = name
+        self.domain = domain
+        self.documents: Dict[str, str] = {}
+        self.examples: List[EvalExample] = []
+    
+    def add_document(self, doc_id: str, text: str) -> "EvalDatasetBuilder":
+        """Add a document to the corpus."""
+        self.documents[doc_id] = text
+        return self
+    
+    def add_example(
+        self,
+        query: str,
+        relevant_doc_ids: List[str],
+        difficulty: str = "medium",
+        tags: List[str] = None,
+        metadata: Dict = None
+    ) -> "EvalDatasetBuilder":
+        """Add an evaluation example."""
+        if tags is None:
+            tags = []
+        
+        example = EvalExample(
+            query=query,
+            relevant_doc_ids=relevant_doc_ids,
+            difficulty=difficulty,
+            tags=tags,
+            metadata=metadata
+        )
+        self.examples.append(example)
+        return self
+    
+    def validate(self) -> List[str]:
+        """Validate dataset integrity. Returns list of errors."""
+        errors = []
+        
+        # Check all referenced documents exist
+        for i, ex in enumerate(self.examples):
+            for doc_id in ex.relevant_doc_ids:
+                if doc_id not in self.documents:
+                    errors.append(
+                        f"Example {i}: Referenced doc '{doc_id}' not found"
+                    )
+        
+        # Check each example has at least one relevant doc
+        for i, ex in enumerate(self.examples):
+            if not ex.relevant_doc_ids:
+                errors.append(f"Example {i}: No relevant documents specified")
+        
+        # Check for duplicate queries
+        queries = [ex.query for ex in self.examples]
+        if len(queries) != len(set(queries)):
+            errors.append("Duplicate queries found")
+        
+        return errors
+    
+    def build(self) -> EvalDataset:
+        """Build and return the evaluation dataset."""
+        errors = self.validate()
+        if errors:
+            raise ValueError(f"Validation failed: {errors}")
+        
+        return EvalDataset(
+            name=self.name,
+            domain=self.domain,
+            documents=self.documents,
+            examples=self.examples
+        )
+```
+
+## Challenge: Implement EvalDatasetBuilder
+
+### Requirements
+
+1. Implement `EvalDataset` dataclass with JSON serialization
+2. Implement `EvalDatasetBuilder` with fluent interface
+3. Add validation for document references and duplicate queries
+4. Add statistics computation
+
+### Starter Code
+
+```python
+from typing import List, Dict, Optional
+from dataclasses import dataclass
+import json
+
+@dataclass
+class EvalExample:
+    """Single evaluation example."""
+    query: str
+    relevant_doc_ids: List[str]
+    difficulty: str
+    tags: List[str]
+    metadata: Optional[Dict] = None
+
+@dataclass
+class EvalDataset:
+    """Complete evaluation dataset."""
+    name: str
+    domain: str
+    documents: Dict[str, str]
+    examples: List[EvalExample]
+    
+    def to_json(self) -> str:
+        """Export to JSON string."""
+        # TODO: Implement JSON serialization
+        pass
+    
+    def get_stats(self) -> Dict:
+        """Compute dataset statistics."""
+        # TODO: Implement statistics
+        pass
+
+
+class EvalDatasetBuilder:
+    """Builder for creating evaluation datasets."""
+    
+    def __init__(self, name: str, domain: str):
+        self.name = name
+        self.domain = domain
+        self.documents: Dict[str, str] = {}
+        self.examples: List[EvalExample] = []
+    
+    def add_document(self, doc_id: str, text: str) -> "EvalDatasetBuilder":
+        """Add a document to the corpus."""
+        # TODO: Implement
+        pass
+    
+    def add_example(
+        self,
+        query: str,
+        relevant_doc_ids: List[str],
+        difficulty: str = "medium",
+        tags: List[str] = None,
+        metadata: Dict = None
+    ) -> "EvalDatasetBuilder":
+        """Add an evaluation example."""
+        # TODO: Implement
+        pass
+    
+    def validate(self) -> List[str]:
+        """Validate dataset integrity."""
+        # TODO: Implement validation
+        pass
+    
+    def build(self) -> EvalDataset:
+        """Build and return the evaluation dataset."""
+        # TODO: Implement build
+        pass
+
+
+# Test your implementation
+def test_eval_dataset_builder():
+    builder = EvalDatasetBuilder("legal_qa", "legal")
+    
+    # Add documents
+    builder.add_document("contract_101", "A contract requires offer, acceptance, and consideration...")
+    builder.add_document("tort_101", "Tort law deals with civil wrongs...")
+    
+    # Add examples
+    builder.add_example(
+        query="What are the elements of a valid contract?",
+        relevant_doc_ids=["contract_101"],
+        difficulty="easy",
+        tags=["contracts", "basics"]
+    )
+    
+    builder.add_example(
+        query="What is the difference between tort and contract law?",
+        relevant_doc_ids=["contract_101", "tort_101"],
+        difficulty="medium",
+        tags=["contracts", "torts", "comparison"]
+    )
+    
+    # Build dataset
+    dataset = builder.build()
+    
+    # Test JSON export
+    json_str = dataset.to_json()
+    assert "legal_qa" in json_str
+    
+    # Test statistics
+    stats = dataset.get_stats()
+    assert stats["num_documents"] == 2
+    assert stats["num_examples"] == 2
+    
+    print(f"Stats: {stats}")
+    print("All tests passed!")
+
+test_eval_dataset_builder()
+```
+
+### Solution
+
+<details>
+<summary>Click to reveal solution</summary>
+
+```python
+from typing import List, Dict, Optional
+from dataclasses import dataclass, asdict
+import json
+from collections import defaultdict
+
+@dataclass
+class EvalExample:
+    """Single evaluation example."""
+    query: str
+    relevant_doc_ids: List[str]
+    difficulty: str
+    tags: List[str]
+    metadata: Optional[Dict] = None
+
+@dataclass
+class EvalDataset:
+    """Complete evaluation dataset."""
+    name: str
+    domain: str
+    documents: Dict[str, str]
+    examples: List[EvalExample]
+    
+    def to_json(self) -> str:
+        """Export to JSON string."""
+        data = {
+            "name": self.name,
+            "domain": self.domain,
+            "documents": self.documents,
+            "examples": [
+                {
+                    "query": ex.query,
+                    "relevant_doc_ids": ex.relevant_doc_ids,
+                    "difficulty": ex.difficulty,
+                    "tags": ex.tags,
+                    "metadata": ex.metadata
+                }
+                for ex in self.examples
+            ]
+        }
+        return json.dumps(data, indent=2)
+    
+    def get_stats(self) -> Dict:
+        """Compute dataset statistics."""
+        stats = {
+            "num_documents": len(self.documents),
+            "num_examples": len(self.examples),
+            "difficulty_distribution": defaultdict(int),
+            "tag_frequency": defaultdict(int),
+            "avg_relevant_docs": 0.0
+        }
+        
+        total_relevant = 0
+        for ex in self.examples:
+            stats["difficulty_distribution"][ex.difficulty] += 1
+            total_relevant += len(ex.relevant_doc_ids)
+            for tag in ex.tags:
+                stats["tag_frequency"][tag] += 1
+        
+        if self.examples:
+            stats["avg_relevant_docs"] = total_relevant / len(self.examples)
+        
+        return dict(stats)
+
+
+class EvalDatasetBuilder:
+    """Builder for creating evaluation datasets."""
+    
+    def __init__(self, name: str, domain: str):
+        self.name = name
+        self.domain = domain
+        self.documents: Dict[str, str] = {}
+        self.examples: List[EvalExample] = []
+    
+    def add_document(self, doc_id: str, text: str) -> "EvalDatasetBuilder":
+        """Add a document to the corpus."""
+        self.documents[doc_id] = text
+        return self
+    
+    def add_example(
+        self,
+        query: str,
+        relevant_doc_ids: List[str],
+        difficulty: str = "medium",
+        tags: List[str] = None,
+        metadata: Dict = None
+    ) -> "EvalDatasetBuilder":
+        """Add an evaluation example."""
+        if tags is None:
+            tags = []
+        
+        example = EvalExample(
+            query=query,
+            relevant_doc_ids=relevant_doc_ids,
+            difficulty=difficulty,
+            tags=tags,
+            metadata=metadata
+        )
+        self.examples.append(example)
+        return self
+    
+    def validate(self) -> List[str]:
+        """Validate dataset integrity. Returns list of errors."""
+        errors = []
+        
+        for i, ex in enumerate(self.examples):
+            for doc_id in ex.relevant_doc_ids:
+                if doc_id not in self.documents:
+                    errors.append(
+                        f"Example {i}: Referenced doc '{doc_id}' not found"
+                    )
+        
+        for i, ex in enumerate(self.examples):
+            if not ex.relevant_doc_ids:
+                errors.append(f"Example {i}: No relevant documents specified")
+        
+        queries = [ex.query for ex in self.examples]
+        if len(queries) != len(set(queries)):
+            errors.append("Duplicate queries found")
+        
+        return errors
+    
+    def build(self) -> EvalDataset:
+        """Build and return the evaluation dataset."""
+        errors = self.validate()
+        if errors:
+            raise ValueError(f"Validation failed: {errors}")
+        
+        return EvalDataset(
+            name=self.name,
+            domain=self.domain,
+            documents=self.documents,
+            examples=self.examples
+        )
+```
+
+</details>
+
+## Best Practices
+
+1. **Stratified sampling**: Ensure balanced difficulty distribution
+2. **Diverse queries**: Cover different query types (factoid, list, comparison)
+3. **Multiple annotators**: Reduce bias with consensus labeling
+4. **Version control**: Track dataset versions like code
+5. **Regular updates**: Refresh with new documents and queries

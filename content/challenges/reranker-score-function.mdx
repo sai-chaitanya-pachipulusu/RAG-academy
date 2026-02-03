@@ -1,16 +1,701 @@
-﻿<Callout title="Goal" variant="info">
-  Implement a scoring function that combines multiple signals to rerank
-  documents.
-</Callout>
+﻿# Re-ranker Score Function
 
-## The "Cascade" Strategy
+**Difficulty**: Tier 3 - Advanced Retrieval  
+**Prerequisites**: Re-ranker Selection, Cross-Encoders  
+**Time Estimate**: 3-4 hours
 
-In production RAG, you don't run a heavy reranker on 1 million documents. Instead, you:
+## Objective
 
-1.  **Retrieve** 100 docs with a fast, cheap method (Embeddings).
-2.  **Rerank** those 100 docs with a slower, more precise method.
+Design and optimize score functions for reranking, including pointwise, pairwise, and listwise approaches, to maximize end-to-end retrieval quality.
 
-## Task
+## Purpose
 
-Implement the math for a scoring function that weights different features (e.g., initial retrieval score, BM25 score, and metadata freshness) to produce a final, optimized ranking.
+The score function defines how relevance is measured. While default implementations work, custom score functions tuned to your domain can improve ranking quality by 10-20%. This challenge explores the design space of scoring approaches.
 
+### Real-World Impact
+- **Legal search**: Custom scoring for citation importance
+- **E-commerce**: Combine relevance with business metrics (conversion, margin)
+- **Content platforms**: Blend relevance with freshness, engagement
+- **Enterprise**: Incorporate user permissions and document authority
+
+## The Problem
+
+Default reranker scores are pure relevance estimates. Production systems often need:
+- Multi-factor ranking (relevance + recency + popularity)
+- Domain-specific relevance signals
+- Calibrated probabilities for downstream decisions
+- Differentiable scores for gradient-based optimization
+
+**Scoring Paradigms:**
+1. **Pointwise**: Score each document independently
+2. **Pairwise**: Compare document pairs
+3. **Listwise**: Optimize over full ranking
+
+## Theory
+
+### Pointwise Scoring
+
+Each document scored independently of others.
+
+**Formula:**
+```
+score(dᵢ) = f(query, dᵢ)
+```
+
+**Examples:**
+- Cross-encoder relevance: P(relevant | query, doc)
+- Logistic regression: w · φ(query, doc)
+- Neural: MLP over query-doc features
+
+**Pros:**
+- Simple to implement
+- Natural probability interpretation
+- Parallelizable
+
+**Cons:**
+- Ignores document relationships
+- May produce ties
+
+### Pairwise Scoring
+
+Compare documents directly.
+
+**Formula:**
+```
+score(dᵢ > dⱼ) = f(query, dᵢ, dⱼ)
+```
+
+**Examples:**
+- BERT-based pairwise classifier
+- RankNet: P(dᵢ ranks above dⱼ) = σ(score(dᵢ) - score(dⱼ))
+
+**Training:**
+```python
+# RankNet loss
+loss = -log(σ(score_i - score_j)) if d_i > d_j
+       -log(σ(score_j - score_i)) if d_j > d_i
+```
+
+**Pros:**
+- Directly optimizes for relative ordering
+- Handles ties naturally
+
+**Cons:**
+- O(n²) comparisons for n documents
+- Harder to interpret
+
+### Listwise Scoring
+
+Optimize over the entire ranking.
+
+**Formula:**
+```
+score(R) = f(query, [d₁, d₂, ..., dₙ])
+```
+
+**Examples:**
+- ListNet: KL divergence over top-k probability
+- ListMLE: Likelihood of correct permutation
+- LambdaRank/LambdaMART: Direct nDCG optimization
+
+**LambdaRank Gradient:**
+```
+∂L/∂sᵢ = Σⱼ λᵢⱼ
+where λᵢⱼ = ∂Z/∂sᵢ - ∂Z/∂sⱼ and Z is nDCG
+```
+
+**Pros:**
+- Optimizes end metric directly
+- Handles position bias
+
+**Cons:**
+- Complex training
+- Slower inference
+
+### Multi-Factor Scoring
+
+Combine multiple signals:
+
+```
+score(d) = α · relevance(d) + β · freshness(d) + γ · authority(d)
+```
+
+**Common Factors:**
+| Factor | Description | Weight Range |
+|--------|-------------|--------------|
+| Relevance | Query-doc match | 0.5-0.8 |
+| Recency | Publication date | 0.1-0.3 |
+| Authority | Source quality | 0.05-0.2 |
+| Engagement | Clicks, shares | 0.0-0.2 |
+| Boost | Business rules | 0.0-0.3 |
+
+## Setup
+
+You have:
+- Cross-encoder model outputting raw logits
+- 3 signals per document:
+  - Relevance score (0-1): Cross-encoder output
+  - Freshness (0-1): Recency normalized
+  - Popularity (0-1): View count normalized
+- Training data: 200 queries with graded relevance judgments
+- Metric to optimize: nDCG@10
+
+## Challenges
+
+### Challenge 1: Score Calibration
+
+Raw model outputs are not probabilities. Calibrate to [0,1].
+
+**Acceptance Criteria:**
+- Implement Platt scaling (sigmoid calibration)
+- Implement isotonic regression
+- Show reliability diagram before/after
+- Achieve ECE (Expected Calibration Error) < 0.05
+
+**Platt Scaling:**
+```python
+def platt_scaling(logits, labels, lr=0.01, epochs=100):
+    """Learn sigmoid parameters for calibration."""
+    a, b = 0.0, 0.0  # Parameters to learn
+    
+    for epoch in range(epochs):
+        probs = sigmoid(a * logits + b)
+        # Gradient descent on NLL
+        grad_a = np.mean((probs - labels) * logits)
+        grad_b = np.mean(probs - labels)
+        a -= lr * grad_a
+        b -= lr * grad_b
+        
+    return a, b
+
+def calibrated_score(logit, a, b):
+    return sigmoid(a * logit + b)
+```
+
+### Challenge 2: Multi-Factor Combination
+
+Combine relevance, freshness, and popularity.
+
+**Acceptance Criteria:**
+- Implement weighted linear combination
+- Learn optimal weights via grid search or gradient descent
+- Show improvement over relevance-only baseline
+- Document weight sensitivity
+
+**Grid Search:**
+```python
+def learn_weights_grid(val_queries, val_results, qrels):
+    """Find optimal factor weights."""
+    best_weights = None
+    best_ndcg = 0
+    
+    for rel_w in np.arange(0.4, 0.9, 0.1):
+        for fresh_w in np.arange(0.05, 0.4, 0.05):
+            for pop_w in np.arange(0.0, 0.3, 0.05):
+                if rel_w + fresh_w + pop_w > 1.0:
+                    continue
+                    
+                weights = {'rel': rel_w, 'fresh': fresh_w, 'pop': pop_w}
+                ndcg = evaluate_with_weights(val_queries, weights)
+                
+                if ndcg > best_ndcg:
+                    best_ndcg = ndcg
+                    best_weights = weights
+                    
+    return best_weights, best_ndcg
+```
+
+### Challenge 3: Position-Aware Scoring
+
+Model position bias in user behavior.
+
+**Acceptance Criteria:**
+- Implement examination model (P(examine | position))
+- Position-bias corrected nDCG
+- Show that top positions are over-valued
+
+**Position Bias Model:**
+```
+P(click | d, pos) = P(examine | pos) × P(relevant | d)
+
+Examination probability:
+P(examine | pos) = 1 / pos^η  (η ≈ 0.5-1.0)
+```
+
+## Evaluation Metrics
+
+| Metric | Target | Description |
+|--------|--------|-------------|
+| nDCG@10 | > 0.74 | Ranking quality |
+| ECE | < 0.05 | Calibration error |
+| Kendall's τ | > 0.75 | Pairwise agreement |
+| Score range | [0, 1] | Normalized outputs |
+
+## Starter Code
+
+```python
+from typing import List, Dict, Callable
+from dataclasses import dataclass
+import numpy as np
+from scipy.stats import spearmanr, kendalltau
+from sklearn.isotonic import IsotonicRegression
+
+@dataclass  
+class DocumentFeatures:
+    """Features available for scoring."""
+    doc_id: str
+    relevance_logit: float  # Raw model output
+    publication_date: float  # Days ago
+    view_count: int
+    source_authority: float  # 0-1 authority score
+    
+class ScoreFunction:
+    """Base class for score functions."""
+    
+    def score(self, query: str, features: List[DocumentFeatures]) -> List[float]:
+        """
+        Compute scores for documents.
+        
+        Returns: List of scores corresponding to input documents
+        """
+        raise NotImplementedError
+        
+    def calibrate(self, 
+                 logits: np.ndarray, 
+                 labels: np.ndarray,
+                 method: str = "platt") -> Dict:
+        """
+        Calibrate raw scores to probabilities.
+        
+        Methods: platt, isotonic, temperature
+        """
+        if method == "platt":
+            return self._platt_scaling(logits, labels)
+        elif method == "isotonic":
+            return self._isotonic_scaling(logits, labels)
+        elif method == "temperature":
+            return self._temperature_scaling(logits, labels)
+        else:
+            raise ValueError(f"Unknown method: {method}")
+            
+    def _platt_scaling(self, logits: np.ndarray, 
+                      labels: np.ndarray, 
+                      lr: float = 0.01,
+                      epochs: int = 1000) -> Dict:
+        """Sigmoid calibration."""
+        a, b = 1.0, 0.0
+        
+        for _ in range(epochs):
+            probs = 1 / (1 + np.exp(-(a * logits + b)))
+            grad_a = np.mean((probs - labels) * logits)
+            grad_b = np.mean(probs - labels)
+            a -= lr * grad_a
+            b -= lr * grad_b
+            
+        return {'a': a, 'b': b, 'method': 'platt'}
+        
+    def _isotonic_scaling(self, logits: np.ndarray,
+                         labels: np.ndarray) -> Dict:
+        """Isotonic regression calibration."""
+        # Convert logits to initial probabilities
+        probs = 1 / (1 + np.exp(-logits))
+        
+        # Fit isotonic regression
+        ir = IsotonicRegression(out_of_bounds='clip')
+        ir.fit(probs, labels)
+        
+        return {'model': ir, 'method': 'isotonic'}
+        
+    def _temperature_scaling(self, logits: np.ndarray,
+                            labels: np.ndarray,
+                            lr: float = 0.01,
+                            epochs: int = 1000) -> Dict:
+        """Single-parameter temperature scaling."""
+        T = 1.0
+        
+        for _ in range(epochs):
+            probs = 1 / (1 + np.exp(-logits / T))
+            # Gradient of NLL w.r.t T
+            grad_T = np.mean((probs - labels) * logits) / (T ** 2)
+            T -= lr * grad_T
+            
+        return {'T': T, 'method': 'temperature'}
+
+class LinearCombinationScore(ScoreFunction):
+    """Weighted linear combination of factors."""
+    
+    def __init__(self, weights: Dict[str, float]):
+        self.weights = weights
+        
+    def score(self, query: str, 
+             features: List[DocumentFeatures]) -> List[float]:
+        """
+        Compute weighted combination.
+        
+        score = w_rel × relevance + w_fresh × freshness + w_auth × authority
+        """
+        scores = []
+        for f in features:
+            # Normalize features to [0, 1]
+            rel = 1 / (1 + np.exp(-f.relevance_logit))  # Sigmoid
+            fresh = np.exp(-f.publication_date / 365)  # Exponential decay
+            pop = np.tanh(f.view_count / 10000)  # Tanh saturation
+            auth = f.source_authority
+            
+            # Weighted combination
+            score = (self.weights.get('rel', 0.6) * rel +
+                    self.weights.get('fresh', 0.2) * fresh +
+                    self.weights.get('pop', 0.1) * pop +
+                    self.weights.get('auth', 0.1) * auth)
+                    
+            scores.append(min(max(score, 0), 1))
+            
+        return scores
+
+class PairwiseScore(ScoreFunction):
+    """Pairwise comparison-based scoring."""
+    
+    def score(self, query: str,
+             features: List[DocumentFeatures]) -> List[float]:
+        """
+        Use Bradley-Terry model for pairwise aggregation.
+        
+        win_probability(d_i > d_j) = score_i / (score_i + score_j)
+        """
+        n = len(features)
+        
+        # Initialize scores
+        scores = np.ones(n) / n
+        
+        # Iterative update (MM algorithm)
+        for _ in range(100):
+            new_scores = np.zeros(n)
+            for i in range(n):
+                numerator = 0
+                for j in range(n):
+                    if i != j:
+                        # Compare features i and j
+                        prob_i_wins = self._compare(features[i], features[j])
+                        numerator += prob_i_wins / (scores[i] + scores[j])
+                new_scores[i] = numerator
+            scores = new_scores / np.sum(new_scores)
+            
+        return scores.tolist()
+        
+    def _compare(self, f1: DocumentFeatures, 
+                f2: DocumentFeatures) -> float:
+        """Predict probability that f1 beats f2."""
+        # Use relevance difference as signal
+        rel_diff = f1.relevance_logit - f2.relevance_logit
+        return 1 / (1 + np.exp(-rel_diff))
+
+class PositionAwareScore(ScoreFunction):
+    """Score function accounting for position bias."""
+    
+    def __init__(self, eta: float = 0.7):
+        """
+        eta: position bias exponent (typically 0.5-1.0)
+        """
+        self.eta = eta
+        
+    def examination_prob(self, position: int) -> float:
+        """Probability user examines position."""
+        return 1.0 / (position ** self.eta)
+        
+    def debiased_score(self, 
+                      query: str,
+                      features: List[DocumentFeatures],
+                      click_data: List[int]) -> List[float]:
+        """
+        Estimate true relevance from biased clicks.
+        
+        P(rel | click, pos) = P(click | rel, pos) × P(rel) / P(click | pos)
+        """
+        scores = []
+        for pos, (f, click) in enumerate(zip(features, click_data), 1):
+            exam_prob = self.examination_prob(pos)
+            
+            if click:
+                # Clicked: relevance ≥ examination probability
+                rel_prob = click / exam_prob
+            else:
+                # Not clicked: could be not examined or not relevant
+                rel_prob = 0.1  # Prior
+                
+            scores.append(min(rel_prob, 1.0))
+            
+        return scores
+
+class ScoreFunctionOptimizer:
+    """Learn optimal score function parameters."""
+    
+    def __init__(self, score_fn: ScoreFunction, 
+                 metric_fn: Callable):
+        self.score_fn = score_fn
+        self.metric_fn = metric_fn
+        
+    def grid_search(self,
+                   queries: List[str],
+                   features_list: List[List[DocumentFeatures]],
+                   labels: List[Dict],
+                   param_grid: Dict) -> Dict:
+        """
+        Grid search over score function parameters.
+        
+        Example param_grid:
+        {
+            'rel_weight': [0.4, 0.5, 0.6, 0.7, 0.8],
+            'fresh_weight': [0.1, 0.2, 0.3],
+            'pop_weight': [0.0, 0.1, 0.2]
+        }
+        """
+        best_params = None
+        best_score = 0
+        results = []
+        
+        # Generate all combinations
+        from itertools import product
+        keys = list(param_grid.keys())
+        values = list(param_grid.values())
+        
+        for combo in product(*values):
+            params = dict(zip(keys, combo))
+            
+            # Ensure weights sum to ≤ 1
+            if sum(params.values()) > 1.0:
+                continue
+                
+            # Set parameters
+            if isinstance(self.score_fn, LinearCombinationScore):
+                self.score_fn.weights = params
+                
+            # Evaluate
+            score = self._evaluate(queries, features_list, labels)
+            results.append({**params, 'score': score})
+            
+            if score > best_score:
+                best_score = score
+                best_params = params
+                
+        return {
+            'best_params': best_params,
+            'best_score': best_score,
+            'all_results': results
+        }
+        
+    def _evaluate(self, queries, features_list, labels):
+        """Compute metric over validation set."""
+        all_scores = []
+        for query, features in zip(queries, features_list):
+            scores = self.score_fn.score(query, features)
+            all_scores.append(scores)
+            
+        return self.metric_fn(all_scores, labels)
+
+def expected_calibration_error(probs: np.ndarray, 
+                               labels: np.ndarray,
+                               n_bins: int = 10) -> float:
+    """
+    Compute ECE: average calibration error across bins.
+    """
+    bin_boundaries = np.linspace(0, 1, n_bins + 1)
+    ece = 0.0
+    
+    for i in range(n_bins):
+        in_bin = (probs >= bin_boundaries[i]) & (probs < bin_boundaries[i+1])
+        if np.sum(in_bin) > 0:
+            avg_confidence = np.mean(probs[in_bin])
+            avg_accuracy = np.mean(labels[in_bin])
+            ece += np.sum(in_bin) / len(probs) * abs(avg_confidence - avg_accuracy)
+            
+    return ece
+
+## Advanced Techniques
+
+### 1. Score Distribution Analysis
+
+```python
+def analyze_score_distribution(scores: List[float], labels: List[int]):
+    """
+    Understand score discrimination ability.
+    """
+    import matplotlib.pyplot as plt
+    
+    # Separate by label
+    pos_scores = [s for s, l in zip(scores, labels) if l == 1]
+    neg_scores = [s for s, l in zip(scores, labels) if l == 0]
+    
+    # Plot distributions
+    plt.hist(neg_scores, alpha=0.5, label='Negative', bins=20)
+    plt.hist(pos_scores, alpha=0.5, label='Positive', bins=20)
+    
+    # Compute separation
+    from scipy.stats import mannwhitneyu
+    stat, p = mannwhitneyu(pos_scores, neg_scores)
+    print(f"Separation significance: p={p:.4f}")
+    
+    return {
+        'pos_mean': np.mean(pos_scores),
+        'neg_mean': np.mean(neg_scores),
+        'auc': roc_auc_score(labels, scores)
+    }
+```
+
+### 2. Score Stabilization
+
+Prevent score variance across queries:
+
+```python
+def stabilize_scores(scores: List[float], 
+                    method: str = "zscore") -> List[float]:
+    """Normalize scores to consistent range."""
+    if method == "zscore":
+        mean = np.mean(scores)
+        std = np.std(scores)
+        return [(s - mean) / std for s in scores]
+    elif method == "softmax":
+        exp_scores = np.exp(scores)
+        return (exp_scores / np.sum(exp_scores)).tolist()
+    elif method == "minmax":
+        min_s, max_s = min(scores), max(scores)
+        return [(s - min_s) / (max_s - min_s) for s in scores]
+```
+
+### 3. Cascade Scoring
+
+Use different score functions at different stages:
+
+```python
+def cascade_score(query: str, documents: List[DocumentFeatures]):
+    """
+    Stage 1: Fast heuristic filter
+    Stage 2: Neural relevance scoring
+    Stage 3: Multi-factor final ranking
+    """
+    # Stage 1: Quick filter with simple heuristic
+    candidates = [d for d in documents if d.relevance_logit > -1]
+    
+    # Stage 2: Precise relevance scoring
+    relevance_scores = neural_scorer.score(query, candidates)
+    top_candidates = sorted(zip(candidates, relevance_scores), 
+                           key=lambda x: -x[1])[:30]
+    
+    # Stage 3: Multi-factor final ranking
+    final_scores = multi_factor_scorer.score(
+        query, [c for c, _ in top_candidates]
+    )
+    
+    return final_scores
+```
+
+## Production Tips
+
+### 1. Score Logging
+
+```python
+def log_scores(query: str, scores: List[float], 
+               features: List[DocumentFeatures]):
+    """Log for offline analysis and monitoring."""
+    logger.info({
+        'query_hash': hash(query),
+        'score_mean': np.mean(scores),
+        'score_std': np.std(scores),
+        'score_range': max(scores) - min(scores),
+        'factor_breakdown': {
+            'relevance': [f.relevance_logit for f in features],
+            'freshness': [f.publication_date for f in features],
+        }
+    })
+```
+
+### 2. Score Monitoring
+
+```python
+def check_score_health(scores: List[float]):
+    """Alert on score distribution anomalies."""
+    if np.std(scores) < 0.01:
+        alert("Scores collapsed - check model!")
+    if max(scores) < 0.3:
+        alert("Low confidence - consider fallback")
+    if any(np.isnan(scores)):
+        alert("NaN scores detected!")
+```
+
+### 3. A/B Testing Scores
+
+```python
+class ScoreABTest:
+    def route(self, query: str) -> int:
+        """Randomly assign to score function variant."""
+        return random.choice([0, 1])  # Two variants
+        
+    def log_outcome(self, variant: int, query: str,
+                   clicked: bool, rank: int):
+        """Log click data for comparison."""
+        metrics[variant]['clicks'] += 1
+        metrics[variant]['total_rank'] += rank
+```
+
+## Resources
+
+### Academic Papers
+- "From RankNet to LambdaRank to LambdaMART: An Overview" - Burges (Tech Report)
+- "Obtaining Well Calibrated Probabilities Using Bayesian Binning" - Naeini et al. (AAAI 2015)
+- "Listwise Approach to Learning to Rank: Theory and Algorithm" - Cao et al. (ICML 2007)
+- "Axiomatic Analysis of Softmax Cross-Entropy Loss for Learning to Rank" - Qin et al. (arXiv:2205.00127)
+
+### Official Documentation
+- [scikit-learn: Probability Calibration](https://scikit-learn.org/stable/modules/calibration.html)
+- [TensorFlow Ranking](https://github.com/tensorflow/ranking) - Listwise learning
+- [LightGBM LambdaRank](https://lightgbm.readthedocs.io/en/latest/Parameters.html#lambdarank)
+
+### Tools & Libraries
+- [TensorFlow Ranking](https://github.com/tensorflow/ranking) - Neural ranking models
+- [XGBoost Learning to Rank](https://xgboost.readthedocs.io/en/stable/tutorials/learning_to_rank.html)
+- [scikit-learn IsotonicRegression](https://scikit-learn.org/stable/modules/generated/sklearn.isotonic.IsotonicRegression.html)
+
+### GitHub Repositories
+- [tensorflow/ranking](https://github.com/tensorflow/ranking) - TF ranking library
+- [ microsoft/LightGBM](https://github.com/microsoft/LightGBM) - LambdaMART implementation
+- [airbnb/knowledge-repo](https://github.com/airbnb/knowledge-repo) - Ranking experimentation
+
+## Challenge Links
+
+### Prerequisites
+- [Re-ranker Selection](/challenges/reranker-selection) - Choosing rerankers
+- [Evaluator nDCG](/challenges/evaluator-ndcg) - Ranking evaluation
+- [Similarity Threshold](/challenges/similarity-threshold) - Score calibration
+
+### Related Challenges
+- [Re-ranker Cascade](/challenges/reranker-cascade) - Multi-stage scoring
+- [Recency Boost](/challenges/recency-boost) - Time-based scoring
+- [Contextual Compression LLM](/challenges/contextual-compression-llm) - Post-rerank compression
+
+### Next Challenges
+- [MMR Diversity](/challenges/mmr-diversity) - Diverse ranking
+- [Lost in the Middle Ordering](/challenges/lost-in-the-middle-ordering) - Position-aware ranking
+
+## Implementation Checklist
+
+- [ ] Implement pointwise scoring
+- [ ] Add Platt scaling calibration
+- [ ] Implement isotonic regression
+- [ ] Add multi-factor linear combination
+- [ ] Implement weight learning
+- [ ] Add position bias correction
+- [ ] Implement pairwise comparison
+- [ ] Add score distribution analysis
+- [ ] Create monitoring/alerting
+- [ ] Document parameter sensitivity
+
+## Summary
+
+Score function design is the bridge between raw model outputs and production ranking quality. Key principles:
+
+1. **Calibrate**: Scores should be probabilities
+2. **Combine**: Multiple factors improve robustness
+3. **Account for bias**: Position and presentation matter
+4. **Monitor**: Track score distributions in production
+5. **Test**: A/B test score functions continuously
+
+Well-designed score functions can yield 10-20% improvement in user-facing metrics!

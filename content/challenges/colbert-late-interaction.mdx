@@ -1,4 +1,15 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "ColBERT Late Interaction"
+description: "Understand ColBERT and late interaction models — token-level embeddings for superior retrieval quality."
+difficulty: "hard"
+estimatedMinutes: 60
+prerequisites: ["dense-vector-class", "hnsw-index"]
+related: ["colbert-maxsim", "llm-reranker", "hybrid-search-tuning"]
+next: "colbert-maxsim"
+xpReward: 150
+---
+
+<Callout title="Goal" variant="info">
   Understand ColBERT and late interaction models — token-level embeddings for
   superior retrieval quality.
 </Callout>
@@ -58,6 +69,37 @@ Even partial matches score well:
 | "fox"       | "fox"             | 0.98     |
 | **Total**   |                   | **2.65** |
 
+## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity |
+|-----------|-----------------|------------------|
+| Token embedding | O(L × d²) | O(L × d) |
+| MaxSim scoring | O(Q × D × d) | O(1) |
+| Index storage | O(N × L × d) | O(N × L × d) |
+
+Where L = sequence length, d = embedding dim, Q = query tokens, D = doc tokens, N = documents
+
+## Real-World Context
+
+| Company | Use Case |
+|---------|----------|
+| **Stanford IR** | Original ColBERT research |
+| **Meta** | Large-scale retrieval systems |
+| **Pinecone** | Hybrid search with late interaction |
+| **Vespa** | Native ColBERT support |
+
+## Resources
+
+### Papers
+- **"ColBERT: Efficient and Effective Passage Search via Contextualized Late Interaction"** - Khattab & Zaharia (2020)
+- **"ColBERTv2: Effective and Efficient Retrieval via Lightweight Late Interaction"** - Santhanam et al. (2021)
+- **"PLAID: An Efficient Engine for Late Interaction Retrieval"** - Santhanam et al. (2022)
+
+### Tools
+- **RAGatouille**: Simplified ColBERT API
+- **PyColBERT**: Official implementation
+- **Vespa**: Production-ready ColBERT
+
 ## Implementation
 
 ### Basic ColBERT Scoring
@@ -82,28 +124,6 @@ def colbert_score(query_embeddings: torch.Tensor, doc_embeddings: torch.Tensor) 
 
     # Sum over query tokens
     return max_per_query_token.sum().item()
-```
-
-### Using ColBERT v2
-
-```python
-from colbert import Searcher
-from colbert.infra import ColBERTConfig
-
-# Setup
-config = ColBERTConfig(
-    doc_maxlen=300,
-    query_maxlen=32,
-    checkpoint="colbert-ir/colbertv2.0"
-)
-
-# Index documents (offline)
-indexer = Indexer(checkpoint="colbert-ir/colbertv2.0", config=config)
-indexer.index(name="my_index", collection=documents)
-
-# Search (online)
-searcher = Searcher(index="my_index", config=config)
-results = searcher.search("what is machine learning", k=10)
 ```
 
 ### Using RAGatouille (Simpler API)
@@ -170,28 +190,6 @@ def plaid_search(query_embeddings, index, k=10):
 | ColBERTer  | 2022 | Entity-centric retrieval      |
 | PLAID      | 2022 | Efficient indexing            |
 | ColPali    | 2024 | Vision (image pages)          |
-
-## ColPali: ColBERT for Images
-
-ColPali applies late interaction to document images:
-
-```python
-from colpali import ColPali
-from pdf2image import convert_from_path
-
-# Load model
-model = ColPali.from_pretrained("vidore/colpali")
-
-# Index PDF pages as images
-pages = convert_from_path("document.pdf")
-page_embeddings = [model.encode_image(page) for page in pages]
-
-# Search with text query
-query_embedding = model.encode_text("revenue growth chart")
-scores = [colbert_score(query_embedding, page_emb) for page_emb in page_embeddings]
-```
-
-No OCR needed! The model "sees" the page layout directly.
 
 ## Benchmarks
 
@@ -262,4 +260,3 @@ This gets most of ColBERT's quality without full index storage.
 - [ ] Implement PLAID-style candidate filtering
 - [ ] Test as reranker before full index
 - [ ] Monitor latency at scale
-

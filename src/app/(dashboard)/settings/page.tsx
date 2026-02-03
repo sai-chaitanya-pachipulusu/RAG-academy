@@ -7,7 +7,7 @@ import { ExportImportUI } from "@/components/settings/ExportImport";
 import { ReviewDashboard, ReviewStats } from "@/components/gamification/ReviewBadge";
 import { ProfileSection } from "@/components/settings/ProfileSection";
 import { useSupabaseAuth } from "@/components/providers/SupabaseAuthProvider";
-import { getPolarCustomerPortalUrl } from "@/lib/payments/polar";
+//import { getPolarCustomerPortalUrl } from "@/lib/payments/polar";
 import { getPlatformStats } from "@/lib/challenges/catalog";
 
 function SettingsContent() {
@@ -92,9 +92,14 @@ function SettingsContent() {
               </div>
               {hasPaidAccess ? (
                 <a
-                  href={getPolarCustomerPortalUrl()}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href="#"
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    //const url = await getPolarCustomerPortalUrl();
+                    //if (url && url !== "#") {
+                    //  window.open(url, "_blank", "noopener,noreferrer");
+                    //}
+                  }}
                   className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-900 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white dark:hover:bg-zinc-700"
                 >
                   Manage Subscription

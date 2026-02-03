@@ -1,24 +1,215 @@
+---
+title: "Cosine Similarity (TypeScript)"
+description: "Implement cosine similarity — the standard metric for comparing embedding vectors."
+language: "typescript"
+difficulty: "beginner"
+category: "fundamentals"
+prerequisites: ["ts-dot-product"]
+related: ["cosine-similarity", "ts-top-k-search", "euclidean-distance"]
+tags: ["cosine-similarity", "embeddings", "vector-math", "similarity"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Implement cosine similarity — the standard metric for comparing embedding vectors.
+  Implement cosine similarity — the standard metric for comparing embedding vectors that's scale-invariant.
 </Callout>
 
-## Why this matters in production
+## Why Cosine Similarity Matters in Production
 
-Cosine similarity is the default metric in most vector databases because it's scale-invariant. A short document and a long document can be fairly compared because we only measure the angle between vectors, not their magnitude.
+Cosine similarity is the default metric in most vector databases because it's scale-invariant. A short document and a long document can be fairly compared because we only measure the angle between vectors, not their magnitude. This property makes it ideal for:
 
-## What you're implementing
+- **Semantic search**: Compare documents of different lengths
+- **Recommendation systems**: User preferences vs item features
+- **Clustering**: Group similar embeddings regardless of scale
+- **Anomaly detection**: Find outliers in embedding space
 
-- Compute dot product of two vectors.
-- Compute magnitude (L2 norm) of each vector.
-- Return `dot(a, b) / (||a|| * ||b||)`.
-- Handle zero-magnitude vectors (throw Error).
+### Real-World Scenario
 
-## Common pitfalls
+Comparing two product descriptions:
 
-- Division by zero when a vector has all zeros.
-- Forgetting to take the square root for magnitude.
+- **Product A**: "Wireless Bluetooth headphones with noise cancellation" (short)
+- **Product B**: "Premium wireless Bluetooth over-ear headphones featuring active noise cancellation technology, 30-hour battery life, and comfortable memory foam ear cushions" (long)
 
-## After you pass
+Both describe similar products. Cosine similarity captures this because:
+- Direction in embedding space is similar (both about Bluetooth headphones)
+- Magnitude differs (longer text ≠ more relevant)
 
-Try **Top-K Search (TypeScript)** to use cosine similarity for retrieval.
+## The Mathematical Foundation
 
+### Cosine Similarity Formula
+
+$$\text{cosine\_similarity}(A, B) = \frac{A \cdot B}{||A|| \times ||B||} = \frac{\sum_{i=1}^{n} A_i B_i}{\sqrt{\sum_{i=1}^{n} A_i^2} \times \sqrt{\sum_{i=1}^{n} B_i^2}}$$
+
+Where:
+- $A \cdot B$ = dot product of vectors A and B
+- $||A||$ = magnitude (L2 norm) of vector A
+- $||B||$ = magnitude (L2 norm) of vector B
+
+### Properties
+
+| Property | Value | Meaning |
+|----------|-------|---------|
+| **Range** | [-1, 1] | -1 = opposite, 0 = orthogonal, 1 = identical |
+| **Scale invariant** | Yes | Multiplying vector by constant doesn't change similarity |
+| **Translation invariant** | No | Adding constant changes angle |
+
+For embeddings (which are typically non-negative), range is [0, 1].
+
+### Relationship to Dot Product
+
+When vectors are normalized (L2 norm = 1):
+
+```
+cosine_similarity(A, B) = dot_product(A_normalized, B_normalized)
+```
+
+This is why normalized embeddings enable fast dot product similarity.
+
+## Theoretical Deep Dive
+
+### Geometric Interpretation
+
+Cosine similarity measures the cosine of the angle θ between vectors:
+
+```
+    A
+    │
+    │ θ
+    │╱
+    └─────── B
+
+similarity = cos(θ)
+```
+
+- θ = 0° → cos(θ) = 1 (identical direction)
+- θ = 90° → cos(θ) = 0 (orthogonal, unrelated)
+- θ = 180° → cos(θ) = -1 (opposite direction)
+
+### Comparison with Euclidean Distance
+
+| Aspect | Cosine Similarity | Euclidean Distance |
+|--------|-------------------|-------------------|
+| Measures | Angle | Absolute distance |
+| Scale sensitive | No | Yes |
+| Best for | Direction matters | Magnitude matters |
+| Typical use | Text embeddings | Image pixels, coordinates |
+
+### Angular Distance
+
+For a true metric (satisfies triangle inequality), use angular distance:
+
+$$\text{angular\_distance} = \frac{\arccos(\text{cosine\_similarity})}{\pi}$$
+
+Range: [0, 1] where 0 = identical, 1 = opposite.
+
+## Production Considerations
+
+### Numerical Stability
+
+```typescript
+// Danger: Division by zero for zero vectors
+const similarity = dot / (magA * magB); // mag could be 0
+
+// Safe: Add epsilon check
+if (magA === 0 || magB === 0) {
+  throw new Error("Zero magnitude vector");
+}
+```
+
+### Pre-normalization
+
+For repeated similarity computations, normalize once:
+
+```typescript
+// Precompute normalized embeddings at index time
+const normalizedEmbeddings = embeddings.map(normalizeL2);
+
+// Query time: just dot product
+const similarities = normalizedEmbeddings.map(e => dotProduct(query, e));
+```
+
+### Approximate Similarity
+
+For very large-scale search:
+- **LSH (Locality Sensitive Hashing)**: Approximate cosine similarity
+- **Random projections**: Reduce dimensionality while preserving angles
+
+## Your Task
+
+Implement cosine similarity:
+
+```typescript
+function cosineSimilarity(a: number[], b: number[]): number {
+  /**
+   * Compute cosine similarity between two vectors.
+   * 
+   * Args:
+   *   a: First vector
+   *   b: Second vector
+   * 
+   * Returns:
+   *   Cosine similarity in range [-1, 1]
+   *   For embeddings (non-negative), range is [0, 1]
+   * 
+   * Throws:
+   *   Error if vectors have different lengths
+   *   Error if either vector has zero magnitude
+   * 
+   * Formula:
+   *   similarity = dot(a, b) / (||a|| * ||b||)
+   * 
+   * Edge Cases:
+   *   - Empty vectors: throw Error (undefined similarity)
+   *   - Zero magnitude: throw Error (division by zero)
+   *   - Different lengths: throw Error (incompatible)
+   */
+}
+
+function magnitude(vector: number[]): number {
+  /**
+   * Compute L2 norm (magnitude) of a vector.
+   * ||v|| = sqrt(sum(v_i^2))
+   */
+}
+
+function dotProduct(a: number[], b: number[]): number {
+  /**
+   * Compute dot product of two vectors.
+   * (Already implemented in ts-dot-product challenge)
+   */
+}
+```
+
+### Validation Checklist
+
+- [ ] Identical vectors return 1.0
+- [ ] Orthogonal vectors return 0.0
+- [ ] Opposite vectors return -1.0 (for signed vectors)
+- [ ] Different lengths throw Error
+- [ ] Zero magnitude throws Error
+- [ ] Empty vectors throw Error
+- [ ] Result is symmetric: sim(a,b) === sim(b,a)
+
+## Common Pitfalls
+
+- **Division by zero when a vector has all zeros**: Check magnitude before dividing
+- **Forgetting to take the square root for magnitude**: Use Math.sqrt()
+- **Integer overflow**: Use floating-point for intermediate calculations
+- **Not validating vector lengths**: Silent errors from mismatched dimensions
+
+## After You Pass
+
+Try **Top-K Search (TypeScript)** to use cosine similarity for retrieval, or implement **Vector Normalization** to enable fast dot-product similarity.
+
+## Resources
+
+### Academic Papers
+- ["Vector Space Model"](https://en.wikipedia.org/wiki/Vector_space_model) - Salton et al.
+- ["An Introduction to Information Retrieval"](https://nlp.stanford.edu/IR-book/) - Manning et al. (Chapter 6)
+
+### Documentation
+- [NumPy Cosine Similarity](https://numpy.org/doc/stable/reference/generated/numpy.inner.html) - Implementation reference
+- [Scikit-learn Metrics](https://scikit-learn.org/stable/modules/metrics.html) - Similarity metrics
+
+### Tutorials
+- ["Cosine Similarity Explained"](https://www.learndatasci.com/glossary/cosine-similarity/) - Visual explanation
+- ["Vector Similarity in NLP"](https://www.pinecone.io/learn/vector-similarity/) - Pinecone guide

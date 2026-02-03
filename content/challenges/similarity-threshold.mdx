@@ -1,13 +1,18 @@
 ﻿---
 title: "Similarity Score Threshold"
-description: "Filter results by absolute similarity, not just top-K."
+description: "Filter results by absolute similarity, not just top-K, to ensure minimum quality for returned results."
+prerequisites: ["cosine-similarity", "basic-retrieval"]
+related: ["recency-boost", "autocut-threshold"]
+next: ["recency-boost"]
 ---
 
-# Similarity Score Threshold
+<Callout title="Goal" variant="info">
+  Master similarity thresholding — the quality gate that prevents garbage retrieval and enables intelligent refusal mechanisms in production RAG systems.
+</Callout>
 
-Top-K retrieval always returns K results, even if none of them are relevant. **Thresholding** ensures a minimum quality bar.
+## The Problem with Top-K
 
-### The Problem
+Top-K retrieval always returns K results, even if none of them are relevant:
 
 ```python
 query = "How to build a rocket?"
@@ -16,22 +21,219 @@ top_k_results = [
     ("Weather forecast", 0.22),
     ("Cat videos", 0.20),
 ]
+# All terrible, but top-K=3 returns them anyway!
 ```
 
-All terrible, but top-K=3 returns them anyway!
+**The Cost**: Your LLM will try to answer "How to build a rocket?" using banana recipes, leading to hallucinations and user frustration.
 
-### The Solution
+## The Solution: Threshold Filtering
 
-Add a `min_score` filter:
+Add a `min_score` filter to ensure minimum quality:
 
 ```python
 filter_by_threshold(results, min_score=0.6)
 # Returns: []  # Nothing passes!
 ```
 
-Now your RAG system can trigger a "I don't have relevant information" refusal instead of hallucinating from garbage context.
+Now your RAG system can trigger a **"I don't have relevant information"** refusal instead of hallucinating from garbage context.
 
-### Your Task
+## Theoretical Foundation
 
-Implement a simple filter that keeps only `(doc_id, score)` pairs where `score >= min_score`.
+### Score Distribution Analysis
 
+In a typical RAG system, similarity scores follow a bimodal distribution:
+
+```
+Score Distribution
+│
+│    ██                    ██
+│    ██                    ██
+│    ██                    ██
+│    ██                    ██
+│   ████                  ████
+│   ████                  ████
+│  ██████                ██████
+│  ██████                ██████
+└────────────────────────────────
+  0.0   0.3   0.5   0.7   1.0
+  
+  Irrelevant ─┬─ Relevant
+           Threshold
+```
+
+**Key insight**: There's often a "valley" between relevant and irrelevant scores. Thresholding at this valley maximizes precision.
+
+### Threshold Selection Strategies
+
+| Strategy | Method | Use Case |
+|----------|--------|----------|
+| **Fixed** | `min_score = 0.7` | Consistent domain, validated data |
+| **Dynamic** | Mean + 2σ | Variable query difficulty |
+| **Percentile** | Top 10% of all scores | Competitive retrieval |
+| **Adaptive** | Learned from user feedback | Production optimization |
+
+### Statistical Threshold Tuning
+
+```python
+import numpy as np
+
+def find_optimal_threshold(scores: list[float], labels: list[bool]) -> float:
+    """
+    Find threshold that maximizes F1 score.
+    
+    scores: similarity scores
+    labels: True if relevant, False otherwise
+    """
+    best_threshold = 0.0
+    best_f1 = 0.0
+    
+    for threshold in np.arange(0.1, 0.95, 0.05):
+        predictions = [s >= threshold for s in scores]
+        
+        tp = sum(p and l for p, l in zip(predictions, labels))
+        fp = sum(p and not l for p, l in zip(predictions, labels))
+        fn = sum(not p and l for p, l in zip(predictions, labels))
+        
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
+        
+        if f1 > best_f1:
+            best_f1 = f1
+            best_threshold = threshold
+    
+    return best_threshold
+```
+
+## Production Considerations
+
+### Threshold Calibration by Domain
+
+| Domain | Typical Threshold | Rationale |
+|--------|-------------------|-----------|
+| Technical docs | 0.75 | High precision needed |
+| News | 0.60 | More tolerance for diversity |
+| E-commerce | 0.65 | Balance precision/recall |
+| Medical | 0.80 | High stakes, need certainty |
+| Legal | 0.75 | Precision critical |
+
+### Combining with Top-K
+
+```python
+def retrieve_with_quality_control(
+    query: str,
+    index: VectorIndex,
+    top_k: int = 10,
+    min_score: float = 0.6,
+) -> RetrievalResult:
+    """
+    Retrieve with both quantity (top_k) and quality (min_score) controls.
+    """
+    # Get candidates
+    candidates = index.search(query, k=top_k * 2)  # Over-fetch
+    
+    # Apply quality filter
+    qualified = [c for c in candidates if c.score >= min_score]
+    
+    # Return top_k of qualified
+    return qualified[:top_k]
+```
+
+### Refusal Policy Integration
+
+```python
+def generate_or_refuse(query: str, context: list[str], min_score: float) -> str:
+    """
+    Generate answer only if context quality is sufficient.
+    """
+    if not context:
+        return "I don't have enough relevant information to answer this question."
+    
+    avg_score = sum(c.score for c in context) / len(context)
+    if avg_score < min_score:
+        return "I found some information, but I'm not confident it's relevant enough."
+    
+    return llm.generate(query, context)
+```
+
+## Your Task
+
+Implement threshold filtering:
+
+```python
+from typing import List, Tuple
+
+def filter_by_threshold(
+    results: List[Tuple[int, float]],
+    min_score: float,
+) -> List[Tuple[int, float]]:
+    """
+    Filter (doc_id, score) pairs to keep only those with score >= min_score.
+    
+    Args:
+        results: List of (doc_id, score) tuples from retrieval
+        min_score: Minimum similarity score to include
+        
+    Returns:
+        Filtered results, preserving original order
+        
+    Edge Cases:
+        - Empty results returns empty list
+        - min_score = 0 returns all results
+        - min_score > 1.0 returns empty list
+    """
+    pass
+
+def adaptive_threshold(
+    results: List[Tuple[int, float]],
+    percentile: float = 0.5,
+) -> float:
+    """
+    Calculate adaptive threshold based on score distribution.
+    
+    Args:
+        results: List of (doc_id, score) tuples
+        percentile: Which percentile to use as threshold (0.0-1.0)
+        
+    Returns:
+        Threshold score at the specified percentile
+    """
+    pass
+```
+
+### Validation Checklist
+
+- [ ] Basic filtering: `[(1, 0.9), (2, 0.5)], min=0.6` → `[(1, 0.9)]`
+- [ ] Empty results returns empty list
+- [ ] All below threshold returns empty list
+- [ ] All above threshold returns all
+- [ ] Preserves original order
+- [ ] Adaptive threshold calculates correctly
+
+## Resources
+
+### Academic Papers
+- ["A Survey on Retrieval-Augmented Text Generation for Large Language Models"](https://arxiv.org/abs/2404.10981) - Recent survey on RAG
+- ["Dense Passage Retrieval for Open-Domain QA"](https://arxiv.org/abs/2004.04906) - Karpukhin et al. (DPR)
+- ["Learning Dense Representations for Entity Retrieval"](https://arxiv.org/abs/1909.10506) - Gillick et al.
+
+### Documentation
+- [Pinecone Metadata Filtering](https://docs.pinecone.io/docs/metadata-filtering) - Combining score and metadata filters
+- [Weaviate Similarity Search](https://weaviate.io/developers/weaviate/search/similarity) - Threshold parameters
+- [Qdrant Filtering](https://qdrant.tech/documentation/concepts/filtering/) - Score-based filtering
+
+### Tutorials
+- ["Building Production RAG: Quality Gates"](https://www.pinecone.io/learn/series/vector-databases-in-production-for-busy-engineers/rag-quality-gates/) - Pinecone
+- ["RAG Failure Modes and How to Fix Them"](https://www.databricks.com/blog/failure-modes-production-rag-applications) - Databricks
+
+### Tools
+- [Ragas](https://docs.ragas.io/) - RAG evaluation framework
+- [Arize AI](https://arize.com/) - RAG observability and threshold tuning
+- [LangSmith](https://smith.langchain.com/) - RAG tracing and evaluation
+
+## Next Steps
+
+After mastering similarity thresholding:
+- **Recency Boost**: Combine similarity with temporal relevance
+- **Autocut Threshold**: Automatically determine optimal threshold
+- **Reranker Cascade**: Multi-stage quality filtering

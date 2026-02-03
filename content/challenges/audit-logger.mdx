@@ -1,38 +1,302 @@
 ﻿---
 title: "Audit Logger (Compliance)"
-description: "Log every RAG query and response for compliance and debugging."
+description: "Log every RAG query and response for compliance, debugging, and continuous improvement."
+prerequisites: ["rate-limiter"]
+related: ["rag-audit-logging", "source-fingerprint"]
+next: ["source-fingerprint"]
 ---
 
-# Audit Logger (Compliance)
+<Callout title="Goal" variant="info">
+  Master audit logging — the compliance-critical component that enables debugging, regulatory compliance, and continuous improvement in production RAG systems.
+</Callout>
 
-"What did our RAG system tell the CEO last Tuesday?" If you can't answer this question, you're not production-ready.
+## Why Audit Logging?
 
-### Why Audit Logging?
+> "What did our RAG system tell the CEO last Tuesday?"
 
-1. **Compliance**: GDPR "Right to Explanation" requires you to explain AI decisions.
-2. **Debugging**: "Why did the bot give a wrong answer?" requires seeing what was retrieved.
-3. **Improvement**: Analyzing logs reveals common failure patterns.
+If you can't answer this question, you're not production-ready.
 
-### What to Log
+### Three Core Purposes
 
-| Field         | Purpose           |
-| ------------- | ----------------- |
-| log_id        | Unique identifier |
-| timestamp     | When it happened  |
-| user_id       | Who asked         |
-| query         | What they asked   |
-| retrieved_ids | What was found    |
-| answer        | What we said      |
+| Purpose | Requirement | Regulatory Driver |
+|---------|-------------|-------------------|
+| **Compliance** | Explain AI decisions | GDPR "Right to Explanation", SOC2 |
+| **Debugging** | Trace wrong answers | Internal quality assurance |
+| **Improvement** | Identify failure patterns | Continuous optimization |
 
-### Your Task
+### Real-World Scenarios
 
-Implement an `AuditLogger` class that:
+1. **GDPR Request**: User asks "What data did you use to generate this answer about me?"
+2. **Incident Response**: Customer claims bot gave harmful advice — need to investigate
+3. **Model Improvement**: Analyze which queries consistently fail
+4. **Billing Dispute**: Customer questions why they were charged for 1000 queries
 
-- Logs complete RAG interactions.
-- Retrieves logs for a specific user.
-- Exports all logs as JSON.
+## What to Log
 
-### SOC2 / HIPAA
+### Essential Fields
 
-If you're building enterprise RAG, audit logging isn't optional—it's a checkbox on the compliance audit.
+| Field | Type | Purpose | Example |
+|-------|------|---------|---------|
+| `log_id` | UUID | Unique identifier | `550e8400-e29b-41d4-a716-446655440000` |
+| `timestamp` | ISO 8601 | When it happened | `2024-01-15T10:30:00Z` |
+| `user_id` | String | Who asked | `user_12345` |
+| `session_id` | String | Conversation context | `sess_abc123` |
+| `query` | String | What they asked | "How do I reset my password?" |
+| `retrieved_ids` | Array | What was found | `["doc_1", "doc_5", "doc_9"]` |
+| `retrieved_scores` | Array | Similarity scores | `[0.95, 0.87, 0.82]` |
+| `answer` | String | What we said | "To reset your password..." |
+| `latency_ms` | Integer | Response time | `1250` |
+| `model` | String | LLM used | `gpt-4` |
+| `tokens_used` | Object | Input/output tokens | `{"input": 500, "output": 150}` |
 
+### Extended Fields (Enterprise)
+
+| Field | Purpose |
+|-------|---------|
+| `ip_address` | Security forensics |
+| `user_agent` | Client identification |
+| `api_version` | Version tracking |
+| `feature_flags` | A/B test correlation |
+| `error` | Failure details |
+| `feedback` | User thumbs up/down |
+
+## Theoretical Foundation
+
+### Compliance Frameworks
+
+#### GDPR (General Data Protection Regulation)
+
+- **Article 22**: Right to explanation for automated decisions
+- **Article 15**: Right of access to personal data
+- **Article 17**: Right to erasure (be forgotten)
+
+**Implication**: Must log what data was retrieved and how it influenced the answer.
+
+#### SOC 2 Type II
+
+- **CC6.1**: Logical access controls
+- **CC7.2**: System monitoring
+- **CC7.3**: Incident detection
+
+**Implication**: Must log who accessed what and when.
+
+#### HIPAA (Healthcare)
+
+- **§164.312(b)**: Audit controls
+- **§164.308(a)(1)(ii)(D)**: Information access management
+
+**Implication**: Must track all access to PHI (Protected Health Information).
+
+### Log Retention Strategies
+
+| Tier | Retention | Use Case |
+|------|-----------|----------|
+| **Hot** | 7 days | Real-time debugging |
+| **Warm** | 90 days | Recent incident investigation |
+| **Cold** | 7 years | Compliance archives |
+| **Aggregate** | Forever | Analytics (anonymized) |
+
+## Production Considerations
+
+### Storage Architecture
+
+```python
+# Multi-tier storage
+class TieredAuditStorage:
+    def __init__(self):
+        self.hot = Redis()        # Recent logs
+        self.warm = PostgreSQL()  # Medium-term
+        self.cold = S3()          # Long-term archive
+    
+    def store(self, log_entry: dict):
+        # Always write to hot
+        self.hot.setex(log_entry['log_id'], 7*24*3600, log_entry)
+        
+        # Async write to warm
+        self.warm.insert(log_entry)
+        
+        # Daily batch to cold
+        self.cold.upload_batch([log_entry])
+```
+
+### PII Handling
+
+```python
+import hashlib
+
+def anonymize_user_id(user_id: str) -> str:
+    """
+    Hash user ID for analytics while keeping lookup capability.
+    """
+    return hashlib.sha256(user_id.encode()).hexdigest()[:16]
+
+def redact_pii(text: str) -> str:
+    """
+    Remove PII from logs using regex patterns.
+    """
+    patterns = [
+        (r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '[EMAIL]'),
+        (r'\b\d{3}-\d{2}-\d{4}\b', '[SSN]'),
+        (r'\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b', '[CREDIT_CARD]'),
+    ]
+    
+    for pattern, replacement in patterns:
+        text = re.sub(pattern, replacement, text)
+    
+    return text
+```
+
+### Query Performance
+
+```python
+# Indexing strategy for PostgreSQL
+CREATE TABLE audit_logs (
+    log_id UUID PRIMARY KEY,
+    timestamp TIMESTAMP WITH TIME ZONE,
+    user_id VARCHAR(255),
+    query TEXT,
+    retrieved_ids JSONB,
+    answer TEXT,
+    latency_ms INTEGER,
+    metadata JSONB
+);
+
+-- Indexes for common queries
+CREATE INDEX idx_timestamp ON audit_logs(timestamp);
+CREATE INDEX idx_user_id ON audit_logs(user_id);
+CREATE INDEX idx_timestamp_user ON audit_logs(timestamp, user_id);
+```
+
+## Your Task
+
+Implement audit logging:
+
+```python
+from typing import Any, Dict, List
+import json
+import time
+from datetime import datetime
+
+class AuditLogger:
+    def __init__(self):
+        self.logs: List[Dict[str, Any]] = []
+    
+    def log_query(
+        self,
+        user_id: str,
+        query: str,
+        retrieved_ids: List[str],
+        answer: str,
+        metadata: Dict[str, Any] = None,
+    ) -> str:
+        """
+        Log a complete RAG interaction.
+        
+        Args:
+            user_id: Unique identifier for the user
+            query: The user's query
+            retrieved_ids: List of document IDs that were retrieved
+            answer: The generated answer
+            metadata: Optional additional data (latency, model, tokens, etc.)
+            
+        Returns:
+            Unique log_id (timestamp-based UUID)
+            
+        Log entry includes:
+            - log_id: Unique identifier
+            - timestamp: ISO 8601 format
+            - user_id: Who made the query
+            - query: What was asked
+            - retrieved_ids: What documents were used
+            - answer: What was returned
+            - metadata: Additional context
+        """
+        pass
+    
+    def get_logs_for_user(self, user_id: str) -> List[Dict[str, Any]]:
+        """
+        Return all logs for a specific user.
+        
+        Args:
+            user_id: User to filter by
+            
+        Returns:
+            List of log entries for that user
+        """
+        pass
+    
+    def get_logs_in_range(
+        self,
+        start_time: datetime,
+        end_time: datetime,
+    ) -> List[Dict[str, Any]]:
+        """
+        Return logs within a time range.
+        
+        Args:
+            start_time: Start of range (inclusive)
+            end_time: End of range (exclusive)
+            
+        Returns:
+            List of log entries in range
+        """
+        pass
+    
+    def export_json(self) -> str:
+        """
+        Export all logs as a JSON string.
+        
+        Returns:
+            JSON-formatted string of all logs
+        """
+        pass
+    
+    def get_statistics(self) -> Dict[str, Any]:
+        """
+        Calculate aggregate statistics from logs.
+        
+        Returns:
+            Dict with metrics like total_queries, avg_latency, etc.
+        """
+        pass
+```
+
+### Validation Checklist
+
+- [ ] log_id is unique for each entry
+- [ ] timestamp in ISO 8601 format
+- [ ] All required fields present
+- [ ] get_logs_for_user filters correctly
+- [ ] Time range queries work correctly
+- [ ] JSON export is valid
+- [ ] Statistics calculated correctly
+
+## Resources
+
+### Compliance Documentation
+- [GDPR Article 22](https://gdpr-info.eu/art-22-gdpr/) - Automated decision-making
+- [SOC 2 Trust Services Criteria](https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2) - AICPA
+- [HIPAA Audit Controls](https://www.hhs.gov/hipaa/for-professionals/security/laws-regulations/index.html) - HHS
+
+### Technical Documentation
+- [PostgreSQL JSONB](https://www.postgresql.org/docs/current/datatype-json.html) - Structured logging
+- [Elasticsearch for Logging](https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html) - Search and analytics
+- [AWS CloudTrail](https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-user-guide.html) - Cloud audit patterns
+
+### Tutorials
+- ["Building Audit Logs for Compliance"](https://www.vanta.com/resources/soc-2-audit-logs) - Vanta
+- ["GDPR-Compliant Logging"](https://gdpr.eu/article-30-records-of-processing/) - GDPR.eu
+- ["RAG Observability"](https://www.pinecone.io/learn/series/vector-databases-in-production-for-busy-engineers/rag-observability/) - Pinecone
+
+### Tools
+- [Loguru](https://loguru.readthedocs.io/) - Modern Python logging
+- [structlog](https://www.structlog.org/) - Structured logging
+- [Prometheus](https://prometheus.io/) - Metrics collection
+- [Grafana](https://grafana.com/) - Log visualization
+
+## Next Steps
+
+After mastering audit logging:
+- **Source Fingerprinting**: Track data lineage for GDPR deletion
+- **RAG Audit Logging**: Advanced audit patterns for RAG
+- **RAG Observability**: Full-stack monitoring

@@ -1,20 +1,494 @@
-﻿<Callout title="Goal" variant="info">
-  Use Step-Back Prompting to generate broader search queries and improve
-  semantic coverage.
+﻿---
+title: "Step-Back Prompting"
+description: "Use Step-Back Prompting to generate broader search queries and improve semantic coverage"
+difficulty: "intermediate"
+xpReward: 120
+prerequisites: ["query-expansion", "hyde-implementation"]
+---
+
+# Step-Back Prompting
+
+<Callout title="Goal" variant="info">
+  Use Step-Back Prompting to generate broader search queries and improve semantic coverage.
 </Callout>
 
 ## The "Specific Query" Problem
 
 Users often ask highly specific questions: _"What was the exact revenue of the cloud division in Q3 2024?"_
-Sometimes, a vector match for this exact string fails.
+
+Sometimes, a vector match for this exact string fails because:
+- The specific numbers aren't in the database
+- The query is too narrow to find relevant context
+- Semantic search misses the broader context
 
 **Step-Back Prompting** (introduced by Google DeepMind) involves "stepping back" to ask a more general question first: _"What are the financial results for the cloud division in 2024?"_
 
-## Why it works
+## Why It Works
 
 Specific queries search for specific "needles". Step-back queries search for the "haystack" that likely contains the needle. By retrieving both, you significantly increase the chances of catching the right context.
 
+```
+User Query: "What was Q3 cloud revenue?"
+     ↓
+Step-Back: "What are the cloud division financial results?"
+     ↓
+Retrieve both specific AND broad contexts
+     ↓
+Generate answer with comprehensive coverage
+```
+
+## Real-World Applications
+
+**Origin:** Google DeepMind (2023)
+**Use Cases:**
+- Enterprise search with specific technical queries
+- Legal document retrieval
+- Medical information systems
+- Financial analysis tools
+
+## Key Concepts
+
+### The Step-Back Strategy
+
+1. **Abstraction**: Extract the general domain from the specific query
+2. **Principles**: Identify underlying concepts and principles
+3. **Dual Retrieval**: Search for both specific and abstract matches
+4. **Fusion**: Combine results for comprehensive coverage
+
+### Abstraction Levels
+
+| Query Type | Example | Abstraction |
+|------------|---------|-------------|
+| Specific | "What was Q3 cloud revenue?" | "Cloud division financial results" |
+| Technical | "How to fix error code 0x80070005?" | "Windows permission troubleshooting" |
+| Medical | "Dosage of metformin for type 2 diabetes?" | "Type 2 diabetes medication guidelines" |
+| Legal | "What is the statute of limitations for breach of contract in California?" | "California contract law" |
+
 ## Implementation
 
-In this lab, you'll implement a query transformation step that simulates the "Step-Back" logic by extracting abstract concepts from specific user queries.
+### Step-Back Query Generator
 
+```python
+from dataclasses import dataclass
+from typing import List, Dict, Optional
+import re
+
+@dataclass
+class StepBackResult:
+    original_query: str
+    step_back_query: str
+    abstraction_level: str
+    domain: str
+    
+class StepBackPrompting:
+    """
+    Step-Back Prompting for improved retrieval coverage.
+    
+    Based on: "Take a Step Back: Evoking Reasoning via Abstraction in Large Language Models"
+    (Zheng et al., 2023, Google DeepMind)
+    """
+    
+    def __init__(self, llm_client=None):
+        self.llm = llm_client
+        
+        # Domain-specific abstraction templates
+        self.domain_patterns = {
+            "financial": {
+                "patterns": [
+                    r"\$[\d,]+(?:\.\d{2})?",  # Dollar amounts
+                    r"Q[1-4] \d{4}",  # Quarters
+                    r"\d{1,3}%",  # Percentages
+                ],
+                "abstraction_template": "What are the {entity} financial results for {timeframe}?"
+            },
+            "technical": {
+                "patterns": [
+                    r"error (?:code )?0x[0-9A-Fa-f]+",  # Error codes
+                    r"exception [A-Za-z]+Error",  # Exceptions
+                    r"\d{3} (?:error|status)",  # HTTP status
+                ],
+                "abstraction_template": "How to troubleshoot {entity} issues?"
+            },
+            "medical": {
+                "patterns": [
+                    r"\d+\s*(?:mg|mcg|ml|g)",  # Dosages
+                    r"type \d+ diabetes",  # Conditions
+                    r"(?: ICD-10|DSM-5)",  # Codes
+                ],
+                "abstraction_template": "What are the treatment guidelines for {condition}?"
+            }
+        }
+    
+    def generate_step_back(
+        self,
+        query: str,
+        method: str = "llm"
+    ) -> StepBackResult:
+        """
+        Generate a step-back query from the original.
+        
+        Args:
+            query: Original user query
+            method: "llm" for LLM-based, "rule" for rule-based
+            
+        Returns:
+            StepBackResult with both queries
+        """
+        if method == "llm" and self.llm:
+            return self._llm_based_step_back(query)
+        else:
+            return self._rule_based_step_back(query)
+    
+    def _llm_based_step_back(self, query: str) -> StepBackResult:
+        """Use LLM to generate step-back query."""
+        prompt = f"""Given a user query, generate a more general "step-back" query that:
+1. Removes specific details (dates, numbers, names)
+2. Captures the broader domain or concept
+3. Would help find relevant context that might contain the answer
+
+User Query: {query}
+
+Step-Back Query:"""
+        
+        step_back = self.llm.generate(prompt).strip()
+        
+        # Determine abstraction level
+        abstraction_level = self._assess_abstraction(query, step_back)
+        domain = self._identify_domain(query)
+        
+        return StepBackResult(
+            original_query=query,
+            step_back_query=step_back,
+            abstraction_level=abstraction_level,
+            domain=domain
+        )
+    
+    def _rule_based_step_back(self, query: str) -> StepBackResult:
+        """Use rules to generate step-back query."""
+        domain = self._identify_domain(query)
+        
+        # Extract entities
+        entities = self._extract_entities(query)
+        
+        # Generate step-back based on domain
+        if domain == "financial":
+            step_back = self._financial_step_back(query, entities)
+        elif domain == "technical":
+            step_back = self._technical_step_back(query, entities)
+        elif domain == "medical":
+            step_back = self._medical_step_back(query, entities)
+        else:
+            step_back = self._generic_step_back(query)
+        
+        abstraction_level = self._assess_abstraction(query, step_back)
+        
+        return StepBackResult(
+            original_query=query,
+            step_back_query=step_back,
+            abstraction_level=abstraction_level,
+            domain=domain
+        )
+    
+    def _identify_domain(self, query: str) -> str:
+        """Identify the domain of the query."""
+        query_lower = query.lower()
+        
+        for domain, config in self.domain_patterns.items():
+            for pattern in config["patterns"]:
+                if re.search(pattern, query, re.IGNORECASE):
+                    return domain
+        
+        return "general"
+    
+    def _extract_entities(self, query: str) -> Dict[str, str]:
+        """Extract key entities from query."""
+        entities = {}
+        
+        # Time entities
+        time_patterns = [
+            (r"(Q[1-4] \d{4})", "quarter"),
+            (r"(\d{4})", "year"),
+            (r"(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}", "month"),
+        ]
+        
+        for pattern, label in time_patterns:
+            match = re.search(pattern, query, re.IGNORECASE)
+            if match:
+                entities[label] = match.group(1)
+        
+        # Organization/division
+        org_patterns = [
+            r"(?:the )?(\w+) (?:division|department|team|unit)",
+            r"(?:at|in|for) (\w+(?:\s+\w+)?) (?:company|corp|inc|llc)?",
+        ]
+        
+        for pattern in org_patterns:
+            match = re.search(pattern, query, re.IGNORECASE)
+            if match:
+                entities["entity"] = match.group(1)
+                break
+        
+        return entities
+    
+    def _financial_step_back(self, query: str, entities: Dict) -> str:
+        """Generate financial step-back query."""
+        entity = entities.get("entity", "the company")
+        timeframe = entities.get("quarter") or entities.get("year") or "recent periods"
+        
+        # Remove specific numbers
+        step_back = re.sub(r"\$[\d,]+(?:\.\d{2})?", "financial figures", query)
+        step_back = re.sub(r"\d{1,3}%", "percentages", step_back)
+        step_back = re.sub(r"Q[1-4]", "quarterly", step_back)
+        
+        return f"What are {entity}'s financial results and performance metrics for {timeframe}?"
+    
+    def _technical_step_back(self, query: str, entities: Dict) -> str:
+        """Generate technical step-back query."""
+        # Remove specific error codes
+        step_back = re.sub(r"error (?:code )?0x[0-9A-Fa-f]+", "error codes", query, flags=re.IGNORECASE)
+        step_back = re.sub(r"\d{3} error", "errors", step_back, flags=re.IGNORECASE)
+        
+        return f"How to troubleshoot and resolve {step_back}?"
+    
+    def _medical_step_back(self, query: str, entities: Dict) -> str:
+        """Generate medical step-back query."""
+        # Remove specific dosages
+        step_back = re.sub(r"\d+\s*(?:mg|mcg|ml|g)", "dosage", query, flags=re.IGNORECASE)
+        
+        # Extract condition
+        condition_match = re.search(r"(?:for|treat|treating)\s+(\w+(?:\s+\w+)?)", query, re.IGNORECASE)
+        condition = condition_match.group(1) if condition_match else "this condition"
+        
+        return f"What are the treatment guidelines and recommendations for {condition}?"
+    
+    def _generic_step_back(self, query: str) -> str:
+        """Generic step-back for unrecognized domains."""
+        # Remove specific numbers and dates
+        step_back = re.sub(r"\d{4}-\d{2}-\d{2}", "dates", query)
+        step_back = re.sub(r"\b\d{4}\b", "year", step_back)
+        step_back = re.sub(r"\$[\d,]+", "amounts", step_back)
+        
+        return f"What is the general information about {step_back}?"
+    
+    def _assess_abstraction(self, original: str, step_back: str) -> str:
+        """Assess the level of abstraction."""
+        orig_words = len(original.split())
+        step_words = len(step_back.split())
+        
+        if step_words < orig_words * 0.7:
+            return "high"
+        elif step_words < orig_words * 0.9:
+            return "medium"
+        else:
+            return "low"
+
+class StepBackRAG:
+    """RAG system with Step-Back prompting."""
+    
+    def __init__(self, retriever, generator, step_back_generator: StepBackPrompting):
+        self.retriever = retriever
+        self.generator = generator
+        self.step_back = step_back_generator
+    
+    async def answer(self, query: str, use_step_back: bool = True) -> Dict:
+        """
+        Generate answer with optional step-back retrieval.
+        
+        Args:
+            query: User query
+            use_step_back: Whether to use step-back prompting
+            
+        Returns:
+            Dictionary with answer and metadata
+        """
+        if not use_step_back:
+            # Standard RAG
+            docs = await self.retriever.search(query, top_k=5)
+            answer = await self.generator.generate(query, docs)
+            return {
+                "answer": answer,
+                "queries_used": [query],
+                "documents": docs,
+                "strategy": "standard"
+            }
+        
+        # Step-Back RAG
+        step_back_result = self.step_back.generate_step_back(query)
+        
+        # Retrieve with both queries
+        specific_docs = await self.retriever.search(query, top_k=3)
+        broad_docs = await self.retriever.search(step_back_result.step_back_query, top_k=3)
+        
+        # Deduplicate and combine
+        seen_ids = set()
+        combined_docs = []
+        
+        for doc in specific_docs + broad_docs:
+            if doc.id not in seen_ids:
+                seen_ids.add(doc.id)
+                combined_docs.append(doc)
+        
+        # Generate answer with both contexts
+        answer = await self.generator.generate(query, combined_docs)
+        
+        return {
+            "answer": answer,
+            "queries_used": [
+                query,
+                step_back_result.step_back_query
+            ],
+            "documents": combined_docs,
+            "strategy": "step_back",
+            "abstraction_level": step_back_result.abstraction_level,
+            "domain": step_back_result.domain
+        }
+```
+
+### Usage Example
+
+```python
+# Initialize step-back prompting
+step_back_gen = StepBackPrompting(llm_client=your_llm)
+
+# Create RAG system
+rag = StepBackRAG(
+    retriever=your_retriever,
+    generator=your_generator,
+    step_back_generator=step_back_gen
+)
+
+# Example queries
+queries = [
+    "What was the cloud division revenue in Q3 2024?",
+    "How do I fix error code 0x80070005 in Windows?",
+    "What is the recommended dosage of metformin for type 2 diabetes?"
+]
+
+for query in queries:
+    print(f"\nQuery: {query}")
+    
+    result = await rag.answer(query, use_step_back=True)
+    
+    print(f"Step-back: {result['queries_used'][1]}")
+    print(f"Domain: {result['domain']}")
+    print(f"Strategy: {result['strategy']}")
+    print(f"Documents found: {len(result['documents'])}")
+```
+
+## Advanced Techniques
+
+### Multi-Level Abstraction
+
+```python
+def generate_multi_level_step_back(self, query: str) -> List[str]:
+    """Generate multiple levels of abstraction."""
+    levels = []
+    
+    # Level 1: Remove specific numbers/dates
+    level1 = re.sub(r"\d+", "N", query)
+    levels.append(level1)
+    
+    # Level 2: Extract core concept
+    level2 = self._extract_core_concept(query)
+    levels.append(level2)
+    
+    # Level 3: Domain-level question
+    level3 = f"What is the general domain knowledge about {self._identify_domain(query)}?"
+    levels.append(level3)
+    
+    return levels
+```
+
+### Confidence-Based Selection
+
+```python
+async def adaptive_step_back(
+    self,
+    query: str,
+    confidence_threshold: float = 0.7
+) -> Dict:
+    """Use step-back only when confidence is low."""
+    
+    # Try specific query first
+    specific_results = await self.retriever.search(query, top_k=5)
+    
+    # Assess result quality
+    if len(specific_results) > 0:
+        avg_score = sum(r.score for r in specific_results) / len(specific_results)
+        
+        if avg_score >= confidence_threshold:
+            # High confidence, use specific results
+            return await self._generate_answer(query, specific_results)
+    
+    # Low confidence, use step-back
+    return await self.answer(query, use_step_back=True)
+```
+
+## Evaluation
+
+### Metrics
+
+```python
+def evaluate_step_back(
+    rag_system: StepBackRAG,
+    test_queries: List[Dict]
+) -> Dict:
+    """
+    Evaluate step-back prompting effectiveness.
+    
+    Metrics:
+    - Coverage: % of queries where step-back found additional relevant docs
+    - Precision: Quality of step-back retrieved documents
+    - Latency: Overhead of dual retrieval
+    """
+    results = {
+        "coverage_improvement": [],
+        "precision": [],
+        "latency_overhead": []
+    }
+    
+    for test in test_queries:
+        query = test["query"]
+        relevant_docs = set(test["relevant_docs"])
+        
+        # Standard retrieval
+        start = time.time()
+        standard_result = await rag_system.answer(query, use_step_back=False)
+        standard_time = time.time() - start
+        
+        standard_found = len(set(d.id for d in standard_result["documents"]) & relevant_docs)
+        
+        # Step-back retrieval
+        start = time.time()
+        step_back_result = await rag_system.answer(query, use_step_back=True)
+        step_back_time = time.time() - start
+        
+        step_back_found = len(set(d.id for d in step_back_result["documents"]) & relevant_docs)
+        
+        # Metrics
+        results["coverage_improvement"].append(
+            (step_back_found - standard_found) / len(relevant_docs)
+        )
+        results["latency_overhead"].append(
+            (step_back_time - standard_time) / standard_time * 100
+        )
+    
+    return {
+        "avg_coverage_improvement": sum(results["coverage_improvement"]) / len(results["coverage_improvement"]),
+        "avg_latency_overhead_pct": sum(results["latency_overhead"]) / len(results["latency_overhead"])
+    }
+```
+
+## Best Practices
+
+1. **Domain Detection**: Accurately identify query domain for better abstraction
+2. **Confidence Thresholds**: Use step-back only when needed
+3. **Result Fusion**: Carefully combine specific and broad results
+4. **Caching**: Cache step-back queries for similar inputs
+5. **Monitoring**: Track when step-back helps vs. hurts
+
+## Resources
+
+- [Take a Step Back Paper](https://arxiv.org/abs/2310.06117)
+- [Google DeepMind Blog](https://deepmind.google/)
+- [Query Rewriting for RAG](https://blog.langchain.dev/query-rewriting/)

@@ -1,23 +1,300 @@
+---
+title: "Top-K Vector Search (TypeScript)"
+description: "Implement top-k vector search — the core of every RAG retrieval system."
+language: "typescript"
+difficulty: "beginner"
+category: "fundamentals"
+prerequisites: ["ts-cosine-similarity"]
+related: ["naive-flat-index", "hnsw-index", "ts-bm25-score"]
+tags: ["vector-search", "top-k", "similarity", "retrieval", "fundamentals"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Implement top-k vector search — the core of every RAG retrieval system.
+  Implement top-k vector search — the core operation that every vector database performs millions of times per day.
 </Callout>
 
-## Why this matters in production
+## Why Top-K Search Matters in Production
 
-Top-k search is what every vector database does: find the k most similar documents to a query. This exact pattern runs millions of times per day at Pinecone, Weaviate, and Qdrant.
+Top-k search is what every vector database does: find the k most similar documents to a query. This exact pattern runs millions of times per day at Pinecone, Weaviate, and Qdrant. Understanding top-k search is fundamental to:
 
-## What you're implementing
+- **RAG retrieval**: Finding relevant context
+- **Recommendation**: Similar item discovery
+- **Clustering**: Finding nearest neighbors
+- **Classification**: K-nearest neighbors
 
-- Compute similarity between query and all documents.
-- Sort by similarity score (descending).
-- Return the top k results with scores.
+### Real-World Scenario
 
-## Common pitfalls
+A RAG system with 1M documents:
 
-- Sorting in wrong order (ascending vs descending).
-- Not handling `k > documents.length`.
+```
+Query: "machine learning tutorials"
+Query embedding: [0.1, -0.3, 0.5, ...] (1536 dimensions)
 
-## After you pass
+Top-k search:
+1. Compute similarity with all 1M documents
+2. Keep track of top 10 highest scores
+3. Return: [doc_4521, doc_8912, doc_1234, ...]
 
-Try **BM25 Scoring** to add keyword search, then **RRF Fusion** to combine them.
+Time: O(n × d) where n=1M, d=1536
+With optimization: Can be O(log n) with indexing
+```
 
+## The Mathematical Foundation
+
+### Top-K Algorithm
+
+```
+Input: query vector q, document vectors D, integer k
+Output: k documents with highest similarity to q
+
+Algorithm:
+1. Initialize min-heap of size k
+2. For each document d in D:
+   a. Compute similarity(q, d)
+   b. If heap not full: add to heap
+   c. Else if similarity > heap.min: replace min
+3. Return heap contents sorted by similarity
+```
+
+### Complexity Analysis
+
+| Operation | Complexity | Explanation |
+|-----------|-----------|-------------|
+| **Similarity computation** | O(d) | d = dimensions |
+| **Full scan** | O(n × d) | n = documents |
+| **With min-heap** | O(n × log k) | Heap operations |
+| **With indexing** | O(log n) | HNSW, IVF, etc. |
+
+### Similarity Metrics
+
+| Metric | Formula | Best For |
+|--------|---------|----------|
+| **Cosine** | (a·b) / (\|a\| \|b\|) | Text embeddings |
+| **Dot Product** | a·b | Normalized vectors |
+| **Euclidean** | \|a - b\| | Distance matters |
+
+## Theoretical Deep Dive
+
+### Exact vs Approximate Search
+
+| Type | Guarantee | Speed | Use Case |
+|------|-----------|-------|----------|
+| **Exact** | 100% accurate | Slower | Small datasets, critical apps |
+| **Approximate** | >95% recall | 10-100x faster | Large datasets, real-time |
+
+### Index Structures
+
+| Index | Query Time | Build Time | Best For |
+|-------|-----------|------------|----------|
+| **Flat** | O(n) | O(1) | Small datasets (<10K) |
+| **IVF** | O(√n) | O(n) | Medium datasets |
+| **HNSW** | O(log n) | O(n log n) | Large datasets |
+| **LSH** | O(1) | O(n) | Very large, approximate |
+
+### The Curse of Dimensionality
+
+```
+In high dimensions (d > 100):
+- Distances become more uniform
+- Relative contrast decreases
+- Indexing becomes harder
+
+Solution: Use dimensionality reduction or specialized indices
+```
+
+## Production Considerations
+
+### Batch Queries
+
+Process multiple queries efficiently:
+
+```typescript
+async function batchTopKSearch(
+  queries: number[][],
+  documents: number[][],
+  k: number
+): Promise<Array<Array<{ id: string; score: number }>>> {
+  return Promise.all(
+    queries.map(q => topKSearch(q, documents, k))
+  );
+}
+```
+
+### Filtering
+
+Combine with metadata filters:
+
+```typescript
+function filteredTopKSearch(
+  query: number[],
+  documents: Document[],
+  filter: (doc: Document) => boolean,
+  k: number
+): Result[] {
+  const filtered = documents.filter(filter);
+  return topKSearch(query, filtered, k);
+}
+```
+
+### Streaming Large Results
+
+For very large k:
+
+```typescript
+async function* streamingTopK(
+  query: number[],
+  documents: number[][],
+  k: number
+): AsyncGenerator<Result> {
+  // Yield results as found, don't wait for all
+}
+```
+
+## Your Task
+
+Implement top-k vector search:
+
+```typescript
+interface Document {
+  id: string;
+  embedding: number[];
+}
+
+interface SearchResult {
+  documentId: string;
+  score: number;
+  rank: number;
+}
+
+interface TopKResult {
+  results: SearchResult[];
+  queryTimeMs: number;
+}
+
+function topKSearch(
+  query: number[],
+  documents: Document[],
+  k: number,
+  metric: 'cosine' | 'dot' | 'euclidean' = 'cosine'
+): TopKResult {
+  /**
+   * Find k most similar documents to query.
+   * 
+   * Args:
+   *   query: Query embedding vector
+   *   documents: Array of documents with embeddings
+   *   k: Number of results to return
+   *   metric: Similarity metric to use
+   * 
+   * Returns:
+   *   TopKResult with ranked results and timing
+   * 
+   * Algorithm:
+   *   1. Compute similarity between query and each document
+   *   2. Track top k scores (using min-heap or sorting)
+   *   3. Sort results by score descending
+   *   4. Return with ranks
+   * 
+   * Metrics:
+   *   - cosine: cosine similarity (higher = more similar)
+   *   - dot: dot product (for normalized vectors)
+   *   - euclidean: negative distance (higher = closer)
+   * 
+   * Edge Cases:
+   *   - k > documents.length: return all
+   *   - k <= 0: return empty
+   *   - Empty documents: return empty
+   *   - Dimension mismatch: throw error
+   */
+}
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  /**
+   * Compute cosine similarity.
+   * Returns value in [-1, 1] (or [0, 1] for non-negative vectors).
+   */
+}
+
+function dotProduct(a: number[], b: number[]): number {
+  /**
+   * Compute dot product.
+   */
+}
+
+function euclideanDistance(a: number[], b: number[]): number {
+  /**
+   * Compute Euclidean distance.
+   * Return negative for "higher is better" consistency.
+   */
+}
+
+// Min-heap implementation for efficient top-k
+class MinHeap<T> {
+  private heap: T[];
+  private comparator: (a: T, b: T) => number;
+
+  constructor(comparator: (a: T, b: T) => number) {
+    this.heap = [];
+    this.comparator = comparator;
+  }
+
+  push(item: T): void {
+    /**
+     * Add item to heap.
+     */
+  }
+
+  pop(): T | undefined {
+    /**
+     * Remove and return smallest item.
+     */
+  }
+
+  peek(): T | undefined {
+    /**
+     * Return smallest item without removing.
+     */
+  }
+
+  size(): number {
+    return this.heap.length;
+  }
+}
+```
+
+### Validation Checklist
+
+- [ ] k results returned (or all if fewer)
+- [ ] Results sorted by score descending
+- [ ] Correct similarity metric used
+- [ ] Dimension mismatch detected
+- [ ] Empty documents handled
+- [ ] k <= 0 returns empty
+- [ ] Ranks assigned correctly (1-indexed)
+- [ ] Timing measured
+
+## Common Pitfalls
+
+- **Sorting in wrong order**: Should be descending (highest first)
+- **Not handling `k > documents.length`**: Return all available
+- **Using wrong similarity metric**: Cosine vs dot vs Euclidean
+- **Not validating dimensions**: Mismatched vectors cause errors
+- **Inefficient for large k**: Use min-heap, not full sort
+
+## After You Pass
+
+Try **BM25 Scoring** to add keyword search, then **RRF Fusion** to combine them for a complete hybrid search system.
+
+## Resources
+
+### Academic Papers
+- ["Efficient and Robust Approximate Nearest Neighbor Search"](https://arxiv.org/abs/1603.09320) - Malkov & Yashunin (HNSW)
+- ["Billion-scale similarity search with GPUs"](https://arxiv.org/abs/1702.08734) - Johnson et al. (FAISS)
+
+### Documentation
+- [Pinecone Similarity Search](https://www.pinecone.io/learn/vector-similarity/) - Guide
+- [FAISS Wiki](https://github.com/facebookresearch/faiss/wiki) - Index types
+
+### Tutorials
+- ["K-Nearest Neighbors"](https://www.youtube.com/watch?v=HVXime0nQeI) - StatQuest
+- ["Vector Search Explained"](https://www.pinecone.io/learn/vector-search/) - Pinecone

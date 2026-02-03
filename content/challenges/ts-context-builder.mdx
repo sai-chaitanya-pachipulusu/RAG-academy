@@ -1,24 +1,263 @@
+---
+title: "Context Builder (TypeScript)"
+description: "Build a context window manager that respects token limits and orders chunks optimally."
+language: "typescript"
+difficulty: "advanced"
+category: "retrieval"
+prerequisites: ["ts-token-counter", "ts-chunk-deduplicator"]
+related: ["context-window-optimization", "lost-in-the-middle-ordering", "ts-mmr-diversity"]
+tags: ["context-window", "token-management", "prompt-engineering", "optimization"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Build a context window manager that respects token limits and orders chunks optimally.
+  Build a context window manager that respects token limits, reserves response space, and orders chunks optimally.
 </Callout>
 
-## Why this matters in production
+## Why Context Building Matters in Production
 
-Context window management directly impacts RAG quality. The "lost in the middle" paper showed that LLMs pay less attention to middle context — ordering matters!
+Context window management directly impacts RAG quality. The "lost in the middle" paper showed that LLMs pay less attention to middle context — ordering matters! Poor context building leads to:
 
-## What you're implementing
+- **Truncated responses**: Not reserving enough tokens for answers
+- **Lost information**: Important chunks in the middle get ignored
+- **Token waste**: Inefficient packing leaves context window underutilized
+- **Hallucinations**: LLM invents information when context is missing
 
-- Select chunks within token budget.
-- Reserve tokens for the response.
-- Apply ordering strategy (e.g., best at start and end).
-- Track whether truncation occurred.
+### Real-World Scenario
 
-## Common pitfalls
+A customer support RAG system with 8K context limit:
 
-- Forgetting to reserve space for the response.
-- Not accounting for prompt template tokens.
+- **Poor context building**:
+  - Fill entire 8K with retrieved chunks
+  - No room for LLM response → truncated answers
+  - Random chunk order → important info in middle
 
-## After you pass
+- **Optimal context building**:
+  - Reserve 2K tokens for response
+  - Pack 5K tokens of most relevant chunks
+  - Leave 1K buffer for system prompt
+  - Order: best chunks at start and end
 
-Implement the "lost in the middle" mitigation strategy.
+## The Mathematical Foundation
 
+### Token Budget Allocation
+
+```
+Total Context = System Prompt + Context Chunks + Query + Response Buffer
+
+Example (8K context):
+- System prompt: 500 tokens
+- Context chunks: 5,500 tokens (the variable part)
+- Query: 200 tokens
+- Response buffer: 1,500 tokens
+- Safety margin: 300 tokens
+Total: 8,000 tokens
+```
+
+### The "Lost in the Middle" Effect
+
+Research shows LLM attention follows a U-curve:
+
+```
+Attention Score
+    ▲
+  1 │ ╭─╮                           ╭─╮
+    │╭╯ ╰╮                         ╭╯ ╰╮
+  0.5│    ╰╮                       ╭╯    ╰╮
+    │      ╰─────────────────────╯        ╰
+  0 └────────────────────────────────────────► Position
+    Start                              End
+```
+
+**Implication**: Place most important information at the beginning and end of context.
+
+### Ordering Strategies
+
+| Strategy | Algorithm | Best For |
+|----------|-----------|----------|
+| **Relevance** | Sort by score descending | Standard RAG |
+| **Lost-in-middle** | Best, worst, 2nd best, 2nd worst... | Long contexts |
+| **Chronological** | By timestamp | News, updates |
+| **Document order** | Original document position | Narratives |
+
+## Theoretical Deep Dive
+
+### Optimal Chunk Selection
+
+Given:
+- Token budget: B
+- Chunks: C₁, C₂, ..., Cₙ with sizes s₁, s₂, ..., sₙ and scores r₁, r₂, ..., rₙ
+
+Find subset S that maximizes:
+```
+Σ rᵢ for i in S
+Subject to: Σ sᵢ for i in S ≤ B
+```
+
+This is the **0/1 Knapsack Problem** — NP-hard but tractable with dynamic programming for reasonable n.
+
+### Greedy Approximation
+
+For production, greedy selection works well:
+
+```
+1. Sort chunks by rᵢ/sᵢ (score per token) descending
+2. Add chunks until budget exhausted
+3. Time: O(n log n)
+```
+
+Achieves at least 50% of optimal score.
+
+### Dynamic Context Sizing
+
+Adjust context based on query complexity:
+
+```typescript
+function getContextBudget(query: string): number {
+  if (isSimpleQuery(query)) return 2000;
+  if (isComplexQuery(query)) return 6000;
+  return 4000; // default
+}
+```
+
+## Production Considerations
+
+### Token Counting Accuracy
+
+Different methods for different precision needs:
+
+| Method | Accuracy | Speed | Use Case |
+|--------|----------|-------|----------|
+| **Tiktoken** | Exact | Slow | Final check |
+| **Character/4** | Estimate | Fast | Initial sizing |
+| **Word count** | Rough | Fast | Quick validation |
+
+### Truncation Strategies
+
+When chunks exceed budget:
+
+1. **Drop lowest scoring**: Simple, preserves chunk boundaries
+2. **Truncate last chunk**: May lose coherence
+3. **Summarize overflow**: Use LLM to compress (expensive)
+
+### Context Versioning
+
+Track what context was sent for reproducibility:
+
+```typescript
+interface ContextSnapshot {
+  chunks: Chunk[];
+  ordering: string;
+  tokenCount: number;
+  timestamp: Date;
+}
+```
+
+## Your Task
+
+Implement a context builder:
+
+```typescript
+interface Chunk {
+  id: string;
+  text: string;
+  tokenCount: number;
+  score: number;
+  metadata?: Record<string, any>;
+}
+
+interface ContextConfig {
+  maxContextTokens: number;
+  responseBufferTokens: number;
+  systemPromptTokens: number;
+  queryTokens: number;
+  ordering?: 'relevance' | 'lost-in-middle' | 'document-order';
+}
+
+interface ContextBuildResult {
+  selectedChunks: Chunk[];
+  totalTokens: number;
+  wasTruncated: boolean;
+  droppedChunks: Chunk[];
+  ordering: string;
+}
+
+class ContextBuilder {
+  constructor(private config: ContextConfig) {}
+
+  buildContext(chunks: Chunk[], query: string): ContextBuildResult {
+    /**
+     * Build optimal context from retrieved chunks.
+     * 
+     * Args:
+     *   chunks: Retrieved chunks with token counts and scores
+     *   query: User query (for token estimation)
+     * 
+     * Returns:
+     *   ContextBuildResult with selected chunks and metadata
+     * 
+     * Algorithm:
+     *   1. Calculate available budget for chunks
+     *   2. Sort chunks by score/token ratio (descending)
+     *   3. Greedily add chunks until budget exhausted
+     *   4. Apply ordering strategy
+     *   5. Return result with truncation info
+     * 
+     * Budget calculation:
+     *   available = maxContextTokens 
+     *               - responseBufferTokens 
+     *               - systemPromptTokens 
+     *               - queryTokens
+     *               - safetyMargin (100)
+     * 
+     * Edge Cases:
+     *   - Single chunk exceeds budget: include truncated or skip
+     *   - Empty chunks: return empty result
+     *   - All chunks fit: wasTruncated = false
+     */
+  }
+
+  private calculateBudget(): number {
+    // Calculate available token budget for context chunks
+  }
+
+  private applyOrdering(chunks: Chunk[]): Chunk[] {
+    // Apply selected ordering strategy
+  }
+}
+```
+
+### Validation Checklist
+
+- [ ] Budget calculation accounts for all fixed costs
+- [ ] Chunks selected by score/token ratio
+- [ ] Truncation detected and reported
+- [ ] Ordering strategies implemented correctly
+- [ ] Lost-in-middle: alternates high/low scores
+- [ ] Empty chunks handled gracefully
+- [ ] Token counts validated (non-negative)
+
+## Common Pitfalls
+
+- **Forgetting to reserve space for the response**: Causes truncation
+- **Not accounting for prompt template tokens**: System prompts add overhead
+- **Ignoring "lost in the middle"**: Best chunks buried in middle
+- **Over-counting tokens**: Double-counting separators or newlines
+- **Not handling oversized single chunks**: May need truncation or rejection
+
+## After You Pass
+
+Implement the "lost in the middle" mitigation strategy in production, or experiment with learned context selection using reinforcement learning.
+
+## Resources
+
+### Academic Papers
+- ["Lost in the Middle: How Language Models Use Long Contexts"](https://arxiv.org/abs/2307.03172) - Liu et al.
+- ["Efficient Large-Scale Language Model Training on GPU Clusters"](https://arxiv.org/abs/2104.04473) - Narayanan et al.
+
+### Documentation
+- [OpenAI Tokenizer](https://platform.openai.com/tokenizer) - Visualize tokenization
+- [Tiktoken Documentation](https://github.com/openai/tiktoken) - Fast token counting
+
+### Tutorials
+- ["Context Window Optimization"](https://www.pinecone.io/learn/context-window/) - Pinecone
+- ["RAG Context Strategies"](https://blog.langchain.dev/retrieval/) - LangChain

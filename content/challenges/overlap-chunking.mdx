@@ -4,7 +4,7 @@
 
 ## Why this matters in production
 
-If you chunk a document, you’ll frequently cut through:
+If you chunk a document, you'll frequently cut through:
 
 - definitions
 - enumerations
@@ -12,7 +12,7 @@ If you chunk a document, you’ll frequently cut through:
 
 Overlap is a cheap mitigation. It increases index size, but often improves recall.
 
-## What you’re implementing
+## What you're implementing
 
 Given `chunk_size` and `overlap`:
 
@@ -24,14 +24,39 @@ Rules:
 - `chunk_size > 0`
 - `0 <= overlap < chunk_size`
 
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand the "boundary loss" problem in document chunking
+- Know how to use overlap to preserve context across chunk boundaries
+- Be able to trade off index size vs. retrieval quality
+
+## Real-World Impact
+
+| Without Overlap | With Overlap |
+|-----------------|--------------|
+| "The quick brown fox jumps over the lazy dog" → ["The quick brown", "fox jumps over", "the lazy dog"] | "The quick brown fox jumps over the lazy dog" → ["The quick brown fox", "brown fox jumps over the", "fox jumps over the lazy dog"] |
+| Context lost at boundaries | Context preserved across boundaries |
+
+## Production Considerations
+
+**Overlap Trade-offs:**
+- **0% overlap**: Smallest index, fastest indexing, potential boundary loss
+- **10-20% overlap**: Good balance for most use cases
+- **50%+ overlap**: Larger index, diminishing returns
+
+**LangChain Default**: 200 character chunk size with 20 character overlap (10%)
+
 ## Common pitfalls
 
 - Allowing `overlap == chunk_size` (infinite loop).
 - Using `overlap` as the step size instead of `chunk_size - overlap`.
+- Not accounting for overlap in storage cost estimates.
 
 ## After you pass
 
-Move to **metadata tagging** and **stable chunk IDs** (traceability).
+Move to **metadata tagging** and **stable chunk IDs** for production traceability.
 
+---
 
-
+**💡 Pro Tip:** Overlap is the "secret weapon" that makes simple chunking competitive with fancy semantic chunkers. Many production systems use 10-20% overlap as their default.

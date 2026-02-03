@@ -1,20 +1,84 @@
 ﻿---
 title: "Index Warmup / Cache Preload"
-description: "Preload frequently-accessed vectors for low-latency search."
+description: |
+  Preload frequently-accessed vectors for low-latency search. Eliminate cold start latency and ensure consistent query performance in production vector databases.
+difficulty: intermediate
+xp: 140
+estimatedMinutes: 30
+prerequisites:
+  - basic-retrieval
+  - hnsw-index
+topics:
+  - performance
+  - caching
+  - operations
+  - production
+  - vector-database
+language: python
+related:
+  - kv-cache-optimization
+  - live-index-updates
+  - rag-observability
+next:
+  - live-index-updates
+resources:
+  papers:
+    - title: "VAMANA: A New Vector Index for Billion-Scale Similarity Search"
+      url: "https://dl.acm.org/doi/10.14778/3538598.3538600"
+      authors: "Subramanya et al."
+    - title: "DiskANN: Fast Accurate Billion-Point Nearest Neighbor Search"
+      url: "https://papers.nips.cc/paper/2019/hash/09853c7fb1d3f8ee67a61b6bf4a7f8e6-Abstract.html"
+      authors: "Subramanya et al."
+  docs:
+    - title: "Pinecone Warmed Indexes"
+      url: "https://docs.pinecone.io/guides/operations/warm-index"
+    - title: "Qdrant Preload Optimization"
+      url: "https://qdrant.tech/documentation/guides/optimize/#warm-up"
+    - title: "Weaviate On-Disk Index Loading"
+      url: "https://weaviate.io/developers/weaviate/configuration/indexing"
+  tools:
+    - Pinecone
+    - Qdrant
+    - Weaviate
+    - Milvus
+    - pgvector
 ---
 
 # Index Warmup / Cache Preload
 
 Cold indexes have **10x higher latency** than warm ones. The first query after a pod starts might take 500ms instead of 50ms.
 
-### The Cold Start Problem
+**Your task**: Implement a `WarmableIndex` that preloads frequently accessed vectors at startup to eliminate cold start latency.
+
+## The Cold Start Problem
 
 Vector databases store data on disk. Loading into memory takes time:
 
 - First query: Load from disk → 500ms
 - Subsequent queries: In memory → 50ms
 
-### The Solution: Warmup
+### Why This Happens
+
+```
+Disk Storage → Memmap/Paged Load → Query
+     ↓              ↓                ↓
+  SSD/NVMe      Kernel cache      L1/L2 cache
+  (slow)        (medium)          (fast)
+```
+
+On-disk indexes like HNSW have random access patterns incompatible with sequential disk reads.
+
+### Real-World Impact at Scale
+
+| Scenario | Cold Latency (p99) | Warm Latency | Difference |
+|----------|-------------------|--------------|------------|
+| 1M vectors (flat) | 1200ms | 85ms | 14x |
+| 10M vectors (HNSW) | 850ms | 45ms | 19x |
+| 100M vectors (IVF) | 2000ms | 120ms | 17x |
+
+**Production Rule**: Always warmup indexes before serving traffic.
+
+## The Solution: Warmup
 
 Pre-load frequently accessed vectors at startup:
 
@@ -24,17 +88,433 @@ index.warmup(["popular_doc_1", "popular_doc_2", ...])
 
 ### Identifying Hot Data
 
-Track access patterns to find candidates:
+Track access patterns to find warmup candidates:
 
-- Most frequently accessed docs.
-- Docs accessed by VIP users.
-- Common query patterns.
+- Most frequently accessed docs (top 10%)
+- Docs accessed by VIP users
+- Common query patterns
+- Recent modifications (stale → fresh)
 
-### Your Task
+## Setup
 
-Implement a `WarmableIndex` that:
+```python
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Set
+import time
+import random
 
-- Stores vectors on "disk" (cold storage).
-- Warms specific vectors into memory cache.
-- Tracks access counts to identify hot data.
+@dataclass
+class VectorRecord:
+    id: str
+    vector: List[float]
+    metadata: Dict
+    access_count: int = 0
+    last_accessed: float = field(default_factory=time.time)
 
+@dataclass
+class QueryResult:
+    vector_id: str
+    score: float
+    latency_ms: float
+
+# Simulated documents with varying popularity
+DOCUMENTS = [
+    # High-traffic documents (popular knowledge base articles)
+    {"id": "doc_kb_001", "access_pattern": "high", "content": "Getting Started Guide"},
+    {"id": "doc_kb_002", "access_pattern": "high", "content": "API Reference"},
+    {"id": "doc_kb_003", "access_pattern": "high", "content": "Pricing FAQ"},
+    {"id": "doc_kb_004", "access_pattern": "high", "content": "Troubleshooting"},
+    
+    # Medium-traffic documents
+    {"id": "doc_dep_001", "access_pattern": "medium", "content": "Deployment Guide"},
+    {"id": "doc_arch_001", "access_pattern": "medium", "content": "Architecture Overview"},
+    {"id": "doc_sec_001", "access_pattern": "medium", "content": "Security Best Practices"},
+    {"id": "doc_int_001", "access_pattern": "medium", "content": "Integration Guide"},
+    
+    # Low-traffic documents (archived, historical)
+    {"id": "doc_hist_001", "access_pattern": "low", "content": "Legacy v1.x Docs"},
+    {"id": "doc_hist_002", "access_pattern": "low", "content": "Archived Migration Guide"},
+    {"id": "doc_int_002", "access_pattern": "low", "content": "Internal Team Notes"},
+    {"id": "doc_test_001", "access_pattern": "low", "content": "Test Documentation"},
+]
+```
+
+## Your Task
+
+Implement the `WarmableIndex` class:
+
+```python
+class WarmableIndex:
+    """
+    Vector index with warmup capability to eliminate cold start latency.
+    
+    Simulates:
+    - Cold storage (disk): Slower access
+    - Warm cache (memory): Fast access
+    - Access tracking: For identifying hot data
+    """
+    
+    def __init__(
+        self,
+        cold_latency_ms: float = 5.0,  # Disk read latency
+        warm_latency_ms: float = 0.1,  # Memory read latency
+        warmup_threshold: int = 50     # Access count to auto-warm
+    ):
+        """
+        Initialize index with warmup support.
+        
+        Args:
+            cold_latency_ms: Latency when reading from disk
+            warm_latency_ms: Latency when reading from memory cache
+            warmup_threshold: Minimum access count for auto-warm
+        """
+        # All vectors are "on disk" initially
+        self.disk_vectors: Dict[str, VectorRecord] = {}
+        
+        # Warm cache holds preloaded vectors
+        self.warm_cache: Dict[str, VectorRecord] = {}
+        
+        # Access tracking for auto-warmup detection
+        self.access_counts: Dict[str, int] = {}
+        
+        self.cold_latency = cold_latency_ms
+        self.warm_latency = warm_latency_ms
+        self.warmup_threshold = warmup_threshold
+        
+        # Stats
+        self.stats = {
+            "cold_queries": 0,
+            "warm_queries": 0,
+            "warmup_operations": 0
+        }
+    
+    def add_vector(self, vector_id: str, vector: List[float], metadata: Dict):
+        """Add a vector to the index (stored on disk)."""
+        self.disk_vectors[vector_id] = VectorRecord(
+            id=vector_id,
+            vector=vector,
+            metadata=metadata
+        )
+    
+    def warmup(self, vector_ids: List[str]) -> int:
+        """
+        Preload specified vectors into memory cache.
+        
+        Args:
+            vector_ids: List of vector IDs to warmup
+            
+        Returns:
+            Number of vectors actually warmed up
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def _get_with_simulated_latency(self, vector_id: str) -> Optional[VectorRecord]:
+        """
+        Simulate fetching a vector with realistic latency.
+        
+        Returns:
+            Vector if found, with simulated latency incurred
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def query(self, query_vector: List[float], top_k: int = 5) -> List[QueryResult]:
+        """
+        Query the index, tracking access patterns.
+        
+        1. Calculate similarity to all vectors
+        2. Return top_k results
+        3. Track accesses for auto-warmup
+        4. Apply appropriate latency (warm or cold)
+        
+        Returns:
+            List of top results with latency info
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def get_hot_vectors(self, top_n: int = 10) -> List[str]:
+        """
+        Identify most frequently accessed vectors for warmup selection.
+        
+        Args:
+            top_n: Number of hot vectors to return
+            
+        Returns:
+            List of vector IDs sorted by access frequency
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def auto_warmup(self):
+        """
+        Automatically warmup vectors that exceed warmup_threshold access count.
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def get_stats(self) -> Dict:
+        """
+        Get warmup performance statistics.
+        
+        Returns:
+            Dict with total vectors, warm count, cold/warm query counts, avg latency
+        """
+        # YOUR CODE HERE
+        pass
+```
+
+## Requirements
+
+1. **Warmup functionality**: Preload specified vectors into memory cache
+2. **Simulated latency**: Cold queries take 50x longer than warm queries
+3. **Access tracking**: Track which vectors are accessed frequently
+4. **Auto-warmup**: Automatically warmup hot vectors
+5. **Stats reporting**: Report cache performance metrics
+
+## Example Usage
+
+```python
+# Initialize index
+index = WarmableIndex(
+    cold_latency_ms=5.0,
+    warm_latency_ms=0.1
+)
+
+# Add all vectors (they're on "disk")
+for doc in DOCUMENTS:
+    vector = generate_embedding(doc["content"])
+    index.add_vector(doc["id"], vector, doc)
+
+# First query - cold (slow)
+cold_result = index.query(query_vector)
+print(f"Cold query took: {sum(r.latency_ms for r in cold_result):.2f}ms")
+# Expected: ~60ms (12 docs × 5ms each)
+
+# Warmup high-traffic documents
+hot_ids = [d["id"] for d in DOCUMENTS if d["access_pattern"] == "high"]
+warmed = index.warmup(hot_ids)
+print(f"Warmed up {warmed} vectors")
+
+# Second query - warm (fast)
+warm_result = index.query(query_vector)
+print(f"Warm query took: {sum(r.latency_ms for r in warm_result):.2f}ms")
+# Expected: ~2ms (4 warm + 8 cold = 4×0.1 + 8×5 = 40.4ms)
+
+# Check stats
+stats = index.get_stats()
+print(f"Warm rate: {stats['warm_queries'] / (stats['warm_queries'] + stats['cold_queries']):.1%}")
+```
+
+## Hints
+
+<details>
+<summary>Hint 1: Warmup Implementation</summary>
+
+Copy vectors from disk to warm cache:
+
+```python
+def warmup(self, vector_ids: List[str]) -> int:
+    warmed = 0
+    for vid in vector_ids:
+        if vid in self.disk_vectors and vid not in self.warm_cache:
+            self.warm_cache[vid] = self.disk_vectors[vid]
+            warmed += 1
+    self.stats["warmup_operations"] += warmed
+    return warmed
+```
+
+</details>
+
+<details>
+<summary>Hint 2: Latency Simulation</summary>
+
+Track latency based on cache location:
+
+```python
+def _get_with_simulated_latency(self, vector_id: str):
+    start = time.time()
+    
+    # Try warm cache first
+    if vector_id in self.warm_cache:
+        record = self.warm_cache[vector_id]
+        time.sleep(self.warm_latency / 1000)
+        self.stats["warm_queries"] += 1
+    elif vector_id in self.disk_vectors:
+        record = self.disk_vectors[vector_id]
+        time.sleep(self.cold_latency / 1000)
+        self.stats["cold_queries"] += 1
+    else:
+        return None
+    
+    record.access_count += 1
+    record.last_accessed = time.time()
+    self.access_counts[vector_id] = self.access_counts.get(vector_id, 0) + 1
+    
+    return record
+```
+
+</details>
+
+## Test Your Solution
+
+```python
+def test_index_warmup():
+    index = WarmableIndex(cold_latency_ms=5.0, warm_latency_ms=0.1)
+    
+    # Add vectors
+    for doc in DOCUMENTS:
+        index.add_vector(doc["id"], [random.random() for _ in range(128)], doc)
+    
+    # Query before warmup (all cold)
+    query_vec = [random.random() for _ in range(128)]
+    cold_results = index.query(query_vec, top_k=5)
+    cold_latency = sum(r.latency_ms for r in cold_results)
+    
+    print(f"Cold query latency: {cold_latency:.2f}ms")
+    assert cold_latency > 20, "Should have significant cold latency"
+    
+    # Warmup high-priority docs
+    hot_ids = [d["id"] for d in DOCUMENTS if d["access_pattern"] == "high"]
+    warmed = index.warmup(hot_ids)
+    print(f"Warmed up {warmed} vectors")
+    assert warmed == len(hot_ids)
+    
+    # Query after warmup (some warm)
+    warm_results = index.query(query_vec, top_k=5)
+    warm_latency = sum(r.latency_ms for r in warm_results)
+    
+    print(f"Warm query latency: {warm_latency:.2f}ms")
+    # Should be faster due to some vectors being warmed
+    assert warm_latency < cold_latency, "Warmup should improve latency"
+    
+    # Test auto-warmup
+    index.auto_warmup()
+    stats = index.get_stats()
+    print(f"Statistics: {stats}")
+    
+    print("✅ All tests passed!")
+
+test_index_warmup()
+```
+
+## Theory: Why Warmup Matters
+
+### Hierarchical Memory Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│              CPU L1/L2/L3 Cache                  │  < 1ns
+├─────────────────────────────────────────────────┤
+│              Main Memory (RAM)                  │  100ns
+├─────────────────────────────────────────────────┤
+│              NVMe SSD                            │  10µs-100µs
+├─────────────────────────────────────────────────┤
+│              Network Storage                     │  1ms-10ms
+└─────────────────────────────────────────────────┘
+```
+
+### Page Fault Overhead
+
+When accessing cold data:
+
+1. **Page Fault**: OS interrupts to load page from disk
+2. **I/O Wait**: Process blocked during disk read
+3. **MMU Update**: Virtual memory mapping updated
+4. **Resume**: Process continues
+
+**Cost**: 5-10µs (NVMe) to 5-10ms (network storage) per page
+
+### Quantized Index Warmup
+
+For large indexes, consider partial warmup:
+
+```python
+def quantized_warmup(index, budget_mb: int):
+    """
+    Warmup most valuable vectors within memory budget.
+    
+    Strategy:
+    1. Calculate priority score: frequency × recency ÷ age
+    2. Select vectors until budget exhausted
+    3. Use quantization (int8, binary) for more vectors
+    """
+    priority_queue = calculate_priority_vectors(index)
+    warmed = []
+    used_mb = 0
+    
+    for vec in priority_queue:
+        if used_mb + vec.size_mb > budget_mb:
+            break
+        warmed.append(vec.warmup())
+        used_mb += vec.size_mb
+    
+    return warmed
+```
+
+## Production Integration
+
+### Health Check with Warmup
+
+```python
+@app.on_event("startup")
+async def warmup_index():
+    """Warmup index on pod startup."""
+    # Load hot vectors from analytics
+    hot_ids = await analytics.get_top_vectors(hours=24, top_n=1000)
+    
+    # Warmup with progress tracking
+    warmed = index.warmup(hot_ids)
+    logger.info(f"Warmed up {warmed} vectors")
+    
+    # Signal readiness
+    health.ready = True
+
+@app.get("/health")
+async def health_check():
+    if not health.ready:
+        raise HTTPException(503, "Index warming up")
+    return {"status": "healthy"}
+```
+
+### Kubernetes Readiness Probe
+
+```yaml
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  # Pod NOT ready until warmup complete
+```
+
+### Load Balancer Integration
+
+```python
+# Blue-green deployment strategy
+new_pod = start_new_pod()
+
+# Wait for warmup
+poll_health(new_pod.health_url, timeout=120)
+
+# Gradually shift traffic
+for weight in [10, 25, 50, 75, 100]:
+    lb.set_weight(old_pod, 100 - weight)
+    lb.set_weight(new_pod, weight)
+    sleep(30)  # Monitor for errors
+```
+
+## Edge Cases
+
+1. **Memory Exhaustion**: Set maximum warmup budget
+2. **Staleness**: Refresh warm cache periodically
+3. **Rapid Updates**: Warmup new vectors immediately
+4. **Multi-region**: Sync warmup lists across regions
+
+## Related Challenges
+
+- [Live Index Updates](challenges/live-index-updates) - Real-time index modifications
+- [KV-Cache Optimization](challenges/kv-cache-optimization) - LLM token cache optimization
+- [RAG Observability](challenges/rag-observability) - Monitor warmup effectiveness

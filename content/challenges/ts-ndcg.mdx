@@ -1,23 +1,265 @@
+---
+title: "Normalized Discounted Cumulative Gain (TypeScript)"
+description: "Implement nDCG — the metric for graded relevance in information retrieval."
+language: "typescript"
+difficulty: "intermediate"
+category: "evaluation"
+prerequisites: ["ts-mrr"]
+related: ["evaluator-ndcg", "ts-mrr", "evaluator-map"]
+tags: ["ndcg", "evaluation", "metrics", "graded-relevance"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Implement Normalized Discounted Cumulative Gain — the metric for graded relevance.
+  Implement Normalized Discounted Cumulative Gain (nDCG) — the standard metric for graded relevance in search evaluation.
 </Callout>
 
-## Why this matters in production
+## Why nDCG Matters in Production
 
-nDCG considers both relevance and position: highly relevant documents at the top matter more. It's the standard for benchmarks like BEIR and MTEB.
+nDCG considers both relevance and position: highly relevant documents at the top matter more. It's the standard for benchmarks like BEIR and MTEB. Unlike binary metrics, nDCG handles:
 
-## What you're implementing
+- **Graded relevance**: Documents can be highly, somewhat, or slightly relevant
+- **Position discount**: Top ranks matter more than bottom ranks
+- **Partial credit**: Better than binary hit/miss
 
-- DCG = Σ relevance[i] / log2(i + 2).
-- IDCG = DCG with perfect ranking (sorted by relevance).
-- nDCG = DCG / IDCG.
+### Real-World Scenario
 
-## Common pitfalls
+Search results for "machine learning tutorial":
 
-- Using log2(i + 1) instead of log2(i + 2) (i is 0-indexed).
-- Not handling IDCG = 0 (all relevance scores are 0).
+| Rank | Document | Relevance Grade | Gain |
+|------|----------|-----------------|------|
+| 1 | Comprehensive ML course | Highly relevant (3) | 3 |
+| 2 | Quick ML intro | Somewhat relevant (2) | 2 |
+| 3 | Advanced deep learning | Slightly relevant (1) | 1 |
+| 4 | Cooking recipes | Not relevant (0) | 0 |
 
-## After you pass
+nDCG captures that rank 1 with grade 3 is better than rank 3 with grade 3.
 
-Use these metrics to evaluate your retrieval pipelines before deploying.
+## The Mathematical Foundation
 
+### Cumulative Gain (CG)
+
+Simple sum of relevance grades:
+
+$$\text{CG}@k = \sum_{i=1}^{k} \text{rel}_i$$
+
+Doesn't consider position.
+
+### Discounted Cumulative Gain (DCG)
+
+Add position discount:
+
+$$\text{DCG}@k = \sum_{i=1}^{k} \frac{2^{\text{rel}_i} - 1}{\log_2(i + 1)}$$
+
+Or alternative formulation:
+
+$$\text{DCG}@k = \sum_{i=1}^{k} \frac{\text{rel}_i}{\log_2(i + 1)}$$
+
+Use the first (exponential) version when grades are on a log scale.
+
+### Ideal DCG (IDCG)
+
+DCG with perfect ranking (sorted by relevance descending):
+
+$$\text{IDCG}@k = \sum_{i=1}^{k} \frac{2^{\text{rel}_i^{\text{sorted}}} - 1}{\log_2(i + 1)}$$
+
+### Normalized DCG
+
+$$\text{nDCG}@k = \frac{\text{DCG}@k}{\text{IDCG}@k}$$
+
+Range: [0, 1] where 1 = perfect ranking.
+
+## Theoretical Deep Dive
+
+### The Discount Factor
+
+Why $\log_2(i + 1)$?
+
+| Position | Discount | Interpretation |
+|----------|----------|----------------|
+| 1 | $\log_2(2) = 1$ | Full value |
+| 2 | $\log_2(3) ≈ 1.58$ | 63% value |
+| 3 | $\log_2(4) = 2$ | 50% value |
+| 10 | $\log_2(11) ≈ 3.46$ | 29% value |
+
+The discount reflects that users pay less attention to lower ranks.
+
+### Comparison with Binary Metrics
+
+| Scenario | Binary (Precision) | nDCG |
+|----------|-------------------|------|
+| [Relevant, Not, Not, Not] | 0.25 | High (good top result) |
+| [Not, Not, Not, Relevant] | 0.25 | Low (buried relevant) |
+| [Highly, Somewhat, Slightly] | 1.0 | High (graded relevance) |
+
+nDCG distinguishes these cases.
+
+### Graded Relevance Scales
+
+| Scale | Values | Use Case |
+|-------|--------|----------|
+| **Binary** | 0, 1 | Simple relevance |
+| **3-point** | 0, 1, 2 | Not, somewhat, highly |
+| **5-point** | 0-4 | Detailed judgments |
+| **Continuous** | 0-1 | Model probabilities |
+
+## Production Considerations
+
+### Choosing k
+
+Common nDCG@k values:
+
+| k | Use Case |
+|---|----------|
+| @3 | Mobile, quick answers |
+| @5 | Desktop search first page |
+| @10 | Full first page |
+| @100 | Deep evaluation |
+
+### Handling Ties
+
+When documents have equal relevance:
+- **Conservative**: Assume worst-case ordering
+- **Optimistic**: Assume best-case ordering
+- **Average**: Average over all permutations
+
+### Statistical Significance
+
+```typescript
+function bootstrapNDCG(
+  queries: QueryResult[],
+  k: number,
+  iterations: number = 1000
+): { mean: number; ci95: [number, number] } {
+  const samples = [];
+  for (let i = 0; i < iterations; i++) {
+    const sample = resample(queries);
+    samples.push(calculateNDCG(sample, k));
+  }
+  return {
+    mean: mean(samples),
+    ci95: [percentile(samples, 0.025), percentile(samples, 0.975)]
+  };
+}
+```
+
+## Your Task
+
+Implement nDCG calculation:
+
+```typescript
+interface RankedDocument {
+  docId: string;
+  relevance: number;  // Graded relevance (0 = not relevant, higher = more relevant)
+}
+
+interface QueryResult {
+  queryId: string;
+  rankedDocs: RankedDocument[];  // In ranked order (index 0 = rank 1)
+}
+
+interface NDCGResult {
+  ndcg: number;
+  dcg: number;
+  idcg: number;
+  k: number;
+}
+
+function calculateNDCG(
+  rankedDocs: RankedDocument[],
+  k: number = 10
+): NDCGResult {
+  /**
+   * Calculate nDCG@k for a single query.
+   * 
+   * Args:
+   *   rankedDocs: Documents in ranked order with relevance grades
+   *   k: Number of top results to consider
+   * 
+   * Returns:
+   *   NDCGResult with nDCG, DCG, IDCG, and k
+   * 
+   * Algorithm:
+   *   1. Calculate DCG@k using actual ranking
+   *   2. Sort documents by relevance (descending) for ideal ranking
+   *   3. Calculate IDCG@k using ideal ranking
+   *   4. nDCG = DCG / IDCG (handle IDCG = 0)
+   * 
+   * Formula:
+   *   DCG = Σ (2^rel - 1) / log2(i + 1) for i = 1 to k
+   *   IDCG = DCG of perfectly sorted documents
+   *   nDCG = DCG / IDCG
+   * 
+   * Edge Cases:
+   *   - Empty ranking: return 0
+   *   - k > length: use all documents
+   *   - All relevance 0: IDCG = 0, return nDCG = 0
+   *   - Ties in ideal ranking: any order gives same IDCG
+   */
+}
+
+function calculateDCG(
+  rankedDocs: RankedDocument[],
+  k: number
+): number {
+  /**
+   * Calculate DCG@k for a ranking.
+   * Position i (1-indexed) gets discount log2(i + 1).
+   */
+}
+
+function calculateIDCG(
+  rankedDocs: RankedDocument[],
+  k: number
+): number {
+  /**
+   * Calculate ideal DCG@k.
+   * Sort by relevance descending, then compute DCG.
+   */
+}
+
+function calculateAverageNDCG(
+  results: QueryResult[],
+  k: number = 10
+): { meanNDCG: number; perQuery: Map<string, number> } {
+  /**
+   * Calculate average nDCG across multiple queries.
+   */
+}
+```
+
+### Validation Checklist
+
+- [ ] Position 1 has discount log2(2) = 1
+- [ ] Position 2 has discount log2(3) ≈ 1.585
+- [ ] Uses 1-indexed positions
+- [ ] IDCG calculated from sorted relevance
+- [ ] nDCG = 1.0 for perfect ranking
+- [ ] nDCG = 0 when all relevance is 0
+- [ ] k limits consideration to top k
+- [ ] Handles k > length gracefully
+
+## Common Pitfalls
+
+- **Using log2(i + 1) instead of log2(i + 2)**: i is 0-indexed in code
+- **Not handling IDCG = 0**: Division by zero when all relevance scores are 0
+- **Integer division**: Use floating-point arithmetic
+- **Wrong formula variant**: Clarify if using exponential (2^rel - 1) or linear (rel)
+- **0-indexed ranks**: Remember position 1 has i=0 in arrays
+
+## After You Pass
+
+Use these metrics to evaluate your retrieval pipelines before deploying, or implement the full evaluation suite with MRR, Recall@K, and nDCG.
+
+## Resources
+
+### Academic Papers
+- ["Cumulated Gain-Based Evaluation of IR Techniques"](https://dl.acm.org/doi/10.1145/582415.582418) - Järvelin & Kekäläinen (Original nDCG)
+- ["BEIR: A Heterogeneous Benchmark"](https://arxiv.org/abs/2104.08663) - Thakur et al.
+
+### Documentation
+- [IR Metrics Library](https://ir-measur.es/en/latest/) - Python implementation
+- [MTEB Evaluation](https://github.com/embeddings-benchmark/mteb) - Benchmark suite
+
+### Tutorials
+- ["nDCG Explained"](https://medium.com/@galea/how-to-evaluate-your-search-engine-12-ndcg-b97b6e19f1b8) - Medium article
+- ["Information Retrieval Evaluation"](https://www.youtube.com/watch?v=BhTOEe70H5U) - Stanford lecture

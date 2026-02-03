@@ -1,43 +1,488 @@
 ﻿---
 title: "LoRA Adapter Architecture"
-description: "Implement the core LoRA computation for efficient fine-tuning."
+description: "Implement Low-Rank Adaptation (LoRA) for efficient parameter-efficient fine-tuning of embedding and language models"
+difficulty: "hard"
+xpReward: 150
+estimatedMinutes: 50
+stage: "advanced-retrieval"
+track: "fine-tuning"
+tags: ["fine-tuning", "lora", "parameter-efficient", "adapters", "low-rank"]
+prerequisites: ["embedding-finetuning", "fine-tuning-embeddings-guide"]
+relatedChallenges: ["embedding-finetuning", "fine-tuning-embeddings-guide", "ranker-distillation"]
+nextChallenges: ["ranker-distillation"]
+theory:
+  overview: |
+    LoRA (Low-Rank Adaptation) enables efficient fine-tuning of large models by 
+    injecting trainable low-rank matrices into frozen pre-trained weights. Instead 
+    of updating billions of parameters, LoRA trains <1% of parameters while achieving 
+    95%+ of full fine-tuning quality, making it practical for consumer GPUs and 
+    multi-tenant serving.
+  keyFormulas:
+    - name: "LoRA Weight Update"
+      formula: "W' = W + α × B × A where W is frozen, A and B are trainable"
+    - name: "Parameter Count"
+      formula: "n_LoRA = r × (d_in + d_out) vs n_full = d_in × d_out"
+    - name: "Compression Ratio"
+      formula: "CR = n_full / n_LoRA = (d_in × d_out) / (r × (d_in + d_out))"
+    - name: "Scaling Factor"
+      formula: "α = r × scale where scale is typically 1.0 or 2.0"
+  visualIntuition: |
+    LoRA Architecture:
+    
+    ```
+    Standard Fine-tuning:
+    Input ─→ [W (d×d)] ─→ Output
+                ↓
+            Update all d×d params
+    
+    LoRA Fine-tuning:
+    Input ─→ [W (frozen)] ─→ (+) ─→ Output
+                │              ↑
+                │         [B (d×r)]
+                │              ↑
+                └────────→ [A (r×d)]
+                
+    Only train r×(d_in + d_out) parameters!
+    
+    Example: d=1000, r=8
+    - Full: 1,000,000 parameters
+    - LoRA: 8 × (1000 + 1000) = 16,000 parameters
+    - Savings: 98.4% reduction
+    ```
+  whyItMatters: |
+    LoRA enables:
+    1. **Memory efficiency**: Fine-tune 70B models on consumer GPUs
+    2. **Fast switching**: Swap adapters without reloading base model
+    3. **Multi-tenant serving**: One base model + many adapters
+    4. **Storage savings**: Adapters are MBs vs GBs for full models
+  commonMistakes:
+    - "Setting rank too low (< 4) for complex tasks"
+    - "Applying LoRA to all layers unnecessarily"
+    - "Not scaling alpha appropriately with rank"
+    - "Forgetting to merge adapters for inference speed"
+  interviewTips:
+    - "Compare LoRA vs full fine-tuning tradeoffs"
+    - "Explain when to use higher rank"
+    - "Discuss LoRA variants (QLoRA, DoRA, etc.)"
+    - "Mention adapter composition techniques"
+realWorld:
+  description: |
+    LoRA powers efficient fine-tuning at Hugging Face, OpenAI's API customization, 
+    and enterprise RAG deployments. Stable Diffusion uses LoRA for style adapters. 
+    Multi-tenant LLM services use LoRA to serve thousands of customized models from 
+    a single base.
+  companies: ["Hugging Face", "OpenAI", "Microsoft", "Stability AI", "Replicate"]
+  useCases:
+    - "Domain-specific embedding fine-tuning"
+    - "Multi-tenant LLM serving"
+    - "Style adapters for image generation"
+    - "Task-specific model variants"
+    - "Personalized assistant fine-tuning"
+complexity:
+  time: "O(n × r) where n = samples, r = LoRA rank"
+  space: "O(r × (d_in + d_out)) trainable parameters"
+  latency: "Inference: ~5% overhead vs base model"
+resources:
+  papers:
+    - title: "LoRA: Low-Rank Adaptation of Large Language Models"
+      url: "https://arxiv.org/abs/2106.09685"
+      authors: "Hu et al., Microsoft"
+      year: 2021
+    - title: "QLoRA: Efficient Finetuning of Quantized LLMs"
+      url: "https://arxiv.org/abs/2305.14314"
+      authors: "Dettmers et al."
+      year: 2023
+    - title: "DoRA: Weight-Decomposed Low-Rank Adaptation"
+      url: "https://arxiv.org/abs/2402.09353"
+      authors: "Liu et al."
+      year: 2024
+  documentation:
+    - title: "PEFT Documentation"
+      url: "https://huggingface.co/docs/peft/"
+    - title: "LoRA Config Guide"
+      url: "https://huggingface.co/docs/peft/conceptual_guides/lora"
+    - title: "QLoRA Tutorial"
+      url: "https://huggingface.co/docs/transformers/perf_train_gpu_one"
+  tutorials:
+    - title: "Fine-tuning with LoRA"
+      url: "https://huggingface.co/docs/peft/quicktour"
+    - title: "Parameter-Efficient Fine-Tuning"
+      url: "https://www.philschmid.de/fine-tune-flan-t5-peft"
+  tools:
+    - name: "PEFT"
+      description: "Hugging Face parameter-efficient fine-tuning library"
+      url: "https://github.com/huggingface/peft"
+    - name: "bitsandbytes"
+      description: "8-bit quantization for QLoRA"
+      url: "https://github.com/TimDettmers/bitsandbytes"
+    - name: "LoRAX"
+      description: "Multi-tenant LoRA serving"
+      url: "https://github.com/predibase/lorax"
 ---
 
 # LoRA Adapter Architecture
 
-Full fine-tuning requires updating billions of parameters. **LoRA** (Low-Rank Adaptation) updates <1% while achieving 95%+ of the benefit.
+Implement Low-Rank Adaptation (LoRA) for efficient parameter-efficient fine-tuning, training <1% of parameters while achieving 95%+ of full fine-tuning quality.
 
-### The Key Insight
+## The Problem
+
+Full fine-tuning requires updating billions of parameters:
+- 7B model: 28GB in FP32, 14GB in FP16
+- 70B model: 280GB in FP32, 140GB in FP16
+- Training needs 3-4x model size for optimizer states
+
+**LoRA Solution**: Update only low-rank decomposition matrices.
+
+## The Key Insight
 
 Instead of updating the full weight matrix W, add a low-rank decomposition:
 
 ```
-W' = W + α * B @ A
+W' = W + α × B @ A
 ```
 
 Where:
-
-- **W**: Frozen original weights.
-- **A**: Down-projection (dim → rank).
-- **B**: Up-projection (rank → dim).
-- **α**: Scaling factor.
+- **W**: Frozen original weights (pre-trained)
+- **A**: Down-projection (dim → rank)
+- **B**: Up-projection (rank → dim)
+- **α**: Scaling factor (typically r × 2)
 
 ### Parameter Savings
 
-| Model | Full FT Params | LoRA Params | Savings |
-| ----- | -------------- | ----------- | ------- |
-| 7B    | 7B             | 10M         | 99.9%   |
-| 70B   | 70B            | 100M        | 99.9%   |
+| Model | Full FT Params | LoRA Params (r=8) | Savings |
+|-------|---------------|-------------------|---------|
+| 7B    | 7B            | ~10M              | 99.9%   |
+| 70B   | 70B           | ~100M             | 99.9%   |
 
-### Your Task
+## Your Task
 
-Implement the LoRA forward pass:
+Implement the core LoRA computation:
 
-1. Compute original output: W @ x.
-2. Compute LoRA delta: B @ A @ x.
-3. Return: original + α \* delta.
+```python
+import torch
+import torch.nn as nn
+import math
 
-### Why It's Revolutionary
+class LoRALayer(nn.Module):
+    """LoRA layer implementation."""
+    
+    def __init__(self, 
+                 in_features: int,
+                 out_features: int,
+                 rank: int = 8,
+                 lora_alpha: int = 16,
+                 lora_dropout: float = 0.0):
+        """
+        Initialize LoRA layer.
+        
+        Args:
+            in_features: Input dimension
+            out_features: Output dimension
+            rank: LoRA rank (r)
+            lora_alpha: Scaling parameter
+            lora_dropout: Dropout probability
+        """
+        super().__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.rank = rank
+        self.lora_alpha = lora_alpha
+        self.scaling = lora_alpha / rank
+        
+        # LoRA parameters (trainable)
+        self.lora_A = nn.Parameter(torch.zeros(in_features, rank))
+        self.lora_B = nn.Parameter(torch.zeros(rank, out_features))
+        
+        # Dropout
+        self.dropout = nn.Dropout(lora_dropout) if lora_dropout > 0 else nn.Identity()
+        
+        # Initialize
+        self.reset_parameters()
+    
+    def reset_parameters(self):
+        """Initialize LoRA parameters."""
+        # Initialize A with Kaiming uniform
+        nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
+        # Initialize B with zeros (so LoRA starts as identity)
+        nn.init.zeros_(self.lora_B)
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass computing LoRA delta.
+        
+        Args:
+            x: Input tensor [batch_size, in_features]
+            
+        Returns:
+            LoRA delta [batch_size, out_features]
+        """
+        pass
 
-LoRA enables fine-tuning on consumer GPUs and makes multi-tenant model serving practical.
+class LinearWithLoRA(nn.Module):
+    """Linear layer with LoRA adaptation."""
+    
+    def __init__(self, 
+                 base_layer: nn.Linear,
+                 rank: int = 8,
+                 lora_alpha: int = 16,
+                 lora_dropout: float = 0.0):
+        """
+        Wrap a linear layer with LoRA.
+        
+        Args:
+            base_layer: Original linear layer (frozen)
+            rank: LoRA rank
+            lora_alpha: Scaling parameter
+            lora_dropout: Dropout probability
+        """
+        super().__init__()
+        self.base_layer = base_layer
+        
+        # Freeze base layer
+        for param in self.base_layer.parameters():
+            param.requires_grad = False
+        
+        # Add LoRA
+        self.lora = LoRALayer(
+            base_layer.in_features,
+            base_layer.out_features,
+            rank,
+            lora_alpha,
+            lora_dropout
+        )
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass: base output + LoRA delta.
+        
+        Args:
+            x: Input tensor
+            
+        Returns:
+            Output tensor
+        """
+        pass
+    
+    def merge_lora(self) -> nn.Linear:
+        """
+        Merge LoRA weights into base layer for inference.
+        
+        Returns:
+            Merged linear layer
+        """
+        pass
+```
 
+## Example
+
+```python
+# Create base linear layer
+base_linear = nn.Linear(768, 768)
+
+# Wrap with LoRA
+lora_linear = LinearWithLoRA(
+    base_linear,
+    rank=8,
+    lora_alpha=16,
+    lora_dropout=0.1
+)
+
+# Check trainable parameters
+trainable = sum(p.numel() for p in lora_linear.parameters() if p.requires_grad)
+total = sum(p.numel() for p in lora_linear.parameters())
+print(f"Trainable: {trainable:,} / {total:,} ({trainable/total:.2%})")
+# Output: Trainable: 12,288 / 590,592 (2.08%)
+
+# Forward pass
+x = torch.randn(4, 768)
+output = lora_linear(x)
+print(f"Output shape: {output.shape}")  # [4, 768]
+
+# Training (only LoRA parameters update)
+optimizer = torch.optim.AdamW(lora_linear.lora.parameters(), lr=1e-4)
+loss = output.sum()
+loss.backward()
+optimizer.step()
+
+# Merge for faster inference
+merged = lora_linear.merge_lora()
+```
+
+## Algorithm Details
+
+### LoRA Forward Pass
+
+```python
+def forward(self, x: torch.Tensor) -> torch.Tensor:
+    """
+    Compute LoRA delta: B @ A @ x
+    
+    Shape progression:
+    - x: [batch, in_features]
+    - x @ A: [batch, rank]
+    - (x @ A) @ B: [batch, out_features]
+    """
+    # Apply dropout
+    x_dropped = self.dropout(x)
+    
+    # LoRA computation: x @ A @ B
+    # x @ A: [batch, in] @ [in, rank] = [batch, rank]
+    # @ B: [batch, rank] @ [rank, out] = [batch, out]
+    lora_output = (x_dropped @ self.lora_A @ self.lora_B) * self.scaling
+    
+    return lora_output
+```
+
+### Linear with LoRA
+
+```python
+def forward(self, x: torch.Tensor) -> torch.Tensor:
+    """
+    Forward: base output + LoRA delta
+    """
+    # Base layer output (frozen)
+    base_output = self.base_layer(x)
+    
+    # LoRA delta (trainable)
+    lora_delta = self.lora(x)
+    
+    # Combined output
+    return base_output + lora_delta
+```
+
+### Merging LoRA Weights
+
+```python
+def merge_lora(self) -> nn.Linear:
+    """
+    Merge LoRA into base layer: W_merged = W + alpha * B @ A
+    """
+    # Compute LoRA weight delta
+    lora_weight = (self.lora.lora_B @ self.lora.lora_A.t()) * self.lora.scaling
+    
+    # Create new linear layer
+    merged = nn.Linear(
+        self.base_layer.in_features,
+        self.base_layer.out_features,
+        bias=self.base_layer.bias is not None
+    )
+    
+    # Copy and merge weights
+    merged.weight.data = self.base_layer.weight.data + lora_weight.t()
+    
+    if self.base_layer.bias is not None:
+        merged.bias.data = self.base_layer.bias.data.clone()
+    
+    return merged
+```
+
+## Applying LoRA to Transformers
+
+```python
+def apply_lora_to_model(model, 
+                       target_modules: list[str],
+                       rank: int = 8,
+                       lora_alpha: int = 16):
+    """
+    Apply LoRA to specific modules in a model.
+    
+    Args:
+        model: Base model
+        target_modules: List of module names to apply LoRA (e.g., ["q_proj", "v_proj"])
+        rank: LoRA rank
+        lora_alpha: LoRA alpha
+    """
+    for name, module in model.named_modules():
+        # Check if this module should have LoRA
+        if any(target in name for target in target_modules):
+            if isinstance(module, nn.Linear):
+                # Get parent module and attribute name
+                parent_name = ".".join(name.split(".")[:-1])
+                attr_name = name.split(".")[-1]
+                parent = model.get_submodule(parent_name)
+                
+                # Replace with LoRA version
+                lora_layer = LinearWithLoRA(
+                    module, rank, lora_alpha
+                )
+                setattr(parent, attr_name, lora_layer)
+                
+                print(f"Applied LoRA to: {name}")
+    
+    return model
+
+# Usage with BERT
+from transformers import AutoModel
+
+model = AutoModel.from_pretrained("bert-base-uncased")
+model = apply_lora_to_model(
+    model,
+    target_modules=["query", "key", "value"],  # Attention layers
+    rank=8,
+    lora_alpha=16
+)
+
+# Count parameters
+trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+total = sum(p.numel() for p in model.parameters())
+print(f"Trainable: {trainable:,} / {total:,} ({trainable/total:.2%})")
+```
+
+## LoRA Configuration Guidelines
+
+| Model Size | Rank (r) | Alpha | Target Modules | Use Case |
+|-----------|----------|-------|----------------|----------|
+| Small (<1B) | 4-8 | 8-16 | All attention | Full adaptation |
+| Medium (1-7B) | 8-16 | 16-32 | q_proj, v_proj | Balanced |
+| Large (7-70B) | 16-64 | 32-128 | q, k, v, o_proj | Complex tasks |
+
+## Evaluation Criteria
+
+1. **Correctness**: LoRA delta computed correctly
+2. **Parameter Efficiency**: <5% trainable parameters
+3. **Forward Pass**: Output = base + LoRA delta
+4. **Merging**: Merged weights equivalent to separate computation
+
+## Test Cases
+
+```python
+def test_lora_forward():
+    """Test LoRA forward pass."""
+    base = nn.Linear(768, 768)
+    lora = LinearWithLoRA(base, rank=8, lora_alpha=16)
+    
+    x = torch.randn(4, 768)
+    output = lora(x)
+    
+    assert output.shape == (4, 768)
+    assert not torch.allclose(output, base(x))  # Should be different
+
+def test_parameter_efficiency():
+    """Test LoRA reduces trainable parameters."""
+    base = nn.Linear(1000, 1000)
+    lora = LinearWithLoRA(base, rank=8)
+    
+    trainable = sum(p.numel() for p in lora.parameters() if p.requires_grad)
+    total = sum(p.numel() for p in lora.parameters())
+    
+    assert trainable / total < 0.05  # <5% trainable
+
+def test_lora_merge():
+    """Test merging LoRA into base."""
+    base = nn.Linear(768, 768)
+    lora = LinearWithLoRA(base, rank=8)
+    
+    x = torch.randn(4, 768)
+    lora_output = lora(x)
+    
+    merged = lora.merge_lora()
+    merged_output = merged(x)
+    
+    assert torch.allclose(lora_output, merged_output, rtol=1e-5)
+```
+
+## Further Reading
+
+- [LoRA Paper](https://arxiv.org/abs/2106.09685)
+- [QLoRA Paper](https://arxiv.org/abs/2305.14314)
+- [PEFT Documentation](https://huggingface.co/docs/peft/)

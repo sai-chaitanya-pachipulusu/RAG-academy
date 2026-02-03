@@ -1,24 +1,298 @@
+---
+title: "Semantic Cache (TypeScript)"
+description: "Implement a semantic cache — return cached results for similar queries."
+language: "typescript"
+difficulty: "advanced"
+category: "optimization"
+prerequisites: ["ts-lru-cache", "ts-cosine-similarity"]
+related: ["semantic-caching", "ts-embedding-cache-key", "ts-async-batcher"]
+tags: ["semantic-cache", "similarity", "optimization", "caching"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Implement a semantic cache — return cached results for similar queries.
+  Implement a semantic cache — return cached results for semantically similar (not identical) queries.
 </Callout>
 
-## Why this matters in production
+## Why Semantic Caching Matters in Production
 
-Semantic caching can reduce RAG costs by 50%+ for repetitive queries. Unlike exact-match caches, it returns results for semantically similar (not identical) queries.
+Semantic caching can reduce RAG costs by 50%+ for repetitive queries. Unlike exact-match caches, it returns results for semantically similar (not identical) queries. This enables:
 
-## What you're implementing
+- **Cost reduction**: Avoid redundant embedding/LLM calls
+- **Latency improvement**: Serve cached responses instantly
+- **Better user experience**: Faster responses for similar questions
+- **Intelligent matching**: Understands query intent, not just text
 
-- Store query embeddings with their responses.
-- On new query, find the most similar cached query.
-- Return cached response if similarity exceeds threshold.
-- Handle cache expiration.
+### Real-World Scenario
 
-## Common pitfalls
+Customer support chatbot receiving similar queries:
 
-- Setting threshold too low (wrong answers).
-- Not pruning old entries (memory bloat).
+| Query | Semantic Match | Cache Hit? |
+|-------|----------------|------------|
+| "How do I reset my password?" | - | Miss (new) |
+| "How can I reset my password?" | 98% similar to #1 | **Hit** |
+| "What's the password reset process?" | 95% similar to #1 | **Hit** |
+| "How do I change my password?" | 85% similar to #1 | **Hit** |
+| "How do I delete my account?" | 40% similar | Miss (different) |
 
-## After you pass
+**Result**: 3 out of 4 subsequent queries served from cache.
 
-Add TTL-based expiration and LRU eviction for production readiness.
+## The Mathematical Foundation
 
+### Semantic Similarity
+
+```
+Two queries are semantically similar if:
+cosine_similarity(embedding(q1), embedding(q2)) > threshold
+
+Typical threshold: 0.85 - 0.95
+```
+
+### Cache Lookup
+
+```
+1. Embed incoming query
+2. Find most similar cached query (ANN search)
+3. If similarity > threshold: return cached result
+4. Else: compute fresh, add to cache
+```
+
+### Cache Structure
+
+```typescript
+interface SemanticCacheEntry {
+  query: string;
+  queryEmbedding: number[];
+  result: any;
+  timestamp: number;
+  accessCount: number;
+}
+```
+
+## Theoretical Deep Dive
+
+### Exact vs Semantic Matching
+
+| Aspect | Exact Match | Semantic Match |
+|--------|-------------|----------------|
+| **Key** | Hash of text | Embedding vector |
+| **Match criteria** | Identical text | Similar meaning |
+| **Storage** | Hash table | Vector index |
+| **Lookup** | O(1) | O(log n) or O(1) with LSH |
+
+### Threshold Selection
+
+| Threshold | Behavior | Use Case |
+|-----------|----------|----------|
+| 0.95 | Conservative | High precision required |
+| 0.90 | Balanced | General purpose |
+| 0.85 | Lenient | Maximum cache hits |
+| 0.80 | Very lenient | May have false positives |
+
+### Approximate Nearest Neighbors
+
+For large caches, use ANN:
+
+```
+Exact: O(n) linear scan
+LSH: O(1) with small constant
+HNSW: O(log n)
+```
+
+## Production Considerations
+
+### TTL and Expiration
+
+```typescript
+interface CachePolicy {
+  ttlMs: number;           // Time-to-live
+  maxEntries: number;      // LRU eviction
+  similarityThreshold: number;
+}
+```
+
+### Cache Invalidation
+
+When to invalidate:
+- Document corpus updates
+- Model changes
+- Explicit user request
+
+### Multi-Tenant Isolation
+
+```typescript
+// Separate caches per tenant
+const caches: Map<string, SemanticCache> = new Map();
+
+function getCache(tenantId: string): SemanticCache {
+  if (!caches.has(tenantId)) {
+    caches.set(tenantId, new SemanticCache());
+  }
+  return caches.get(tenantId)!;
+}
+```
+
+## Your Task
+
+Implement a semantic cache:
+
+```typescript
+interface CacheEntry {
+  query: string;
+  queryEmbedding: number[];
+  result: any;
+  timestamp: number;
+  accessCount: number;
+}
+
+interface SemanticCacheConfig {
+  similarityThreshold: number;  // Default: 0.9
+  maxEntries?: number;          // LRU eviction limit
+  ttlMs?: number;               // Time-to-live
+}
+
+interface CacheLookupResult {
+  hit: boolean;
+  entry?: CacheEntry;
+  similarity?: number;
+}
+
+interface CacheStats {
+  hits: number;
+  misses: number;
+  hitRate: number;
+  size: number;
+}
+
+class SemanticCache {
+  private entries: CacheEntry[];
+  private stats: { hits: number; misses: number };
+
+  constructor(private config: SemanticCacheConfig) {
+    this.entries = [];
+    this.stats = { hits: 0, misses: 0 };
+  }
+
+  async lookup(queryEmbedding: number[]): Promise<CacheLookupResult> {
+    /**
+     * Find semantically similar cached query.
+     * 
+     * Args:
+     *   queryEmbedding: Embedding of incoming query
+     * 
+     * Returns:
+     *   CacheLookupResult with hit status and entry if found
+     * 
+     * Algorithm:
+     *   1. Iterate through cache entries
+     *   2. Compute cosine similarity with each
+     *   3. Track entry with highest similarity
+     *   4. If highest similarity > threshold: cache hit
+     *   5. Update access count and timestamp
+     *   6. Return result
+     * 
+     * Optimization:
+     *   - For production, use HNSW or LSH instead of linear scan
+     * 
+     * Edge Cases:
+     *   - Empty cache: return miss
+     *   - No match above threshold: return miss
+     *   - Expired entry: treat as miss, remove from cache
+     */
+  }
+
+  store(query: string, queryEmbedding: number[], result: any): void {
+    /**
+     * Add new entry to cache.
+     * 
+     * Process:
+     *   1. Check for existing similar entry (update if found)
+     *   2. Add new entry
+     *   3. Evict if over capacity (LRU)
+     *   4. Remove expired entries
+     */
+  }
+
+  private findMostSimilar(queryEmbedding: number[]): {
+    entry: CacheEntry | null;
+    similarity: number;
+  } {
+    /**
+     * Find cache entry with highest similarity.
+     * Linear scan - replace with ANN for production scale.
+     */
+  }
+
+  private cosineSimilarity(a: number[], b: number[]): number {
+    /**
+     * Compute cosine similarity between embeddings.
+     */
+  }
+
+  private evictIfNeeded(): void {
+    /**
+     * Remove least recently used entries if over capacity.
+     */
+  }
+
+  getStats(): CacheStats {
+    /**
+     * Return cache statistics.
+     */
+  }
+
+  clear(): void {
+    /**
+     * Clear all entries.
+     */
+  }
+}
+
+// Convenience function with async embedding
+async function getCachedOrCompute(
+  query: string,
+  embedFn: (text: string) => Promise<number[]>,
+  computeFn: (query: string) => Promise<any>,
+  cache: SemanticCache
+): Promise<any> {
+  /**
+   * Check cache first, compute if miss.
+   */
+}
+```
+
+### Validation Checklist
+
+- [ ] Similar queries above threshold return cache hit
+- [ ] Dissimilar queries return cache miss
+- [ ] Exact threshold behavior correct (>= or >)
+- [ ] LRU eviction works when at capacity
+- [ ] TTL expiration handled
+- [ ] Stats tracked correctly
+- [ ] Empty cache returns miss
+- [ ] Cosine similarity computed correctly
+
+## Common Pitfalls
+
+- **Setting threshold too low**: Wrong answers from dissimilar queries
+- **Not pruning old entries**: Memory bloat
+- **Linear scan for large caches**: Use ANN for production
+- **Not handling embedding dimension mismatch**: Validate inputs
+- **Ignoring TTL**: Stale results served indefinitely
+
+## After You Pass
+
+Add TTL-based expiration and LRU eviction for production readiness, or implement distributed semantic caching with Redis and vector search.
+
+## Resources
+
+### Documentation
+- [Redis Vector Similarity](https://redis.io/docs/stack/search/reference/vectors/) - Semantic search
+- [Pinecone Metadata Filtering](https://www.pinecone.io/learn/vector-search-filtering/) - Hybrid approaches
+
+### Tutorials
+- ["Semantic Caching for LLMs"](https://blog.langchain.dev/semantic-caching/) - LangChain blog
+- ["Vector Databases for Caching"](https://www.pinecone.io/learn/vector-database/) - Pinecone guide
+
+### Libraries
+- [HNSW](https://github.com/nmslib/hnswlib) - Approximate nearest neighbors
+- [FAISS](https://github.com/facebookresearch/faiss) - Facebook AI Similarity Search

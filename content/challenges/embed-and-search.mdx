@@ -1,10 +1,21 @@
-﻿<Callout title="Goal" variant="info">
-  Build an end-to-end “toy” dense retrieval loop without any external embedding APIs.
+﻿---
+title: "Embed and Search"
+description: "Build an end-to-end 'toy' dense retrieval loop without any external embedding APIs"
+difficulty: "beginner"
+estimatedMinutes: 35
+xpReward: 40
+prerequisites: ["basic-retrieval", "cosine-similarity"]
+related: ["naive-flat-index", "bm25-from-scratch", "hybrid-search-tuning"]
+next: "naive-flat-index"
+---
+
+<Callout title="Goal" variant="info">
+  Build an end-to-end "toy" dense retrieval loop without any external embedding APIs.
 </Callout>
 
 ## Why this matters in production
 
-You shouldn’t start learning RAG by wiring 6 vendors together.
+You shouldn't start learning RAG by wiring 6 vendors together.
 
 This lab forces you to understand the mechanics:
 
@@ -13,26 +24,147 @@ This lab forces you to understand the mechanics:
 - score
 - return Top‑K
 
-In production you’ll swap toy embeddings for a real model — the retrieval logic stays.
+In production you'll swap toy embeddings for a real model — the retrieval logic stays.
 
-## What you’re implementing
+## What you're implementing
 
-- a deterministic “toy embedding” function (hashing into buckets)
+- a deterministic "toy embedding" function (hashing into buckets)
 - cosine scoring
 - a `search()` function returning top‑k doc indices + scores
 
+## The Algorithm
+
+```python
+import hashlib
+import numpy as np
+
+def toy_embed(text: str, dim: int = 128) -> np.ndarray:
+    """
+    Create deterministic toy embedding from text.
+    
+    Time Complexity: O(L) where L = text length
+    Space Complexity: O(dim) for output vector
+    
+    Args:
+        text: Input text
+        dim: Embedding dimension
+        
+    Returns:
+        Normalized embedding vector
+    """
+    # Use hash for deterministic but "semantic" behavior
+    hash_val = hashlib.md5(text.encode()).hexdigest()
+    
+    # Generate vector from hash
+    np.random.seed(int(hash_val[:8], 16))
+    vec = np.random.randn(dim)
+    
+    # Normalize
+    return vec / np.linalg.norm(vec)
+
+class ToyRetriever:
+    """Simple dense retrieval system with toy embeddings."""
+    
+    def __init__(self, dim: int = 128):
+        self.dim = dim
+        self.documents = []
+        self.embeddings = []
+    
+    def index(self, documents: list[str]):
+        """Index documents with toy embeddings."""
+        self.documents = documents
+        self.embeddings = [toy_embed(doc, self.dim) for doc in documents]
+    
+    def search(self, query: str, k: int = 5) -> list[tuple[int, float]]:
+        """
+        Search for top-k similar documents.
+        
+        Time Complexity: O(N × d) where N = docs, d = dimension
+        """
+        query_vec = toy_embed(query, self.dim)
+        
+        # Score all documents
+        scores = []
+        for i, doc_vec in enumerate(self.embeddings):
+            similarity = np.dot(query_vec, doc_vec)  # Cosine for normalized vectors
+            scores.append((i, similarity))
+        
+        # Return top k
+        scores.sort(key=lambda x: x[1], reverse=True)
+        return scores[:k]
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Indexing | O(N × L) | N docs, L = avg length |
+| Search | O(N × d) | Linear scan (brute force) |
+| Space | O(N × d) | Store all embeddings |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand the complete RAG retrieval loop from scratch
+- Be able to implement embedding-based search without external dependencies
+- Know how to swap components (embeddings, scoring) independently
+
+## Real-World Applications
+
+The pattern you learn here scales to production:
+
+| Component | Toy Version | Production Version |
+|-----------|-------------|-------------------|
+| **Embedding** | Hash-based | OpenAI, Cohere, or fine-tuned models |
+| **Scoring** | Cosine similarity | Cosine, dot product, or learned metrics |
+| **Index** | Brute force | HNSW, IVF, or approximate nearest neighbors |
+| **Top-K** | Sort all | Optimized heap-based selection |
+
+## The Full Loop
+
+```python
+# 1. Index documents (offline)
+retriever = ToyRetriever()
+retriever.index(documents)
+
+# 2. Query (online)
+results = retriever.search("machine learning", k=5)
+# Returns: [(doc_index, score), ...]
+
+# 3. Display results
+for idx, score in results:
+    print(f"Score: {score:.3f} | Doc: {documents[idx][:50]}...")
+```
+
 ## Common pitfalls
 
-- Using Python’s built-in `hash()` (not stable across runs).
+- Using Python's built-in `hash()` (not stable across runs).
 - Not normalizing/scoring consistently.
+- Forgetting to handle empty queries.
+
+## Resources
+
+### Documentation
+- [Vector Search Basics](https://www.pinecone.io/learn/vector-search/)
+- [Embedding Models Guide](https://huggingface.co/blog/getting-started-with-embeddings)
+
+### Tutorials
+- [Build a Semantic Search Engine](https://www.pinecone.io/learn/build-semantic-search/)
+- [RAG from Scratch](https://github.com/langchain-ai/rag-from-scratch)
+
+### Tools
+- **sentence-transformers**: Production embeddings
+- **OpenAI**: API-based embeddings
+- **Hugging Face**: Open-source embedding models
 
 ## After you pass
 
 Upgrade retrieval quality:
 
-- BM25 baseline
-- hybrid fusion (RRF)
-- reranking
+- [bm25-from-scratch](bm25-from-scratch) - Sparse retrieval baseline
+- [hybrid-search-tuning](hybrid-search-tuning) - Combine dense + sparse
+- [naive-flat-index](naive-flat-index) - Vector index fundamentals
 
+---
 
-
+**💡 Key Insight:** This toy system demonstrates that retrieval is separable from embedding quality. Focus on getting the retrieval logic right, then upgrade your embeddings!

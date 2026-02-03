@@ -1,10 +1,12 @@
 ﻿---
 title: "Paragraph-Based Chunking: Thematic Units"
 description: "Chunk by paragraphs to preserve thematic coherence"
-difficulty: "medium"
-timeEstimate: "25-30 min"
+difficulty: "beginner"
+estimatedMinutes: 30
 xpReward: 50
 prerequisites: ["sentence-based-chunking"]
+related: ["section-based-chunking", "recursive-chunking", "hierarchical-chunking"]
+next: "section-based-chunking"
 ---
 
 # Paragraph-Based Chunking: Thematic Units
@@ -34,12 +36,26 @@ Splitting a paragraph destroys this logical flow.
 
 ```python
 def paragraph_chunk(text: str, min_size: int = 100, max_size: int = 500):
+    """
+    Chunk text by paragraphs with size constraints.
+    
+    Time Complexity: O(P) where P = number of paragraphs
+    Space Complexity: O(N) for output
+    
+    Args:
+        text: Input text
+        min_size: Minimum chunk size (merge small paragraphs)
+        max_size: Maximum chunk size (split large paragraphs)
+        
+    Returns:
+        List of paragraph-based chunks
+    """
     # Split on paragraph boundaries
     paragraphs = text.split('\n\n')
-
+    
     chunks = []
     current = ""
-
+    
     for para in paragraphs:
         if len(current) + len(para) < max_size:
             current += para + "\n\n"
@@ -47,10 +63,10 @@ def paragraph_chunk(text: str, min_size: int = 100, max_size: int = 500):
             if current:
                 chunks.append(current.strip())
             current = para + "\n\n"
-
+    
     if current:
         chunks.append(current.strip())
-
+    
     return chunks
 ```
 
@@ -65,6 +81,29 @@ Paragraphs vary wildly in size:
 - Dense academic paragraph: 500+ words
 
 **Strategy**: Merge small paragraphs, split large ones.
+
+---
+
+## Balancing Size
+
+```python
+# Smart paragraph chunking
+def smart_paragraph_chunk(paragraphs, target_size=400):
+    chunks = []
+    current = ""
+    
+    for para in paragraphs:
+        if len(para) > target_size * 1.5:
+            # Split oversized paragraph by sentences
+            chunks.extend(split_by_sentences(para, target_size))
+        elif len(current) + len(para) > target_size:
+            chunks.append(current)
+            current = para
+        else:
+            current += "\n\n" + para
+    
+    return chunks
+```
 
 ---
 
@@ -101,26 +140,16 @@ Paragraphs vary wildly in size:
 
 ---
 
-## Balancing Size
+## Resources
 
-```python
-# Smart paragraph chunking
-def smart_paragraph_chunk(paragraphs, target_size=400):
-    chunks = []
-    current = ""
+### Documentation
+- [Document Structure Analysis](https://en.wikipedia.org/wiki/Paragraph)
+- [Text Segmentation Research](https://aclanthology.org/)
 
-    for para in paragraphs:
-        if len(para) > target_size * 1.5:
-            # Split oversized paragraph by sentences
-            chunks.extend(split_by_sentences(para, target_size))
-        elif len(current) + len(para) > target_size:
-            chunks.append(current)
-            current = para
-        else:
-            current += "\n\n" + para
-
-    return chunks
-```
+### Tools
+- **BeautifulSoup**: HTML paragraph extraction
+- **PyPDF2**: PDF paragraph detection
+- **python-docx**: DOCX paragraph reading
 
 ---
 
@@ -136,7 +165,6 @@ The author already did work to organize content. Leverage it.
 
 ## Related Challenges
 
-- `section-based-chunking` - Use headers for even better structure
-- `recursive-chunking` - Combines paragraph + sentence fallback
-- `hierarchical-chunking` - Create multi-level chunks
-
+- [section-based-chunking](section-based-chunking) - Use headers for even better structure
+- [recursive-chunking](recursive-chunking) - Combines paragraph + sentence fallback
+- [hierarchical-chunking](hierarchical-chunking) - Create multi-level chunks

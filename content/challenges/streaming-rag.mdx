@@ -1,6 +1,15 @@
-﻿<Callout title="Goal" variant="info">
-  Implement streaming RAG for real-time response delivery — reduce
-  time-to-first-token and improve user experience.
+﻿---
+title: "Streaming RAG"
+description: "Implement streaming RAG for real-time response delivery — reduce time-to-first-token and improve user experience"
+difficulty: "intermediate"
+xpReward: 150
+prerequisites: ["rag-pipeline-generator", "async-batch-processor"]
+---
+
+# Streaming RAG
+
+<Callout title="Goal" variant="info">
+  Implement streaming RAG for real-time response delivery — reduce time-to-first-token and improve user experience.
 </Callout>
 
 ## Why Streaming?
@@ -16,18 +25,35 @@ Streaming RAG: **See tokens as they're generated (100ms to first token)**
 | User abandonment    | Higher        | Lower     |
 | Total time          | Same          | Same      |
 
+## Why This Matters
+
+- **User Experience**: Users see progress immediately, reducing perceived wait time
+- **Engagement**: Lower abandonment rates in chat interfaces
+- **Interactivity**: Users can cancel or refine queries mid-stream
+- **Competitive**: Expected behavior from modern AI systems (ChatGPT, Claude, etc.)
+
+## Real-World Applications
+
+**Companies:** OpenAI, Anthropic, Google, Perplexity, Character.AI
+**Use Cases:**
+- Chat interfaces
+- Real-time assistants
+- Live search
+- Collaborative editing
+- Voice assistants
+
 ## Basic Streaming Architecture
 
 ```
 Client ←------ Stream ------→ Server
-         ↑                     ↓
-         |              [Retrieve Docs]
-         |                     ↓
-         |              [Build Prompt]
-         |                     ↓
-         |              [Start LLM Stream]
-         |                     ↓
-         └──── Token ← Token ← Token
+          ↑                     ↓
+          |              [Retrieve Docs]
+          |                     ↓
+          |              [Build Prompt]
+          |                     ↓
+          |              [Start LLM Stream]
+          |                     ↓
+          └──── Token ← Token ← Token
 ```
 
 ## Server-Side Streaming
@@ -38,6 +64,7 @@ Client ←------ Stream ------→ Server
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
 import asyncio
+import json
 
 app = FastAPI()
 
@@ -75,7 +102,7 @@ async def stream_query(request: Request, q: str, user_id: str):
 ### Flask + Streaming
 
 ```python
-from flask import Flask, Response, stream_with_context
+from flask import Flask, Response, stream_with_context, request
 
 app = Flask(__name__)
 
@@ -400,3 +427,9 @@ async def websocket_chat(websocket: WebSocket):
 - [ ] Test with production load
 - [ ] Monitor stream completion rate
 
+## Resources
+
+- [Server-Sent Events (SSE) Guide](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events)
+- [FastAPI StreamingResponse](https://fastapi.tiangolo.com/advanced/custom-response/#streamingresponse)
+- [OpenAI Streaming API](https://platform.openai.com/docs/api-reference/streaming)
+- [WebSocket Best Practices](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_client_applications)

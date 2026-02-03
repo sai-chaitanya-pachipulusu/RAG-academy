@@ -1,23 +1,260 @@
+---
+title: "Embedding Cache Key Generator (TypeScript)"
+description: "Generate cache keys for embeddings that handle semantic equivalence."
+language: "typescript"
+difficulty: "intermediate"
+category: "optimization"
+prerequisites: ["ts-lru-cache"]
+related: ["embedding-cache", "ts-semantic-cache", "ts-async-batcher"]
+tags: ["caching", "embeddings", "optimization", "deduplication"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Generate cache keys for embeddings that handle semantic equivalence.
+  Generate cache keys for embeddings that normalize inputs to maximize cache hits for semantically equivalent texts.
 </Callout>
 
-## Why this matters in production
+## Why Embedding Cache Keys Matter in Production
 
-Embedding caching can reduce API costs by 50%+ for repetitive content. The key is normalizing inputs so semantically equivalent texts hit the cache.
+Embedding caching can reduce API costs by 50%+ for repetitive content. The key is normalizing inputs so semantically equivalent texts hit the cache. Without proper normalization:
 
-## What you're implementing
+- "Machine Learning" and "machine learning" cache separately
+- "  spaced text  " and "spaced text" cache separately
+- "The quick brown fox" and "quick brown fox" might cache separately
 
-- Normalize: lowercase, collapse whitespace, trim.
-- Hash long texts for key efficiency.
-- Include model name in key (different models = different embeddings).
+### Real-World Scenario
 
-## Common pitfalls
+A RAG system processing user queries:
 
-- Not normalizing (missing cache hits).
-- Hash collisions for very different texts.
+- Query 1: "What is machine learning?"
+- Query 2: "what is Machine Learning?"
+- Query 3: "What is machine learning?  "
 
-## After you pass
+All three are semantically identical. With proper cache key generation:
+- All three generate the same cache key
+- Only one API call made
+- 66% cost savings on these queries
 
-Build a complete **Embedding Cache** with TTL and eviction.
+## The Mathematical Foundation
 
+### Cache Key Generation Pipeline
+
+```
+Raw Text → Normalize → Hash (if long) → Cache Key
+```
+
+### Normalization Steps
+
+| Step | Input | Output | Purpose |
+|------|-------|--------|---------|
+| **Lowercase** | "Hello World" | "hello world" | Case insensitivity |
+| **Whitespace collapse** | "a  b\t\nc" | "a b c" | Formatting independence |
+| **Trim** | "  text  " | "text" | Leading/trailing spaces |
+| **Unicode normalize** | "café" | "cafe" (NFD) | Character equivalence |
+
+### Hashing Strategy
+
+For long texts, hash to fixed-length key:
+
+```
+if (normalizedText.length > maxKeyLength) {
+  key = hash(normalizedText); // SHA-256, etc.
+} else {
+  key = normalizedText;
+}
+```
+
+Trade-off: Hashing prevents key size explosion but introduces collision risk (extremely low with SHA-256).
+
+### Model-Aware Keys
+
+Different models produce different embeddings for same text:
+
+```
+cacheKey = modelName + ":" + normalizedTextHash
+```
+
+Examples:
+- `text-embedding-3-small:abc123...`
+- `text-embedding-ada-002:abc123...`
+
+## Theoretical Deep Dive
+
+### Cache Hit Rate Optimization
+
+Factors affecting hit rate:
+
+```
+Hit Rate = f(normalization_aggressiveness, text_diversity, query_patterns)
+```
+
+More aggressive normalization → Higher hit rate but risk of false positives
+
+### Collision Probability
+
+For SHA-256 (256 bits):
+
+```
+Probability of collision with n keys ≈ n² / (2 × 2²⁵⁶)
+
+For 1 billion keys: P(collision) ≈ 10⁻⁶⁰ (effectively zero)
+```
+
+### Semantic Equivalence Classes
+
+Normalization defines equivalence classes:
+
+```
+["ML", "ml", "Ml", "mL"] → equivalence class → same cache key
+["Machine Learning", "machine learning"] → same equivalence class
+```
+
+## Production Considerations
+
+### Incremental Normalization
+
+For streaming/chunked text:
+
+```typescript
+class IncrementalNormalizer {
+  private buffer: string = '';
+  
+  add(text: string): void {
+    this.buffer += text;
+  }
+  
+  finalize(): string {
+    return normalize(this.buffer);
+  }
+}
+```
+
+### Multi-Tenant Isolation
+
+Prevent cache poisoning across users:
+
+```
+cacheKey = tenantId + ":" + modelName + ":" + normalizedTextHash
+```
+
+### Cache Warming
+
+Pre-populate cache for common queries:
+
+```typescript
+const commonQueries = [
+  "what is rag",
+  "how does semantic search work",
+  // ...
+];
+
+for (const query of commonQueries) {
+  const key = generateCacheKey(query, model);
+  const embedding = await getEmbedding(query);
+  await cache.set(key, embedding);
+}
+```
+
+## Your Task
+
+Implement an embedding cache key generator:
+
+```typescript
+interface CacheKeyConfig {
+  maxKeyLength?: number;      // Max length before hashing (default: 256)
+  hashAlgorithm?: 'sha256' | 'md5';  // Hash function for long keys
+  includeModelName?: boolean; // Prefix with model name (default: true)
+}
+
+interface CacheKeyResult {
+  key: string;           // Final cache key
+  normalized: string;    // Normalized text (for debugging)
+  wasHashed: boolean;    // Whether hashing was applied
+}
+
+function generateEmbeddingCacheKey(
+  text: string,
+  modelName: string,
+  config?: Partial<CacheKeyConfig>
+): CacheKeyResult {
+  /**
+   * Generate a cache key for embedding API calls.
+   * 
+   * Args:
+   *   text: Raw input text
+   *   modelName: Name of embedding model (e.g., "text-embedding-3-small")
+   *   config: Optional configuration
+   * 
+   * Returns:
+   *   CacheKeyResult with key, normalized text, and hashing info
+   * 
+   * Normalization steps:
+   *   1. Unicode normalization (NFC)
+   *   2. Lowercase
+   *   3. Collapse whitespace (multiple spaces → single)
+   *   4. Trim leading/trailing whitespace
+   * 
+   * Hashing:
+   *   - If normalized text > maxKeyLength, apply hash
+   *   - Otherwise use normalized text directly
+   * 
+   * Final key format (if includeModelName):
+   *   "modelName:normalizedOrHashedText"
+   * 
+   * Edge Cases:
+   *   - Empty text: return hash of empty string or empty key
+   *   - Very long text: always hash
+   *   - Special characters: preserved in normalized form
+   */
+}
+
+function normalizeText(text: string): string {
+  /**
+   * Apply standard normalization for embedding cache keys.
+   * Steps: NFC unicode, lowercase, collapse whitespace, trim.
+   */
+}
+
+function hashText(text: string, algorithm: string): string {
+  /**
+   * Hash text using specified algorithm.
+   * Return hex-encoded hash string.
+   */
+}
+```
+
+### Validation Checklist
+
+- [ ] Case normalization: "ABC" and "abc" produce same key
+- [ ] Whitespace collapse: "a  b" and "a b" produce same key
+- [ ] Trim: " text " and "text" produce same key
+- [ ] Model prefix included when configured
+- [ ] Long texts hashed correctly
+- [ ] Empty text handled gracefully
+- [ ] Unicode normalized (é → e in NFD)
+
+## Common Pitfalls
+
+- **Not normalizing**: Missing cache hits from trivial differences
+- **Hash collisions for very different texts**: Use strong hash (SHA-256)
+- **Not including model name**: Different models → different embeddings
+- **Over-normalization**: Removing meaningful differences
+- **Unicode issues**: Different normalization forms (NFC vs NFD)
+
+## After You Pass
+
+Build a complete **Embedding Cache** with TTL and eviction, or integrate with semantic caching for intelligent query matching.
+
+## Resources
+
+### Documentation
+- [Unicode Normalization Forms](https://unicode.org/reports/tr15/) - Official spec
+- [Node.js Crypto](https://nodejs.org/api/crypto.html) - Hashing implementation
+- [Web Crypto API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API) - Browser hashing
+
+### Tutorials
+- ["Cache Key Design"](https://medium.com/@shahbazcse/cache-key-design-best-practices-7d0c6f9f6c1a) - Best practices
+- ["Embedding API Caching"](https://platform.openai.com/docs/guides/embeddings) - OpenAI guidance
+
+### Libraries
+- [crypto-js](https://github.com/brix/crypto-js) - JavaScript cryptography
+- [hash-wasm](https://github.com/Daninet/hash-wasm) - Fast WebAssembly hashing

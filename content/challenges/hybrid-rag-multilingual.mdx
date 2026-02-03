@@ -1,33 +1,439 @@
 ---
 title: "Hybrid RAG Multilingual"
-description: "Implement cross-lingual retrieval and generation"
+description: "Implement cross-lingual retrieval and generation for documents in multiple languages"
+difficulty: "hard"
+xpReward: 150
+topics: ["multilingual", "cross-lingual", "translation", "embeddings"]
+prerequisites: ["embedding-model-selection", "hybrid-search-tuning"]
 ---
 
 # Hybrid RAG Multilingual
 
-Implement a multilingual RAG system that can retrieve from any language and generate in the query language.
+## Overview
 
-## Requirements
+Enterprise knowledge spans multiple languages. A multilingual RAG system must retrieve relevant documents regardless of their language and generate answers in the user's preferred language. This challenge implements cross-lingual retrieval using multilingual embeddings and translation.
 
-1. Index documents in multiple languages
-2. Cross-lingual retrieval
-3. Translation-aware ranking
-4. Generate in query language
+## Why This Matters
 
-## Starter Code
+- **Global Enterprises**: Documents in English, Spanish, Chinese, Japanese...
+- **Cross-Border Teams**: Share knowledge across language barriers
+- **Regulatory Compliance**: Access documents in their original language
+- **Cost Efficiency**: One system handles all languages
+
+## Key Concepts
+
+- **Multilingual embeddings**: Same vector space for all languages
+- **Cross-lingual retrieval**: Query in one language, retrieve in another
+- **Translation-aware ranking**: Account for translation quality
+- **Language detection**: Automatic query language identification
+
+## Real-World Applications
+
+Global customer support, international legal research, and multinational knowledge management all require multilingual RAG.
+
+## Supported Languages
+
+| Language | Code | Example Use Case |
+|----------|------|------------------|
+| English | en | Primary business language |
+| Spanish | es | LATAM operations |
+| French | fr | European markets |
+| German | de | DACH region |
+| Chinese | zh | APAC expansion |
+| Japanese | ja | Japan operations |
+| Arabic | ar | MENA region |
+| Portuguese | pt | Brazil operations |
+
+## The Challenge
+
+### Part 1: Language Detection
+
+```python
+from typing import List, Dict, Tuple
+from dataclasses import dataclass
+import langdetect
+
+@dataclass
+class LanguageDetection:
+    """Language detection result."""
+    language: str
+    confidence: float
+    script: str  # latin, cyrillic, han, etc.
+
+class LanguageDetector:
+    """Detect language of text."""
+    
+    def __init__(self):
+        self.supported_languages = {
+            'en', 'es', 'fr', 'de', 'zh', 'ja', 'ar', 'pt',
+            'it', 'nl', 'ru', 'ko', 'hi'
+        }
+    
+    def detect(self, text: str) -> LanguageDetection:
+        """Detect language of text."""
+        try:
+            # Use langdetect for primary detection
+            lang = langdetect.detect(text)
+            probs = langdetect.detect_langs(text)
+            confidence = max(p.prob for p in probs if p.lang == lang)
+        except:
+            lang = 'unknown'
+            confidence = 0.0
+        
+        # Detect script
+        script = self._detect_script(text)
+        
+        return LanguageDetection(
+            language=lang if lang in self.supported_languages else 'unknown',
+            confidence=confidence,
+            script=script
+        )
+    
+    def _detect_script(self, text: str) -> str:
+        """Detect the writing system used."""
+        # Check for specific Unicode ranges
+        if any('\u4e00' <= c <= '\u9fff' for c in text):
+            return 'han'
+        elif any('\u3040' <= c <= '\u309f' or '\u30a0' <= c <= '\u30ff' for c in text):
+            return 'kana'
+        elif any('\u0600' <= c <= '\u06ff' for c in text):
+            return 'arabic'
+        elif any('\u0400' <= c <= '\u04ff' for c in text):
+            return 'cyrillic'
+        elif any('\u0900' <= c <= '\u097f' for c in text):
+            return 'devanagari'
+        else:
+            return 'latin'
+```
+
+### Part 2: Multilingual Embedding
+
+```python
+class MultilingualEmbedder:
+    """Embed text in multiple languages into shared space."""
+    
+    def __init__(self, model_name: str = "intfloat/multilingual-e5-large"):
+        """Initialize multilingual embedding model.
+        
+        Options:
+        - intfloat/multilingual-e5-large (recommended)
+        - sentence-transformers/paraphrase-multilingual-mpnet-base-v2
+        - openai/text-embedding-3-large (multilingual)
+        """
+        self.model = SentenceTransformer(model_name)
+        self.embedding_dim = self.model.get_sentence_embedding_dimension()
+    
+    def embed(
+        self,
+        texts: List[str],
+        language: str = None
+    ) -> List[List[float]]:
+        """Embed texts into multilingual vector space."""
+        # Add language-specific prefix for E5 models
+        if language and 'e5' in self.model.get_sentence_embedding_dimension():
+            texts = [f"passage: {t}" for t in texts]
+        
+        embeddings = self.model.encode(
+            texts,
+            normalize_embeddings=True,
+            convert_to_numpy=True
+        )
+        
+        return embeddings.tolist()
+    
+    def embed_query(self, query: str, language: str = None) -> List[float]:
+        """Embed query with appropriate prefix."""
+        if 'e5' in str(self.model):
+            query = f"query: {query}"
+        
+        return self.embed([query], language)[0]
+    
+    def compute_similarity(
+        self,
+        query_embedding: List[float],
+        doc_embedding: List[float]
+    ) -> float:
+        """Compute cosine similarity between embeddings."""
+        return cosine_similarity(query_embedding, doc_embedding)
+```
+
+### Part 3: Cross-Lingual Retrieval
+
+```python
+@dataclass
+class MultilingualDocument:
+    """Document with language metadata."""
+    id: str
+    content: str
+    language: str
+    title: str
+    metadata: Dict
+
+@dataclass
+class RetrievedResult:
+    """Retrieval result with translation info."""
+    document: MultilingualDocument
+    similarity: float
+    translation: str = None
+    translation_confidence: float = 1.0
+
+class MultilingualRetriever:
+    """Retrieve documents across languages."""
+    
+    def __init__(
+        self,
+        embedder: MultilingualEmbedder,
+        vector_store: VectorStore,
+        translator: Translator = None
+    ):
+        self.embedder = embedder
+        self.store = vector_store
+        self.translator = translator
+        self.language_detector = LanguageDetector()
+    
+    def index_document(self, doc: MultilingualDocument) -> str:
+        """Index a multilingual document."""
+        # Detect language if not provided
+        if not doc.language:
+            detection = self.language_detector.detect(doc.content)
+            doc.language = detection.language
+        
+        # Create embedding
+        embedding = self.embedder.embed(
+            [doc.content],
+            language=doc.language
+        )[0]
+        
+        # Store with language metadata
+        self.store.add_document(
+            content=doc.content,
+            embedding=embedding,
+            metadata={
+                'doc_id': doc.id,
+                'language': doc.language,
+                'title': doc.title,
+                **doc.metadata
+            }
+        )
+        
+        return doc.id
+    
+    def retrieve(
+        self,
+        query: str,
+        target_language: str = None,
+        top_k: int = 5,
+        translate_results: bool = True
+    ) -> List[RetrievedResult]:
+        """Retrieve documents, optionally translating."""
+        # Detect query language
+        query_lang = self.language_detector.detect(query)
+        
+        # Embed query
+        query_embedding = self.embedder.embed_query(
+            query,
+            language=query_lang.language
+        )
+        
+        # Retrieve from vector store
+        results = self.store.search(
+            query_embedding,
+            k=top_k * 2  # Retrieve more for reranking
+        )
+        
+        # Process results
+        processed_results = []
+        for result in results:
+            doc = MultilingualDocument(
+                id=result.metadata['doc_id'],
+                content=result.content,
+                language=result.metadata['language'],
+                title=result.metadata.get('title', ''),
+                metadata=result.metadata
+            )
+            
+            # Translate if needed
+            translation = None
+            trans_confidence = 1.0
+            
+            if translate_results and target_language:
+                if doc.language != target_language:
+                    translation, trans_confidence = self._translate(
+                        doc.content,
+                        source=doc.language,
+                        target=target_language
+                    )
+            
+            processed_results.append(RetrievedResult(
+                document=doc,
+                similarity=result.score,
+                translation=translation,
+                translation_confidence=trans_confidence
+            ))
+        
+        # Rerank by combined score
+        processed_results.sort(
+            key=lambda r: r.similarity * r.translation_confidence,
+            reverse=True
+        )
+        
+        return processed_results[:top_k]
+    
+    def _translate(
+        self,
+        text: str,
+        source: str,
+        target: str
+    ) -> Tuple[str, float]:
+        """Translate text between languages."""
+        if not self.translator:
+            return text, 1.0
+        
+        try:
+            translation = self.translator.translate(
+                text,
+                src=source,
+                dest=target
+            )
+            # Estimate confidence based on text complexity
+            confidence = self._estimate_translation_quality(text)
+            return translation.text, confidence
+        except Exception as e:
+            return text, 0.5
+    
+    def _estimate_translation_quality(self, text: str) -> float:
+        """Estimate translation quality based on text characteristics."""
+        # Longer texts with technical terms are harder to translate
+        word_count = len(text.split())
+        
+        if word_count < 10:
+            return 0.95
+        elif word_count < 50:
+            return 0.85
+        elif word_count < 200:
+            return 0.75
+        else:
+            return 0.65
+```
+
+### Part 4: Multilingual RAG Pipeline
 
 ```python
 class MultilingualRAG:
-    def __init__(self, multilingual_encoder, translator):
-        self.encoder = multilingual_encoder
-        self.translator = translator
-        self.index = []
+    """Complete multilingual RAG system."""
     
-    def index_document(self, doc: str, language: str):
-        """Index document with language metadata."""
-        pass
+    def __init__(
+        self,
+        retriever: MultilingualRetriever,
+        llm: MultilingualLLM
+    ):
+        self.retriever = retriever
+        self.llm = llm
     
-    def query(self, query: str, target_language: str = None) -> dict:
-        """Cross-lingual query and generation."""
-        pass
+    def query(
+        self,
+        query: str,
+        answer_language: str = None,
+        top_k: int = 5
+    ) -> Dict[str, Any]:
+        """Answer query in specified language."""
+        # Detect query language
+        query_lang = self.retriever.language_detector.detect(query)
+        
+        # Default to query language for answer
+        if not answer_language:
+            answer_language = query_lang.language
+        
+        # Retrieve documents
+        results = self.retriever.retrieve(
+            query,
+            target_language=answer_language,
+            top_k=top_k,
+            translate_results=True
+        )
+        
+        # Build context
+        context_parts = []
+        sources = []
+        
+        for i, result in enumerate(results, 1):
+            content = result.translation or result.document.content
+            context_parts.append(f"[{i}] {content}")
+            sources.append({
+                'id': result.document.id,
+                'language': result.document.language,
+                'title': result.document.title,
+                'similarity': result.similarity,
+                'translated': result.translation is not None
+            })
+        
+        context = "\n\n".join(context_parts)
+        
+        # Generate answer
+        prompt = self._build_prompt(query, context, answer_language)
+        answer = self.llm.generate(prompt, language=answer_language)
+        
+        return {
+            'answer': answer,
+            'query_language': query_lang.language,
+            'answer_language': answer_language,
+            'sources': sources,
+            'retrieval_confidence': sum(r.similarity for r in results) / len(results)
+        }
+    
+    def _build_prompt(
+        self,
+        query: str,
+        context: str,
+        language: str
+    ) -> str:
+        """Build prompt in appropriate language."""
+        # Language-specific prompt templates
+        templates = {
+            'en': """Based on the following context, answer the question.
+
+Context:
+{context}
+
+Question: {query}
+
+Answer:""",
+            'es': """Basándote en el siguiente contexto, responde la pregunta.
+
+Contexto:
+{context}
+
+Pregunta: {query}
+
+Respuesta:""",
+            'fr': """Basé sur le contexte suivant, répondez à la question.
+
+Contexte:
+{context}
+
+Question: {query}
+
+Réponse:""",
+            'zh': """根据以下上下文回答问题。
+
+上下文：
+{context}
+
+问题：{query}
+
+回答：""",
+        }
+        
+        template = templates.get(language, templates['en'])
+        return template.format(context=context, query=query)
 ```
+
+## Evaluation Criteria
+
+Your solution will be evaluated on:
+
+1. **Cross-Lingual Accuracy**: Retrieve relevant docs across languages
+2. **Translation Quality**: Accurate result translation
+3. **Language Detection**: Correct query language identification
+4. **Answer Quality**: Coherent answers in target language
+5. **Performance**: Reasonable latency for all languages

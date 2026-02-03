@@ -1,33 +1,284 @@
-﻿<Callout title="Goal" variant="info">
-  Implement your first chunker: fixed-size chunking (baseline).
-</Callout>
+﻿---
+title: "Simple Chunking"
+description: "Implement your first chunker: fixed-size chunking for RAG baselines"
+difficulty: "beginner"
+xpReward: 50
+topics: ["chunking", "text-processing", "baselines"]
+prerequisites: []
+---
 
-## Why this matters in production
+# Simple Chunking
 
-Chunking quality dominates retrieval quality for most RAG systems.
+## Overview
 
-Even if you later use:
+Chunking quality dominates retrieval quality for most RAG systems. Even if you later use header-aware chunking, semantic chunking, or proposition chunking—you still need a rock-solid baseline to compare against.
 
-- header-aware chunking
-- semantic chunking
-- proposition chunking
+## Why This Matters
 
-…you still need a rock-solid baseline to compare against.
+- **Baseline Comparison**: Measure improvement from fancy chunkers
+- **Simplicity**: Easier to debug and maintain
+- **Speed**: Fast processing for large document sets
+- **Predictability**: Consistent chunk sizes for cost estimation
 
-## What you’re implementing
+## Key Concepts
 
-- Split raw text into contiguous slices of size `chunk_size`
-- Preserve text exactly (no trimming)
-- Validate parameters (`chunk_size > 0`)
+- **Fixed-size chunks**: Split text into equal-sized pieces
+- **No trimming**: Preserve exact text for traceability
+- **Validation**: Ensure parameters are valid
+- **Boundary handling**: Handle end of text correctly
 
-## Common pitfalls
+## Real-World Applications
 
-- Off-by-one errors at the end of the string.
-- Accidentally trimming whitespace (this changes hashes/traceability later).
+Fixed-size chunking is still widely used in production:
 
-## After you pass
+| Company | Use Case |
+|---------|----------|
+| **Evernote** | Note search and summarization |
+| **Zoom** | Transcript processing |
+| **Legal tech** | Contract analysis (predictable chunk sizes) |
+| **Healthcare** | Medical record processing |
 
-Add **overlap** (next lab), then add stable IDs and metadata.
+## When Simple Chunking Wins
 
+Simple chunking is often the best choice when:
+- Documents have consistent structure
+- You need predictable chunk sizes for cost estimation
+- You're building a baseline to compare against fancy chunkers
+- Processing speed is critical
 
+## Common Pitfalls
 
+- Off-by-one errors at the end of the string
+- Accidentally trimming whitespace (changes hashes/traceability)
+- Not validating `chunk_size > 0` (infinite loops or crashes)
+
+## The Challenge
+
+### Part 1: Fixed-Size Chunker
+
+```python
+from typing import List
+
+class FixedSizeChunker:
+    """Simple fixed-size chunking implementation."""
+    
+    def __init__(self, chunk_size: int = 1000):
+        """Initialize chunker with size parameter.
+        
+        Args:
+            chunk_size: Number of characters per chunk
+        """
+        if chunk_size <= 0:
+            raise ValueError("chunk_size must be positive")
+        
+        self.chunk_size = chunk_size
+    
+    def chunk(self, text: str) -> List[str]:
+        """Split text into fixed-size chunks.
+        
+        Args:
+            text: Input text to chunk
+            
+        Returns:
+            List of chunks, each at most chunk_size characters
+        """
+        if not text:
+            return []
+        
+        chunks = []
+        start = 0
+        
+        while start < len(text):
+            # Extract chunk
+            end = start + self.chunk_size
+            chunk = text[start:end]
+            
+            chunks.append(chunk)
+            start = end
+        
+        return chunks
+    
+    def chunk_with_metadata(self, text: str, doc_id: str = None) -> List[dict]:
+        """Chunk with metadata for traceability.
+        
+        Args:
+            text: Input text to chunk
+            doc_id: Document identifier
+            
+        Returns:
+            List of chunks with metadata
+        """
+        chunks = self.chunk(text)
+        
+        return [
+            {
+                'content': chunk,
+                'index': i,
+                'start_char': i * self.chunk_size,
+                'end_char': min((i + 1) * self.chunk_size, len(text)),
+                'doc_id': doc_id,
+                'chunk_size': self.chunk_size
+            }
+            for i, chunk in enumerate(chunks)
+        ]
+```
+
+### Part 2: Chunk Validator
+
+```python
+class ChunkValidator:
+    """Validate chunks for quality."""
+    
+    def __init__(
+        self,
+        min_chunk_size: int = 10,
+        max_chunk_size: int = 10000
+    ):
+        self.min_size = min_chunk_size
+        self.max_size = max_chunk_size
+    
+    def validate(self, chunks: List[str]) -> dict:
+        """Validate a list of chunks.
+        
+        Returns:
+            Validation report with issues found
+        """
+        issues = []
+        
+        for i, chunk in enumerate(chunks):
+            # Check size
+            if len(chunk) < self.min_size:
+                issues.append({
+                    'chunk_index': i,
+                    'issue': 'too_small',
+                    'size': len(chunk),
+                    'message': f'Chunk {i} is smaller than minimum ({self.min_size})'
+                })
+            
+            if len(chunk) > self.max_size:
+                issues.append({
+                    'chunk_index': i,
+                    'issue': 'too_large',
+                    'size': len(chunk),
+                    'message': f'Chunk {i} exceeds maximum ({self.max_size})'
+                })
+            
+            # Check for empty
+            if not chunk.strip():
+                issues.append({
+                    'chunk_index': i,
+                    'issue': 'empty',
+                    'message': f'Chunk {i} is empty or whitespace only'
+                })
+        
+        return {
+            'valid': len(issues) == 0,
+            'num_chunks': len(chunks),
+            'issues': issues
+        }
+```
+
+### Part 3: Chunk Statistics
+
+```python
+from typing import Dict
+import statistics
+
+class ChunkStatistics:
+    """Calculate statistics about chunks."""
+    
+    def analyze(self, chunks: List[str]) -> Dict:
+        """Analyze chunk statistics.
+        
+        Returns:
+            Dictionary of statistics
+        """
+        if not chunks:
+            return {'error': 'No chunks to analyze'}
+        
+        sizes = [len(c) for c in chunks]
+        
+        return {
+            'count': len(chunks),
+            'total_chars': sum(sizes),
+            'avg_size': statistics.mean(sizes),
+            'median_size': statistics.median(sizes),
+            'min_size': min(sizes),
+            'max_size': max(sizes),
+            'std_dev': statistics.stdev(sizes) if len(sizes) > 1 else 0
+        }
+```
+
+### Part 4: Complete Pipeline
+
+```python
+class SimpleChunkingPipeline:
+    """Complete chunking pipeline with validation."""
+    
+    def __init__(
+        self,
+        chunk_size: int = 1000,
+        validate: bool = True
+    ):
+        self.chunker = FixedSizeChunker(chunk_size)
+        self.validator = ChunkValidator() if validate else None
+        self.analyzer = ChunkStatistics()
+    
+    def process(
+        self,
+        text: str,
+        doc_id: str = None
+    ) -> Dict:
+        """Process text through complete pipeline.
+        
+        Returns:
+            Processing results with chunks and metadata
+        """
+        # Chunk
+        chunks = self.chunker.chunk_with_metadata(text, doc_id)
+        
+        # Validate
+        validation = None
+        if self.validator:
+            validation = self.validator.validate([c['content'] for c in chunks])
+        
+        # Analyze
+        stats = self.analyzer.analyze([c['content'] for c in chunks])
+        
+        return {
+            'chunks': chunks,
+            'validation': validation,
+            'statistics': stats,
+            'parameters': {
+                'chunk_size': self.chunker.chunk_size,
+                'original_length': len(text)
+            }
+        }
+```
+
+## Example Usage
+
+```python
+# Create chunker
+chunker = FixedSizeChunker(chunk_size=100)
+
+# Sample text
+text = "This is a sample document that we want to chunk into smaller pieces. " * 10
+
+# Chunk
+chunks = chunker.chunk_with_metadata(text, doc_id="doc_001")
+
+print(f"Created {len(chunks)} chunks")
+for chunk in chunks[:3]:
+    print(f"  Chunk {chunk['index']}: {len(chunk['content'])} chars")
+```
+
+## Evaluation Criteria
+
+Your solution will be evaluated on:
+
+1. **Correctness**: Chunks are correct size
+2. **Completeness**: All text is included
+3. **No Trimming**: Whitespace preserved
+4. **Validation**: Invalid parameters caught
+5. **Metadata**: Chunks have traceability info

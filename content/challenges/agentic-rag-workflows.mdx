@@ -23,6 +23,34 @@ RAG-powered agents:
 - Access external knowledge
 - Verify before acting
 
+## Theoretical Foundations
+
+### Agent Architecture Theory
+
+Agentic systems build upon several theoretical frameworks:
+
+| Framework | Contribution | Mathematical Model |
+|-----------|--------------|-------------------|
+| **ReAct** | Reasoning + Acting | $a_t = \pi(s_t, h_{<t})$ where $h$ is history |
+| **Reflexion** | Self-evaluation | $r_t = f(s_t, a_t, o_t)$ for critique |
+| **Tree of Thoughts** | Multi-path reasoning | $\arg\max_{path} \sum_{node \in path} V(node)$ |
+
+### Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity |
+|-----------|----------------|------------------|
+| Single-turn RAG | $O(k \cdot d)$ | $O(c)$ |
+| Agentic RAG (n steps) | $O(n \cdot (k \cdot d + L))$ | $O(n \cdot c)$ |
+| Tool Selection | $O(m \cdot f)$ | $O(1)$ |
+
+Where:
+- $k$ = number of retrieved documents
+- $d$ = embedding dimension
+- $L$ = LLM inference cost
+- $c$ = context window size
+- $m$ = number of available tools
+- $f$ = feature extraction cost
+
 ## Agentic RAG Patterns
 
 ### Pattern 1: ReAct + RAG
@@ -403,3 +431,67 @@ class RobustAgent:
 - [ ] Monitor agent performance
 - [ ] Set guardrails on actions
 
+## Real-World Applications
+
+| Company | Use Case | Agent Architecture |
+|---------|----------|-------------------|
+| **Cognition (Devin)** | Software engineering | Multi-step with tool use |
+| **Perplexity** | Research assistant | ReAct + web search |
+| **Elicit** | Academic research | Decomposition + synthesis |
+| **Vercel v0** | UI generation | Planning + execution |
+| **Replit Agent** | Code generation | Multi-tool orchestration |
+
+## Common Pitfalls
+
+| Pitfall | Impact | Solution |
+|---------|--------|----------|
+| Infinite loops | Excessive cost/time | Max step limits, cycle detection |
+| Tool misuse | Wrong operations | Validation, tool descriptions |
+| Context overflow | Truncated history | Summarization, window management |
+| Hallucinated actions | Failed executions | Action validation, retries |
+
+## Resources
+
+### Research Papers
+- [ReAct: Synergizing Reasoning and Acting in Language Models](https://arxiv.org/abs/2210.03629) - Yao et al.
+- [Self-RAG: Learning to Retrieve, Generate, and Critique](https://arxiv.org/abs/2310.11511) - Asai et al.
+- [Reflexion: Self-Reflective Agents](https://arxiv.org/abs/2303.11366) - Shinn et al.
+- [Tree of Thoughts](https://arxiv.org/abs/2305.10601) - Yao et al.
+
+### Documentation & Guides
+- [LangChain Agent Documentation](https://python.langchain.com/docs/modules/agents/)
+- [OpenAI Function Calling](https://platform.openai.com/docs/guides/function-calling)
+- [Anthropic Tool Use](https://docs.anthropic.com/claude/docs/tool-use)
+
+### Tools & Libraries
+- **LangChain**: Agent building framework with RAG integration
+- **LlamaIndex**: Data-aware agent framework
+- **AutoGPT**: Autonomous agent experimentation
+- **CrewAI**: Multi-agent orchestration
+
+### Tutorials
+- [Building ReAct Agents from Scratch](https://langchain-ai.github.io/langgraph/tutorials/react-agent-from-scratch/)
+- [Agentic RAG with LangGraph](https://langchain-ai.github.io/langgraph/tutorials/rag/langgraph_agentic_rag/)
+- [OpenAI Assistants API Guide](https://platform.openai.com/docs/assistants/overview)
+
+## Prerequisites
+
+- [tool-use-basics](./tool-use-basics)
+- [react-implementation](./react-implementation)
+
+## Related Challenges
+
+- [self-rag](./self-rag) - Self-reflective retrieval patterns
+- [multi-step-reasoning](./multi-step-reasoning) - Complex query decomposition
+- [conversational-rag](./conversational-rag) - Multi-turn conversational agents
+
+## Next Steps
+
+After mastering Agentic RAG workflows:
+- Build [multi-step-reasoning](./multi-step-reasoning) agents for complex tasks
+- Explore [self-rag](./self-rag) for self-correcting retrieval
+- Implement [conversational-rag](./conversational-rag) for interactive systems
+
+---
+
+**🤖 Agent Mastery:** Agentic RAG represents the future of AI systems—combining reasoning, action, and retrieval in intelligent loops that solve increasingly complex problems!

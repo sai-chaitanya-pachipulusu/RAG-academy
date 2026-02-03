@@ -1,4 +1,15 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "Basic Retrieval"
+description: "Implement Top-K retrieval: score candidates and return the best k"
+difficulty: "beginner"
+estimatedMinutes: 25
+xpReward: 30
+prerequisites: ["cosine-similarity", "euclidean-distance"]
+related: ["embed-and-search", "bm25-from-scratch", "naive-flat-index"]
+next: "embed-and-search"
+---
+
+<Callout title="Goal" variant="info">
   Implement Top‑K retrieval: score candidates and return the best k.
 </Callout>
 
@@ -8,9 +19,9 @@ Every retrieval system (BM25, dense, hybrid) eventually produces:
 
 - a ranked list of candidates
 
-If you can’t implement Top‑K correctly, you can’t trust your evaluation or debug ranking issues.
+If you can't implement Top‑K correctly, you can't trust your evaluation or debug ranking issues.
 
-## What you’re implementing
+## What you're implementing
 
 Given:
 
@@ -26,14 +37,125 @@ Rules:
 - validate `k > 0`
 - if `k > len(vectors)` return all
 
+## The Algorithm
+
+```python
+def top_k_retrieval(
+    vectors: list[list[float]],
+    query: list[float],
+    k: int,
+    score_fn: callable
+) -> list[tuple[int, float]]:
+    """
+    Retrieve top-k documents by similarity score.
+    
+    Time Complexity: O(N × d + N log k) where N = docs, d = dimension
+    Space Complexity: O(N) for scores, O(k) for heap
+    
+    Args:
+        vectors: Document vectors
+        query: Query vector
+        k: Number of results to return
+        score_fn: Function to compute similarity (e.g., cosine_similarity)
+        
+    Returns:
+        List of (doc_index, score) tuples, sorted by score descending
+        
+    Raises:
+        ValueError: If k <= 0
+    """
+    if k <= 0:
+        raise ValueError("k must be positive")
+    
+    # Score all documents
+    scores = [(i, score_fn(vec, query)) for i, vec in enumerate(vectors)]
+    
+    # Sort by score descending
+    scores.sort(key=lambda x: x[1], reverse=True)
+    
+    # Return top k
+    return scores[:k]
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Scoring | O(N × d) | N docs × d dimensions |
+| Sorting | O(N log N) | Standard sort |
+| With heap | O(N log k) | More efficient for small k |
+| Space | O(N) | Store all scores |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand the core retrieval operation used in all RAG systems
+- Be able to implement efficient Top-K selection
+- Know how to combine vector math with ranking logic
+
+## Real-World Applications
+
+Top-K retrieval is the heart of:
+
+| System | Top-K Use |
+|--------|-----------|
+| **Google Search** | Rank billions of pages to top 10 |
+| **Amazon product search** | Find relevant products from millions |
+| **Enterprise RAG** | Retrieve relevant docs from company knowledge base |
+| **Recommendation engines** | Find similar items from large catalogs |
+
+## The Retrieval Pipeline
+
+```
+Query → Embed → Score vs All Docs → Top-K Selection → Rerank → Final Results
+         ↑
+    Your implementation here!
+```
+
+## Optimization: Using a Heap
+
+For large N and small k, use a heap for O(N log k) instead of O(N log N):
+
+```python
+import heapq
+
+def top_k_heap(vectors, query, k, score_fn):
+    """O(N log k) retrieval using min-heap."""
+    # Use negative scores for max-heap behavior
+    heap = []
+    
+    for i, vec in enumerate(vectors):
+        score = score_fn(vec, query)
+        
+        if len(heap) < k:
+            heapq.heappush(heap, (score, i))
+        elif score > heap[0][0]:
+            heapq.heapreplace(heap, (score, i))
+    
+    # Return sorted by score descending
+    return sorted([(i, s) for s, i in heap], key=lambda x: x[1], reverse=True)
+```
+
 ## Common pitfalls
 
 - Sorting ascending instead of descending.
 - Returning scores without indices (you need traceability).
+- Not handling edge cases (empty vectors, k=0).
+
+## Resources
+
+### Documentation
+- [Python heapq Module](https://docs.python.org/3/library/heapq.html)
+- [NumPy Argpartition](https://numpy.org/doc/stable/reference/generated/numpy.argpartition.html)
+
+### Papers
+- **"Top-K Query Processing"** - Database research
+- **"Approximate Nearest Neighbor Search"** - ANN algorithms
 
 ## After you pass
 
-Do toy **Embed & Search**, then move to BM25 + hybrid fusion.
+Do toy **Embed & Search** with [embed-and-search](embed-and-search) to see the full loop, then move to BM25 + hybrid fusion.
 
+---
 
-
+**🚀 You're Building Momentum:** This challenge connects your vector math skills to real retrieval. Complete this to unlock the full RAG pipeline challenges!

@@ -8,11 +8,28 @@ prerequisites: ["react-implementation"]
 
 # WebSocket Streaming RAG
 
-Implement WebSocket-based streaming for real-time RAG responses.
+<Callout title="Goal" variant="info">
+  Implement WebSocket-based streaming for real-time RAG responses to reduce perceived latency and improve user experience.
+</Callout>
+
+## The Streaming Imperative
+
+Users expect ChatGPT-like streaming. Streaming reduces perceived latency by 10x through token-by-token delivery.
+
+| Metric | Non-streaming | Streaming |
+|--------|--------------|-----------|
+| Time to first token | 2-5s | 100-500ms |
+| Perceived speed | Slow | Fast |
+| User abandonment | Higher | Lower |
+| Total time | Same | Same |
 
 ## Why This Matters
 
-Users expect ChatGPT-like streaming. Streaming reduces perceived latency by 10x through token-by-token delivery.
+Traditional RAG waits for the complete response before showing anything. Streaming:
+- **Reduces perceived latency** by showing tokens as they're generated
+- **Improves engagement** - users see progress immediately
+- **Enables cancellation** - users can stop if the response is off-track
+- **Matches user expectations** set by modern AI interfaces
 
 ## What You'll Learn
 
@@ -24,7 +41,12 @@ Users expect ChatGPT-like streaming. Streaming reduces perceived latency by 10x 
 ## Real-World Application
 
 **Companies:** OpenAI, Anthropic, Google, Perplexity
-**Use Cases:** Chat interfaces, Real-time assistants, Live search
+
+**Use Cases:**
+- Chat interfaces
+- Real-time assistants
+- Live search
+- Collaborative editing
 
 ## Key Concepts
 
@@ -39,8 +61,453 @@ class StreamEvent:
 
 ### Pipeline Flow
 
-1. `retrieval_start` - Begin retrieval
-2. `retrieval_complete` - Documents found
-3. `token` - Each generated token
-4. `done` - Complete with latency stats
+```
+Client ←------ WebSocket ------→ Server
+          ↑                        ↓
+          |                 [Retrieve Docs]
+          |                        ↓
+          |                 [Build Prompt]
+          |                        ↓
+          |                 [Start LLM Stream]
+          |                        ↓
+          └──── Token ← Token ← Token
+```
 
+## Implementation
+
+### Server-Side (FastAPI + WebSocket)
+
+```python
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from typing import List, Dict, Any
+import asyncio
+import json
+from dataclasses import dataclass, asdict
+
+app = FastAPI()
+
+@dataclass
+class StreamEvent:
+    event_type: str
+    data: Dict[str, Any]
+    
+    def to_json(self) -> str:
+        return json.dumps({
+            "type": self.event_type,
+            **self.data
+        })
+
+class WebSocketRAGStreamer:
+    def __init__(self, retriever, llm):
+        self.retriever = retriever
+        self.llm = llm
+        self.active_connections: Dict[str, WebSocket] = {}
+    
+    async def connect(self, websocket: WebSocket, client_id: str):
+        await websocket.accept()
+        self.active_connections[client_id] = websocket
+    
+    def disconnect(self, client_id: str):
+        if client_id in self.active_connections:
+            del self.active_connections[client_id]
+    
+    async def stream_rag_response(
+        self,
+        websocket: WebSocket,
+        query: str,
+        client_id: str
+    ):
+        """Stream RAG response through WebSocket."""
+        start_time = asyncio.get_event_loop().time()
+        
+        try:
+            # 1. Retrieval start
+            await websocket.send_text(StreamEvent(
+                event_type="retrieval_start",
+                data={"query": query, "timestamp": start_time}
+            ).to_json())
+            
+            # 2. Retrieve documents
+            docs = await self.retriever.search(query)
+            retrieval_time = asyncio.get_event_loop().time() - start_time
+            
+            await websocket.send_text(StreamEvent(
+                event_type="retrieval_complete",
+                data={
+                    "count": len(docs),
+                    "latency_ms": retrieval_time * 1000,
+                    "sources": [{"id": d.id, "title": d.title} for d in docs[:5]]
+                }
+            ).to_json())
+            
+            # 3. Build context and prompt
+            context = self._build_context(docs)
+            prompt = self._build_prompt(query, context)
+            
+            # 4. Stream generation
+            token_count = 0
+            first_token_time = None
+            
+            async for token in self.llm.stream(prompt):
+                if first_token_time is None:
+                    first_token_time = asyncio.get_event_loop().time()
+                
+                token_count += 1
+                await websocket.send_text(StreamEvent(
+                    event_type="token",
+                    data={
+                        "token": token,
+                        "index": token_count
+                    }
+                ).to_json())
+            
+            # 5. Send completion
+            total_time = asyncio.get_event_loop().time() - start_time
+            ttft = (first_token_time - start_time) * 1000 if first_token_time else 0
+            
+            await websocket.send_text(StreamEvent(
+                event_type="done",
+                data={
+                    "total_tokens": token_count,
+                    "total_time_ms": total_time * 1000,
+                    "time_to_first_token_ms": ttft,
+                    "tokens_per_second": token_count / (total_time - (ttft/1000)) if total_time > (ttft/1000) else 0
+                }
+            ).to_json())
+            
+        except Exception as e:
+            await websocket.send_text(StreamEvent(
+                event_type="error",
+                data={"message": str(e), "type": type(e).__name__}
+            ).to_json())
+    
+    def _build_context(self, docs: List[Any]) -> str:
+        """Build context from retrieved documents."""
+        return "\n\n".join([
+            f"[{i+1}] {doc.title}\n{doc.content}"
+            for i, doc in enumerate(docs)
+        ])
+    
+    def _build_prompt(self, query: str, context: str) -> str:
+        """Build RAG prompt."""
+        return f"""Answer the question based on the provided context.
+
+Context:
+{context}
+
+Question: {query}
+
+Answer:"""
+
+# Initialize streamer
+streamer = WebSocketRAGStreamer(retriever=..., llm=...)
+
+@app.websocket("/ws/rag/{client_id}")
+async def websocket_rag(websocket: WebSocket, client_id: str):
+    await streamer.connect(websocket, client_id)
+    try:
+        while True:
+            # Receive query from client
+            data = await websocket.receive_json()
+            query = data.get("query", "")
+            
+            if query:
+                await streamer.stream_rag_response(
+                    websocket, query, client_id
+                )
+    except WebSocketDisconnect:
+        streamer.disconnect(client_id)
+```
+
+### Client-Side (JavaScript)
+
+```javascript
+class WebSocketRAGClient {
+  constructor(url) {
+    this.url = url;
+    this.ws = null;
+    this.messageHandlers = {};
+  }
+  
+  connect(clientId) {
+    this.ws = new WebSocket(`${this.url}/ws/rag/${clientId}`);
+    
+    this.ws.onopen = () => {
+      console.log('WebSocket connected');
+    };
+    
+    this.ws.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      this.handleMessage(message);
+    };
+    
+    this.ws.onclose = () => {
+      console.log('WebSocket disconnected');
+    };
+    
+    this.ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+  }
+  
+  handleMessage(message) {
+    const handler = this.messageHandlers[message.type];
+    if (handler) {
+      handler(message);
+    }
+  }
+  
+  on(eventType, handler) {
+    this.messageHandlers[eventType] = handler;
+  }
+  
+  sendQuery(query) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ query }));
+    }
+  }
+  
+  disconnect() {
+    if (this.ws) {
+      this.ws.close();
+    }
+  }
+}
+
+// Usage
+const client = new WebSocketRAGClient('ws://localhost:8000');
+
+let responseText = '';
+let sources = [];
+
+client.on('retrieval_start', (msg) => {
+  console.log('Retrieving...', msg.query);
+  showLoadingState();
+});
+
+client.on('retrieval_complete', (msg) => {
+  console.log(`Found ${msg.count} documents`);
+  sources = msg.sources;
+  showSources(sources);
+});
+
+client.on('token', (msg) => {
+  responseText += msg.token;
+  updateResponseDisplay(responseText);
+});
+
+client.on('done', (msg) => {
+  console.log('Complete:', msg);
+  hideLoadingState();
+});
+
+client.on('error', (msg) => {
+  console.error('Error:', msg.message);
+  showError(msg.message);
+});
+
+client.connect('user-123');
+
+// Send a query
+client.sendQuery('What is RAG?');
+```
+
+### React Hook
+
+```typescript
+import { useState, useCallback, useRef, useEffect } from 'react';
+
+interface StreamState {
+  response: string;
+  sources: Array<{ id: string; title: string }>;
+  isStreaming: boolean;
+  metrics: {
+    retrievalTime?: number;
+    timeToFirstToken?: number;
+    totalTokens: number;
+  } | null;
+}
+
+export function useWebSocketRAG(url: string) {
+  const [state, setState] = useState<StreamState>({
+    response: '',
+    sources: [],
+    isStreaming: false,
+    metrics: null
+  });
+  
+  const wsRef = useRef<WebSocket | null>(null);
+  const clientId = useRef(`client-${Date.now()}`);
+  
+  const connect = useCallback(() => {
+    wsRef.current = new WebSocket(`${url}/ws/rag/${clientId.current}`);
+    
+    wsRef.current.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      
+      switch (message.type) {
+        case 'retrieval_start':
+          setState(prev => ({
+            ...prev,
+            isStreaming: true,
+            response: '',
+            sources: []
+          }));
+          break;
+          
+        case 'retrieval_complete':
+          setState(prev => ({
+            ...prev,
+            sources: message.sources,
+            metrics: { ...prev.metrics, retrievalTime: message.latency_ms }
+          }));
+          break;
+          
+        case 'token':
+          setState(prev => ({
+            ...prev,
+            response: prev.response + message.token,
+            metrics: {
+              ...prev.metrics,
+              totalTokens: message.index
+            }
+          }));
+          break;
+          
+        case 'done':
+          setState(prev => ({
+            ...prev,
+            isStreaming: false,
+            metrics: {
+              ...prev.metrics,
+              timeToFirstToken: message.time_to_first_token_ms,
+              totalTokens: message.total_tokens
+            }
+          }));
+          break;
+          
+        case 'error':
+          console.error('Stream error:', message.message);
+          setState(prev => ({ ...prev, isStreaming: false }));
+          break;
+      }
+    };
+  }, [url]);
+  
+  const sendQuery = useCallback((query: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ query }));
+    }
+  }, []);
+  
+  const disconnect = useCallback(() => {
+    wsRef.current?.close();
+  }, []);
+  
+  useEffect(() => {
+    connect();
+    return () => disconnect();
+  }, [connect, disconnect]);
+  
+  return {
+    ...state,
+    sendQuery,
+    reconnect: connect
+  };
+}
+
+// Usage in component
+function ChatComponent() {
+  const { response, sources, isStreaming, metrics, sendQuery } = 
+    useWebSocketRAG('ws://localhost:8000');
+  
+  return (
+    <div>
+      <input 
+        onKeyDown={(e) => e.key === 'Enter' && sendQuery(e.currentTarget.value)}
+        disabled={isStreaming}
+      />
+      <div className="response">{response}</div>
+      {sources.length > 0 && (
+        <div className="sources">
+          Sources: {sources.map(s => s.title).join(', ')}
+        </div>
+      )}
+      {metrics && (
+        <div className="metrics">
+          Tokens: {metrics.totalTokens}
+          {metrics.timeToFirstToken && 
+            ` | TTFT: ${metrics.timeToFirstToken.toFixed(0)}ms`}
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+## Advanced Features
+
+### Bidirectional Communication
+
+```python
+@app.websocket("/ws/chat/{client_id}")
+async def websocket_chat(websocket: WebSocket, client_id: str):
+    await websocket.accept()
+    
+    try:
+        while True:
+            message = await websocket.receive_json()
+            
+            if message["type"] == "query":
+                await handle_query(websocket, message["data"])
+            elif message["type"] == "cancel":
+                await cancel_generation(client_id)
+            elif message["type"] == "feedback":
+                await record_feedback(client_id, message["data"])
+                
+    except WebSocketDisconnect:
+        cleanup(client_id)
+```
+
+### Connection Management
+
+```python
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: Dict[str, WebSocket] = {}
+        self.generation_tasks: Dict[str, asyncio.Task] = {}
+    
+    async def connect(self, client_id: str, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections[client_id] = websocket
+    
+    def disconnect(self, client_id: str):
+        if client_id in self.active_connections:
+            del self.active_connections[client_id]
+        if client_id in self.generation_tasks:
+            self.generation_tasks[client_id].cancel()
+    
+    async def cancel_generation(self, client_id: str):
+        if client_id in self.generation_tasks:
+            self.generation_tasks[client_id].cancel()
+            try:
+                await self.generation_tasks[client_id]
+            except asyncio.CancelledError:
+                pass
+```
+
+## Production Checklist
+
+- [ ] Implement heartbeat/ping-pong for connection health
+- [ ] Handle reconnection logic on client side
+- [ ] Add rate limiting per connection
+- [ ] Implement authentication/authorization
+- [ ] Monitor connection metrics
+- [ ] Handle backpressure for slow clients
+- [ ] Add graceful shutdown handling
+
+## Resources
+
+- [FastAPI WebSockets Documentation](https://fastapi.tiangolo.com/advanced/websockets/)
+- [WebSocket Best Practices](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_client_applications)
+- [Streaming LLM Responses](https://platform.openai.com/docs/api-reference/streaming)

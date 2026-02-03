@@ -1,29 +1,230 @@
 ﻿---
 title: "Recursive Character Splitter"
-description: "Implement the hierarchical splitting strategy used by LangChain."
+description: "Implement the hierarchical splitting strategy used by LangChain for robust document chunking."
+prerequisites: ["sentence-chunking"]
+related: ["markdown-header-chunking", "hierarchical-chunking"]
+next: ["semantic-chunking"]
 ---
 
-# Recursive Character Splitter
+<Callout title="Goal" variant="info">
+  Master recursive splitting — the most robust chunking strategy that adapts to any document structure from legal contracts to code files.
+</Callout>
+
+## The Strategy
 
 This is the **default chunking strategy in LangChain** and for good reason: it's robust for any document type.
 
-### The Strategy
+### The Fallback Ladder
 
-1. Try to split by paragraph (`\n\n`).
-2. If a chunk is still too long, split by newline (`\n`).
-3. If still too long, split by sentence (`. `).
-4. If still too long, split by word (` `).
-5. As a last resort, split by character.
+```
+1. Try to split by paragraph (\n\n)
+   ↓ (if chunk too long)
+2. Split by newline (\n)
+   ↓ (if chunk too long)
+3. Split by sentence (. )
+   ↓ (if chunk too long)
+4. Split by word (space)
+   ↓ (if chunk too long)
+5. Split by character (hard limit)
+```
 
 ### Why It Works
 
-A legal contract might have 10-page paragraphs. A code file might have no paragraphs but many newlines. The recursive approach adapts to whatever structure the document has.
+| Document Type | Primary Separator | Fallback Behavior |
+|--------------|-------------------|-------------------|
+| Legal contract | Paragraphs | Long paragraphs → sentences |
+| Code file | Newlines | Functions → lines |
+| Markdown | Headers (##) | Sections → paragraphs |
+| Plain text | Sentences | Words → characters |
 
-### Your Task
+The recursive approach **adapts to whatever structure the document has**.
 
-Implement `recursive_split()` that takes a text, a maximum chunk size, and a list of separators. It should recursively split until all chunks fit.
+## Theoretical Foundation
 
-### Real-World Impact
+### Hierarchical Document Structure
 
-This is the algorithm that powers most production RAG systems. Understanding it deeply will help you debug chunking issues in LangChain, LlamaIndex, or your custom pipeline.
+Documents naturally have hierarchical structure:
 
+```
+Document
+├── Section
+│   ├── Paragraph
+│   │   ├── Sentence
+│   │   │   ├── Word
+│   │   │   │   └── Character
+```
+
+Recursive splitting respects this hierarchy, trying coarse boundaries before fine ones.
+
+### Semantic Preservation
+
+| Level | Semantic Unit | Information Loss |
+|-------|---------------|------------------|
+| Paragraph | Complete argument | Minimal |
+| Sentence | Complete thought | Low |
+| Word | Partial meaning | High |
+| Character | None | Maximum |
+
+**Goal**: Stay as high in the hierarchy as possible while respecting size constraints.
+
+### Chunk Size Trade-offs
+
+| Chunk Size | Context Window | Retrieval Precision | Token Cost |
+|------------|----------------|---------------------|------------|
+| Small (200) | Low | High (specific) | Low |
+| Medium (500) | Medium | Medium | Medium |
+| Large (1000) | High | Low (broader) | High |
+
+**Recommendation**: 300-500 tokens for most RAG applications.
+
+## Production Implementations
+
+### LangChain RecursiveCharacterTextSplitter
+
+```python
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+splitter = RecursiveCharacterTextSplitter(
+    separators=["\n\n", "\n", ". ", " ", ""],
+    chunk_size=1000,
+    chunk_overlap=200,
+    length_function=len,
+)
+
+chunks = splitter.split_text(text)
+```
+
+### Key Parameters
+
+| Parameter | Purpose | Typical Value |
+|-----------|---------|---------------|
+| `chunk_size` | Target token count | 300-1000 |
+| `chunk_overlap` | Context preservation | 50-200 |
+| `separators` | Priority-ordered list | See below |
+| `length_function` | How to measure size | `len` or tokenizer |
+
+### Custom Separators by Document Type
+
+```python
+# Markdown
+md_separators = ["\n## ", "\n### ", "\n\n", "\n", ". ", " ", ""]
+
+# Code
+code_separators = ["\nclass ", "\ndef ", "\n\tdef ", "\n\n", "\n", " ", ""]
+
+# Legal
+legal_separators = ["\n\nARTICLE", "\n\nSection", "\n\n", "\n", ". ", " ", ""]
+```
+
+## Advanced Considerations
+
+### Overlap Strategy
+
+Chunk overlap preserves context across boundaries:
+
+```
+Chunk 1: "The quick brown fox. Jumps over the lazy dog."
+Chunk 2: "Jumps over the lazy dog. The end."
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+         Overlap (last sentence of previous)
+```
+
+**Benefits**:
+- Prevents information loss at boundaries
+- Improves embedding continuity
+- Better for sequential reasoning
+
+**Costs**:
+- Increased storage (10-20% more vectors)
+- Potential redundancy in retrieval
+
+### Token-Aware Splitting
+
+Character count ≠ token count:
+
+```python
+import tiktoken
+
+enc = tiktoken.get_encoding("cl100k_base")
+
+def token_length(text: str) -> int:
+    return len(enc.encode(text))
+
+splitter = RecursiveCharacterTextSplitter(
+    chunk_size=500,  # tokens, not characters
+    length_function=token_length,
+)
+```
+
+## Your Task
+
+Implement recursive splitting:
+
+```python
+from typing import List
+
+def recursive_split(
+    text: str,
+    max_chunk_size: int,
+    separators: List[str] = ["\n\n", "\n", ". ", " ", ""],
+) -> List[str]:
+    """
+    Recursively split text to fit within max_chunk_size.
+    
+    Logic:
+    1. Try to split by the first separator
+    2. If any resulting chunk is still too long, recursively split it 
+       with the next separator
+    3. If no separators left, split by character (hard limit)
+    
+    Args:
+        text: Input text to split
+        max_chunk_size: Maximum characters per chunk
+        separators: Priority-ordered list of separators
+        
+    Returns:
+        List of chunks, each <= max_chunk_size
+        
+    Requirements:
+        - Preserve order of text
+        - Strip whitespace from chunks
+        - Skip empty chunks
+    """
+    pass
+```
+
+### Validation Checklist
+
+- [ ] Text shorter than max_chunk_size returns as single chunk
+- [ ] Long text split by first separator
+- [ ] Oversized chunks recursively split with next separator
+- [ ] No separator left → character split
+- [ ] Empty text returns empty list
+- [ ] Whitespace-only chunks removed
+
+## Resources
+
+### Documentation
+- [LangChain RecursiveCharacterTextSplitter](https://api.python.langchain.com/en/latest/character/langchain_text_splitters.character.RecursiveCharacterTextSplitter.html) - Official API
+- [LlamaIndex Node Parsers](https://docs.llamaindex.ai/en/stable/module_guides/loading/node_parsers/) - Alternative implementations
+
+### Tutorials
+- ["Chunking Strategies for RAG"](https://www.pinecone.io/learn/chunking-strategies/) - Pinecone
+- ["Recursive Text Splitting Explained"](https://blog.langchain.dev/semantic-chunking/) - LangChain
+- ["Document Chunking Best Practices"](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/long-context-tips) - Anthropic
+
+### Academic Papers
+- ["Text Segmentation: A Review"](https://aclanthology.org/J99-3002/) - Hearst
+- ["Discourse Segmentation of Multi-Party Conversation"](https://aclanthology.org/P09-1050/) - Galley et al.
+
+### Tools
+- [tiktoken](https://github.com/openai/tiktoken) - OpenAI's tokenizer
+- [transformers Tokenizer](https://huggingface.co/docs/transformers/main_classes/tokenizer) - Hugging Face tokenizers
+- [spaCy](https://spacy.io/) - Sentence boundary detection
+
+## Next Steps
+
+After mastering recursive splitting:
+- **Semantic Chunking**: Cluster-based semantic boundaries
+- **Markdown Header Chunking**: Structure-aware chunking
+- **Hierarchical Chunking**: Multi-level chunk relationships

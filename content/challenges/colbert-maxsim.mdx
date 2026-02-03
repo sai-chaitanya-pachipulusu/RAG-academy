@@ -1,4 +1,15 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "ColBERT MaxSim Operator"
+description: "Implement the MaxSim operator used in ColBERT for token-level retrieval."
+difficulty: "hard"
+estimatedMinutes: 45
+prerequisites: ["colbert-late-interaction", "dot-product"]
+related: ["colbert-late-interaction", "llm-reranker", "hybrid-search-tuning"]
+next: "late-chunking"
+xpReward: 125
+---
+
+<Callout title="Goal" variant="info">
   Implement the "MaxSim" operator used in ColBERT for token-level retrieval.
 </Callout>
 
@@ -30,16 +41,237 @@ For each query token `qᵢ`, find the document token `dⱼ` it is most similar t
 - **Soft matching**: Related terms still contribute (unlike exact keyword match)
 - **Position-agnostic**: Order doesn't matter (unlike sequence models)
 
-## Complexity tradeoff
+## Complexity Analysis
 
-| Aspect     | Single-Vector | ColBERT (MaxSim)         |
-| ---------- | ------------- | ------------------------ |
-| Index size | 1 vector/doc  | ~128 vectors/doc         |
-| Query time | O(1) ANN      | O(Q × D) per candidate   |
-| Recall     | Good          | Excellent                |
-| Use case   | General       | High-precision retrieval |
+| Aspect | Single-Vector | ColBERT (MaxSim) |
+|--------|---------------|------------------|
+| Index size | 1 vector/doc | ~128 vectors/doc |
+| Query time | O(1) ANN | O(Q × D) per candidate |
+| Recall | Good | Excellent |
+| Use case | General | High-precision retrieval |
 
-## Production usage
+Where Q = query tokens, D = document tokens
+
+## Real-World Context
+
+| Company | Application |
+|---------|-------------|
+| **Stanford IR** | Research and benchmarks |
+| **Pinecone** | Hybrid search offerings |
+| **Vespa** | Native MaxSim support |
+| **RAGatouille** | Simplified ColBERT API |
+
+## Resources
+
+### Papers
+- **"ColBERT: Efficient and Effective Passage Search"** - Original paper
+- **"Late Interaction: A Paradigm for Efficient Retrieval"** - Analysis
+
+### Tools
+- **RAGatouille**: Easy ColBERT usage
+- **PyColBERT**: Official implementation
+
+## Implementation
+
+```python
+import numpy as np
+from typing import List
+
+def maxsim_score(
+    query_embeddings: np.ndarray,
+    doc_embeddings: np.ndarray
+) -> float:
+    """
+    Compute ColBERT MaxSim score.
+    
+    Args:
+        query_embeddings: (num_query_tokens, dim)
+        doc_embeddings: (num_doc_tokens, dim)
+    
+    Returns:
+        MaxSim score
+    """
+    # Normalize embeddings for cosine similarity
+    query_norm = query_embeddings / np.linalg.norm(query_embeddings, axis=1, keepdims=True)
+    doc_norm = doc_embeddings / np.linalg.norm(doc_embeddings, axis=1, keepdims=True)
+    
+    # Compute all pairwise similarities: (Q, D)
+    similarities = query_norm @ doc_norm.T
+    
+    # Max over document tokens for each query token
+    max_per_query = similarities.max(axis=1)
+    
+    # Sum over query tokens
+    return float(max_per_query.sum())
+
+
+def batch_maxsim(
+    query_embeddings: np.ndarray,
+    doc_embeddings_list: List[np.ndarray]
+) -> List[float]:
+    """
+    Compute MaxSim scores for multiple documents.
+    
+    Args:
+        query_embeddings: (Q, dim)
+        doc_embeddings_list: List of (D_i, dim) arrays
+    
+    Returns:
+        List of scores
+    """
+    return [maxsim_score(query_embeddings, doc_emb) for doc_emb in doc_embeddings_list]
+```
+
+## Challenge: Implement MaxSim
+
+### Requirements
+
+1. Implement `maxsim_score()` for single document scoring
+2. Implement `batch_maxsim()` for multiple documents
+3. Handle normalization properly
+4. Add comprehensive tests
+
+### Starter Code
+
+```python
+import numpy as np
+from typing import List
+
+def maxsim_score(
+    query_embeddings: np.ndarray,
+    doc_embeddings: np.ndarray
+) -> float:
+    """
+    Compute ColBERT MaxSim score.
+    
+    Score = Σᵢ maxⱼ (qᵢ · dⱼ)
+    """
+    # TODO: Implement MaxSim
+    pass
+
+
+def batch_maxsim(
+    query_embeddings: np.ndarray,
+    doc_embeddings_list: List[np.ndarray]
+) -> List[float]:
+    """Compute MaxSim scores for multiple documents."""
+    # TODO: Implement batch scoring
+    pass
+
+
+# Test your implementation
+def test_maxsim():
+    # Create test embeddings
+    # Query: "machine learning" (2 tokens)
+    query_emb = np.array([
+        [1.0, 0.0, 0.0],  # "machine"
+        [0.0, 1.0, 0.0],  # "learning"
+    ])
+    
+    # Doc 1: "machine learning is great" (4 tokens)
+    doc1_emb = np.array([
+        [1.0, 0.0, 0.0],  # "machine"
+        [0.0, 1.0, 0.0],  # "learning"
+        [0.0, 0.0, 1.0],  # "is"
+        [0.5, 0.5, 0.0],  # "great"
+    ])
+    
+    # Doc 2: "deep learning methods" (3 tokens)
+    doc2_emb = np.array([
+        [0.0, 0.0, 1.0],  # "deep"
+        [0.0, 1.0, 0.0],  # "learning"
+        [0.5, 0.5, 0.0],  # "methods"
+    ])
+    
+    # Test single scoring
+    score1 = maxsim_score(query_emb, doc1_emb)
+    score2 = maxsim_score(query_emb, doc2_emb)
+    
+    # Doc 1 should score higher (matches both "machine" and "learning")
+    assert score1 > score2
+    
+    # Test batch scoring
+    scores = batch_maxsim(query_emb, [doc1_emb, doc2_emb])
+    assert len(scores) == 2
+    assert scores[0] > scores[1]
+    
+    print(f"Doc 1 score: {score1:.3f}")
+    print(f"Doc 2 score: {score2:.3f}")
+    print("All tests passed!")
+
+test_maxsim()
+```
+
+### Solution
+
+<details>
+<summary>Click to reveal solution</summary>
+
+```python
+import numpy as np
+from typing import List
+
+def maxsim_score(
+    query_embeddings: np.ndarray,
+    doc_embeddings: np.ndarray
+) -> float:
+    """
+    Compute ColBERT MaxSim score.
+    
+    Score = Σᵢ maxⱼ (qᵢ · dⱼ)
+    """
+    # Normalize for cosine similarity
+    query_norm = query_embeddings / (np.linalg.norm(query_embeddings, axis=1, keepdims=True) + 1e-8)
+    doc_norm = doc_embeddings / (np.linalg.norm(doc_embeddings, axis=1, keepdims=True) + 1e-8)
+    
+    # Compute all pairwise similarities: (Q, D)
+    similarities = query_norm @ doc_norm.T
+    
+    # Max over document tokens for each query token
+    max_per_query = similarities.max(axis=1)
+    
+    # Sum over query tokens
+    return float(max_per_query.sum())
+
+
+def batch_maxsim(
+    query_embeddings: np.ndarray,
+    doc_embeddings_list: List[np.ndarray]
+) -> List[float]:
+    """Compute MaxSim scores for multiple documents."""
+    return [maxsim_score(query_embeddings, doc_emb) for doc_emb in doc_embeddings_list]
+```
+
+</details>
+
+## Production Usage
 
 ColBERT is typically used as a **reranker** (score top-100 candidates) rather than first-stage retrieval, because storing per-token vectors is expensive at scale.
 
+```python
+def colbert_rerank(
+    query: str,
+    candidates: List[str],
+    colbert_model,
+    k: int = 10
+) -> List[tuple]:
+    """Rerank candidates using ColBERT."""
+    query_emb = colbert_model.encode_query(query)
+    
+    scores = []
+    for doc in candidates:
+        doc_emb = colbert_model.encode_document(doc)
+        score = maxsim_score(query_emb, doc_emb)
+        scores.append((score, doc))
+    
+    scores.sort(reverse=True)
+    return scores[:k]
+```
+
+## Best Practices
+
+1. **Use as reranker**: Don't index everything with ColBERT
+2. **Quantize embeddings**: Reduce from float32 to int8 for storage
+3. **PLAID indexing**: Use centroid-based candidate filtering
+4. **Cache embeddings**: Pre-compute document embeddings
+5. **Batch scoring**: Process multiple candidates together

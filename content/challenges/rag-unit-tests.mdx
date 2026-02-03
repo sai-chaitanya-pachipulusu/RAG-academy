@@ -3,28 +3,329 @@ title: "RAG Unit Test Suite"
 description: "Build a comprehensive unit test suite for RAG components"
 difficulty: "medium"
 xpReward: 100
+topics: ["testing", "quality-assurance", "ci-cd", "regression"]
+prerequisites: ["basic-retrieval", "chunking-strategies"]
 ---
 
 # RAG Unit Test Suite
 
 ## Overview
 
-RAG systems are complex with many moving parts. This challenge teaches you to build a test suite that catches regressions in chunking, retrieval, and generation.
+RAG systems are complex with many moving parts—chunking strategies, embedding models, retrieval algorithms, and generation prompts. This challenge teaches you to build a test suite that catches regressions before they reach production.
 
 ## Why This Matters
 
-- **Catch Regressions**: Model updates can silently break quality
-- **CI/CD Integration**: Automated quality gates
+- **Catch Regressions**: Model updates can silently break retrieval quality
+- **CI/CD Integration**: Automated quality gates prevent bad deploys
 - **Refactoring Confidence**: Know when changes break things
+- **Documentation**: Tests serve as executable specifications
 
 ## Key Concepts
 
-- Test case organization by category
-- Timing and error capture
-- Report generation
-- Test isolation patterns
+- **Test case organization**: Group by component and failure mode
+- **Timing and metrics**: Track latency and quality scores
+- **Report generation**: Actionable output for developers
+- **Test isolation**: Prevent test pollution
 
 ## Real-World Applications
 
-RAGAS, DeepEval, and custom test frameworks are essential for production RAG quality.
+RAGAS, DeepEval, and custom test frameworks are essential for production RAG quality at companies like Anthropic, OpenAI, and enterprise AI teams.
 
+## Test Categories
+
+### 1. Chunking Tests
+
+```python
+class TestChunking:
+    """Tests for document chunking strategies."""
+    
+    def test_chunk_size_respected(self):
+        """Verify chunks don't exceed max size."""
+        chunker = FixedSizeChunker(chunk_size=100, overlap=20)
+        text = "word " * 1000
+        
+        chunks = chunker.chunk(text)
+        
+        for chunk in chunks:
+            tokens = count_tokens(chunk)
+            assert tokens <= 100, f"Chunk exceeded size: {tokens}"
+    
+    def test_overlap_maintained(self):
+        """Verify overlap between consecutive chunks."""
+        chunker = FixedSizeChunker(chunk_size=100, overlap=20)
+        text = "The quick brown fox jumps over the lazy dog. " * 10
+        
+        chunks = chunker.chunk(text)
+        
+        for i in range(len(chunks) - 1):
+            overlap = find_overlap(chunks[i], chunks[i + 1])
+            assert len(overlap) >= 10, "Insufficient overlap between chunks"
+    
+    def test_semantic_boundaries_preserved(self):
+        """Verify semantic chunker respects boundaries."""
+        chunker = SemanticChunker()
+        
+        # Text with clear topic shifts
+        text = """
+        Introduction to Machine Learning.
+        ML is a subset of AI.
+        
+        History of Computing.
+        Computers have evolved significantly.
+        """
+        
+        chunks = chunker.chunk(text)
+        
+        # Each topic should be in separate chunk
+        assert not any(
+            "ML" in c and "History" in c for c in chunks
+        ), "Topic boundaries violated"
+```
+
+### 2. Embedding Tests
+
+```python
+class TestEmbeddings:
+    """Tests for embedding quality and consistency."""
+    
+    def test_similarity_monotonicity(self):
+        """Verify similar texts have higher similarity."""
+        embedder = OpenAIEmbedder()
+        
+        query = "machine learning algorithms"
+        texts = [
+            "deep learning neural networks",  # Highly relevant
+            "supervised learning methods",     # Relevant
+            "baking chocolate chip cookies",   # Irrelevant
+        ]
+        
+        embeddings = embedder.embed(texts)
+        query_emb = embedder.embed([query])[0]
+        
+        similarities = [
+            cosine_similarity(query_emb, emb) for emb in embeddings
+        ]
+        
+        assert similarities[0] > similarities[2]
+        assert similarities[1] > similarities[2]
+    
+    def test_embedding_consistency(self):
+        """Verify same text produces same embedding."""
+        embedder = OpenAIEmbedder()
+        text = "The quick brown fox"
+        
+        emb1 = embedder.embed([text])[0]
+        emb2 = embedder.embed([text])[0]
+        
+        assert np.allclose(emb1, emb2, atol=1e-6)
+    
+    def test_dimensionality_correct(self):
+        """Verify embedding dimensions match expected."""
+        embedder = OpenAIEmbedder(model="text-embedding-3-small")
+        
+        emb = embedder.embed(["test"])[0]
+        
+        assert len(emb) == 1536, f"Expected 1536 dims, got {len(emb)}"
+```
+
+### 3. Retrieval Tests
+
+```python
+class TestRetrieval:
+    """Tests for retrieval accuracy and performance."""
+    
+    def test_relevant_documents_retrieved(self):
+        """Verify relevant docs are in top-k results."""
+        retriever = create_test_retriever()
+        
+        query = "Python list comprehensions"
+        relevant_doc = Document(
+            content="List comprehensions provide a concise way to create lists in Python.",
+            metadata={"topic": "python", "relevant": True}
+        )
+        
+        # Index the relevant doc along with noise
+        retriever.index([relevant_doc] + generate_noise_docs(100))
+        
+        results = retriever.retrieve(query, k=5)
+        
+        assert any(
+            r.metadata.get("relevant") for r in results
+        ), "Relevant document not retrieved"
+    
+    def test_retrieval_latency_sla(self):
+        """Verify retrieval meets latency requirements."""
+        retriever = create_test_retriever()
+        
+        start = time.time()
+        results = retriever.retrieve("test query", k=10)
+        elapsed = time.time() - start
+        
+        assert elapsed < 0.5, f"Retrieval too slow: {elapsed}s"
+    
+    def test_empty_query_handled(self):
+        """Verify empty query doesn't crash."""
+        retriever = create_test_retriever()
+        
+        results = retriever.retrieve("", k=10)
+        
+        assert isinstance(results, list)
+```
+
+### 4. Generation Tests
+
+```python
+class TestGeneration:
+    """Tests for answer generation quality."""
+    
+    def test_answer_uses_context(self):
+        """Verify answer is based on provided context."""
+        generator = OpenAIGenerator()
+        
+        context = ["The capital of France is Paris."]
+        query = "What is the capital of France?"
+        
+        answer = generator.generate(query, context)
+        
+        assert "Paris" in answer
+    
+    def test_no_context_admission(self):
+        """Verify model admits when context is insufficient."""
+        generator = OpenAIGenerator()
+        
+        context = ["Python is a programming language."]
+        query = "What is the capital of France?"
+        
+        answer = generator.generate(query, context)
+        
+        assert any(
+            phrase in answer.lower()
+            for phrase in ["don't know", "not mentioned", "no information"]
+        )
+    
+    def test_hallucination_detection(self):
+        """Verify hallucinated facts are caught."""
+        generator = OpenAIGenerator()
+        
+        context = ["The Eiffel Tower is in Paris."]
+        query = "Tell me about the Eiffel Tower"
+        
+        answer = generator.generate(query, context)
+        
+        # Check for hallucinated facts not in context
+        hallucination_score = check_hallucination(answer, context)
+        assert hallucination_score < 0.3, "Hallucination detected"
+```
+
+## Test Runner Framework
+
+```python
+class RAGTestRunner:
+    """Comprehensive test runner for RAG systems."""
+    
+    def __init__(self):
+        self.test_suites = []
+        self.results = []
+    
+    def add_suite(self, suite: TestSuite):
+        """Add a test suite to run."""
+        self.test_suites.append(suite)
+    
+    async def run_all(self) -> TestReport:
+        """Run all test suites and generate report."""
+        report = TestReport()
+        
+        for suite in self.test_suites:
+            suite_results = await self._run_suite(suite)
+            report.add_suite_results(suite_results)
+        
+        return report
+    
+    async def _run_suite(self, suite: TestSuite) -> SuiteResults:
+        """Run a single test suite."""
+        results = SuiteResults(name=suite.name)
+        
+        for test in suite.tests:
+            start_time = time.time()
+            try:
+                await test.run()
+                results.add_pass(test.name, time.time() - start_time)
+            except AssertionError as e:
+                results.add_fail(test.name, str(e), time.time() - start_time)
+            except Exception as e:
+                results.add_error(test.name, str(e), time.time() - start_time)
+        
+        return results
+    
+    def generate_report(self, results: TestReport) -> str:
+        """Generate human-readable test report."""
+        lines = [
+            "=" * 60,
+            "RAG Test Suite Report",
+            "=" * 60,
+            f"Total Tests: {results.total}",
+            f"Passed: {results.passed} ✓",
+            f"Failed: {results.failed} ✗",
+            f"Errors: {results.errors} ⚠",
+            f"Duration: {results.duration:.2f}s",
+            "-" * 60,
+        ]
+        
+        for suite in results.suites:
+            lines.append(f"\n{suite.name}")
+            lines.append("-" * 40)
+            for test in suite.tests:
+                status = "✓" if test.passed else "✗" if test.failed else "⚠"
+                lines.append(f"  {status} {test.name} ({test.duration:.3f}s)")
+                if test.error:
+                    lines.append(f"      Error: {test.error}")
+        
+        return "\n".join(lines)
+```
+
+## Integration with CI/CD
+
+```yaml
+# .github/workflows/rag-tests.yml
+name: RAG Quality Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Run RAG Tests
+        run: |
+          python -m pytest tests/rag/ -v --tb=short
+      
+      - name: Quality Gate
+        run: |
+          python scripts/check_quality.py --min-score 0.85
+      
+      - name: Upload Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: test-results/
+```
+
+## Best Practices
+
+1. **Test Data Management**: Use fixtures and factories
+2. **Deterministic Tests**: Mock LLM calls for consistency
+3. **Performance Baselines**: Track latency regressions
+4. **Golden Datasets**: Maintain curated test cases
+5. **Failure Analysis**: Categorize and prioritize failures
+
+## Evaluation Criteria
+
+Your test suite will be evaluated on:
+
+1. **Coverage**: All major RAG components tested
+2. **Quality**: Tests catch real bugs
+3. **Speed**: Fast enough for CI/CD
+4. **Maintainability**: Clear test organization
+5. **Reporting**: Actionable failure messages

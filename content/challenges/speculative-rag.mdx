@@ -1,6 +1,15 @@
-﻿<Callout title="Goal" variant="info">
-  Optimize RAG performance by using a small model to draft and a large model to
-  verify.
+﻿---
+title: "Speculative RAG"
+description: "Optimize RAG performance by using a small model to draft and a large model to verify"
+difficulty: "hard"
+xpReward: 200
+prerequisites: ["rag-pipeline-generator", "llm-as-judge"]
+---
+
+# Speculative RAG
+
+<Callout title="Goal" variant="info">
+  Optimize RAG performance by using a small model to draft and a large model to verify.
 </Callout>
 
 ## The "Latency vs. Quality" Tradeoff
@@ -9,10 +18,502 @@ Users want GPT-4 quality but don't want to wait 10 seconds for a response.
 
 **Speculative RAG** uses a two-step process:
 
-1.  **Draft**: A small, fast model (e.g., Llama-1B) generates a first pass answer using the retrieved context.
-2.  **Verify**: A larger model (e.g., Llama-70B or GPT-4) checks the draft for hallucinations or errors. If the draft is correct, it's accepted instantly.
+1. **Draft**: A small, fast model (e.g., Llama-1B) generates a first pass answer using the retrieved context.
+2. **Verify**: A larger model (e.g., Llama-70B or GPT-4) checks the draft for hallucinations or errors. If the draft is correct, it's accepted instantly.
 
-## Task
+## Why This Matters
 
-Implement the logic to verify a candidate "draft" answer against the "truth" found in the retrieved context chunks.
+- **Cost Reduction**: Small models are 10-100x cheaper than large models
+- **Speed**: Draft generation is near-instantaneous
+- **Quality Preservation**: Verification ensures accuracy
+- **Scalability**: Handle more queries with same resources
 
+## Real-World Applications
+
+**Companies:** Google (Speculative Decoding), OpenAI, Anthropic
+**Use Cases:**
+- High-traffic chatbots
+- Real-time assistants
+- Cost-sensitive applications
+- Edge deployment
+
+## Key Concepts
+
+### The Speculative Pipeline
+
+```
+┌─────────────────┐     ┌──────────────┐     ┌─────────────────┐
+│   User Query    │────▶│   Retrieve   │────▶│  Small Model    │
+└─────────────────┘     │   Context    │     │  (Draft)        │
+                        └──────────────┘     └────────┬────────┘
+                                                      │
+                                                      ▼
+┌─────────────────┐     ┌──────────────┐     ┌─────────────────┐
+│  Return Draft   │◀────│   Accept?    │◀────│  Large Model    │
+│  (if verified)  │     │  (Verify)    │     │  (Verify)       │
+└─────────────────┘     └──────────────┘     └─────────────────┘
+```
+
+### Verification Strategies
+
+1. **Binary Verification**: Is the draft correct? (Yes/No)
+2. **Confidence Scoring**: How confident is the verifier?
+3. **Partial Verification**: Which parts are correct?
+4. **Iterative Refinement**: Fix specific errors
+
+## Implementation
+
+### Core Speculative RAG Class
+
+```python
+from dataclasses import dataclass
+from typing import List, Dict, Optional, Tuple
+from enum import Enum
+import time
+
+class VerificationResult(Enum):
+    ACCEPT = "accept"
+    REJECT = "reject"
+    PARTIAL = "partial"
+
+@dataclass
+class SpeculativeResponse:
+    answer: str
+    was_speculative: bool
+    verification_result: VerificationResult
+    draft_latency_ms: float
+    verify_latency_ms: Optional[float]
+    confidence: float
+    corrections: Optional[str] = None
+
+class SpeculativeRAG:
+    """
+    Speculative RAG that uses a small model for drafting
+    and a large model for verification.
+    """
+    
+    def __init__(
+        self,
+        small_model,  # Fast, cheap model
+        large_model,  # Slow, accurate model
+        retriever,
+        confidence_threshold: float = 0.8
+    ):
+        self.small_model = small_model
+        self.large_model = large_model
+        self.retriever = retriever
+        self.confidence_threshold = confidence_threshold
+        self.stats = {
+            "speculative_hits": 0,
+            "speculative_misses": 0,
+            "total_latency_saved_ms": 0
+        }
+    
+    async def answer(
+        self,
+        query: str,
+        use_verification: bool = True
+    ) -> SpeculativeResponse:
+        """
+        Generate answer using speculative execution.
+        
+        Args:
+            query: User question
+            use_verification: Whether to verify or just use draft
+            
+        Returns:
+            SpeculativeResponse with metadata
+        """
+        # 1. Retrieve context
+        docs = await self.retriever.search(query)
+        context = self._format_context(docs)
+        
+        # 2. Generate draft with small model
+        draft_start = time.time()
+        draft = await self._generate_draft(query, context)
+        draft_latency = (time.time() - draft_start) * 1000
+        
+        if not use_verification:
+            return SpeculativeResponse(
+                answer=draft,
+                was_speculative=True,
+                verification_result=VerificationResult.ACCEPT,
+                draft_latency_ms=draft_latency,
+                verify_latency_ms=None,
+                confidence=1.0
+            )
+        
+        # 3. Verify with large model
+        verify_start = time.time()
+        verification = await self._verify_draft(query, context, draft)
+        verify_latency = (time.time() - verify_start) * 1000
+        
+        # 4. Decide whether to accept draft
+        if verification.result == VerificationResult.ACCEPT:
+            self.stats["speculative_hits"] += 1
+            self.stats["total_latency_saved_ms"] += (
+                self._estimate_large_model_latency() - draft_latency
+            )
+            
+            return SpeculativeResponse(
+                answer=draft,
+                was_speculative=True,
+                verification_result=VerificationResult.ACCEPT,
+                draft_latency_ms=draft_latency,
+                verify_latency_ms=verify_latency,
+                confidence=verification.confidence
+            )
+        
+        # 5. If rejected, regenerate with large model
+        self.stats["speculative_misses"] += 1
+        
+        if verification.result == VerificationResult.REJECT:
+            final_answer = await self._generate_with_large_model(query, context)
+        else:  # PARTIAL
+            final_answer = await self._refine_draft(
+                query, context, draft, verification.issues
+            )
+        
+        return SpeculativeResponse(
+            answer=final_answer,
+            was_speculative=False,
+            verification_result=verification.result,
+            draft_latency_ms=draft_latency,
+            verify_latency_ms=verify_latency,
+            confidence=verification.confidence,
+            corrections=verification.corrections
+        )
+    
+    async def _generate_draft(self, query: str, context: str) -> str:
+        """Generate draft answer with small model."""
+        prompt = f"""Based on the following context, answer the question.
+Be concise but accurate.
+
+Context:
+{context}
+
+Question: {query}
+
+Answer:"""
+        
+        return await self.small_model.generate(prompt, max_tokens=500)
+    
+    async def _verify_draft(
+        self,
+        query: str,
+        context: str,
+        draft: str
+    ) -> "Verification":
+        """Verify draft answer with large model."""
+        prompt = f"""You are a verification system. Review the draft answer for accuracy based on the context.
+
+Context:
+{context}
+
+Question: {query}
+
+Draft Answer:
+{draft}
+
+Evaluate the draft:
+1. Is it factually accurate based on the context? (yes/no/partial)
+2. What is your confidence (0.0-1.0)?
+3. If there are issues, list them.
+4. If rejected, provide the correct answer.
+
+Respond in JSON format:
+{{
+    "result": "accept|reject|partial",
+    "confidence": 0.0-1.0,
+    "issues": ["issue1", "issue2"],
+    "corrections": "corrected answer if needed"
+}}"""
+        
+        response = await self.large_model.generate(prompt, max_tokens=1000)
+        return self._parse_verification(response)
+    
+    def _parse_verification(self, response: str) -> "Verification":
+        """Parse verification response."""
+        import json
+        try:
+            data = json.loads(response)
+            return Verification(
+                result=VerificationResult(data["result"]),
+                confidence=data["confidence"],
+                issues=data.get("issues", []),
+                corrections=data.get("corrections")
+            )
+        except:
+            # Default to reject if parsing fails
+            return Verification(
+                result=VerificationResult.REJECT,
+                confidence=0.0,
+                issues=["Failed to parse verification"],
+                corrections=None
+            )
+    
+    async def _generate_with_large_model(
+        self,
+        query: str,
+        context: str
+    ) -> str:
+        """Generate answer with large model (fallback)."""
+        prompt = f"""Based on the following context, provide a detailed and accurate answer.
+
+Context:
+{context}
+
+Question: {query}
+
+Answer:"""
+        
+        return await self.large_model.generate(prompt, max_tokens=1000)
+    
+    async def _refine_draft(
+        self,
+        query: str,
+        context: str,
+        draft: str,
+        issues: List[str]
+    ) -> str:
+        """Refine draft based on identified issues."""
+        prompt = f"""Fix the following draft answer based on the identified issues.
+
+Context:
+{context}
+
+Question: {query}
+
+Draft Answer:
+{draft}
+
+Issues to fix:
+{chr(10).join(f"- {issue}" for issue in issues)}
+
+Provide the corrected answer:"""
+        
+        return await self.large_model.generate(prompt, max_tokens=1000)
+    
+    def _format_context(self, docs: List[Dict]) -> str:
+        """Format retrieved documents into context string."""
+        return "\n\n".join([
+            f"[{i+1}] {doc.get('title', 'Untitled')}\n{doc.get('content', '')}"
+            for i, doc in enumerate(docs)
+        ])
+    
+    def _estimate_large_model_latency(self) -> float:
+        """Estimate latency for large model (for stats)."""
+        return 5000.0  # 5 seconds estimate
+    
+    def get_stats(self) -> Dict:
+        """Get speculative execution statistics."""
+        total = self.stats["speculative_hits"] + self.stats["speculative_misses"]
+        hit_rate = (
+            self.stats["speculative_hits"] / total * 100
+            if total > 0 else 0
+        )
+        
+        return {
+            **self.stats,
+            "total_attempts": total,
+            "speculative_hit_rate": hit_rate,
+            "average_latency_saved_ms": (
+                self.stats["total_latency_saved_ms"] / total
+                if total > 0 else 0
+            )
+        }
+
+@dataclass
+class Verification:
+    result: VerificationResult
+    confidence: float
+    issues: List[str]
+    corrections: Optional[str]
+```
+
+### Usage Example
+
+```python
+# Initialize models (mock implementations)
+class SmallModel:
+    async def generate(self, prompt: str, max_tokens: int) -> str:
+        # Fast, approximate generation
+        await asyncio.sleep(0.1)  # 100ms
+        return "Draft answer based on context..."
+
+class LargeModel:
+    async def generate(self, prompt: str, max_tokens: int) -> str:
+        # Slow, accurate generation
+        await asyncio.sleep(2.0)  # 2 seconds
+        return "Detailed, verified answer..."
+
+# Create speculative RAG system
+spec_rag = SpeculativeRAG(
+    small_model=SmallModel(),
+    large_model=LargeModel(),
+    retriever=retriever,
+    confidence_threshold=0.8
+)
+
+# Use it
+response = await spec_rag.answer("What is machine learning?")
+
+print(f"Answer: {response.answer}")
+print(f"Was speculative: {response.was_speculative}")
+print(f"Confidence: {response.confidence}")
+print(f"Draft latency: {response.draft_latency_ms:.0f}ms")
+
+# Check stats
+stats = spec_rag.get_stats()
+print(f"Speculative hit rate: {stats['speculative_hit_rate']:.1f}%")
+print(f"Total latency saved: {stats['total_latency_saved_ms']:.0f}ms")
+```
+
+## Advanced Techniques
+
+### Adaptive Threshold
+
+```python
+class AdaptiveSpeculativeRAG(SpeculativeRAG):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.confidence_history = []
+        
+    def update_threshold(self):
+        """Adjust threshold based on recent performance."""
+        if len(self.confidence_history) > 100:
+            avg_confidence = sum(self.confidence_history[-100:]) / 100
+            
+            # If we're too conservative, lower threshold
+            if avg_confidence > 0.9:
+                self.confidence_threshold = max(0.6, self.confidence_threshold - 0.05)
+            # If we're too aggressive, raise threshold
+            elif avg_confidence < 0.7:
+                self.confidence_threshold = min(0.95, self.confidence_threshold + 0.05)
+```
+
+### Multi-Stage Verification
+
+```python
+async def multi_stage_verify(
+    self,
+    query: str,
+    context: str,
+    draft: str
+) -> Verification:
+    """Use multiple verification strategies."""
+    
+    # Stage 1: Self-consistency check
+    consistency = await self._check_self_consistency(draft)
+    if not consistency.is_consistent:
+        return Verification(
+            result=VerificationResult.REJECT,
+            confidence=0.0,
+            issues=["Self-inconsistent"],
+            corrections=None
+        )
+    
+    # Stage 2: Fact verification
+    fact_check = await self._verify_facts(draft, context)
+    
+    # Stage 3: Overall quality
+    quality = await self._assess_quality(query, draft)
+    
+    # Combine results
+    final_confidence = (
+        consistency.score * 0.3 +
+        fact_check.score * 0.5 +
+        quality.score * 0.2
+    )
+    
+    if final_confidence >= self.confidence_threshold:
+        return Verification(
+            result=VerificationResult.ACCEPT,
+            confidence=final_confidence,
+            issues=[],
+            corrections=None
+        )
+    
+    return Verification(
+        result=VerificationResult.REJECT,
+        confidence=final_confidence,
+        issues=fact_check.issues + quality.issues,
+        corrections=None
+    )
+```
+
+## Evaluation
+
+### Metrics to Track
+
+1. **Speculative Hit Rate**: % of drafts accepted
+2. **Latency Savings**: Time saved vs. using large model directly
+3. **Accuracy**: Correctness of speculative answers
+4. **Cost Savings**: Reduction in API costs
+
+### Benchmarking
+
+```python
+async def benchmark_speculative_rag(
+    spec_rag: SpeculativeRAG,
+    test_queries: List[str]
+) -> Dict:
+    """Benchmark speculative RAG performance."""
+    results = []
+    
+    for query in test_queries:
+        # Time speculative approach
+        start = time.time()
+        response = await spec_rag.answer(query)
+        spec_time = time.time() - start
+        
+        # Time direct large model approach
+        start = time.time()
+        direct_answer = await spec_rag._generate_with_large_model(
+            query, ""
+        )
+        direct_time = time.time() - start
+        
+        results.append({
+            "query": query,
+            "speculative_time": spec_time,
+            "direct_time": direct_time,
+            "was_speculative": response.was_speculative,
+            "speedup": direct_time / spec_time if spec_time > 0 else 0
+        })
+    
+    return {
+        "avg_speedup": sum(r["speedup"] for r in results) / len(results),
+        "speculative_rate": sum(r["was_speculative"] for r in results) / len(results),
+        "total_time_saved": sum(r["direct_time"] - r["speculative_time"] for r in results)
+    }
+```
+
+## Production Considerations
+
+### When to Use Speculative RAG
+
+✅ **Good for:**
+- High-traffic applications
+- Simple, factual queries
+- Well-understood domains
+- Cost-sensitive deployments
+
+❌ **Avoid for:**
+- Complex reasoning tasks
+- Creative writing
+- Safety-critical applications
+- Novel or ambiguous queries
+
+### Best Practices
+
+1. **Start Conservative**: Use high confidence threshold (0.9+)
+2. **Monitor Accuracy**: Track correctness of speculative answers
+3. **Domain-Specific**: Tune for your specific use case
+4. **Fallback Always**: Never rely solely on speculative answers
+
+## Resources
+
+- [Speculative Decoding Paper](https://arxiv.org/abs/2211.17192)
+- [Fast Inference from Transformers](https://arxiv.org/abs/2303.08774)
+- [LLM Cascades](https://arxiv.org/abs/2207.10342)

@@ -1,4 +1,14 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "RAG Pipeline: The Chunker"
+description: "Build the first component of your Production RAG Pipeline: The Document Chunker"
+difficulty: "beginner"
+estimatedMinutes: 20
+xpReward: 30
+prerequisites: ["simple-chunking"]
+related: ["rag-pipeline-embedder", "fixed-size-chunking-fundamentals", "overlap-chunking"]
+---
+
+<Callout title="Goal" variant="info">
   Build the first component of your Production RAG Pipeline: The Document
   Chunker.
 </Callout>
@@ -14,4 +24,190 @@ The **RAG Pipeline Saga** will take you through the entire lifecycle of a reques
 Your pipeline begins with raw text. To search it efficiently, you must divide it into digestible chunks.
 
 In this challenge, you will implement the `chunk` method of a `Pipeline` class. This class will eventually host all your RAG logic.
+
+## Why This Matters in Production
+
+Chunking is the foundation of RAG. Poor chunking leads to:
+
+| Problem | Impact |
+|---------|--------|
+| **Chunks too large** | Exceed context window, dilute relevance |
+| **Chunks too small** | Lose context, increase index size |
+| **Bad boundaries** | Cut through sentences, lose meaning |
+| **No overlap** | Miss connections at chunk boundaries |
+
+## What You're Implementing
+
+A `chunk` method that:
+- Takes raw text input
+- Splits into manageable pieces
+- Returns a list of chunks for downstream processing
+
+## The Chunking Pipeline
+
+```
+Raw Document → Text Extraction → Chunking → Chunks
+      ↓               ↓              ↓         ↓
+   PDF/Markdown    Plain Text    Strategy   [chunk1,
+                                            chunk2,
+                                            chunk3]
+```
+
+## Mathematical Foundations
+
+### Chunk Size Trade-offs
+
+```
+Optimal chunk size = f(context_window, document_type, query_type)
+
+Where:
+- context_window: LLM's maximum input tokens
+- document_type: Code, prose, tables have different needs
+- query_type: Factual vs analytical queries need different granularity
+```
+
+### Overlap Calculation
+
+```
+step_size = chunk_size - overlap
+num_chunks = ceil((text_length - overlap) / step_size)
+```
+
+## Implementation Example
+
+```python
+from typing import List
+
+class Pipeline:
+    def __init__(self, chunk_size: int = 500, overlap: int = 50):
+        """
+        Initialize the RAG pipeline.
+        
+        Args:
+            chunk_size: Maximum characters per chunk
+            overlap: Characters to overlap between chunks
+        """
+        self.chunk_size = chunk_size
+        self.overlap = overlap
+    
+    def chunk(self, text: str) -> List[str]:
+        """
+        Split text into overlapping chunks.
+        
+        Time Complexity: O(N) where N = text length
+        Space Complexity: O(N) for storing chunks
+        
+        Args:
+            text: Input text to chunk
+            
+        Returns:
+            List of text chunks
+            
+        Example:
+            >>> pipeline = Pipeline(chunk_size=10, overlap=3)
+            >>> pipeline.chunk("Hello world, this is a test")
+            ['Hello worl', 'orld, this', 'this is a ', 'is a test']
+        """
+        if not text:
+            return []
+        
+        if self.chunk_size <= 0:
+            raise ValueError("chunk_size must be positive")
+        
+        if self.overlap >= self.chunk_size:
+            raise ValueError("overlap must be less than chunk_size")
+        
+        chunks = []
+        step = self.chunk_size - self.overlap
+        
+        for i in range(0, len(text), step):
+            chunk = text[i:i + self.chunk_size]
+            chunks.append(chunk)
+            
+            # Stop if we've reached the end
+            if i + self.chunk_size >= len(text):
+                break
+        
+        return chunks
+
+# Usage Example
+pipeline = Pipeline(chunk_size=500, overlap=50)
+document = """Your long document text here..."""
+chunks = pipeline.chunk(document)
+print(f"Created {len(chunks)} chunks")
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Time | O(N) | Single pass through text |
+| Space | O(N) | Store all chunks |
+| Overlap | O(N) | Minimal overhead |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand how chunking fits into the RAG pipeline
+- Be able to implement configurable chunking strategies
+- Know how to balance chunk size vs. overlap
+
+## Real-World Applications
+
+| Company | Chunking Strategy |
+|---------|------------------|
+| **LangChain** | Recursive, character, token-based splitters |
+| **LlamaIndex** | Node parsers with semantic chunking |
+| **Pinecone** | Integration with various chunking libraries |
+| **OpenAI** | Token-based chunking for embeddings |
+
+## Common Pitfalls
+
+- **Off-by-one errors**: At the end of text
+- **Overlap too large**: Creates too many redundant chunks
+- **No validation**: Missing checks for invalid parameters
+- **Memory issues**: Loading entire documents into memory
+- **Unicode handling**: Splitting multi-byte characters
+
+## Production Extensions (Optional)
+
+- **Semantic Chunking**: Split at semantic boundaries (sentences, paragraphs)
+- **Hierarchical Chunking**: Parent-child relationships between chunks
+- **Metadata Preservation**: Track source location for each chunk
+- **Adaptive Chunking**: Adjust size based on content type
+
+## Resources
+
+### Documentation
+- [LangChain Text Splitters](https://python.langchain.com/docs/concepts/text_splitters/)
+- [LlamaIndex Node Parsers](https://docs.llamaindex.ai/en/stable/module_guides/loading/node_parsers/)
+- [Chunking Best Practices](https://www.pinecone.io/learn/chunking-strategies/)
+
+### Tools
+- **LangChain**: Multiple chunking strategies
+- **Unstructured**: Document parsing with chunking
+- **tiktoken**: Token-aware chunking
+
+### Papers
+- "Efficient Document Chunking for Retrieval-Augmented Generation" (Various)
+- "Late Chunking: Contextual Chunking for RAG" (Recent research)
+
+## Interview Questions
+
+1. **Why use overlapping chunks?**
+   - Preserves context at boundaries, improves recall for queries spanning chunks
+
+2. **How do you choose chunk size?**
+   - Consider context window, document type, and typical query length
+
+3. **What are the trade-offs of smaller vs larger chunks?**
+   - Smaller: Better precision, more index overhead; Larger: Better context, may exceed limits
+
+## After You Pass
+
+Move to **Stage 2: The Embedder** with [rag-pipeline-embedder](rag-pipeline-embedder) to convert chunks into vectors.
+
+---
+
+**🚀 Saga Started:** You've begun building a complete RAG pipeline! Next: embedding generation.
 

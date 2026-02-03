@@ -20,6 +20,7 @@ const VALID_STAGES = new Set([
   "fine-tuning",
   "production-ops",
   "evaluation-ops",
+  "frontier",
   "capstone-projects",
   "arena",
 ]);

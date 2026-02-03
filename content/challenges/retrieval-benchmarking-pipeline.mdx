@@ -2,68 +2,675 @@
 title: "End-to-End Retrieval Benchmarking"
 description: "Build a complete pipeline for comparing multiple retrievers"
 difficulty: "hard"
-xpReward: 150
-prerequisites: ["beir-evaluation-setup", "mteb-evaluation"]
+estimatedMinutes: 50
+prerequisites: ["beir-evaluation-setup", "mteb-evaluation", "retrieval-metrics"]
+related: ["beir-evaluation-setup", "mteb-evaluation", "retrieval-metrics", "rag-ab-testing"]
+next: "arena-tfidf-log-search"
+xpReward: 175
 ---
 
-# End-to-End Retrieval Benchmarking
+<Callout title="Goal" variant="info">
+  Build a complete benchmarking pipeline that compares multiple retrievers
+  across multiple datasets.
+</Callout>
 
-Build a complete benchmarking pipeline that compares multiple retrievers across multiple datasets.
+## Why Benchmarking Matters
 
-## Why This Matters
+Fair comparison requires controlled experiments. Production teams need systematic benchmarking to decide which retrieval configuration to deploy.
 
-Fair comparison requires controlled experiments. This is how production teams decide which retrieval configuration to deploy.
+**Benchmarking enables:**
 
-## What You'll Learn
+- **Model selection**: Choose the best retriever for your use case
+- **Configuration tuning**: Optimize hyperparameters
+- **Regression testing**: Catch performance degradations
+- **A/B testing**: Compare approaches statistically
 
-- Benchmarking pipeline design
-- Latency and throughput measurement
-- Report generation
-- A/B testing foundations
+## Benchmark Components
 
-## Real-World Application
+| Component | Purpose | Key Metrics |
+|-----------|---------|-------------|
+| **Datasets** | Evaluation data | Queries, documents, relevance |
+| **Retrievers** | Systems to compare | BM25, Dense, Hybrid |
+| **Metrics** | Success criteria | nDCG, Recall, Precision |
+| **Latency** | Speed measurement | P50, P95, P99 |
+| **Reports** | Results visualization | Tables, charts, summaries |
 
-**Companies:** Pinecone, Weaviate, Qdrant, Elastic
-**Use Cases:** Model comparison, Config tuning, Regression testing
+## Complexity Analysis
 
-## The Challenge
+| Operation | Time | Space |
+|-----------|------|-------|
+| Index all retrievers | O(R × N) | O(R × V) |
+| Run queries | O(R × Q × retrieval_time) | O(R × Q × K) |
+| Compute metrics | O(R × Q × K) | O(R × metrics) |
+| Where R = retrievers, Q = queries, N = docs, K = results |
 
-Build a `RetrievalBenchmark` class that:
+## Real-World Context
 
-1. Registers multiple retrievers
-2. Runs benchmarks with warmup
-3. Measures latency and throughput
-4. Generates markdown reports
-5. Identifies the best retriever
+| Company | Benchmarking Use |
+|---------|------------------|
+| **Pinecone** | Vector DB comparison |
+| **Weaviate** | Hybrid search tuning |
+| **Qdrant** | Performance regression |
+| **Elastic** | BM25 vs dense evaluation |
 
-## Key Concepts
+## Resources
 
-### Benchmark Configuration
+### Papers
+- **"BEIR: A Heterogeneous Benchmark"** - Thakur et al.
+- **"MTEB: Massive Text Embedding Benchmark"** - Muennighoff et al.
+
+### Tools
+- **ranx**: Benchmarking framework
+- **TREC Eval**: Standard IR evaluation
+- **Pyserini**: Anserini Python bindings
+
+## Implementation
 
 ```python
-benchmark = RetrievalBenchmark(datasets)
-benchmark.add_retriever(RetrieverConfig("bm25", bm25_fn))
-benchmark.add_retriever(RetrieverConfig("dense", dense_fn))
-results = benchmark.run_benchmark(k=10, num_warmup=5, num_runs=3)
+from typing import Dict, List, Callable, Any
+from dataclasses import dataclass, field
+import time
+import statistics
+
+@dataclass
+class RetrieverConfig:
+    """Configuration for a retriever to benchmark."""
+    name: str
+    retriever_fn: Callable[[str, int], List[str]]
+    index_fn: Callable[[List[str]], Any]
+    description: str = ""
+
+@dataclass
+class BenchmarkResult:
+    """Result of benchmarking a retriever."""
+    retriever_name: str
+    dataset_name: str
+    metrics: Dict[str, float]
+    latency_ms: float
+    p95_latency_ms: float
+    throughput_qps: float
+    num_queries: int
+
+@dataclass
+class Dataset:
+    """Benchmark dataset."""
+    name: str
+    documents: List[str]
+    queries: List[str]
+    qrels: Dict[str, Dict[str, int]]  # query_id -> {doc_id: relevance}
+
+
+class RetrievalBenchmark:
+    """
+    Complete benchmarking pipeline for retrieval systems.
+    
+    Features:
+    - Register multiple retrievers
+    - Run benchmarks with warmup
+    - Measure latency and throughput
+    - Generate markdown reports
+    """
+    
+    def __init__(self, datasets: List[Dataset]):
+        """
+        Initialize benchmark with datasets.
+        
+        Args:
+            datasets: List of benchmark datasets
+        """
+        self.datasets = {d.name: d for d in datasets}
+        self.retrievers: List[RetrieverConfig] = []
+        self.results: List[BenchmarkResult] = []
+    
+    def add_retriever(self, config: RetrieverConfig):
+        """
+        Register a retriever for benchmarking.
+        
+        Args:
+            config: Retriever configuration
+        """
+        self.retrievers.append(config)
+    
+    def run_benchmark(
+        self,
+        k: int = 10,
+        num_warmup: int = 5,
+        num_runs: int = 3
+    ) -> List[BenchmarkResult]:
+        """
+        Run benchmark for all retrievers on all datasets.
+        
+        Args:
+            k: Number of results to retrieve
+            num_warmup: Number of warmup queries
+            num_runs: Number of benchmark runs
+        
+        Returns:
+            List of benchmark results
+        """
+        self.results = []
+        
+        for dataset in self.datasets.values():
+            print(f"\nBenchmarking on {dataset.name}...")
+            
+            for retriever in self.retrievers:
+                print(f"  {retriever.name}...")
+                
+                # Build index
+                index = retriever.index_fn(dataset.documents)
+                
+                # Warmup
+                for i in range(min(num_warmup, len(dataset.queries))):
+                    retriever.retriever_fn(dataset.queries[i], k)
+                
+                # Benchmark runs
+                all_metrics = []
+                all_latencies = []
+                
+                for _ in range(num_runs):
+                    run_metrics = []
+                    run_latencies = []
+                    
+                    for query_id, query in enumerate(dataset.queries):
+                        start = time.time()
+                        results = retriever.retriever_fn(query, k)
+                        latency = (time.time() - start) * 1000
+                        
+                        run_latencies.append(latency)
+                        
+                        # Calculate metrics for this query
+                        query_str = str(query_id)
+                        if query_str in dataset.qrels:
+                            metrics = self._compute_metrics(
+                                results, dataset.qrels[query_str], k
+                            )
+                            run_metrics.append(metrics)
+                    
+                    if run_metrics:
+                        avg_metrics = {
+                            key: statistics.mean([m[key] for m in run_metrics])
+                            for key in run_metrics[0].keys()
+                        }
+                        all_metrics.append(avg_metrics)
+                    
+                    all_latencies.extend(run_latencies)
+                
+                # Aggregate results
+                final_metrics = {}
+                if all_metrics:
+                    final_metrics = {
+                        key: statistics.mean([m[key] for m in all_metrics])
+                        for key in all_metrics[0].keys()
+                    }
+                
+                result = BenchmarkResult(
+                    retriever_name=retriever.name,
+                    dataset_name=dataset.name,
+                    metrics=final_metrics,
+                    latency_ms=statistics.mean(all_latencies),
+                    p95_latency_ms=statistics.quantiles(all_latencies, n=20)[18],
+                    throughput_qps=len(dataset.queries) / (sum(all_latencies) / 1000),
+                    num_queries=len(dataset.queries)
+                )
+                
+                self.results.append(result)
+        
+        return self.results
+    
+    def _compute_metrics(
+        self,
+        results: List[str],
+        qrels: Dict[str, int],
+        k: int
+    ) -> Dict[str, float]:
+        """
+        Compute retrieval metrics.
+        
+        Args:
+            results: Retrieved document IDs
+            qrels: Ground truth relevance
+            k: Number of results
+        
+        Returns:
+            Dict of metric names to values
+        """
+        results_k = results[:k]
+        relevant = set(doc_id for doc_id, rel in qrels.items() if rel > 0)
+        
+        # Recall@K
+        recall = len(set(results_k) & relevant) / len(relevant) if relevant else 0
+        
+        # Precision@K
+        precision = len(set(results_k) & relevant) / len(results_k) if results_k else 0
+        
+        # nDCG@K
+        dcg = 0
+        for i, doc_id in enumerate(results_k):
+            rel = qrels.get(doc_id, 0)
+            dcg += (2 ** rel - 1) / math.log2(i + 2)
+        
+        ideal_rels = sorted(qrels.values(), reverse=True)[:k]
+        idcg = sum((2 ** rel - 1) / math.log2(i + 2) for i, rel in enumerate(ideal_rels))
+        ndcg = dcg / idcg if idcg > 0 else 0
+        
+        return {
+            f'recall@{k}': recall,
+            f'precision@{k}': precision,
+            f'ndcg@{k}': ndcg
+        }
+    
+    def generate_report(self) -> str:
+        """
+        Generate markdown report of benchmark results.
+        
+        Returns:
+            Markdown formatted report
+        """
+        if not self.results:
+            return "No results to report."
+        
+        lines = ["# Retrieval Benchmark Report\n"]
+        
+        # Overall leaderboard
+        lines.append("## Leaderboard (by nDCG)\n")
+        lines.append("| Rank | Retriever | Dataset | nDCG@10 | Recall@10 | Latency (ms) |")
+        lines.append("|------|-----------|---------|---------|-----------|--------------|")
+        
+        sorted_results = sorted(
+            self.results,
+            key=lambda r: r.metrics.get('ndcg@10', 0),
+            reverse=True
+        )
+        
+        for i, result in enumerate(sorted_results[:10], 1):
+            ndcg = result.metrics.get('ndcg@10', 0)
+            recall = result.metrics.get('recall@10', 0)
+            lines.append(
+                f"| {i} | {result.retriever_name} | {result.dataset_name} | "
+                f"{ndcg:.3f} | {recall:.3f} | {result.latency_ms:.1f} |"
+            )
+        
+        # Per-dataset breakdown
+        lines.append("\n## Per-Dataset Results\n")
+        
+        datasets = sorted(set(r.dataset_name for r in self.results))
+        for dataset in datasets:
+            lines.append(f"\n### {dataset}\n")
+            lines.append("| Retriever | nDCG@10 | Recall@10 | Precision@10 | P95 Latency |")
+            lines.append("|-----------|---------|-----------|--------------|-------------|")
+            
+            dataset_results = [r for r in self.results if r.dataset_name == dataset]
+            dataset_results.sort(key=lambda r: r.metrics.get('ndcg@10', 0), reverse=True)
+            
+            for result in dataset_results:
+                ndcg = result.metrics.get('ndcg@10', 0)
+                recall = result.metrics.get('recall@10', 0)
+                precision = result.metrics.get('precision@10', 0)
+                lines.append(
+                    f"| {result.retriever_name} | {ndcg:.3f} | {recall:.3f} | "
+                    f"{precision:.3f} | {result.p95_latency_ms:.1f}ms |"
+                )
+        
+        # Latency vs Quality tradeoff
+        lines.append("\n## Latency vs Quality Tradeoff\n")
+        lines.append("```")
+        for result in sorted_results:
+            ndcg = result.metrics.get('ndcg@10', 0)
+            lines.append(
+                f"{result.retriever_name:20s} | Quality: {ndcg:.3f} | "
+                f"Speed: {result.latency_ms:.1f}ms"
+            )
+        lines.append("```")
+        
+        return "\n".join(lines)
+    
+    def get_best_retriever(self, metric: str = 'ndcg@10') -> str:
+        """
+        Get the best performing retriever by metric.
+        
+        Args:
+            metric: Metric to rank by
+        
+        Returns:
+            Name of best retriever
+        """
+        if not self.results:
+            return ""
+        
+        best = max(self.results, key=lambda r: r.metrics.get(metric, 0))
+        return best.retriever_name
 ```
 
-### Result Structure
+## Challenge: Build Benchmark Pipeline
+
+### Requirements
+
+1. Implement `RetrieverConfig` dataclass
+2. Implement `BenchmarkResult` dataclass
+3. Implement `Dataset` dataclass
+4. Implement `add_retriever()` for registration
+5. Implement `run_benchmark()` with warmup
+6. Implement `generate_report()` for markdown output
+
+### Starter Code
 
 ```python
+from typing import Dict, List, Callable, Any
+from dataclasses import dataclass
+import time
+import statistics
+import math
+
+@dataclass
+class RetrieverConfig:
+    name: str
+    retriever_fn: Callable[[str, int], List[str]]
+    index_fn: Callable[[List[str]], Any]
+    description: str = ""
+
 @dataclass
 class BenchmarkResult:
     retriever_name: str
     dataset_name: str
-    metrics: Dict[str, float]  # nDCG, Recall, Precision
+    metrics: Dict[str, float]
     latency_ms: float
+    p95_latency_ms: float
     throughput_qps: float
+    num_queries: int
+
+@dataclass
+class Dataset:
+    name: str
+    documents: List[str]
+    queries: List[str]
+    qrels: Dict[str, Dict[str, int]]
+
+
+class RetrievalBenchmark:
+    """Complete benchmarking pipeline for retrieval systems."""
+    
+    def __init__(self, datasets: List[Dataset]):
+        self.datasets = {d.name: d for d in datasets}
+        self.retrievers: List[RetrieverConfig] = []
+        self.results: List[BenchmarkResult] = []
+    
+    def add_retriever(self, config: RetrieverConfig):
+        """Register a retriever."""
+        # TODO: Implement
+        pass
+    
+    def run_benchmark(
+        self,
+        k: int = 10,
+        num_warmup: int = 5,
+        num_runs: int = 3
+    ) -> List[BenchmarkResult]:
+        """Run benchmark for all retrievers."""
+        # TODO: Implement
+        pass
+    
+    def _compute_metrics(
+        self,
+        results: List[str],
+        qrels: Dict[str, int],
+        k: int
+    ) -> Dict[str, float]:
+        """Compute retrieval metrics."""
+        # TODO: Implement
+        pass
+    
+    def generate_report(self) -> str:
+        """Generate markdown report."""
+        # TODO: Implement
+        pass
+
+
+# Mock retrievers
+def mock_bm25_index(docs):
+    return {"type": "bm25", "docs": docs}
+
+def mock_bm25_retrieve(query, k):
+    return [f"doc_{i}" for i in range(k)]
+
+def mock_dense_index(docs):
+    return {"type": "dense", "docs": docs}
+
+def mock_dense_retrieve(query, k):
+    return [f"doc_{i}" for i in range(k)]
+
+
+# Test
+def test_benchmark():
+    # Create test dataset
+    dataset = Dataset(
+        name="test",
+        documents=[f"doc {i}" for i in range(100)],
+        queries=["query 1", "query 2", "query 3"],
+        qrels={
+            "0": {"doc_0": 1, "doc_1": 1},
+            "1": {"doc_2": 1},
+            "2": {"doc_0": 1, "doc_3": 1}
+        }
+    )
+    
+    benchmark = RetrievalBenchmark([dataset])
+    
+    # Add retrievers
+    benchmark.add_retriever(RetrieverConfig(
+        "BM25", mock_bm25_retrieve, mock_bm25_index
+    ))
+    benchmark.add_retriever(RetrieverConfig(
+        "Dense", mock_dense_retrieve, mock_dense_index
+    ))
+    
+    # Run benchmark
+    results = benchmark.run_benchmark(k=5, num_warmup=1, num_runs=1)
+    
+    print(f"Completed {len(results)} benchmark runs")
+    
+    # Generate report
+    report = benchmark.generate_report()
+    print("\n" + report[:500] + "...")
+    
+    print("\n✓ Tests passed!")
+
+test_benchmark()
 ```
 
-### Report Generation
+### Solution
 
-Generate markdown tables with:
+<details>
+<summary>Click to reveal solution</summary>
 
-- Leaderboard ranked by nDCG
-- Per-dataset breakdown
-- Latency vs quality tradeoffs
+```python
+from typing import Dict, List, Callable, Any
+from dataclasses import dataclass
+import time
+import statistics
+import math
 
+@dataclass
+class RetrieverConfig:
+    name: str
+    retriever_fn: Callable[[str, int], List[str]]
+    index_fn: Callable[[List[str]], Any]
+    description: str = ""
+
+@dataclass
+class BenchmarkResult:
+    retriever_name: str
+    dataset_name: str
+    metrics: Dict[str, float]
+    latency_ms: float
+    p95_latency_ms: float
+    throughput_qps: float
+    num_queries: int
+
+@dataclass
+class Dataset:
+    name: str
+    documents: List[str]
+    queries: List[str]
+    qrels: Dict[str, Dict[str, int]]
+
+
+class RetrievalBenchmark:
+    """Complete benchmarking pipeline for retrieval systems."""
+    
+    def __init__(self, datasets: List[Dataset]):
+        self.datasets = {d.name: d for d in datasets}
+        self.retrievers: List[RetrieverConfig] = []
+        self.results: List[BenchmarkResult] = []
+    
+    def add_retriever(self, config: RetrieverConfig):
+        """Register a retriever."""
+        self.retrievers.append(config)
+    
+    def run_benchmark(
+        self,
+        k: int = 10,
+        num_warmup: int = 5,
+        num_runs: int = 3
+    ) -> List[BenchmarkResult]:
+        """Run benchmark for all retrievers."""
+        self.results = []
+        
+        for dataset in self.datasets.values():
+            for retriever in self.retrievers:
+                # Build index
+                index = retriever.index_fn(dataset.documents)
+                
+                # Warmup
+                for i in range(min(num_warmup, len(dataset.queries))):
+                    retriever.retriever_fn(dataset.queries[i], k)
+                
+                # Benchmark
+                all_latencies = []
+                all_metrics = []
+                
+                for _ in range(num_runs):
+                    run_metrics = []
+                    run_latencies = []
+                    
+                    for query_id, query in enumerate(dataset.queries):
+                        start = time.time()
+                        results = retriever.retriever_fn(query, k)
+                        latency = (time.time() - start) * 1000
+                        
+                        run_latencies.append(latency)
+                        
+                        query_str = str(query_id)
+                        if query_str in dataset.qrels:
+                            metrics = self._compute_metrics(
+                                results, dataset.qrels[query_str], k
+                            )
+                            run_metrics.append(metrics)
+                    
+                    if run_metrics:
+                        avg_metrics = {
+                            key: statistics.mean([m[key] for m in run_metrics])
+                            for key in run_metrics[0].keys()
+                        }
+                        all_metrics.append(avg_metrics)
+                    
+                    all_latencies.extend(run_latencies)
+                
+                final_metrics = {}
+                if all_metrics:
+                    final_metrics = {
+                        key: statistics.mean([m[key] for m in all_metrics])
+                        for key in all_metrics[0].keys()
+                    }
+                
+                result = BenchmarkResult(
+                    retriever_name=retriever.name,
+                    dataset_name=dataset.name,
+                    metrics=final_metrics,
+                    latency_ms=statistics.mean(all_latencies),
+                    p95_latency_ms=sorted(all_latencies)[int(len(all_latencies) * 0.95)],
+                    throughput_qps=len(dataset.queries) / (sum(all_latencies) / 1000),
+                    num_queries=len(dataset.queries)
+                )
+                
+                self.results.append(result)
+        
+        return self.results
+    
+    def _compute_metrics(
+        self,
+        results: List[str],
+        qrels: Dict[str, int],
+        k: int
+    ) -> Dict[str, float]:
+        """Compute retrieval metrics."""
+        results_k = results[:k]
+        relevant = set(doc_id for doc_id, rel in qrels.items() if rel > 0)
+        
+        recall = len(set(results_k) & relevant) / len(relevant) if relevant else 0
+        precision = len(set(results_k) & relevant) / len(results_k) if results_k else 0
+        
+        dcg = sum(
+            (2 ** qrels.get(doc_id, 0) - 1) / math.log2(i + 2)
+            for i, doc_id in enumerate(results_k)
+        )
+        
+        ideal_rels = sorted(qrels.values(), reverse=True)[:k]
+        idcg = sum((2 ** rel - 1) / math.log2(i + 2) for i, rel in enumerate(ideal_rels))
+        ndcg = dcg / idcg if idcg > 0 else 0
+        
+        return {
+            f'recall@{k}': recall,
+            f'precision@{k}': precision,
+            f'ndcg@{k}': ndcg
+        }
+    
+    def generate_report(self) -> str:
+        """Generate markdown report."""
+        if not self.results:
+            return "No results."
+        
+        lines = ["# Benchmark Report\n"]
+        lines.append("## Results\n")
+        lines.append("| Retriever | Dataset | nDCG | Recall | Latency |")
+        lines.append("|-----------|---------|------|--------|---------|")
+        
+        for result in sorted(self.results, key=lambda r: r.metrics.get('ndcg@10', 0), reverse=True):
+            ndcg = result.metrics.get('ndcg@10', 0)
+            recall = result.metrics.get('recall@10', 0)
+            lines.append(
+                f"| {result.retriever_name} | {result.dataset_name} | "
+                f"{ndcg:.3f} | {recall:.3f} | {result.latency_ms:.1f}ms |"
+            )
+        
+        return "\n".join(lines)
+```
+
+</details>
+
+## Best Practices
+
+1. **Use warmup**: Allow JIT compilation and caching
+2. **Multiple runs**: Average out noise
+3. **Statistical significance**: Use proper sample sizes
+4. **Controlled environment**: Minimize external factors
+5. **Document everything**: Reproducibility is key
+
+## Advanced Features
+
+```python
+# Statistical significance testing
+from scipy import stats
+
+def compare_retrievers(results_a, results_b):
+    """Test if difference is statistically significant."""
+    t_stat, p_value = stats.ttest_ind(results_a, results_b)
+    return p_value < 0.05  # Significant at 95% confidence
+
+# Regression detection
+def detect_regression(baseline, current, threshold=0.05):
+    """Detect if performance regressed beyond threshold."""
+    for metric in baseline.metrics:
+        if current.metrics[metric] < baseline.metrics[metric] * (1 - threshold):
+            return True
+    return False
+```

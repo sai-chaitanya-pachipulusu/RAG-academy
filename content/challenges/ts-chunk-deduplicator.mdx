@@ -1,23 +1,237 @@
+---
+title: "Chunk Deduplicator (TypeScript)"
+description: "Remove near-duplicate chunks from retrieval results to maximize context diversity."
+language: "typescript"
+difficulty: "intermediate"
+category: "retrieval"
+prerequisites: ["ts-cosine-similarity", "ts-fixed-size-chunker"]
+related: ["exact-dedup", "simhash-near-dedup", "ts-mmr-diversity"]
+tags: ["deduplication", "diversity", "context-optimization", "retrieval"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Remove near-duplicate chunks from retrieval results.
+  Remove near-duplicate chunks from retrieval results to maximize context window efficiency.
 </Callout>
 
-## Why this matters in production
+## Why Chunk Deduplication Matters in Production
 
-Redundant chunks waste context window space and can confuse the LLM. Deduplication ensures each piece of context adds unique information.
+Redundant chunks waste context window space and can confuse the LLM. Deduplication ensures each piece of context adds unique information. In production RAG systems, deduplication is essential for:
 
-## What you're implementing
+- **Context efficiency**: Fit more unique information in limited window
+- **Answer quality**: Reduce repetition and contradiction in LLM responses
+- **Cost optimization**: Fewer tokens = lower LLM costs
+- **User experience**: More diverse, comprehensive answers
 
-- Compare chunks pairwise using similarity function.
-- Remove duplicates above similarity threshold.
-- Keep highest-scoring version of duplicates.
+### Real-World Scenario
 
-## Common pitfalls
+Consider a RAG system answering "What are the benefits of exercise?" from a health database:
 
-- O(n²) complexity for large result sets.
-- Setting threshold too low (aggressive deduplication).
+- **Without deduplication**: 
+  - Chunk 1: "Exercise improves cardiovascular health..." (score: 0.95)
+  - Chunk 2: "Exercise improves cardiovascular health..." (score: 0.94) - duplicate!
+  - Chunk 3: "Exercise improves cardiovascular health..." (score: 0.93) - duplicate!
+  - Wasted 60% of context window on same information
 
-## After you pass
+- **With deduplication**:
+  - Chunk 1: "Exercise improves cardiovascular health..." (kept)
+  - Chunk 4: "Exercise reduces stress and anxiety..." (score: 0.88)
+  - Chunk 5: "Regular exercise strengthens bones..." (score: 0.85)
+  - Maximum information diversity in context window
 
-Apply deduplication to your RAG pipeline before context building.
+## The Mathematical Foundation
 
+### Similarity-Based Deduplication
+
+```
+For each pair of chunks (a, b):
+  similarity = cosine_similarity(embedding_a, embedding_b)
+  if similarity > threshold:
+    mark as duplicate, keep higher-scoring chunk
+```
+
+### Threshold Selection
+
+| Threshold | Behavior | Use Case |
+|-----------|----------|----------|
+| 0.95+ | Aggressive | Very similar documents, strict dedup |
+| 0.85-0.95 | Moderate | General RAG, balanced approach |
+| 0.75-0.85 | Conservative | Diverse sources, preserve near-dupes |
+
+### Complexity Analysis
+
+Naive pairwise comparison: O(n²) for n chunks
+
+Optimizations:
+- **LSH (Locality Sensitive Hashing)**: O(n) for approximate
+- **HNSW indexing**: O(n log n) for exact
+- **Early termination**: Stop comparing when similarity drops
+
+## Theoretical Deep Dive
+
+### Types of Duplication
+
+| Type | Example | Detection Method |
+|------|---------|------------------|
+| **Exact** | Identical text | Hash comparison |
+| **Near-exact** | Whitespace differences | Normalized hash |
+| **Semantic** | Same meaning, different words | Embedding similarity |
+| **Structural** | Template with different values | Pattern matching |
+
+### The Diversity-Redundancy Tradeoff
+
+```
+Context Value = Information Gain - Redundancy Penalty
+
+Where:
+- Information Gain = unique facts per chunk
+- Redundancy Penalty = similarity to already-selected chunks
+```
+
+### Connection to MMR
+
+Deduplication is related to Maximal Marginal Relevance (MMR):
+
+- **MMR**: Select diverse set from candidates
+- **Deduplication**: Remove duplicates, then select
+
+Can be combined: deduplicate first, then apply MMR for final selection.
+
+## Production Considerations
+
+### Incremental Deduplication
+
+For streaming/online systems:
+
+```typescript
+class IncrementalDeduplicator {
+  private seenEmbeddings: Embedding[] = [];
+  
+  async process(newChunk: Chunk): Promise<boolean> {
+    // Check against seen embeddings
+    const isDuplicate = await this.checkDuplicate(newChunk);
+    if (!isDuplicate) {
+      this.seenEmbeddings.push(newChunk.embedding);
+    }
+    return !isDuplicate; // true if kept
+  }
+}
+```
+
+### Hierarchical Deduplication
+
+Deduplicate at multiple levels:
+
+1. **Document level**: Exact duplicates
+2. **Chunk level**: Near-duplicates
+3. **Sentence level**: Redundant sentences within chunks
+
+### Metadata Preservation
+
+When deduplicating, preserve:
+- Original source document
+- All citation information
+- Aggregate statistics (how many duplicates existed)
+
+## Your Task
+
+Implement a chunk deduplicator:
+
+```typescript
+interface Chunk {
+  id: string;
+  text: string;
+  embedding: number[];
+  score: number;
+  metadata?: Record<string, any>;
+}
+
+interface DeduplicationConfig {
+  similarityThreshold: number;  // Default: 0.9
+  keepStrategy: 'highest-score' | 'longest' | 'first';
+}
+
+interface DeduplicationResult {
+  uniqueChunks: Chunk[];
+  duplicates: Array<{
+    kept: Chunk;
+    removed: Chunk[];
+    similarity: number;
+  }>;
+  stats: {
+    inputCount: number;
+    outputCount: number;
+    duplicateGroups: number;
+  };
+}
+
+function deduplicateChunks(
+  chunks: Chunk[],
+  config?: Partial<DeduplicationConfig>
+): DeduplicationResult {
+  /**
+   * Remove near-duplicate chunks based on embedding similarity.
+   * 
+   * Args:
+   *   chunks: Retrieved chunks with embeddings
+   *   config: Deduplication settings
+   * 
+   * Returns:
+   *   DeduplicationResult with unique chunks and duplicate information
+   * 
+   * Algorithm:
+   *   1. Sort chunks by score (descending)
+   *   2. For each chunk, compare to already-kept chunks
+   *   3. If similarity > threshold, mark as duplicate of most similar kept chunk
+   *   4. Otherwise, add to kept chunks
+   *   5. Return results with statistics
+   * 
+   * Edge Cases:
+   *   - Empty input: return empty result
+   *   - Single chunk: return as unique
+   *   - All duplicates: keep one based on strategy
+   */
+}
+
+function computeSimilarity(a: number[], b: number[]): number {
+  /**
+   * Compute cosine similarity between two embeddings.
+   * Assumes embeddings are normalized (or compute full cosine).
+   */
+}
+```
+
+### Validation Checklist
+
+- [ ] Empty input returns empty result
+- [ ] Exact duplicates (similarity = 1.0) correctly identified
+- [ ] Threshold comparison uses correct operator (>= or >)
+- [ ] Keep strategy respected (highest score, longest, first)
+- [ ] Statistics calculated correctly
+- [ ] Original order not necessarily preserved (sorted by score)
+- [ ] Metadata preserved in kept chunks
+
+## Common Pitfalls
+
+- **O(n²) complexity for large result sets**: Use LSH or blocking for large n
+- **Setting threshold too low**: Aggressive deduplication loses information
+- **Not handling embedding dimension mismatch**: Validate before computing similarity
+- **Ignoring score in duplicate selection**: Higher-scoring chunks should be preferred
+- **Memory bloat**: Don't store all pairwise similarities
+
+## After You Pass
+
+Apply deduplication to your RAG pipeline before context building, or combine with MMR for maximum diversity.
+
+## Resources
+
+### Academic Papers
+- ["Detecting Near-Duplicates for Web Crawling"](https://www2007.org/papers/paper215.pdf) - Manku et al. (SimHash)
+- ["Similarity Estimation Techniques from Rounding Algorithms"](https://www.cs.princeton.edu/courses/archive/spring04/cos598B/bib/CharikarEstim.pdf) - Charikar (LSH)
+
+### Documentation
+- [Scikit-learn NearestNeighbors](https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.NearestNeighbors.html) - Efficient similarity search
+- [FAISS Deduplication](https://github.com/facebookresearch/faiss/wiki/Indexing-1M-vectors) - Large-scale dedup
+
+### Tutorials
+- ["Near-Duplicate Detection"](https://moz.com/blog/near-duplicate-detection) - SEO perspective
+- ["Semantic Deduplication with Embeddings"](https://www.pinecone.io/learn/semantic-deduplication/) - Vector-based approach

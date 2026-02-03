@@ -1,10 +1,20 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "BM25 Field Boosting"
+description: "Implement field-boosted BM25 so matches in high-signal fields matter more"
+difficulty: "medium"
+estimatedMinutes: 35
+xpReward: 65
+prerequisites: ["bm25-from-scratch"]
+related: ["bm25-from-scratch", "hybrid-search-tuning", "metadata-filtering"]
+---
+
+<Callout title="Goal" variant="info">
   Implement **field-boosted BM25** so matches in a high-signal field (like a title) matter more than matches in a body.
 </Callout>
 
-## Why this matters
+## Why This Matters
 
-In production search, “keyword retrieval” is rarely just BM25 on one blob of text.
+In production search, "keyword retrieval" is rarely just BM25 on one blob of text.
 
 Teams typically store **multiple fields** per document/chunk:
 
@@ -17,7 +27,16 @@ Then they **boost** important fields so results feel correct:
 
 - A query match in a title often beats many weaker matches in the body.
 
-## What you’re building
+## Why This Matters in Production
+
+| Scenario | Without Boosting | With Field Boosting |
+|----------|-----------------|---------------------|
+| **Title match** | Same score as body match | Higher score |
+| **Keyword tags** | Ignored | Contribute to score |
+| **Author names** | Lost in body text | Boosted for author queries |
+| **Document type** | Not searchable | Searchable with boost |
+
+## What You're Building
 
 - Compute BM25 over a document where term frequency is:
 
@@ -25,10 +44,381 @@ Then they **boost** important fields so results feel correct:
 tf = w_{title}\cdot tf_{title} + w_{body}\cdot tf_{body}
 \]
 
-## Pitfalls to avoid
+## The Field-Boosted BM25 Pipeline
 
-- “Boost everything”: if boosts are too high, you overfit titles and miss body evidence.
+```
+Query Terms → Field 1 (TF × Boost) → Combined TF → BM25 Score
+         ↓    Field 2 (TF × Boost) ↗
+         ↓    Field 3 (TF × Boost) ↗
+         ↓
+    Title: w=3.0, Body: w=1.0, Tags: w=2.0
+```
+
+## Mathematical Foundations
+
+### Weighted Term Frequency
+
+```
+TF_weighted = Σ(w_i × tf_i) for each field i
+
+Where:
+- w_i = boost weight for field i
+- tf_i = term frequency in field i
+```
+
+### Field-Boosted BM25
+
+```
+Score(D, Q) = Σ IDF(q) × [f(q, D) × (k1 + 1)] / [f(q, D) + k1 × (1 - b + b × |D| / avgdl)]
+
+Where f(q, D) is the weighted term frequency across all fields
+```
+
+## Implementation Example
+
+```python
+from typing import List, Dict, Tuple
+from dataclasses import dataclass
+import math
+
+@dataclass
+class Field:
+    """Represents a searchable field with its text and boost weight."""
+    name: str
+    text: str
+    boost: float = 1.0
+
+class FieldBoostedBM25:
+    """BM25 with per-field boosting."""
+    
+    def __init__(
+        self,
+        k1: float = 1.5,
+        b: float = 0.75,
+        field_weights: Dict[str, float] = None
+    ):
+        """
+        Initialize field-boosted BM25.
+        
+        Args:
+            k1: Term frequency saturation parameter
+            b: Length normalization parameter
+            field_weights: Field name -> boost weight mapping
+        """
+        self.k1 = k1
+        self.b = b
+        self.field_weights = field_weights or {
+            "title": 3.0,
+            "body": 1.0,
+            "tags": 2.0,
+            "headers": 2.5
+        }
+        self.documents: List[Dict[str, Field]] = []
+        self.doc_count = 0
+        self.avg_field_lengths: Dict[str, float] = {}
+    
+    def add_document(self, doc_id: str, fields: List[Field]):
+        """
+        Add a document with multiple fields.
+        
+        Args:
+            doc_id: Unique document identifier
+            fields: List of Field objects
+        """
+        doc_dict = {"id": doc_id, "fields": {f.name: f for f in fields}}
+        self.documents.append(doc_dict)
+        self.doc_count += 1
+    
+    def index(self):
+        """Compute statistics after all documents are added."""
+        # Calculate average field lengths
+        field_lengths: Dict[str, List[int]] = {}
+        
+        for doc in self.documents:
+            for field_name, field in doc["fields"].items():
+                if field_name not in field_lengths:
+                    field_lengths[field_name] = []
+                field_lengths[field_name].append(len(field.text.split()))
+        
+        for field_name, lengths in field_lengths.items():
+            self.avg_field_lengths[field_name] = sum(lengths) / len(lengths)
+    
+    def _calculate_idf(self, term: str) -> float:
+        """Calculate IDF for a term."""
+        doc_freq = 0
+        
+        for doc in self.documents:
+            for field in doc["fields"].values():
+                if term in field.text.lower():
+                    doc_freq += 1
+                    break
+        
+        # IDF with smoothing
+        idf = math.log(
+            (self.doc_count - doc_freq + 0.5) / (doc_freq + 0.5) + 1
+        )
+        return idf
+    
+    def _calculate_weighted_tf(
+        self,
+        term: str,
+        doc: Dict[str, Field]
+    ) -> Tuple[float, float]:
+        """
+        Calculate weighted term frequency and document length.
+        
+        Returns:
+            Tuple of (weighted_tf, weighted_length)
+        """
+        weighted_tf = 0
+        weighted_length = 0
+        
+        for field_name, field in doc["fields"].items():
+            weight = self.field_weights.get(field_name, 1.0)
+            
+            # Count term frequency in field
+            words = field.text.lower().split()
+            tf = words.count(term.lower())
+            
+            # Apply field boost
+            weighted_tf += weight * tf
+            weighted_length += weight * len(words)
+        
+        return weighted_tf, weighted_length
+    
+    def score(self, query: str, doc_id: str) -> float:
+        """
+        Calculate BM25 score for a query-document pair.
+        
+        Time Complexity: O(Q × F) where Q = query terms, F = fields
+        Space Complexity: O(1)
+        
+        Args:
+            query: Search query
+            doc_id: Document ID to score
+            
+        Returns:
+            BM25 score
+            
+        Example:
+            >>> bm25 = FieldBoostedBM25()
+            >>> bm25.add_document("doc1", [
+            ...     Field("title", "RAG Systems", boost=3.0),
+            ...     Field("body", "RAG combines retrieval with generation.", boost=1.0)
+            ... ])
+            >>> bm25.index()
+            >>> score = bm25.score("RAG", "doc1")
+        """
+        # Find document
+        doc = None
+        for d in self.documents:
+            if d["id"] == doc_id:
+                doc = d
+                break
+        
+        if not doc:
+            return 0.0
+        
+        query_terms = query.lower().split()
+        score = 0.0
+        
+        for term in query_terms:
+            idf = self._calculate_idf(term)
+            weighted_tf, weighted_length = self._calculate_weighted_tf(term, doc)
+            
+            # Calculate average weighted length
+            avgdl = sum(self.avg_field_lengths.values())
+            
+            # BM25 formula
+            numerator = weighted_tf * (self.k1 + 1)
+            denominator = weighted_tf + self.k1 * (
+                1 - self.b + self.b * (weighted_length / avgdl)
+            )
+            
+            if denominator > 0:
+                score += idf * numerator / denominator
+        
+        return score
+    
+    def search(self, query: str, top_k: int = 10) -> List[Tuple[str, float]]:
+        """
+        Search documents by query.
+        
+        Args:
+            query: Search query
+            top_k: Number of top results to return
+            
+        Returns:
+            List of (doc_id, score) tuples sorted by score
+        """
+        scores = []
+        
+        for doc in self.documents:
+            doc_score = self.score(query, doc["id"])
+            scores.append((doc["id"], doc_score))
+        
+        # Sort by score descending
+        scores.sort(key=lambda x: x[1], reverse=True)
+        
+        return scores[:top_k]
+    
+    def explain_score(self, query: str, doc_id: str) -> Dict:
+        """Explain how the score was calculated."""
+        doc = None
+        for d in self.documents:
+            if d["id"] == doc_id:
+                doc = d
+                break
+        
+        if not doc:
+            return {}
+        
+        explanation = {
+            "doc_id": doc_id,
+            "query": query,
+            "field_contributions": {},
+            "total_score": 0.0
+        }
+        
+        query_terms = query.lower().split()
+        
+        for term in query_terms:
+            idf = self._calculate_idf(term)
+            
+            for field_name, field in doc["fields"].items():
+                weight = self.field_weights.get(field_name, 1.0)
+                words = field.text.lower().split()
+                tf = words.count(term.lower())
+                
+                if tf > 0:
+                    if field_name not in explanation["field_contributions"]:
+                        explanation["field_contributions"][field_name] = []
+                    
+                    explanation["field_contributions"][field_name].append({
+                        "term": term,
+                        "tf": tf,
+                        "weight": weight,
+                        "boosted_tf": tf * weight,
+                        "idf": idf
+                    })
+        
+        explanation["total_score"] = self.score(query, doc_id)
+        return explanation
+
+# Usage Example
+bm25 = FieldBoostedBM25(field_weights={
+    "title": 3.0,
+    "body": 1.0,
+    "tags": 2.0
+})
+
+# Add documents
+bm25.add_document("doc1", [
+    Field("title", "Introduction to RAG"),
+    Field("body", "RAG combines retrieval with generation for better answers."),
+    Field("tags", "RAG NLP AI")
+])
+
+bm25.add_document("doc2", [
+    Field("title", "Advanced NLP Techniques"),
+    Field("body", "This article covers various NLP methods including RAG systems."),
+    Field("tags", "NLP Machine-Learning")
+])
+
+bm25.index()
+
+# Search
+results = bm25.search("RAG", top_k=2)
+print("Search results:")
+for doc_id, score in results:
+    print(f"  {doc_id}: {score:.4f}")
+    
+# Explain scoring
+explanation = bm25.explain_score("RAG", "doc1")
+print(f"\nScore explanation for doc1:")
+print(f"Total score: {explanation['total_score']:.4f}")
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Indexing | O(D × F × W) | D docs, F fields, W words |
+| IDF Calculation | O(D × F) | Per term |
+| Scoring | O(Q × F) | Q query terms, F fields |
+| Search | O(D × Q × F) | All docs |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand field-boosted retrieval
+- Be able to implement weighted BM25 scoring
+- Know how to tune field weights for different use cases
+
+## Real-World Applications
+
+| System | Field Boosting |
+|--------|---------------|
+| **Elasticsearch** | Field-level boosting in queries |
+| **Solr** | Field weights in edismax |
+| **Vespa** | Native field boosting |
+| **Custom RAG** | Title/header prioritization |
+
+## Common Pitfalls
+
+- **Boost everything**: Diminishes relative differences
+- **Extreme weights**: Overfitting to specific fields
+- **Ignoring length**: Long boosted fields dominate
+- **Static weights**: Not adapting to query type
+- **Field overlap**: Same content in multiple fields
+
+## Production Extensions (Optional)
+
+- **Query-dependent weights**: Different boosts for different query types
+- **Learned weights**: Machine learning to optimize field weights
+- **Dynamic boosts**: Adjust based on user behavior
+- **Field length normalization**: Prevent long fields from dominating
+- **Multiplicative vs additive**: Different combination strategies
+
+## Resources
+
+### Documentation
+- [Elasticsearch Boosting](https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-boost.html)
+- [BM25 Explained](https://www.elastic.co/blog/practical-bm25-part-2-the-bm25-algorithm-and-its-variables)
+- [Solr Field Boosting](https://solr.apache.org/guide/solr/latest/query-guide/dismax-query-parser.html)
+
+### Tools
+- **Elasticsearch**: Built-in field boosting
+- **Whoosh**: Python search library with field boosts
+- **Rank-BM25**: Python BM25 implementation
+
+### Papers
+- "The Probabilistic Relevance Framework: BM25 and Beyond" (Robertson & Zaragoza, 2009)
+- "Field-Weighted BM25 for Document Ranking" (Various)
+
+## Interview Questions
+
+1. **Why boost title matches over body matches?**
+   - Titles are concise summaries; matches indicate higher relevance
+
+2. **How do you prevent over-boosting?**
+   - Normalize weights, use sigmoid transforms, or learn optimal weights
+
+3. **What's the difference between field boosting and query boosting?**
+   - Field boosting weights matches in different fields; query boosting weights different query terms
+
+## After You Pass
+
+Enhance your search systems:
+- [bm25-from-scratch](bm25-from-scratch) - Standard BM25 implementation
+- [hybrid-search-tuning](hybrid-search-tuning) - Combine with dense retrieval
+- [metadata-filtering](metadata-filtering) - Add metadata-based filtering
+
+---
+
+**⚖️ Weighted Precision:** Field boosting directs search attention to what matters most!
+
+## Pitfalls to Avoid
+
+- "Boost everything": if boosts are too high, you overfit titles and miss body evidence.
 - Forgetting tie-break stability: always return deterministic ordering.
-
-
-

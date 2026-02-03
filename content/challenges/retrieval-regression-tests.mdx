@@ -1,11 +1,17 @@
 ﻿---
 title: "Retrieval Regression Testing"
-description: "Detect retrieval quality regressions after changes"
+description: "Detect retrieval quality regressions after changes — model updates, index rebuilds, or chunking changes can silently degrade retrieval quality."
 difficulty: "hard"
+estimatedMinutes: 50
+prerequisites: ["rag-evaluation-suite", "beir-evaluation-setup"]
+related: ["rag-evaluation-suite", "rag-ab-testing", "rag-observability"]
+next: "rag-ab-testing"
 xpReward: 150
 ---
 
-# Retrieval Regression Testing
+<Callout title="Goal" variant="info">
+  Detect retrieval quality regressions after changes.
+</Callout>
 
 ## Overview
 
@@ -24,7 +30,498 @@ Model updates, index rebuilds, or chunking changes can silently degrade retrieva
 - Regression thresholds
 - Detailed regression reports
 
+## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity |
+|-----------|-----------------|------------------|
+| Baseline computation | O(Q × K) | O(Q) |
+| Regression detection | O(Q × K) | O(1) |
+| Report generation | O(Q) | O(Q) |
+| Full pipeline | O(Q × K) | O(Q) |
+
+Where Q = test queries, K = top-k documents
+
 ## Real-World Applications
 
-Weights & Biases, Arize, and enterprise ML platforms track model drift and retrieval quality.
+| Company | Implementation |
+|---------|----------------|
+| **Weights & Biases** | Model drift tracking |
+| **Arize** | Retrieval quality monitoring |
+| **Fiddler** | ML model monitoring |
+| **Evidently AI** | Data drift detection |
 
+## Resources
+
+### Papers
+- **"Detecting Regression in Information Retrieval"** - Regression testing methodology
+- **"Continuous Evaluation for RAG"** - Production monitoring approaches
+
+### Tools
+- **Great Expectations**: Data validation
+- **Evidently AI**: ML monitoring
+- **Arize**: LLM observability
+- **WhyLabs**: Data quality monitoring
+
+## Implementation
+
+```python
+from typing import List, Dict, Optional, Callable
+from dataclasses import dataclass
+from datetime import datetime
+import json
+
+@dataclass
+class Baseline:
+    """Baseline metrics for comparison."""
+    name: str
+    metrics: Dict[str, float]
+    timestamp: datetime
+    config: Dict
+
+@dataclass
+class RegressionReport:
+    """Report of detected regressions."""
+    passed: bool
+    metric_comparisons: Dict[str, Dict]
+    threshold_violations: List[str]
+    timestamp: datetime
+
+
+class RegressionTester:
+    """
+    Detect retrieval quality regressions.
+    
+    Compares current metrics against baselines and alerts on degradation.
+    """
+    
+    def __init__(
+        self,
+        thresholds: Dict[str, float],
+        evaluator_fn: Callable
+    ):
+        """
+        Initialize regression tester.
+        
+        Args:
+            thresholds: Dict mapping metric name to minimum acceptable value
+            evaluator_fn: Function to compute metrics
+        """
+        self.thresholds = thresholds
+        self.evaluator_fn = evaluator_fn
+        self.baselines: List[Baseline] = []
+    
+    def establish_baseline(
+        self,
+        name: str,
+        test_queries: List[Dict],
+        config: Dict
+    ) -> Baseline:
+        """
+        Establish a new baseline by running evaluation.
+        
+        Args:
+            name: Baseline identifier
+            test_queries: Test dataset
+            config: System configuration used
+        
+        Returns:
+            Baseline object
+        """
+        metrics = self.evaluator_fn(test_queries)
+        
+        baseline = Baseline(
+            name=name,
+            metrics=metrics,
+            timestamp=datetime.utcnow(),
+            config=config
+        )
+        
+        self.baselines.append(baseline)
+        return baseline
+    
+    def compare_to_baseline(
+        self,
+        current_metrics: Dict[str, float],
+        baseline: Baseline
+    ) -> Dict[str, Dict]:
+        """
+        Compare current metrics to baseline.
+        
+        Returns:
+            Dict with comparison for each metric
+        """
+        comparisons = {}
+        
+        for metric, current_value in current_metrics.items():
+            baseline_value = baseline.metrics.get(metric)
+            
+            if baseline_value is not None and baseline_value > 0:
+                change_pct = (current_value - baseline_value) / baseline_value * 100
+            else:
+                change_pct = 0.0
+            
+            comparisons[metric] = {
+                "current": current_value,
+                "baseline": baseline_value,
+                "change_pct": change_pct,
+                "degraded": change_pct < -5.0  # 5% threshold
+            }
+        
+        return comparisons
+    
+    def check_thresholds(
+        self,
+        metrics: Dict[str, float]
+    ) -> List[str]:
+        """
+        Check if metrics meet minimum thresholds.
+        
+        Returns:
+            List of violated thresholds
+        """
+        violations = []
+        
+        for metric, threshold in self.thresholds.items():
+            value = metrics.get(metric, 0)
+            if value < threshold:
+                violations.append(
+                    f"{metric}: {value:.3f} < {threshold:.3f}"
+                )
+        
+        return violations
+    
+    def run_regression_test(
+        self,
+        test_queries: List[Dict],
+        baseline: Optional[Baseline] = None
+    ) -> RegressionReport:
+        """
+        Run full regression test.
+        
+        Args:
+            test_queries: Test dataset
+            baseline: Baseline to compare against (uses latest if None)
+        
+        Returns:
+            RegressionReport with results
+        """
+        # Use latest baseline if not specified
+        if baseline is None and self.baselines:
+            baseline = self.baselines[-1]
+        
+        # Compute current metrics
+        current_metrics = self.evaluator_fn(test_queries)
+        
+        # Check thresholds
+        violations = self.check_thresholds(current_metrics)
+        
+        # Compare to baseline
+        comparisons = {}
+        if baseline:
+            comparisons = self.compare_to_baseline(current_metrics, baseline)
+        
+        # Determine pass/fail
+        passed = len(violations) == 0
+        if baseline:
+            degraded_metrics = [
+                m for m, c in comparisons.items() if c.get("degraded", False)
+            ]
+            if degraded_metrics:
+                passed = False
+        
+        return RegressionReport(
+            passed=passed,
+            metric_comparisons=comparisons,
+            threshold_violations=violations,
+            timestamp=datetime.utcnow()
+        )
+    
+    def generate_report(self, report: RegressionReport) -> str:
+        """Generate human-readable report."""
+        lines = [
+            "=" * 60,
+            "REGRESSION TEST REPORT",
+            "=" * 60,
+            f"Timestamp: {report.timestamp.isoformat()}",
+            f"Status: {'✅ PASSED' if report.passed else '❌ FAILED'}",
+            ""
+        ]
+        
+        if report.threshold_violations:
+            lines.extend([
+                "THRESHOLD VIOLATIONS:",
+                "-" * 40
+            ])
+            for v in report.threshold_violations:
+                lines.append(f"  ❌ {v}")
+            lines.append("")
+        
+        if report.metric_comparisons:
+            lines.extend([
+                "METRIC COMPARISONS:",
+                "-" * 40
+            ])
+            for metric, comp in report.metric_comparisons.items():
+                status = "❌" if comp["degraded"] else "✅"
+                lines.append(
+                    f"  {status} {metric}: "
+                    f"{comp['current']:.3f} vs {comp['baseline']:.3f} "
+                    f"({comp['change_pct']:+.1f}%)"
+                )
+            lines.append("")
+        
+        lines.append("=" * 60)
+        
+        return "\n".join(lines)
+```
+
+## Challenge: Implement Regression Tester
+
+### Requirements
+
+1. Implement `establish_baseline()` to create baselines
+2. Implement `compare_to_baseline()` for metric comparison
+3. Implement `check_thresholds()` for threshold validation
+4. Implement `run_regression_test()` for full testing
+5. Implement `generate_report()` for human-readable output
+
+### Starter Code
+
+```python
+from typing import List, Dict, Optional, Callable
+from dataclasses import dataclass
+from datetime import datetime
+
+@dataclass
+class Baseline:
+    name: str
+    metrics: Dict[str, float]
+    timestamp: datetime
+    config: Dict
+
+@dataclass
+class RegressionReport:
+    passed: bool
+    metric_comparisons: Dict[str, Dict]
+    threshold_violations: List[str]
+    timestamp: datetime
+
+
+class RegressionTester:
+    """Detect retrieval quality regressions."""
+    
+    def __init__(self, thresholds: Dict[str, float], evaluator_fn: Callable):
+        self.thresholds = thresholds
+        self.evaluator_fn = evaluator_fn
+        self.baselines = []
+    
+    def establish_baseline(
+        self,
+        name: str,
+        test_queries: List[Dict],
+        config: Dict
+    ) -> Baseline:
+        """Establish a new baseline."""
+        # TODO: Implement
+        pass
+    
+    def compare_to_baseline(
+        self,
+        current_metrics: Dict[str, float],
+        baseline: Baseline
+    ) -> Dict[str, Dict]:
+        """Compare current metrics to baseline."""
+        # TODO: Implement
+        pass
+    
+    def check_thresholds(self, metrics: Dict[str, float]) -> List[str]:
+        """Check if metrics meet minimum thresholds."""
+        # TODO: Implement
+        pass
+    
+    def run_regression_test(
+        self,
+        test_queries: List[Dict],
+        baseline: Optional[Baseline] = None
+    ) -> RegressionReport:
+        """Run full regression test."""
+        # TODO: Implement
+        pass
+
+
+# Test your implementation
+def test_regression_tester():
+    # Mock evaluator
+    def mock_evaluator(queries: List[Dict]) -> Dict[str, float]:
+        return {
+            "recall@10": 0.75,
+            "precision@10": 0.60,
+            "mrr": 0.65
+        }
+    
+    thresholds = {
+        "recall@10": 0.70,
+        "precision@10": 0.55,
+        "mrr": 0.60
+    }
+    
+    tester = RegressionTester(thresholds, mock_evaluator)
+    
+    # Establish baseline
+    baseline = tester.establish_baseline(
+        "v1.0",
+        [{"query": "test"}],
+        {"model": "v1", "chunk_size": 500}
+    )
+    
+    assert baseline.metrics["recall@10"] == 0.75
+    
+    # Run regression test
+    report = tester.run_regression_test([{"query": "test"}])
+    
+    assert report.passed
+    assert len(report.threshold_violations) == 0
+    
+    print("All tests passed!")
+
+test_regression_tester()
+```
+
+### Solution
+
+<details>
+<summary>Click to reveal solution</summary>
+
+```python
+from typing import List, Dict, Optional, Callable
+from dataclasses import dataclass
+from datetime import datetime
+
+@dataclass
+class Baseline:
+    name: str
+    metrics: Dict[str, float]
+    timestamp: datetime
+    config: Dict
+
+@dataclass
+class RegressionReport:
+    passed: bool
+    metric_comparisons: Dict[str, Dict]
+    threshold_violations: List[str]
+    timestamp: datetime
+
+
+class RegressionTester:
+    """Detect retrieval quality regressions."""
+    
+    def __init__(self, thresholds: Dict[str, float], evaluator_fn: Callable):
+        self.thresholds = thresholds
+        self.evaluator_fn = evaluator_fn
+        self.baselines = []
+    
+    def establish_baseline(
+        self,
+        name: str,
+        test_queries: List[Dict],
+        config: Dict
+    ) -> Baseline:
+        """Establish a new baseline."""
+        metrics = self.evaluator_fn(test_queries)
+        baseline = Baseline(
+            name=name,
+            metrics=metrics,
+            timestamp=datetime.utcnow(),
+            config=config
+        )
+        self.baselines.append(baseline)
+        return baseline
+    
+    def compare_to_baseline(
+        self,
+        current_metrics: Dict[str, float],
+        baseline: Baseline
+    ) -> Dict[str, Dict]:
+        """Compare current metrics to baseline."""
+        comparisons = {}
+        for metric, current_value in current_metrics.items():
+            baseline_value = baseline.metrics.get(metric)
+            if baseline_value is not None and baseline_value > 0:
+                change_pct = (current_value - baseline_value) / baseline_value * 100
+            else:
+                change_pct = 0.0
+            comparisons[metric] = {
+                "current": current_value,
+                "baseline": baseline_value,
+                "change_pct": change_pct,
+                "degraded": change_pct < -5.0
+            }
+        return comparisons
+    
+    def check_thresholds(self, metrics: Dict[str, float]) -> List[str]:
+        """Check if metrics meet minimum thresholds."""
+        violations = []
+        for metric, threshold in self.thresholds.items():
+            value = metrics.get(metric, 0)
+            if value < threshold:
+                violations.append(f"{metric}: {value:.3f} < {threshold:.3f}")
+        return violations
+    
+    def run_regression_test(
+        self,
+        test_queries: List[Dict],
+        baseline: Optional[Baseline] = None
+    ) -> RegressionReport:
+        """Run full regression test."""
+        if baseline is None and self.baselines:
+            baseline = self.baselines[-1]
+        
+        current_metrics = self.evaluator_fn(test_queries)
+        violations = self.check_thresholds(current_metrics)
+        
+        comparisons = {}
+        if baseline:
+            comparisons = self.compare_to_baseline(current_metrics, baseline)
+        
+        passed = len(violations) == 0
+        if baseline:
+            degraded = [m for m, c in comparisons.items() if c.get("degraded")]
+            if degraded:
+                passed = False
+        
+        return RegressionReport(
+            passed=passed,
+            metric_comparisons=comparisons,
+            threshold_violations=violations,
+            timestamp=datetime.utcnow()
+        )
+```
+
+</details>
+
+## CI/CD Integration
+
+```yaml
+# .github/workflows/regression.yml
+name: Regression Tests
+
+on: [push, pull_request]
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run Regression Tests
+        run: python -m pytest tests/regression/
+      - name: Check Thresholds
+        run: python scripts/check_regression.py
+```
+
+## Best Practices
+
+1. **Automated baselines**: Establish baseline on every release
+2. **Gradual thresholds**: Tighten thresholds over time
+3. **Alert on degradation**: Notify team immediately
+4. **Track trends**: Monitor metrics over time
+5. **Investigate root cause**: Understand why metrics changed

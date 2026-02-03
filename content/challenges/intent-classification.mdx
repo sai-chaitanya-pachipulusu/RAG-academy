@@ -2,88 +2,429 @@
 title: "Query Intent Classification"
 description: "Classify user queries by intent type to enable optimal routing and handling"
 difficulty: "medium"
-timeEstimate: "20-25 min"
-xpReward: 75
+xpReward: 100
+topics: ["intent-classification", "routing", "query-analysis"]
 prerequisites: []
 ---
 
 # Query Intent Classification
 
-## The Problem
+## Overview
 
-Not all queries are created equal:
+Not all queries are created equal. A factual query like "What is machine learning?" needs different handling than a procedural query like "How do I reset my password?" Intent classification enables optimal routing and handling for each query type.
 
-| Query Type     | Example                       | Optimal Handling        |
-| -------------- | ----------------------------- | ----------------------- |
-| **Factual**    | "What is machine learning?"   | Direct retrieval        |
+## Why This Matters
+
+- **Optimal Routing**: Different intents need different strategies
+- **Resource Efficiency**: Skip unnecessary processing
+- **Better UX**: Tailored responses for each intent
+- **Metrics**: Track query types for insights
+
+## Key Concepts
+
+- **Intent categories**: Factual, procedural, opinion, comparison
+- **Pattern matching**: Regex and keyword detection
+- **ML classification**: Model-based intent detection
+- **Routing logic**: Different handlers per intent
+
+## Real-World Applications
+
+| Query Type | Example | Optimal Handling |
+|------------|---------|------------------|
+| **Factual** | "What is machine learning?" | Direct retrieval |
 | **Procedural** | "How do I reset my password?" | Step-by-step generation |
-| **Opinion**    | "Should I use PyTorch?"       | Balanced consideration  |
-| **Comparison** | "Python vs JavaScript"        | Multi-entity retrieval  |
-
-Treating them all the same misses optimization opportunities.
-
----
-
-## The Solution
-
-Classify intent BEFORE retrieval, then route accordingly:
-
-```python
-def handle_query(query):
-    intent = classify_intent(query)
-
-    if intent == "factual":
-        return factual_retrieval(query)
-    elif intent == "procedural":
-        return procedural_chain(query)
-    elif intent == "comparison":
-        entities = extract_entities(query)
-        return multi_retrieval(entities)
-    else:
-        return default_rag(query)
-```
-
----
+| **Opinion** | "Should I use PyTorch?" | Balanced consideration |
+| **Comparison** | "Python vs JavaScript" | Multi-entity retrieval |
 
 ## Intent Patterns
 
 ### Factual
-
 - "What is..." → Definition lookup
 - "Who is..." → Person lookup
 - "When did..." → Date/event lookup
 
 ### Procedural
-
 - "How to..." → Step-by-step instructions
 - "How do I..." → Tutorial content
 
 ### Comparison
-
 - "X vs Y" → Need info about both
 - "Difference between..." → Contrast retrieval
 
 ### Opinion
-
 - "Should I..." → Pros/cons, recommendations
 - "Is it worth..." → Evaluation content
 
----
+## The Challenge
 
-## Real-World Applications
+### Part 1: Intent Classifier
 
-| Use Case         | Intent-Based Routing        |
-| ---------------- | --------------------------- |
-| Customer Support | Procedural → KB articles    |
-| Search Engine    | Factual → Quick answers     |
-| Product Search   | Comparison → Feature tables |
-| Advisory AI      | Opinion → Balanced analysis |
+```python
+from enum import Enum
+from typing import Dict, List
+from dataclasses import dataclass
+import re
 
----
+class QueryIntent(Enum):
+    """Query intent categories."""
+    FACTUAL = "factual"
+    PROCEDURAL = "procedural"
+    COMPARISON = "comparison"
+    OPINION = "opinion"
+    NAVIGATIONAL = "navigational"
+    TRANSACTIONAL = "transactional"
+    UNKNOWN = "unknown"
 
-## Related Challenges
+@dataclass
+class IntentPrediction:
+    """Intent prediction result."""
+    intent: QueryIntent
+    confidence: float
+    method: str  # "pattern", "keyword", "model"
+    metadata: Dict
 
-- `query-expansion` - Expand query terms
-- `query-decomposition` - Break complex queries
-- `conversational-query-rewrite` - Handle follow-ups
+class IntentClassifier:
+    """Classify query intent using multiple methods."""
+    
+    def __init__(self):
+        self.patterns = self._compile_patterns()
+        self.keywords = self._build_keyword_map()
+    
+    def _compile_patterns(self) -> Dict[QueryIntent, List[re.Pattern]]:
+        """Compile regex patterns for each intent."""
+        return {
+            QueryIntent.FACTUAL: [
+                re.compile(r'^what is', re.I),
+                re.compile(r'^who is', re.I),
+                re.compile(r'^when (did|was|were)', re.I),
+                re.compile(r'^where is', re.I),
+                re.compile(r'^why (do|does|is|are)', re.I),
+                re.compile(r'^define', re.I),
+                re.compile(r'^explain', re.I),
+            ],
+            QueryIntent.PROCEDURAL: [
+                re.compile(r'^how (to|do|can|should)', re.I),
+                re.compile(r'^steps? (to|for)', re.I),
+                re.compile(r'^guide (to|for)', re.I),
+                re.compile(r'^tutorial', re.I),
+                re.compile(r'^instructions?', re.I),
+            ],
+            QueryIntent.COMPARISON: [
+                re.compile(r'\bvs\.?\b|\bversus\b', re.I),
+                re.compile(r'\bcompare\b', re.I),
+                re.compile(r'\bdifference between\b', re.I),
+                re.compile(r'\bor\b.*\b(better|worse)\b', re.I),
+            ],
+            QueryIntent.OPINION: [
+                re.compile(r'^should (i|we)', re.I),
+                re.compile(r'^is it worth', re.I),
+                re.compile(r'^what (do you think|are your thoughts)', re.I),
+                re.compile(r'^recommend', re.I),
+                re.compile(r'^best (way|method|approach)', re.I),
+            ],
+            QueryIntent.NAVIGATIONAL: [
+                re.compile(r'^find', re.I),
+                re.compile(r'^where (can|do) (i|we)', re.I),
+                re.compile(r'^login|log in|sign in', re.I),
+                re.compile(r'^homepage|website|portal', re.I),
+            ],
+            QueryIntent.TRANSACTIONAL: [
+                re.compile(r'^buy|purchase|order', re.I),
+                re.compile(r'^download', re.I),
+                re.compile(r'^subscribe|sign up', re.I),
+                re.compile(r'^book|reserve', re.I),
+            ],
+        }
+    
+    def _build_keyword_map(self) -> Dict[QueryIntent, List[str]]:
+        """Build keyword mappings for each intent."""
+        return {
+            QueryIntent.FACTUAL: [
+                'what', 'who', 'when', 'where', 'why', 'which',
+                'definition', 'meaning', 'explain'
+            ],
+            QueryIntent.PROCEDURAL: [
+                'how', 'steps', 'guide', 'tutorial', 'instructions',
+                'process', 'procedure', 'method'
+            ],
+            QueryIntent.COMPARISON: [
+                'compare', 'versus', 'vs', 'difference', 'similarities',
+                'better', 'worse', 'pros', 'cons'
+            ],
+            QueryIntent.OPINION: [
+                'should', 'recommend', 'best', 'worst', 'opinion',
+                'think', 'advice', 'suggestion'
+            ],
+        }
+    
+    def classify(self, query: str) -> IntentPrediction:
+        """Classify query intent.
+        
+        Returns:
+            Intent prediction with confidence
+        """
+        query_lower = query.lower().strip()
+        
+        # Try pattern matching first (most reliable)
+        for intent, patterns in self.patterns.items():
+            for pattern in patterns:
+                if pattern.search(query_lower):
+                    return IntentPrediction(
+                        intent=intent,
+                        confidence=0.9,
+                        method="pattern",
+                        metadata={'matched_pattern': pattern.pattern}
+                    )
+        
+        # Fall back to keyword matching
+        intent_scores = self._score_by_keywords(query_lower)
+        
+        if intent_scores:
+            best_intent = max(intent_scores, key=intent_scores.get)
+            best_score = intent_scores[best_intent]
+            
+            if best_score > 0.3:
+                return IntentPrediction(
+                    intent=best_intent,
+                    confidence=best_score,
+                    method="keyword",
+                    metadata={'scores': intent_scores}
+                )
+        
+        # Unknown
+        return IntentPrediction(
+            intent=QueryIntent.UNKNOWN,
+            confidence=1.0,
+            method="default",
+            metadata={}
+        )
+    
+    def _score_by_keywords(self, query: str) -> Dict[QueryIntent, float]:
+        """Score query by keyword presence."""
+        scores = {}
+        query_words = set(query.split())
+        
+        for intent, keywords in self.keywords.items():
+            matches = sum(1 for kw in keywords if kw in query_words)
+            scores[intent] = matches / len(keywords) if keywords else 0
+        
+        return scores
+```
 
+### Part 2: Intent Router
+
+```python
+from typing import Callable, Dict
+
+class IntentRouter:
+    """Route queries to handlers based on intent."""
+    
+    def __init__(self, classifier: IntentClassifier = None):
+        self.classifier = classifier or IntentClassifier()
+        self.handlers: Dict[QueryIntent, Callable] = {}
+        self.default_handler: Callable = None
+    
+    def register(
+        self,
+        intent: QueryIntent,
+        handler: Callable
+    ):
+        """Register a handler for an intent."""
+        self.handlers[intent] = handler
+    
+    def register_default(self, handler: Callable):
+        """Register default handler for unknown intents."""
+        self.default_handler = handler
+    
+    def route(self, query: str, **kwargs) -> Dict:
+        """Route query to appropriate handler.
+        
+        Returns:
+            Handler result with intent metadata
+        """
+        # Classify intent
+        prediction = self.classifier.classify(query)
+        
+        # Get handler
+        handler = self.handlers.get(
+            prediction.intent,
+            self.default_handler
+        )
+        
+        if not handler:
+            raise ValueError(f"No handler for intent: {prediction.intent}")
+        
+        # Execute handler
+        result = handler(query, **kwargs)
+        
+        return {
+            'result': result,
+            'intent': prediction.intent.value,
+            'confidence': prediction.confidence,
+            'method': prediction.method
+        }
+```
+
+### Part 3: Intent-Specific Handlers
+
+```python
+class IntentHandlers:
+    """Example handlers for different intents."""
+    
+    @staticmethod
+    def handle_factual(query: str, retriever, **kwargs) -> Dict:
+        """Handle factual queries with direct retrieval."""
+        results = retriever.retrieve(query, top_k=3)
+        
+        return {
+            'type': 'factual',
+            'answer': results[0]['content'] if results else None,
+            'sources': results,
+            'strategy': 'direct_retrieval'
+        }
+    
+    @staticmethod
+    def handle_procedural(query: str, retriever, generator, **kwargs) -> Dict:
+        """Handle procedural queries with step-by-step generation."""
+        # Retrieve tutorial content
+        results = retriever.retrieve(query, top_k=5)
+        
+        # Generate step-by-step answer
+        context = "\n".join(r['content'] for r in results)
+        steps = generator.generate(
+            f"Provide step-by-step instructions for: {query}\n\nContext: {context}"
+        )
+        
+        return {
+            'type': 'procedural',
+            'steps': steps,
+            'sources': results,
+            'strategy': 'step_by_step_generation'
+        }
+    
+    @staticmethod
+    def handle_comparison(query: str, retriever, **kwargs) -> Dict:
+        """Handle comparison queries with multi-entity retrieval."""
+        # Extract entities to compare
+        entities = IntentHandlers._extract_comparison_entities(query)
+        
+        # Retrieve for each entity
+        entity_results = {}
+        for entity in entities:
+            entity_results[entity] = retriever.retrieve(
+                f"What is {entity}?",
+                top_k=3
+            )
+        
+        # Retrieve comparison content
+        comparison_results = retriever.retrieve(query, top_k=3)
+        
+        return {
+            'type': 'comparison',
+            'entities': entities,
+            'entity_info': entity_results,
+            'comparison_content': comparison_results,
+            'strategy': 'multi_entity_retrieval'
+        }
+    
+    @staticmethod
+    def _extract_comparison_entities(query: str) -> List[str]:
+        """Extract entities being compared."""
+        # Simple extraction - look for words around "vs" or "and"
+        patterns = [
+            r'(\w+)\s+(?:vs\.?|versus)\s+(\w+)',
+            r'compare\s+(\w+)\s+(?:and|to|with)\s+(\w+)',
+            r'difference between\s+(\w+)\s+(?:and)\s+(\w+)',
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, query, re.I)
+            if match:
+                return list(match.groups())
+        
+        return []
+```
+
+### Part 4: Intent Analytics
+
+```python
+from collections import defaultdict
+from datetime import datetime
+
+class IntentAnalytics:
+    """Track and analyze query intents."""
+    
+    def __init__(self):
+        self.queries: List[Dict] = []
+    
+    def log_query(
+        self,
+        query: str,
+        prediction: IntentPrediction,
+        success: bool = True
+    ):
+        """Log a query with its intent."""
+        self.queries.append({
+            'timestamp': datetime.utcnow().isoformat(),
+            'query': query,
+            'intent': prediction.intent.value,
+            'confidence': prediction.confidence,
+            'method': prediction.method,
+            'success': success
+        })
+    
+    def get_intent_distribution(self) -> Dict[str, int]:
+        """Get distribution of intents."""
+        distribution = defaultdict(int)
+        for q in self.queries:
+            distribution[q['intent']] += 1
+        return dict(distribution)
+    
+    def get_confidence_stats(self) -> Dict[str, float]:
+        """Get confidence statistics."""
+        if not self.queries:
+            return {}
+        
+        confidences = [q['confidence'] for q in self.queries]
+        
+        return {
+            'avg_confidence': sum(confidences) / len(confidences),
+            'min_confidence': min(confidences),
+            'max_confidence': max(confidences),
+            'low_confidence_queries': sum(1 for c in confidences if c < 0.5)
+        }
+```
+
+## Example Usage
+
+```python
+# Setup
+classifier = IntentClassifier()
+router = IntentRouter(classifier)
+
+# Register handlers
+router.register(QueryIntent.FACTUAL, IntentHandlers.handle_factual)
+router.register(QueryIntent.PROCEDURAL, IntentHandlers.handle_procedural)
+router.register(QueryIntent.COMPARISON, IntentHandlers.handle_comparison)
+
+# Route queries
+queries = [
+    "What is machine learning?",
+    "How do I reset my password?",
+    "Python vs JavaScript"
+]
+
+for query in queries:
+    result = router.route(query, retriever=retriever, generator=generator)
+    print(f"{query} → {result['intent']} (confidence: {result['confidence']:.2f})")
+```
+
+## Evaluation Criteria
+
+Your solution will be evaluated on:
+
+1. **Accuracy**: Correct intent classification
+2. **Coverage**: Handles all major intent types
+3. **Confidence**: Reliable confidence scores
+4. **Routing**: Proper handler selection
+5. **Analytics**: Useful intent tracking

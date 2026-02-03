@@ -1,94 +1,402 @@
 ---
 title: "Context Recall Calculator"
-difficulty: "Medium"
-stage: "evaluation-ops"
-group: "Phase 6 — Evaluation"
-xpReward: 40
-estimatedMinutes: 15
-tags: ["evaluation", "metrics", "ragas", "recall"]
+description: "Implement the Context Recall metric from RAGAS framework to measure retrieval coverage"
+difficulty: "medium"
+xpReward: 100
+topics: ["evaluation", "metrics", "ragas", "recall"]
+prerequisites: ["evaluator-recall-at-k", "answer-relevancy-score"]
 ---
 
-# Challenge: Context Recall Calculator
+# Context Recall Calculator
 
-Implement the **Context Recall** metric from the RAGAS framework. Context recall measures how well the retrieved context covers the ground truth answer.
+## Overview
 
-## Formula
+Context recall measures how well the retrieved context covers the ground truth answer. It's a critical metric from the RAGAS framework for evaluating RAG system quality.
 
-$$\text{Context Recall} = \frac{|\text{GT sentences attributable to context}|}{|\text{Total sentences in GT}|}$$
+## Why This Matters
 
-## Task
+- **Coverage Assessment**: Did retrieval find all necessary information?
+- **Gap Identification**: What's missing from the context?
+- **Quality Metric**: Key evaluation metric for RAG systems
+- **Debugging**: Understand why answers are incomplete
 
-Complete the `context_recall` function that:
+## Key Concepts
 
-1. Splits the ground truth into individual statements
-2. Checks if each statement is supported by the retrieved context
-3. Returns the fraction of supported statements
+- **Statement decomposition**: Break answer into atomic claims
+- **Attribution checking**: Verify if context supports each claim
+- **Recall calculation**: Fraction of claims covered by context
+- **RAGAS framework**: Industry-standard RAG evaluation
+
+## The Formula
+
+$$
+\text{Context Recall} = \frac{|\text{GT sentences attributable to context}|}{|\text{Total sentences in GT}|}
+$$
+
+## The Challenge
+
+### Part 1: Statement Splitter
 
 ```python
+import re
 from typing import List
 
-def context_recall(
-    retrieved_context: str,
-    ground_truth_answer: str,
-    statement_checker: callable
-) -> float:
-    """
-    Calculate Context Recall score.
-
-    Args:
-        retrieved_context: The context retrieved by the RAG system
-        ground_truth_answer: The expected correct answer
-        statement_checker: A function that takes (statement, context) and returns
-                          True if the statement is supported by the context
-
-    Returns:
-        Context Recall score between 0.0 and 1.0
-
-    Example:
-        >>> def simple_checker(stmt, ctx):
-        ...     return stmt.lower() in ctx.lower()
-        >>> context = "France is in Western Europe. Paris is its capital."
-        >>> gt = "France is in Western Europe. Its capital is Paris."
-        >>> context_recall(context, gt, simple_checker)
-        1.0
-
-        >>> context = "France is in Western Europe. Known for wine."
-        >>> gt = "France is in Western Europe. Its capital is Paris."
-        >>> context_recall(context, gt, simple_checker)
-        0.5
-    """
-    # TODO: implement
-    pass
+class StatementSplitter:
+    """Split text into individual statements."""
+    
+    def __init__(self):
+        # Sentence delimiters
+        self.sentence_endings = r'[.!?]+'
+    
+    def split(self, text: str) -> List[str]:
+        """Split text into statements.
+        
+        Args:
+            text: Input text to split
+            
+        Returns:
+            List of individual statements
+        """
+        # Split by sentence endings
+        raw_sentences = re.split(self.sentence_endings, text)
+        
+        # Clean and filter
+        statements = []
+        for sent in raw_sentences:
+            # Strip whitespace
+            cleaned = sent.strip()
+            
+            # Skip empty statements
+            if len(cleaned) < 5:
+                continue
+            
+            statements.append(cleaned)
+        
+        return statements
+    
+    def split_into_claims(self, text: str) -> List[str]:
+        """Split into atomic claims (more granular than sentences)."""
+        statements = self.split(text)
+        claims = []
+        
+        for stmt in statements:
+            # Split on conjunctions for more granular claims
+            parts = re.split(r',\s*(?:and|but|or)\s+|\s*;\s*', stmt)
+            
+            for part in parts:
+                cleaned = part.strip()
+                if len(cleaned) >= 5:
+                    claims.append(cleaned)
+        
+        return claims
 ```
 
-## Test Cases
+### Part 2: Statement Checker
 
 ```python
-def simple_checker(stmt, ctx):
-    """Check if statement keywords appear in context."""
-    keywords = [w.lower() for w in stmt.split() if len(w) > 3]
-    ctx_lower = ctx.lower()
-    return sum(1 for k in keywords if k in ctx_lower) >= len(keywords) * 0.5
+from typing import Callable
 
-# Test 1: Perfect recall
-context1 = "France is in Western Europe. Paris is its capital city."
-gt1 = "France is in Western Europe. Its capital is Paris."
-assert abs(context_recall(context1, gt1, simple_checker) - 1.0) < 0.01
+class StatementChecker:
+    """Check if statements are supported by context."""
+    
+    @staticmethod
+    def keyword_overlap(
+        statement: str,
+        context: str,
+        threshold: float = 0.5
+    ) -> bool:
+        """Check using keyword overlap.
+        
+        Args:
+            statement: Statement to check
+            context: Context to check against
+            threshold: Minimum fraction of keywords that must match
+            
+        Returns:
+            True if statement is supported
+        """
+        # Extract keywords (words longer than 3 chars)
+        stmt_words = set(
+            w.lower() for w in statement.split()
+            if len(w) > 3 and w.isalnum()
+        )
+        
+        if not stmt_words:
+            return False
+        
+        context_lower = context.lower()
+        
+        # Count matches
+        matches = sum(1 for w in stmt_words if w in context_lower)
+        
+        return matches / len(stmt_words) >= threshold
+    
+    @staticmethod
+    def embedding_similarity(
+        statement: str,
+        context: str,
+        embedder,
+        threshold: float = 0.7
+    ) -> bool:
+        """Check using embedding similarity.
+        
+        Args:
+            statement: Statement to check
+            context: Context to check against
+            embedder: Embedding model
+            threshold: Similarity threshold
+            
+        Returns:
+            True if statement is supported
+        """
+        stmt_emb = embedder.embed(statement)
+        context_emb = embedder.embed(context)
+        
+        similarity = cosine_similarity(stmt_emb, context_emb)
+        
+        return similarity >= threshold
+    
+    @staticmethod
+    def llm_attribution(
+        statement: str,
+        context: str,
+        llm_client
+    ) -> bool:
+        """Check using LLM for attribution.
+        
+        Args:
+            statement: Statement to check
+            context: Context to check against
+            llm_client: LLM client for checking
+            
+        Returns:
+            True if statement is attributable to context
+        """
+        prompt = f"""Determine if the following statement can be attributed to the given context.
 
-# Test 2: Partial recall
-context2 = "France is in Western Europe. Known for wine and cheese."
-gt2 = "France is in Western Europe. Its capital is Paris."
-assert abs(context_recall(context2, gt2, simple_checker) - 0.5) < 0.01
+Context:
+{context}
 
-# Test 3: Zero recall
-context3 = "Germany is in Central Europe. Berlin is its capital."
-gt3 = "France is in Western Europe. Its capital is Paris."
-assert abs(context_recall(context3, gt3, simple_checker) - 0.0) < 0.01
+Statement:
+{statement}
 
-# Test 4: Empty ground truth
-context4 = "Some context here."
-gt4 = ""
-assert context_recall(context4, gt4, simple_checker) == 0.0
-
-print("All tests passed!")
+Can this statement be directly inferred from the context? Answer with only "YES" or "NO"."""
+        
+        response = llm_client.generate(prompt).strip().upper()
+        
+        return response.startswith("YES")
 ```
+
+### Part 3: Context Recall Calculator
+
+```python
+from typing import Callable
+from dataclasses import dataclass
+
+@dataclass
+class RecallResult:
+    """Result of context recall calculation."""
+    score: float
+    total_statements: int
+    supported_statements: int
+    unsupported_statements: List[str]
+    details: List[dict]
+
+class ContextRecallCalculator:
+    """Calculate context recall metric."""
+    
+    def __init__(
+        self,
+        statement_checker: Callable[[str, str], bool] = None,
+        splitter: StatementSplitter = None
+    ):
+        self.checker = statement_checker or StatementChecker.keyword_overlap
+        self.splitter = splitter or StatementSplitter()
+    
+    def calculate(
+        self,
+        retrieved_context: str,
+        ground_truth_answer: str
+    ) -> RecallResult:
+        """Calculate context recall score.
+        
+        Args:
+            retrieved_context: Context retrieved by RAG system
+            ground_truth_answer: Expected correct answer
+            
+        Returns:
+            RecallResult with score and details
+        """
+        # Split ground truth into statements
+        statements = self.splitter.split(ground_truth_answer)
+        
+        if not statements:
+            return RecallResult(
+                score=0.0,
+                total_statements=0,
+                supported_statements=0,
+                unsupported_statements=[],
+                details=[]
+            )
+        
+        # Check each statement
+        supported = []
+        unsupported = []
+        details = []
+        
+        for stmt in statements:
+            is_supported = self.checker(stmt, retrieved_context)
+            
+            detail = {
+                'statement': stmt,
+                'supported': is_supported
+            }
+            details.append(detail)
+            
+            if is_supported:
+                supported.append(stmt)
+            else:
+                unsupported.append(stmt)
+        
+        # Calculate score
+        score = len(supported) / len(statements)
+        
+        return RecallResult(
+            score=score,
+            total_statements=len(statements),
+            supported_statements=len(supported),
+            unsupported_statements=unsupported,
+            details=details
+        )
+    
+    def calculate_batch(
+        self,
+        examples: List[dict]
+    ) -> dict:
+        """Calculate recall for multiple examples.
+        
+        Args:
+            examples: List of {'context': str, 'ground_truth': str}
+            
+        Returns:
+            Aggregate statistics
+        """
+        scores = []
+        
+        for ex in examples:
+            result = self.calculate(
+                ex['context'],
+                ex['ground_truth']
+            )
+            scores.append(result.score)
+        
+        return {
+            'average_recall': sum(scores) / len(scores),
+            'min_recall': min(scores),
+            'max_recall': max(scores),
+            'num_examples': len(scores)
+        }
+```
+
+### Part 4: RAGAS Integration
+
+```python
+class RAGASContextRecall:
+    """RAGAS-style context recall implementation."""
+    
+    def __init__(self, llm_client=None):
+        self.llm = llm_client
+        self.splitter = StatementSplitter()
+    
+    def compute(
+        self,
+        contexts: List[str],
+        ground_truth: str
+    ) -> float:
+        """Compute context recall following RAGAS methodology.
+        
+        RAGAS uses LLM to check if each ground truth sentence
+        can be attributed to the retrieved contexts.
+        
+        Args:
+            contexts: List of retrieved context strings
+            ground_truth: Ground truth answer
+            
+        Returns:
+            Context recall score (0.0 to 1.0)
+        """
+        # Combine contexts
+        combined_context = "\n".join(contexts)
+        
+        # Split ground truth
+        statements = self.splitter.split(ground_truth)
+        
+        if not statements:
+            return 0.0
+        
+        # Check attribution for each statement
+        attributable_count = 0
+        
+        if self.llm:
+            # Use LLM for attribution
+            for stmt in statements:
+                if self._llm_attribution_check(stmt, combined_context):
+                    attributable_count += 1
+        else:
+            # Use simple keyword overlap
+            checker = StatementChecker()
+            for stmt in statements:
+                if checker.keyword_overlap(stmt, combined_context):
+                    attributable_count += 1
+        
+        return attributable_count / len(statements)
+    
+    def _llm_attribution_check(
+        self,
+        statement: str,
+        context: str
+    ) -> bool:
+        """Use LLM to check if statement is attributable to context."""
+        prompt = f"""Given the context, determine if the statement can be attributed to it.
+
+Context:
+{context}
+
+Statement: {statement}
+
+Can this statement be inferred from the context? Answer only YES or NO."""
+        
+        response = self.llm.generate(prompt).strip().upper()
+        return "YES" in response
+```
+
+## Example Usage
+
+```python
+# Create calculator
+calculator = ContextRecallCalculator()
+
+# Example
+context = "France is in Western Europe. Paris is its capital city."
+ground_truth = "France is in Western Europe. Its capital is Paris."
+
+result = calculator.calculate(context, ground_truth)
+
+print(f"Context Recall: {result.score:.2f}")
+print(f"Supported: {result.supported_statements}/{result.total_statements}")
+
+if result.unsupported_statements:
+    print("\nUnsupported statements:")
+    for stmt in result.unsupported_statements:
+        print(f"  - {stmt}")
+```
+
+## Evaluation Criteria
+
+Your solution will be evaluated on:
+
+1. **Statement Splitting**: Correctly breaks text into statements
+2. **Attribution Checking**: Accurately identifies supported claims
+3. **Score Calculation**: Correct recall computation
+4. **Flexibility**: Multiple checking strategies supported
+5. **RAGAS Compliance**: Follows RAGAS methodology

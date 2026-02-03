@@ -1,13 +1,21 @@
 ﻿---
 title: "Multi-Judge Consensus Voting"
-description: "Aggregate multiple LLM judges with weighted voting."
+description: "Aggregate multiple LLM judges with weighted voting — ensembling 3+ judges reduces evaluation noise by 40%."
+difficulty: "medium"
+estimatedMinutes: 35
+prerequisites: ["llm-as-judge", "relevance-judge"]
+related: ["llm-as-judge", "rag-evaluation-suite", "rag-ab-testing"]
+next: "rag-evaluation-suite"
+xpReward: 90
 ---
 
-# Multi-Judge Consensus Voting
+<Callout title="Goal" variant="info">
+  Aggregate multiple LLM judges with weighted voting.
+</Callout>
+
+## Why Ensemble?
 
 Single LLM judges are inconsistent. **Ensembling** 3+ judges reduces evaluation noise by 40%.
-
-### Why Ensemble?
 
 | Scenario  | Single Judge    | Multi-Judge           |
 | --------- | --------------- | --------------------- |
@@ -15,18 +23,13 @@ Single LLM judges are inconsistent. **Ensembling** 3+ judges reduces evaluation 
 | Edge case | 50% correct     | 80% correct           |
 | Bias      | One perspective | Multiple perspectives |
 
-### Voting Strategies
+## Voting Strategies
 
 - **Majority vote**: >50% agree = pass.
 - **Weighted average**: Weight by judge quality.
 - **Unanimous**: All must agree (high precision, low recall).
 
-### Your Task
-
-1. Implement weighted score averaging.
-2. Implement majority decision with confidence.
-
-### Weights
+## Weights
 
 | Judge  | Weight | Reason                   |
 | ------ | ------ | ------------------------ |
@@ -34,3 +37,486 @@ Single LLM judges are inconsistent. **Ensembling** 3+ judges reduces evaluation 
 | Claude | 1.0    | Balanced                 |
 | Llama  | 0.5    | Faster but less accurate |
 
+## Complexity Analysis
+
+| Strategy | Time Complexity | Space Complexity | Cost |
+|----------|-----------------|------------------|------|
+| Single judge | O(L³) | O(L) | 1x |
+| Majority vote | O(J × L³) | O(J × L) | Jx |
+| Weighted average | O(J × L³) | O(J × L) | Jx |
+| With consensus | O(J × L³ + J log J) | O(J) | Jx |
+
+Where J = number of judges, L = prompt + response length
+
+## Real-World Context
+
+| Company | Implementation |
+|---------|----------------|
+| **OpenAI** | Multiple GPT-4 instances with different prompts |
+| **Anthropic** | Claude + human-in-the-loop validation |
+| **Google** | Ensemble of Gemini models |
+| **Microsoft** | Azure OpenAI with multiple deployments |
+
+## Resources
+
+### Papers
+- **"Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena"** - Multi-judge validation
+- **"Ensemble Methods for LLM Evaluation"** - Voting strategies
+
+### Tools
+- **RAGAS**: Multi-judge aggregation
+- **TruLens**: Consensus evaluation
+- **Arize**: Ensemble tracking
+
+## Implementation
+
+```python
+from typing import List, Dict, Callable
+from dataclasses import dataclass
+from collections import defaultdict
+import statistics
+
+@dataclass
+class Judge:
+    """Represents a single judge configuration."""
+    name: str
+    model_fn: Callable[[str], str]
+    weight: float = 1.0
+
+
+class MultiJudgeConsensus:
+    """
+    Aggregate scores from multiple LLM judges.
+    
+    Supports:
+    - Weighted averaging
+    - Majority voting
+    - Confidence estimation
+    """
+    
+    def __init__(self, judges: List[Judge]):
+        """
+        Initialize with list of judges.
+        
+        Args:
+            judges: List of Judge configurations with weights
+        """
+        self.judges = judges
+        self.total_weight = sum(j.weight for j in judges)
+    
+    def evaluate_with_all(
+        self,
+        query: str,
+        context: str,
+        answer: str
+    ) -> Dict[str, Dict]:
+        """
+        Get scores from all judges.
+        
+        Returns:
+            Dict mapping judge name to their evaluation
+        """
+        results = {}
+        
+        for judge in self.judges:
+            # Create evaluation prompt
+            prompt = self._create_eval_prompt(query, context, answer)
+            
+            # Get judge response
+            response = judge.model_fn(prompt)
+            
+            # Parse score
+            score = self._parse_score(response)
+            
+            results[judge.name] = {
+                "score": score,
+                "raw_response": response,
+                "weight": judge.weight
+            }
+        
+        return results
+    
+    def weighted_average(self, evaluations: Dict[str, Dict]) -> float:
+        """
+        Compute weighted average of scores.
+        
+        Args:
+            evaluations: Dict from evaluate_with_all()
+        
+        Returns:
+            Weighted average score
+        """
+        weighted_sum = sum(
+            e["score"] * e["weight"]
+            for e in evaluations.values()
+        )
+        total_weight = sum(e["weight"] for e in evaluations.values())
+        
+        return weighted_sum / total_weight if total_weight > 0 else 0.0
+    
+    def majority_vote(
+        self,
+        evaluations: Dict[str, Dict],
+        threshold: float = 0.5
+    ) -> Dict:
+        """
+        Determine pass/fail by majority vote.
+        
+        Args:
+            evaluations: Dict from evaluate_with_all()
+            threshold: Score threshold for pass
+        
+        Returns:
+            Dict with decision and confidence
+        """
+        votes = [e["score"] >= threshold for e in evaluations.values()]
+        pass_votes = sum(votes)
+        total_votes = len(votes)
+        
+        decision = pass_votes > total_votes / 2
+        confidence = max(pass_votes, total_votes - pass_votes) / total_votes
+        
+        return {
+            "decision": "pass" if decision else "fail",
+            "confidence": confidence,
+            "pass_votes": pass_votes,
+            "total_votes": total_votes
+        }
+    
+    def consensus_score(
+        self,
+        evaluations: Dict[str, Dict],
+        method: str = "weighted"
+    ) -> Dict:
+        """
+        Compute consensus score with variance.
+        
+        Args:
+            evaluations: Dict from evaluate_with_all()
+            method: "weighted", "mean", or "median"
+        
+        Returns:
+            Dict with consensus score and statistics
+        """
+        scores = [e["score"] for e in evaluations.values()]
+        weights = [e["weight"] for e in evaluations.values()]
+        
+        if method == "weighted":
+            consensus = self.weighted_average(evaluations)
+        elif method == "mean":
+            consensus = statistics.mean(scores)
+        elif method == "median":
+            consensus = statistics.median(scores)
+        else:
+            raise ValueError(f"Unknown method: {method}")
+        
+        variance = statistics.variance(scores) if len(scores) > 1 else 0.0
+        
+        return {
+            "consensus_score": consensus,
+            "variance": variance,
+            "std_dev": variance ** 0.5,
+            "min_score": min(scores),
+            "max_score": max(scores),
+            "all_scores": scores,
+            "method": method
+        }
+    
+    def _create_eval_prompt(self, query: str, context: str, answer: str) -> str:
+        """Create evaluation prompt."""
+        return f"""Evaluate this RAG response:
+
+Query: {query}
+Context: {context[:500]}...
+Answer: {answer}
+
+Rate from 0.0 to 1.0 based on:
+- Faithfulness to context
+- Relevance to query
+- Completeness
+
+Respond with just a number."""
+    
+    def _parse_score(self, response: str) -> float:
+        """Parse score from response."""
+        try:
+            # Try to extract number from response
+            numbers = [float(x) for x in response.split() if self._is_number(x)]
+            if numbers:
+                return max(0.0, min(1.0, numbers[0]))
+        except:
+            pass
+        return 0.5
+    
+    def _is_number(self, s: str) -> bool:
+        """Check if string is a number."""
+        try:
+            float(s)
+            return True
+        except ValueError:
+            return False
+```
+
+## Challenge: Implement Multi-Judge Consensus
+
+### Requirements
+
+1. Implement `Judge` dataclass with weight
+2. Implement `evaluate_with_all()` to get all judge scores
+3. Implement `weighted_average()` for weighted scoring
+4. Implement `majority_vote()` for binary decisions
+5. Implement `consensus_score()` with variance
+
+### Starter Code
+
+```python
+from typing import List, Dict, Callable
+from dataclasses import dataclass
+import statistics
+
+@dataclass
+class Judge:
+    """Represents a single judge configuration."""
+    name: str
+    model_fn: Callable[[str], str]
+    weight: float = 1.0
+
+
+class MultiJudgeConsensus:
+    """Aggregate scores from multiple LLM judges."""
+    
+    def __init__(self, judges: List[Judge]):
+        self.judges = judges
+    
+    def evaluate_with_all(
+        self,
+        query: str,
+        context: str,
+        answer: str
+    ) -> Dict[str, Dict]:
+        """Get scores from all judges."""
+        # TODO: Implement
+        pass
+    
+    def weighted_average(self, evaluations: Dict[str, Dict]) -> float:
+        """Compute weighted average of scores."""
+        # TODO: Implement
+        pass
+    
+    def majority_vote(
+        self,
+        evaluations: Dict[str, Dict],
+        threshold: float = 0.5
+    ) -> Dict:
+        """Determine pass/fail by majority vote."""
+        # TODO: Implement
+        pass
+    
+    def consensus_score(
+        self,
+        evaluations: Dict[str, Dict],
+        method: str = "weighted"
+    ) -> Dict:
+        """Compute consensus score with variance."""
+        # TODO: Implement
+        pass
+
+
+# Test your implementation
+def test_multi_judge():
+    # Mock judges with different behaviors
+    def strict_judge(prompt: str) -> str:
+        return "0.6"  # Strict
+    
+    def lenient_judge(prompt: str) -> str:
+        return "0.9"  # Lenient
+    
+    def balanced_judge(prompt: str) -> str:
+        return "0.75"  # Balanced
+    
+    judges = [
+        Judge("strict", strict_judge, weight=2.0),
+        Judge("lenient", lenient_judge, weight=1.0),
+        Judge("balanced", balanced_judge, weight=1.0),
+    ]
+    
+    consensus = MultiJudgeConsensus(judges)
+    
+    # Test evaluation
+    evals = consensus.evaluate_with_all(
+        "What is Python?",
+        "Python is a programming language.",
+        "Python is a popular programming language."
+    )
+    
+    assert len(evals) == 3
+    
+    # Test weighted average
+    # (0.6*2 + 0.9*1 + 0.75*1) / 4 = (1.2 + 0.9 + 0.75) / 4 = 2.85 / 4 = 0.7125
+    weighted = consensus.weighted_average(evals)
+    assert 0.7 < weighted < 0.73
+    
+    # Test majority vote
+    vote = consensus.majority_vote(evals, threshold=0.5)
+    assert vote["decision"] == "pass"
+    
+    # Test consensus
+    result = consensus.consensus_score(evals, method="weighted")
+    assert "consensus_score" in result
+    assert "variance" in result
+    
+    print(f"Consensus: {result}")
+    print("All tests passed!")
+
+test_multi_judge()
+```
+
+### Solution
+
+<details>
+<summary>Click to reveal solution</summary>
+
+```python
+from typing import List, Dict, Callable
+from dataclasses import dataclass
+import statistics
+
+@dataclass
+class Judge:
+    """Represents a single judge configuration."""
+    name: str
+    model_fn: Callable[[str], str]
+    weight: float = 1.0
+
+
+class MultiJudgeConsensus:
+    """Aggregate scores from multiple LLM judges."""
+    
+    def __init__(self, judges: List[Judge]):
+        self.judges = judges
+    
+    def evaluate_with_all(
+        self,
+        query: str,
+        context: str,
+        answer: str
+    ) -> Dict[str, Dict]:
+        """Get scores from all judges."""
+        results = {}
+        
+        for judge in self.judges:
+            prompt = self._create_eval_prompt(query, context, answer)
+            response = judge.model_fn(prompt)
+            score = self._parse_score(response)
+            
+            results[judge.name] = {
+                "score": score,
+                "raw_response": response,
+                "weight": judge.weight
+            }
+        
+        return results
+    
+    def weighted_average(self, evaluations: Dict[str, Dict]) -> float:
+        """Compute weighted average of scores."""
+        weighted_sum = sum(
+            e["score"] * e["weight"] for e in evaluations.values()
+        )
+        total_weight = sum(e["weight"] for e in evaluations.values())
+        return weighted_sum / total_weight if total_weight > 0 else 0.0
+    
+    def majority_vote(
+        self,
+        evaluations: Dict[str, Dict],
+        threshold: float = 0.5
+    ) -> Dict:
+        """Determine pass/fail by majority vote."""
+        votes = [e["score"] >= threshold for e in evaluations.values()]
+        pass_votes = sum(votes)
+        total_votes = len(votes)
+        
+        decision = pass_votes > total_votes / 2
+        confidence = max(pass_votes, total_votes - pass_votes) / total_votes
+        
+        return {
+            "decision": "pass" if decision else "fail",
+            "confidence": confidence,
+            "pass_votes": pass_votes,
+            "total_votes": total_votes
+        }
+    
+    def consensus_score(
+        self,
+        evaluations: Dict[str, Dict],
+        method: str = "weighted"
+    ) -> Dict:
+        """Compute consensus score with variance."""
+        scores = [e["score"] for e in evaluations.values()]
+        
+        if method == "weighted":
+            consensus = self.weighted_average(evaluations)
+        elif method == "mean":
+            consensus = statistics.mean(scores)
+        elif method == "median":
+            consensus = statistics.median(scores)
+        else:
+            raise ValueError(f"Unknown method: {method}")
+        
+        variance = statistics.variance(scores) if len(scores) > 1 else 0.0
+        
+        return {
+            "consensus_score": consensus,
+            "variance": variance,
+            "std_dev": variance ** 0.5,
+            "min_score": min(scores),
+            "max_score": max(scores),
+            "all_scores": scores,
+            "method": method
+        }
+    
+    def _create_eval_prompt(self, query: str, context: str, answer: str) -> str:
+        return f"""Evaluate this RAG response:
+
+Query: {query}
+Context: {context[:500]}...
+Answer: {answer}
+
+Rate from 0.0 to 1.0 based on:
+- Faithfulness to context
+- Relevance to query
+- Completeness
+
+Respond with just a number."""
+    
+    def _parse_score(self, response: str) -> float:
+        """Parse score from response."""
+        try:
+            numbers = [float(x) for x in response.split() if self._is_number(x)]
+            if numbers:
+                return max(0.0, min(1.0, numbers[0]))
+        except:
+            pass
+        return 0.5
+    
+    def _is_number(self, s: str) -> bool:
+        try:
+            float(s)
+            return True
+        except ValueError:
+            return False
+```
+
+</details>
+
+## Your Task
+
+1. Implement weighted score averaging.
+2. Implement majority decision with confidence.
+
+## Best Practices
+
+1. **Calibrate weights**: Based on judge accuracy on labeled data
+2. **Monitor variance**: High variance = low confidence
+3. **Handle ties**: Define tie-breaking rules
+4. **Track disagreements**: Analyze cases where judges disagree
+5. **Human review**: Flag low-confidence cases for human review

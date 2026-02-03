@@ -1,4 +1,15 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "Dot Product"
+description: "Implement dot product — the primitive behind cosine similarity and a huge amount of vector search"
+difficulty: "beginner"
+estimatedMinutes: 15
+xpReward: 20
+prerequisites: []
+related: ["cosine-similarity", "euclidean-distance", "basic-retrieval"]
+next: "cosine-similarity"
+---
+
+<Callout title="Goal" variant="info">
   Implement dot product — the primitive behind cosine similarity and a huge
   amount of vector search.
 </Callout>
@@ -17,11 +28,83 @@ If you can't implement this efficiently, you can't build scalable RAG.
 
 ## What you're implementing
 
+```
+dot(a, b) = Σ(a_i × b_i)
+```
+
 - Validate equal lengths (raise `ValueError` if mismatch).
 - Handle empty vectors (`dot([], []) == 0.0`).
 - Return a `float`.
+
+## The Algorithm
+
+```python
+def dot_product(a: list[float], b: list[float]) -> float:
+    """
+    Compute dot product of two vectors.
+    
+    Time Complexity: O(N) where N = vector dimension
+    Space Complexity: O(1) additional
+    
+    Args:
+        a: First vector
+        b: Second vector
+        
+    Returns:
+        Dot product as float
+        
+    Raises:
+        ValueError: If vectors have different lengths
+    """
+    if len(a) != len(b):
+        raise ValueError(f"Vector length mismatch: {len(a)} vs {len(b)}")
+    
+    return sum(x * y for x, y in zip(a, b))
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Time | O(N) | Single pass through vectors |
+| Space | O(1) | No additional storage |
+| Operations | N multiplies + N-1 adds | Per comparison |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand the mathematical foundation of all vector similarity operations
+- Be able to implement efficient vector computations in Python
+- Recognize why dot product is the building block of modern AI systems
+
+## Real-World Applications
+
+| Company | Use Case |
+|---------|----------|
+| OpenAI | Embedding similarity in GPT models |
+| Google | Neural network forward passes |
+| Meta AI | Attention mechanisms in LLaMA |
+| Hugging Face | Model inference optimization |
 
 ## Common pitfalls
 
 - Forgetting length checks (python's `zip` truncates silently!).
 - Returning `int` instead of `float` (type safety matters in production).
+
+## Resources
+
+### Documentation
+- [NumPy Dot Product](https://numpy.org/doc/stable/reference/generated/numpy.dot.html)
+- [PyTorch Matmul](https://pytorch.org/docs/stable/generated/torch.matmul.html)
+
+### Tutorials
+- [Linear Algebra for ML](https://www.coursera.org/learn/machine-learning-linear-algebra)
+- [Vector Similarity Explained](https://www.pinecone.io/learn/vector-similarity/)
+
+## Next Steps
+
+Once you master dot product, you'll move on to [cosine-similarity](cosine-similarity) — the industry standard for semantic search.
+
+---
+
+**Pro Tip:** This challenge is part of the **Foundations** module. Complete all 4 foundation challenges to unlock the Data Layer challenges where you'll build production-ready chunking systems.

@@ -1,23 +1,268 @@
+---
+title: "Reciprocal Rank Fusion (TypeScript)"
+description: "Implement RRF — the standard way to combine multiple retrieval results."
+language: "typescript"
+difficulty: "intermediate"
+category: "retrieval"
+prerequisites: ["ts-top-k-search", "ts-bm25-score"]
+related: ["rrf-fusion", "hybrid-search-tuning", "ts-cascade-reranker"]
+tags: ["rrf", "fusion", "hybrid-search", "ranking"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Implement Reciprocal Rank Fusion — the standard way to combine multiple retrieval results.
+  Implement Reciprocal Rank Fusion (RRF) — the de-facto standard for combining dense and sparse retrieval results.
 </Callout>
 
-## Why this matters in production
+## Why RRF Matters in Production
 
-Hybrid search combines dense (semantic) and sparse (keyword) retrieval. RRF is the de-facto standard for fusing these results because it's simple, parameter-free, and robust.
+Hybrid search combines dense (semantic) and sparse (keyword) retrieval. RRF is the de-facto standard for fusing these results because it's simple, parameter-free, and robust. RRF enables:
 
-## What you're implementing
+- **Best of both worlds**: Semantic + keyword matching
+- **No training required**: Works out of the box
+- **Score agnostic**: Doesn't require normalized scores
+- **Proven effectiveness**: Used in production systems
 
-- For each document, sum `1/(k + rank)` across all retrieval lists.
-- Sort by RRF score (descending).
-- Return fused results.
+### Real-World Scenario
 
-## Common pitfalls
+Query: "Python async programming"
 
-- Using 0-based ranks instead of 1-based.
-- Forgetting documents that appear in only one list.
+**Dense retrieval (embeddings):**
+1. "Asynchronous programming concepts" (rank 1)
+2. "JavaScript promises tutorial" (rank 2)
+3. "Python threading guide" (rank 3)
 
-## After you pass
+**Sparse retrieval (BM25):**
+1. "Python async/await documentation" (rank 1)
+2. "Python threading guide" (rank 2)
+3. "Asynchronous programming concepts" (rank 3)
 
-Build a complete hybrid search by combining **Top-K Search** + **BM25** + **RRF Fusion**.
+**RRF Fusion (k=60):**
+```
+Doc A: "Asynchronous programming concepts"
+  Dense rank: 1 → score = 1/(60+1) = 0.0164
+  Sparse rank: 3 → score = 1/(60+3) = 0.0159
+  Total: 0.0323
 
+Doc B: "Python async/await documentation"
+  Dense rank: not in top → 0
+  Sparse rank: 1 → score = 1/(60+1) = 0.0164
+  Total: 0.0164
+
+Doc C: "Python threading guide"
+  Dense rank: 3 → score = 0.0159
+  Sparse rank: 2 → score = 1/(60+2) = 0.0161
+  Total: 0.0320
+
+Final ranking: Doc A > Doc C > Doc B
+```
+
+## The Mathematical Foundation
+
+### RRF Formula
+
+For a document $d$ and set of result lists $R$:
+
+$$\text{RRF}(d) = \sum_{r \in R} \frac{1}{k + r(d)}$$
+
+Where:
+- $r(d)$ = rank of document $d$ in list $r$ (1-indexed)
+- $k$ = constant (typically 60)
+- If document not in list, contribution = 0
+
+### The k Parameter
+
+| k Value | Effect | Typical Use |
+|---------|--------|-------------|
+| 0 | Pure reciprocal rank | Aggressive top-weighting |
+| 60 | Balanced | Default, good for most cases |
+| 100+ | More uniform | Less top-weighting |
+
+Higher k = more even distribution across ranks.
+
+### Score Normalization
+
+RRF doesn't require score normalization:
+
+```
+Problem: Dense scores [0.9, 0.8, 0.7], Sparse scores [15.2, 12.1, 8.3]
+Can't directly compare!
+
+Solution: RRF uses ranks only, not scores
+Rank 1 always contributes 1/(k+1) regardless of original score
+```
+
+## Theoretical Deep Dive
+
+### Why RRF Works
+
+1. **Rank-based**: Avoids score calibration issues
+2. **Diminishing returns**: Lower ranks contribute less
+3. **Additive**: Multiple low rankings can beat single high ranking
+4. **Parameter-free**: k=60 works well across domains
+
+### Comparison with Linear Combination
+
+| Method | Pros | Cons |
+|--------|------|------|
+| **RRF** | No score normalization, robust | Doesn't use magnitude |
+| **Linear** | Uses full score information | Requires calibration |
+| **Borda Count** | Simple voting | Less nuanced |
+
+### Theoretical Justification
+
+RRF approximates the probability that a document is relevant given its rankings:
+
+```
+P(relevant | ranks) ∝ Σ 1/(k + rank)
+
+Higher ranks → Higher probability
+Multiple appearances → More evidence
+```
+
+## Production Considerations
+
+### Handling Missing Documents
+
+Documents may appear in some lists but not others:
+
+```typescript
+// Document not in list → contribution = 0
+const contribution = rank ? 1 / (k + rank) : 0;
+```
+
+### Normalization of Rankings
+
+Ensure all lists use 1-indexed ranks:
+
+```typescript
+// Convert 0-indexed to 1-indexed
+const rank = index + 1;
+```
+
+### Weighted RRF
+
+For imporance-weighted sources:
+
+```typescript
+rrfScore = w1 * rrf_dense + w2 * rrf_sparse;
+
+Where w1 + w2 = 1
+```
+
+## Your Task
+
+Implement Reciprocal Rank Fusion:
+
+```typescript
+interface RankedDocument {
+  docId: string;
+  rank: number;  // 1-indexed
+  score?: number; // Original score (not used in RRF)
+}
+
+interface ResultList {
+  name: string;
+  documents: RankedDocument[];
+  weight?: number;  // Optional weight for this list
+}
+
+interface RRFResult {
+  docId: string;
+  rrfScore: number;
+  contributions: Map<string, number>;  // listName → contribution
+}
+
+interface RRFConfig {
+  k?: number;  // Constant (default: 60)
+}
+
+function reciprocalRankFusion(
+  resultLists: ResultList[],
+  config?: RRFConfig
+): RRFResult[] {
+  /**
+   * Fuse multiple ranked result lists using RRF.
+   * 
+   * Args:
+   *   resultLists: Array of ranked document lists
+   *   config: Optional RRF parameters
+   * 
+   * Returns:
+   *   Array of RRFResult sorted by RRF score (descending)
+   * 
+   * Algorithm:
+   *   1. Initialize scores map: docId → { rrfScore: 0, contributions: {} }
+   *   2. For each result list:
+   *      a. For each document in list:
+   *         - Calculate contribution = weight × 1/(k + rank)
+   *         - Add to document's RRF score
+   *         - Record contribution
+   *   3. Sort documents by RRF score descending
+   *   4. Return results
+   * 
+   * Formula:
+   *   RRF(d) = Σ (weight_i / (k + rank_i(d)))
+   *   If document not in list i, contribution = 0
+   * 
+   * Edge Cases:
+   *   - Empty result lists: return empty
+   *   - Document in only one list: uses that contribution only
+   *   - Same document multiple times in one list: use best rank
+   *   - k = 0: pure reciprocal rank
+   */
+}
+
+function calculateRRFScore(
+  rank: number,
+  k: number,
+  weight: number = 1
+): number {
+  /**
+   * Calculate RRF contribution for a single ranking.
+   */
+}
+
+function normalizeRanks(documents: RankedDocument[]): RankedDocument[] {
+  /**
+   * Ensure ranks are 1-indexed and unique.
+   * Handle ties by assigning same rank (competition ranking).
+   */
+}
+```
+
+### Validation Checklist
+
+- [ ] Rank 1 contributes 1/(k+1)
+- [ ] Rank 2 contributes 1/(k+2)
+- [ ] Missing documents contribute 0
+- [ ] Multiple lists aggregated correctly
+- [ ] Results sorted by RRF score descending
+- [ ] k=0 uses pure reciprocal rank
+- [ ] Weights applied correctly
+- [ ] 1-indexed ranks used
+
+## Common Pitfalls
+
+- **Using 0-based ranks instead of 1-based**: Off-by-one error
+- **Forgetting documents that appear in only one list**: They still count
+- **Not handling ties**: Decide on tie-breaking strategy
+- **Wrong k value**: 60 is standard but tune for your data
+- **Score normalization attempted**: RRF uses ranks, not scores
+
+## After You Pass
+
+Build a complete hybrid search by combining **Top-K Search** + **BM25** + **RRF Fusion**, or experiment with weighted RRF for different source importance.
+
+## Resources
+
+### Academic Papers
+- ["Reciprocal Rank Fusion outperforms Condorcet and individual Rank Learning Methods"](https://plg.uwaterloo.ca/~gvcormac/cormacksigir09-rrf.pdf) - Cormack et al. (Original RRF)
+- ["Fusion in Information Retrieval"](https://en.wikipedia.org/wiki/Data_fusion) - Wikipedia overview
+
+### Documentation
+- [Pinecone Hybrid Search](https://www.pinecone.io/learn/hybrid-search/) - RRF implementation
+- [Weaviate Fusion](https://weaviate.io/developers/weaviate/search/fusion) - RRF and other methods
+
+### Tutorials
+- ["Hybrid Search Explained"](https://www.pinecone.io/learn/hybrid-search/) - Pinecone guide
+- ["Combining Lexical and Semantic Search"](https://blog.vespa.ai/combining-lexical-and-semantic-search/) - Vespa blog

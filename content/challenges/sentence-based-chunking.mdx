@@ -1,10 +1,12 @@
 ﻿---
 title: "Sentence-Based Chunking: Respecting Language"
 description: "Chunk at natural linguistic boundaries for better semantic coherence"
-difficulty: "medium"
-timeEstimate: "20-25 min"
+difficulty: "beginner"
+estimatedMinutes: 25
 xpReward: 50
 prerequisites: ["overlapping-chunking-explained"]
+related: ["paragraph-based-chunking", "recursive-chunking", "semantic-chunking"]
+next: "paragraph-based-chunking"
 ---
 
 # Sentence-Based Chunking: Respecting Language
@@ -34,9 +36,22 @@ But "The cat sat on the" is meaningless - the embedding will be noisy and unreli
 import re
 
 def sentence_chunk(text: str, max_sentences: int = 3) -> List[str]:
+    """
+    Chunk text at sentence boundaries.
+    
+    Time Complexity: O(S) where S = number of sentences
+    Space Complexity: O(N) for output
+    
+    Args:
+        text: Input text
+        max_sentences: Maximum sentences per chunk
+        
+    Returns:
+        List of sentence-based chunks
+    """
     # Split on sentence boundaries
     sentences = re.split(r'(?<=[.!?])\s+', text)
-
+    
     # Group into chunks of N sentences
     chunks = []
     for i in range(0, len(sentences), max_sentences):
@@ -81,6 +96,19 @@ A naive regex would split at "Dr." and "Inc." incorrectly.
 
 ---
 
+## Variable Size Problem
+
+| Content Type    | Avg Sentence Length |
+| --------------- | ------------------- |
+| Tweets          | 15-20 words         |
+| News articles   | 20-25 words         |
+| Academic papers | 30-40 words         |
+| Legal documents | 50+ words           |
+
+You may need to combine with size limits to handle outliers.
+
+---
+
 ## Real-World Usage
 
 **Best for**:
@@ -98,16 +126,16 @@ A naive regex would split at "Dr." and "Inc." incorrectly.
 
 ---
 
-## Variable Size Problem
+## Resources
 
-| Content Type    | Avg Sentence Length |
-| --------------- | ------------------- |
-| Tweets          | 15-20 words         |
-| News articles   | 20-25 words         |
-| Academic papers | 30-40 words         |
-| Legal documents | 50+ words           |
+### Documentation
+- [spaCy Sentencizer](https://spacy.io/api/sentencizer)
+- [NLTK Tokenization](https://www.nltk.org/api/nltk.tokenize.html)
 
-You may need to combine with size limits to handle outliers.
+### Tools
+- **spaCy**: `nlp.add_pipe("sentencizer")`
+- **NLTK**: `sent_tokenize()`
+- **Stanza**: Neural sentence segmentation
 
 ---
 
@@ -123,7 +151,6 @@ Language has natural structure. Respect it.
 
 ## Related Challenges
 
-- `paragraph-based-chunking` - Even larger linguistic units
-- `recursive-chunking` - Combines sentence + paragraph awareness
-- `semantic-chunking` - AI-detected topic boundaries
-
+- [paragraph-based-chunking](paragraph-based-chunking) - Even larger linguistic units
+- [recursive-chunking](recursive-chunking) - Combines sentence + paragraph awareness
+- [semantic-chunking](semantic-chunking) - AI-detected topic boundaries

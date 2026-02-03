@@ -1,23 +1,281 @@
+---
+title: "Query Decomposition (TypeScript)"
+description: "Decompose complex queries into simpler sub-queries."
+language: "typescript"
+difficulty: "intermediate"
+category: "retrieval"
+prerequisites: ["ts-query-router"]
+related: ["query-decomposition", "multi-hop-qa", "ts-hyde-query"]
+tags: ["query-decomposition", "multi-hop", "complex-queries", "retrieval"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Decompose complex queries into simpler sub-queries.
+  Decompose complex queries into simpler sub-queries for better retrieval coverage.
 </Callout>
 
-## Why this matters in production
+## Why Query Decomposition Matters in Production
 
-Complex multi-part questions are hard to retrieve for. Decomposition breaks them into pieces that can be retrieved independently and answers synthesized.
+Complex multi-part questions are hard to retrieve for. Decomposition breaks them into pieces that can be retrieved independently and answers synthesized. This pattern is essential for:
 
-## What you're implementing
+- **Multi-hop questions**: "What is the capital of the country where Einstein was born?"
+- **Comparisons**: "Compare Python and JavaScript for web development"
+- **Temporal queries**: "What happened after X and before Y?"
+- **Multi-aspect questions**: "What are the benefits and drawbacks of microservices?"
 
-- Detect query type: simple, compound, comparison, temporal.
-- Split compound queries on conjunctions.
-- Generate sub-queries for comparison questions.
+### Real-World Scenario
 
-## Common pitfalls
+Query: "What is the weather in the capital of France?"
 
-- Over-decomposing simple queries.
-- Losing context between sub-queries.
+**Without decomposition:**
+- Retrieve documents about "weather in capital of France"
+- May miss because no single document contains this exact phrase
 
-## After you pass
+**With decomposition:**
+1. Sub-query 1: "What is the capital of France?" → Paris
+2. Sub-query 2: "What is the weather in Paris?" → Current weather
+3. Synthesize: "The weather in Paris (capital of France) is..."
 
-Use decomposition with **Multi-Query Retrieval** for better coverage.
+## The Mathematical Foundation
 
+### Query Types
+
+| Type | Pattern | Example |
+|------|---------|---------|
+| **Simple** | Single fact | "What is RAG?" |
+| **Compound** | Multiple facts | "What is RAG and how does it work?" |
+| **Comparison** | A vs B | "Compare RAG and fine-tuning" |
+| **Temporal** | Time-based | "What happened after ChatGPT's release?" |
+| **Causal** | Cause-effect | "Why does RAG reduce hallucinations?" |
+
+### Decomposition Strategies
+
+| Strategy | When to Use | Example |
+|----------|-------------|---------|
+| **Split on conjunctions** | Compound queries | "and", "or", "but" |
+| **Extract entities** | Multi-hop | "capital of [country]" |
+| **Question type detection** | Mixed queries | Classify then route |
+| **LLM-based** | Complex queries | "Break this into steps" |
+
+### Sub-query Dependencies
+
+```
+Independent: Q1, Q2, Q3 (can execute in parallel)
+Sequential: Q1 → Q2 (Q2 depends on Q1 result)
+Hierarchical: Q1 → [Q2, Q3] (Q2 and Q3 refine Q1)
+```
+
+## Theoretical Deep Dive
+
+### The Retrieval Gap
+
+Complex queries often fail because:
+
+```
+Query: "What is the weather in the capital of France?"
+Documents: 
+  - "Paris is the capital of France"
+  - "The weather in Paris is sunny"
+
+Problem: No single document contains both facts
+Solution: Decompose and retrieve separately
+```
+
+### Answer Synthesis
+
+After retrieving for sub-queries:
+
+```
+Sub-answers:
+  - Q1: "Paris is the capital of France"
+  - Q2: "The weather in Paris is sunny"
+
+Synthesis: "The weather in Paris, the capital of France, is sunny."
+```
+
+### Confidence Aggregation
+
+```
+Overall confidence = min(confidence(Q1), confidence(Q2), ...)
+
+Or weighted by sub-query importance
+```
+
+## Production Considerations
+
+### Decomposition vs Direct
+
+When to decompose:
+
+```typescript
+function shouldDecompose(query: string): boolean {
+  if (hasConjunctions(query)) return true;
+  if (isMultiHop(query)) return true;
+  if (isComparison(query)) return true;
+  if (query.length > 100) return true; // Long queries
+  return false;
+}
+```
+
+### Parallel Execution
+
+Execute independent sub-queries in parallel:
+
+```typescript
+const subQueries = decompose(query);
+const results = await Promise.all(
+  subQueries.map(sq => retrieve(sq))
+);
+```
+
+### Caching Sub-results
+
+Cache intermediate results:
+
+```typescript
+// "Capital of France" → "Paris" (cache this)
+// Future queries can reuse
+```
+
+## Your Task
+
+Implement query decomposition:
+
+```typescript
+type QueryType = 'simple' | 'compound' | 'comparison' | 'temporal' | 'multi-hop';
+
+interface SubQuery {
+  id: string;
+  text: string;
+  type: QueryType;
+  dependsOn?: string[];  // IDs of sub-queries this depends on
+}
+
+interface DecompositionResult {
+  originalQuery: string;
+  queryType: QueryType;
+  subQueries: SubQuery[];
+  canParallelize: boolean;
+}
+
+interface DecomposerConfig {
+  maxSubQueries?: number;
+  useLLM?: boolean;
+  llmDecomposer?: (query: string) => Promise<SubQuery[]>;
+}
+
+class QueryDecomposer {
+  constructor(private config: DecomposerConfig = {}) {}
+
+  decompose(query: string): DecompositionResult {
+    /**
+     * Decompose a complex query into simpler sub-queries.
+     * 
+     * Args:
+     *   query: User query to decompose
+     * 
+     * Returns:
+     *   DecompositionResult with sub-queries and metadata
+     * 
+     * Algorithm:
+     *   1. Detect query type
+     *   2. Apply decomposition strategy based on type
+     *   3. Generate sub-queries
+     *   4. Determine dependencies
+     *   5. Return result
+     * 
+     * Decomposition strategies:
+     *   - Simple: No decomposition, single sub-query
+     *   - Compound: Split on conjunctions (and, or)
+     *   - Comparison: Split into "What is A?" and "What is B?"
+     *   - Temporal: Extract time references
+     *   - Multi-hop: Identify entities and relationships
+     * 
+     * Edge Cases:
+     *   - Empty query: return empty result
+     *   - Undecomposable: return as simple query
+     *   - Too many sub-queries: merge or truncate
+     */
+  }
+
+  detectQueryType(query: string): QueryType {
+    /**
+     * Detect the type of query for routing.
+     * 
+     * Patterns:
+     *   - Comparison: "compare", "vs", "difference between"
+     *   - Temporal: "after", "before", "when", "history"
+     *   - Compound: "and", "or" (not in lists)
+     *   - Multi-hop: "capital of", "president of", nested references
+     *   - Simple: default
+     */
+  }
+
+  private splitOnConjunctions(query: string): SubQuery[] {
+    /**
+     * Split compound query on conjunctions.
+     * Handle "and", "or", "as well as", etc.
+     */
+  }
+
+  private decomposeComparison(query: string): SubQuery[] {
+    /**
+     * Decompose comparison into individual items.
+     * "Compare A and B" → ["What is A?", "What is B?", "How do A and B compare?"]
+     */
+  }
+
+  private decomposeMultiHop(query: string): SubQuery[] {
+    /**
+     * Decompose multi-hop query into sequential steps.
+     * "Weather in capital of France" → ["Capital of France", "Weather in {result}"]
+     */
+  }
+}
+
+// Convenience function
+function decomposeQuery(
+  query: string,
+  config?: Partial<DecomposerConfig>
+): DecompositionResult {
+  const decomposer = new QueryDecomposer(config);
+  return decomposer.decompose(query);
+}
+```
+
+### Validation Checklist
+
+- [ ] Query type detection works for all types
+- [ ] Compound queries split on conjunctions
+- [ ] Comparisons decomposed into components
+- [ ] Multi-hop queries have dependencies
+- [ ] Simple queries return single sub-query
+- [ ] Empty query handled gracefully
+- [ ] Max sub-queries limit enforced
+- [ ] Dependencies correctly identified
+
+## Common Pitfalls
+
+- **Over-decomposing simple queries**: Adds latency without benefit
+- **Losing context between sub-queries**: Pass context forward
+- **Not handling dependencies**: Sequential queries need ordering
+- **Conjunctions in lists**: "A, B, and C" vs "A and B"
+- **Circular dependencies**: Validate dependency graph
+
+## After You Pass
+
+Use decomposition with **Multi-Query Retrieval** for better coverage, or implement **Multi-Hop QA** for complex reasoning chains.
+
+## Resources
+
+### Academic Papers
+- ["Self-Ask: Measuring and Narrowing the Compositionality Gap"](https://arxiv.org/abs/2210.03350) - Press et al.
+- ["Least-to-Most Prompting Enables Complex Reasoning"](https://arxiv.org/abs/2205.10625) - Zhou et al.
+- ["Interleaving Retrieval with Chain-of-Thought Reasoning"](https://arxiv.org/abs/2212.10509) - Khattab et al. (IRCoT)
+
+### Documentation
+- [LangChain Multi-Query](https://python.langchain.com/docs/modules/data_connection/retrievers/MultiQueryRetriever) - Query expansion
+- [LlamaIndex Sub-Question Query Engine](https://docs.llamaindex.ai/en/stable/examples/query_engine/sub_question_query_engine.html) - Decomposition
+
+### Tutorials
+- ["Query Decomposition for RAG"](https://blog.langchain.dev/decomposition/) - LangChain blog
+- ["Multi-Hop Reasoning"](https://www.pinecone.io/learn/multi-hop-retrieval/) - Pinecone guide

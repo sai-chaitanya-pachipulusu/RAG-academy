@@ -1,8 +1,18 @@
-﻿<Callout title="Goal" variant="info">
-  Implement **SimHash near-dedup** to remove “same content, different formatting” duplicates that cause context rot.
+﻿---
+title: "SimHash Near-Deduplication"
+description: "Implement SimHash near-dedup to remove same content, different formatting duplicates"
+difficulty: "hard"
+estimatedMinutes: 45
+xpReward: 80
+prerequisites: ["exact-dedup"]
+related: ["exact-dedup", "minhash-lsh", "contextual-compression-llm"]
+---
+
+<Callout title="Goal" variant="info">
+  Implement **SimHash near-dedup** to remove "same content, different formatting" duplicates that cause context rot.
 </Callout>
 
-## Why this matters
+## Why This Matters
 
 Exact dedup removes byte-identical duplicates.
 But in real corpora you often see near-duplicates:
@@ -13,10 +23,292 @@ But in real corpora you often see near-duplicates:
 
 Near-duplicates waste token budget and make answers repetitive.
 
-## Practical approach
+## Why This Matters in Production
+
+| Problem | Impact |
+|---------|--------|
+| **Context bloat** | Duplicate chunks fill token budget |
+| **Repetitive answers** | LLM cites same info multiple times |
+| **Index inflation** | Unnecessary storage and compute costs |
+| **Poor diversity** | Miss unique information |
+
+## What You're Implementing
 
 SimHash gives you a fast fingerprint where similar token sets tend to hash similarly.
-Then you can drop any chunk “too close” (by Hamming distance) to a chunk you already kept.
+Then you can drop any chunk "too close" (by Hamming distance) to a chunk you already kept.
 
+## The Near-Deduplication Pipeline
 
+```
+Documents → Tokenize → SimHash → Compare Hamming Distance → Deduplicate
+    ↓           ↓          ↓              ↓                      ↓
+"Hello!"   [hello]    0b101010...   distance=2             Keep unique
+"Hello"    [hello]    0b101011...   < threshold            chunks only
+```
 
+## Mathematical Foundations
+
+### SimHash Algorithm
+
+```
+1. Tokenize document into features (shingles)
+2. Hash each feature to a fixed-size bit vector
+3. For each bit position, sum contributions across all features
+4. Final hash: bit = 1 if sum > 0, else 0
+
+Result: Similar documents have similar hashes
+```
+
+### Hamming Distance
+
+```
+HammingDistance(a, b) = count of positions where bits differ
+
+Similarity threshold: typically k = 3-5 bits for 64-bit hashes
+```
+
+### Locality Sensitive Hashing (LSH)
+
+```
+SimHash is an LSH family where:
+P[h(a) = h(b)] = 1 - HammingDistance(a,b) / hash_size
+
+Similar items more likely to have same/similar hashes
+```
+
+## Implementation Example
+
+```python
+import hashlib
+from typing import List, Set, Tuple
+from dataclasses import dataclass
+
+@dataclass
+class SimHash:
+    """SimHash fingerprint for near-duplicate detection."""
+    value: int
+    hash_bits: int = 64
+    
+    def hamming_distance(self, other: 'SimHash') -> int:
+        """
+        Calculate Hamming distance to another SimHash.
+        
+        Time Complexity: O(1) - bitwise operations
+        Space Complexity: O(1)
+        
+        Returns:
+            Number of differing bits (0 = identical)
+        """
+        xor = self.value ^ other.value
+        return bin(xor).count('1')
+    
+    def is_near_duplicate(self, other: 'SimHash', threshold: int = 3) -> bool:
+        """Check if two hashes represent near-duplicates."""
+        return self.hamming_distance(other) <= threshold
+
+class SimHashDeduplicator:
+    """Deduplicate documents using SimHash."""
+    
+    def __init__(self, hash_bits: int = 64, threshold: int = 3, shingle_size: int = 3):
+        """
+        Initialize deduplicator.
+        
+        Args:
+            hash_bits: Size of SimHash in bits (typically 64 or 128)
+            threshold: Max Hamming distance to consider as duplicate
+            shingle_size: Size of token shingles for features
+        """
+        self.hash_bits = hash_bits
+        self.threshold = threshold
+        self.shingle_size = shingle_size
+        self.seen_hashes: List[SimHash] = []
+    
+    def _shingle(self, text: str) -> List[str]:
+        """Create word shingles from text."""
+        words = text.lower().split()
+        shingles = []
+        for i in range(len(words) - self.shingle_size + 1):
+            shingle = ' '.join(words[i:i + self.shingle_size])
+            shingles.append(shingle)
+        return shingles
+    
+    def _compute_simhash(self, text: str) -> SimHash:
+        """
+        Compute SimHash for text.
+        
+        Time Complexity: O(N × H) where N = shingles, H = hash computation
+        Space Complexity: O(H) for bit vector
+        """
+        shingles = self._shingle(text)
+        
+        # Initialize bit vector
+        bit_vector = [0] * self.hash_bits
+        
+        for shingle in shingles:
+            # Get hash of shingle
+            hash_val = int(hashlib.md5(shingle.encode()).hexdigest(), 16)
+            
+            # Update bit vector
+            for i in range(self.hash_bits):
+                bit = (hash_val >> i) & 1
+                if bit == 1:
+                    bit_vector[i] += 1
+                else:
+                    bit_vector[i] -= 1
+        
+        # Create final hash
+        hash_value = 0
+        for i in range(self.hash_bits):
+            if bit_vector[i] > 0:
+                hash_value |= (1 << i)
+        
+        return SimHash(value=hash_value, hash_bits=self.hash_bits)
+    
+    def is_duplicate(self, text: str) -> bool:
+        """
+        Check if text is a near-duplicate of previously seen text.
+        
+        Args:
+            text: Document text to check
+            
+        Returns:
+            True if near-duplicate, False otherwise
+        """
+        simhash = self._compute_simhash(text)
+        
+        for seen_hash in self.seen_hashes:
+            if simhash.is_near_duplicate(seen_hash, self.threshold):
+                return True
+        
+        return False
+    
+    def add(self, text: str) -> bool:
+        """
+        Add text to deduplicator if not a duplicate.
+        
+        Returns:
+            True if added (not duplicate), False if duplicate
+        """
+        if self.is_duplicate(text):
+            return False
+        
+        simhash = self._compute_simhash(text)
+        self.seen_hashes.append(simhash)
+        return True
+    
+    def deduplicate(self, documents: List[str]) -> List[str]:
+        """
+        Remove near-duplicates from document list.
+        
+        Time Complexity: O(D² × H) where D = documents, H = hash comparison
+        Space Complexity: O(D) for storing hashes
+        
+        Args:
+            documents: List of document texts
+            
+        Returns:
+            List of unique documents (preserving order)
+        """
+        unique_docs = []
+        
+        for doc in documents:
+            if self.add(doc):
+                unique_docs.append(doc)
+        
+        return unique_docs
+
+# Usage Example
+deduplicator = SimHashDeduplicator(hash_bits=64, threshold=3)
+
+docs = [
+    "The quick brown fox jumps over the lazy dog",
+    "The quick brown fox jumps over the lazy dog!",  # Near-duplicate
+    "The quick brown fox jumps over the lazy dog",   # Exact duplicate
+    "A completely different document about cats",
+    "The quick brown fox jumps over the lazy dog.",  # Near-duplicate
+]
+
+unique = deduplicator.deduplicate(docs)
+print(f"Kept {len(unique)} of {len(docs)} documents")
+# Output: Kept 2 of 5 documents
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Shingling | O(N) | N = tokens |
+| Hash Computation | O(N × H) | H = hash bits |
+| Comparison | O(D × H) | D = stored hashes |
+| Total Deduplication | O(D² × H) | Pairwise comparisons |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand locality-sensitive hashing principles
+- Be able to implement SimHash for near-duplicate detection
+- Know how to tune Hamming distance thresholds
+
+## Real-World Applications
+
+| Company | Near-Dedup Use Case |
+|---------|-------------------|
+| **Google** | Web page deduplication in indexing |
+| **Twitter/X** | Duplicate tweet detection |
+| **News aggregators** | Same story from different sources |
+| **Legal tech** | Contract version deduplication |
+
+## Common Pitfalls
+
+- **Threshold too low**: Misses near-duplicates
+- **Threshold too high**: Removes genuinely different content
+- **Small shingles**: Too sensitive to minor changes
+- **Large shingles**: Misses meaningful near-duplicates
+- **Not normalizing text**: Case/punctuation differences
+
+## Production Extensions (Optional)
+
+- **MinHash LSH**: Alternative for Jaccard similarity
+- **Bloom Filters**: Probabilistic duplicate detection
+- **Hierarchical LSH**: Multi-level bucketing for efficiency
+- **Streaming Deduplication**: Process documents as they arrive
+- **Distributed Deduplication**: Scale across clusters
+
+## Resources
+
+### Documentation
+- [SimHash Original Paper](https://www.cs.princeton.edu/courses/archive/spring04/cos598B/bib/CharikarEstim.pdf)
+- [LSH Explained](https://www.pinecone.io/learn/series/faiss/locality-sensitive-hashing/)
+- [Datasketch Library](https://ekzhu.com/datasketch/)
+
+### Tools
+- **datasketch**: Python LSH implementations
+- **simhash-py**: Fast SimHash implementation
+- **nearpy**: Approximate nearest neighbor library
+
+### Papers
+- "Similarity Estimation Techniques from Rounding Algorithms" (Charikar, 2002)
+- "Min-wise Independent Permutations" (Broder et al., 1998)
+- "Detecting Near-Duplicates for Web Crawling" (Manku et al., 2007)
+
+## Interview Questions
+
+1. **How does SimHash differ from regular hashing?**
+   - SimHash produces similar outputs for similar inputs; regular hashing aims for uniform distribution
+
+2. **Why use Hamming distance for SimHash comparison?**
+   - Hamming distance directly measures bit differences, correlates with content similarity
+
+3. **When would you use MinHash instead of SimHash?**
+   - MinHash for Jaccard similarity on sets; SimHash for cosine similarity on vectors
+
+## After You Pass
+
+Explore other deduplication techniques:
+- [exact-dedup](exact-dedup) - Byte-level deduplication
+- [minhash-lsh](minhash-lsh) - Jaccard-based deduplication
+- [contextual-compression-llm](contextual-compression-llm) - Semantic deduplication
+
+---
+
+**🎯 Precision Matters:** Near-deduplication keeps your index lean and your answers diverse!

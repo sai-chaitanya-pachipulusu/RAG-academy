@@ -3,27 +3,383 @@ title: "Graph Traversal for Multi-hop RAG"
 description: "Implement graph traversal for multi-hop question answering in RAG systems"
 difficulty: "hard"
 xpReward: 150
+estimatedMinutes: 50
+stage: "advanced-retrieval"
+track: "graph-rag"
+tags: ["graph-rag", "knowledge-graph", "multi-hop", "graph-traversal", "reasoning"]
+prerequisites: ["knowledge-graph-extraction", "multi-hop-qa"]
+relatedChallenges: ["graphrag-knowledge-graph", "graph-o1-reasoning", "raptor-tree"]
+nextChallenges: ["graph-o1-reasoning"]
+theory:
+  overview: |
+    Graph Traversal RAG enables multi-hop reasoning by traversing entity-relationship 
+    graphs to answer complex questions that span multiple documents. Unlike vector 
+    similarity search, graph traversal follows explicit relationships between entities.
+  keyFormulas:
+    - name: "BFS Traversal"
+      formula: "O(V + E) where V = vertices, E = edges"
+    - name: "Shortest Path"
+      formula: "d(s,t) = min number of edges from s to t"
+    - name: "Multi-hop Score"
+      formula: "score(q, path) = Σ(sim(q, node_i) × decay^hop) for i in path"
+    - name: "Graph Density"
+      formula: "D = 2|E| / (|V|(|V| - 1))"
+  visualIntuition: |
+    Query: "Who founded the company that employs Alice?"
+    
+    Graph Traversal:
+    1. Find "Alice" node
+    2. Follow "employs" edge → "OpenAI"
+    3. Follow "founded_by" edge → "Sam Altman"
+    4. Answer: Sam Altman
+    
+    Vector search alone would fail - no single chunk contains this fact!
+  whyItMatters: |
+    Graph traversal solves critical RAG limitations:
+    1. Multi-hop reasoning across disconnected documents
+    2. Relationship-aware retrieval (not just similarity)
+    3. Explainable reasoning paths
+    4. Structured knowledge integration
+  commonMistakes:
+    - "Not handling cycles in the graph (infinite loops)"
+    - "Using wrong traversal algorithm for the query type"
+    - "Not weighting edges by relationship confidence"
+    - "Forgetting to prune low-relevance paths"
+  interviewTips:
+    - "Compare BFS vs DFS for different query types"
+    - "Discuss handling of disconnected graph components"
+    - "Mention GraphRAG's local vs global search modes"
+    - "Explain tradeoffs between graph depth and latency"
+realWorld:
+  description: |
+    Neo4j powers graph RAG for enterprise knowledge management. 
+    Microsoft's GraphRAG uses traversal for complex Q&A. 
+    LinkedIn's knowledge graph enables professional relationship queries.
+  companies: ["Microsoft", "Neo4j", "LinkedIn", "Google", "Amazon"]
+  useCases:
+    - "Enterprise knowledge graph Q&A"
+    - "Supply chain relationship analysis"
+    - "Fraud detection through relationship patterns"
+    - "Research literature relationship mapping"
+    - "Customer 360° relationship views"
+complexity:
+  time: "O(k × (V + E)) where k = number of query entities"
+  space: "O(V + E) for graph storage"
+  latency: "50-500ms depending on graph size and hops"
+resources:
+  papers:
+    - title: "GraphRAG: From Local to Global Reasoning"
+      url: "https://arxiv.org/abs/2404.16130"
+      authors: "Edge et al., Microsoft Research"
+      year: 2024
+    - title: "Multi-hop Reading Comprehension"
+      url: "https://arxiv.org/abs/1809.09600"
+      authors: "Dhingra et al."
+      year: 2018
+    - title: "Knowledge Graph Embeddings"
+      url: "https://arxiv.org/abs/2009.00032"
+      authors: "Wang et al."
+      year: 2021
+  documentation:
+    - title: "Neo4j Graph Data Science"
+      url: "https://neo4j.com/docs/graph-data-science/current/"
+    - title: "NetworkX Graph Algorithms"
+      url: "https://networkx.org/documentation/stable/reference/algorithms/"
+    - title: "LangChain Graph QA Chains"
+      url: "https://python.langchain.com/docs/use_cases/graph/"
+  tutorials:
+    - title: "Building Knowledge Graphs for RAG"
+      url: "https://blog.langchain.dev/building-knowledge-graphs-for-rag/"
+    - title: "GraphRAG Tutorial - Microsoft"
+      url: "https://microsoft.github.io/graphrag/"
+  tools:
+    - name: "Neo4j"
+      description: "Production graph database with Cypher query language"
+      url: "https://neo4j.com/"
+    - name: "NetworkX"
+      description: "Python library for graph algorithms and analysis"
+      url: "https://networkx.org/"
+    - name: "Kuzu"
+      description: "Embedded graph database for fast prototyping"
+      url: "https://kuzudb.com/"
+    - name: "Nebula Graph"
+      description: "Distributed graph database for large scale"
+      url: "https://www.nebula-graph.io/"
 ---
 
 # Graph Traversal for Multi-hop RAG
 
-## Overview
+Implement graph traversal algorithms that enable multi-hop reasoning across entity-relationship graphs, solving questions that span multiple documents.
 
-Standard RAG fails on questions that require reasoning across multiple documents, like _"Who founded the company that employs Alice?"_ This challenge teaches you to implement graph traversal algorithms that enable multi-hop reasoning.
+## The Problem
 
-## Why This Matters
+Standard RAG retrieves similar chunks. But some questions require **connected reasoning**:
 
-- **Multi-hop QA**: Answer complex questions requiring document chaining
-- **Knowledge Graphs**: Build and traverse entity-relationship graphs
-- **Microsoft GraphRAG**: Industry-standard approach for complex reasoning
+| Query | Standard RAG Problem | GraphRAG Solution |
+|-------|---------------------|-------------------|
+| "Who founded the company that employs Alice?" | No single chunk contains this | Traverse: Alice → OpenAI → Sam Altman |
+| "What drugs target proteins involved in Disease X?" | Scattered across papers | Follow protein-disease edges |
+| "Which authors co-authored with both A and B?" | Requires document chaining | Graph intersection query |
 
-## Key Concepts
+## Your Task
 
-- BFS/DFS for shortest path finding
-- Entity-relation modeling
-- Neighbor filtering by relationship type
+Implement a `GraphTraversalRAG` class that performs multi-hop retrieval:
 
-## Real-World Applications
+```python
+class GraphTraversalRAG:
+    def __init__(self, graph_db, vector_store):
+        """
+        Initialize with graph and vector stores.
+        
+        Args:
+            graph_db: Graph database interface (Neo4j/NetworkX)
+            vector_store: Vector store for semantic similarity
+        """
+        pass
+    
+    def traverse_bfs(self, start_entity: str, max_depth: int = 3) -> list[dict]:
+        """
+        Breadth-first traversal from start entity.
+        
+        Args:
+            start_entity: Entity name to start from
+            max_depth: Maximum traversal depth
+            
+        Returns:
+            List of paths, each containing:
+            [
+                {
+                    "entity": str,
+                    "relation": str,  # relation from previous
+                    "depth": int,
+                    "confidence": float
+                }
+            ]
+        """
+        pass
+    
+    def traverse_with_query(self, query: str, start_entities: list[str], 
+                           max_depth: int = 3) -> list[dict]:
+        """
+        Guided traversal using query relevance scoring.
+        
+        Args:
+            query: User query for relevance guidance
+            start_entities: Known entities from query
+            max_depth: Maximum hops to traverse
+            
+        Returns:
+            Ranked list of paths with relevance scores
+        """
+        pass
+    
+    def multi_hop_retrieve(self, query: str, k: int = 5) -> list[str]:
+        """
+        Full multi-hop retrieval pipeline.
+        
+        Args:
+            query: User question
+            k: Number of results to return
+            
+        Returns:
+            List of context chunks for answer generation
+        """
+        pass
+```
 
-Used by Microsoft's GraphRAG, Neo4j-based RAG systems, and enterprise knowledge management platforms.
+## Example
 
+```python
+# Setup graph
+graph = GraphTraversalRAG(graph_db, vector_store)
+
+# Example knowledge graph:
+# Alice --works_at--> OpenAI --founded_by--> Sam Altman
+#        --leads--> GPT Team --develops--> ChatGPT
+
+# Query requiring 2 hops
+query = "Who founded the company where Alice works?"
+contexts = graph.multi_hop_retrieve(query, k=5)
+
+# Traversal path:
+# 1. Extract entities: ["Alice"]
+# 2. BFS from Alice (depth 1): finds OpenAI
+# 3. BFS from OpenAI (depth 2): finds Sam Altman
+# 4. Return chunks about Sam Altman founding OpenAI
+
+print(contexts)
+# [
+#   "OpenAI was founded by Sam Altman, Greg Brockman, and others in 2015...",
+#   "Sam Altman serves as CEO of OpenAI, leading the company's AI research...",
+#   ...
+# ]
+
+# More complex query
+query = "What products has Alice's team developed?"
+# Path: Alice → GPT Team → ChatGPT, GPT-4, etc.
+```
+
+## Algorithm Details
+
+### BFS Traversal with Relevance
+
+```python
+def traverse_bfs_guided(self, start: str, query_embedding: np.ndarray, 
+                        max_depth: int) -> list:
+    """
+    BFS that prioritizes semantically relevant paths.
+    """
+    from collections import deque
+    
+    queue = deque([(start, [], 0)])  # (entity, path, depth)
+    visited = set()
+    results = []
+    
+    while queue:
+        entity, path, depth = queue.popleft()
+        
+        if depth > max_depth or entity in visited:
+            continue
+        visited.add(entity)
+        
+        # Score relevance to query
+        entity_embedding = self.get_entity_embedding(entity)
+        relevance = cosine_similarity(query_embedding, entity_embedding)
+        
+        results.append({
+            "entity": entity,
+            "path": path,
+            "depth": depth,
+            "relevance": relevance
+        })
+        
+        # Add neighbors to queue
+        for neighbor, relation in self.graph.get_neighbors(entity):
+            if neighbor not in visited:
+                new_path = path + [(entity, relation, neighbor)]
+                queue.append((neighbor, new_path, depth + 1))
+    
+    return sorted(results, key=lambda x: x["relevance"], reverse=True)
+```
+
+### Shortest Path for Relationship Queries
+
+```python
+def find_relationship_path(self, entity_a: str, entity_b: str) -> list:
+    """
+    Find shortest path between two entities.
+    """
+    try:
+        import networkx as nx
+        path = nx.shortest_path(
+            self.graph, 
+            source=entity_a, 
+            target=entity_b
+        )
+        return path
+    except nx.NetworkXNoPath:
+        return []
+```
+
+### Hybrid: Graph + Vector Retrieval
+
+```python
+def hybrid_retrieve(self, query: str, k: int = 5) -> list[str]:
+    """
+    Combine graph traversal with vector search.
+    """
+    # 1. Extract entities from query
+    query_entities = self.extract_entities(query)
+    
+    # 2. Graph traversal for connected context
+    graph_chunks = []
+    for entity in query_entities:
+        subgraph = self.traverse_with_query(query, [entity], max_depth=2)
+        for node in subgraph:
+            chunks = self.get_chunks_for_entity(node["entity"])
+            graph_chunks.extend(chunks)
+    
+    # 3. Vector search for semantic similarity
+    vector_chunks = self.vector_store.search(query, k=k)
+    
+    # 4. Combine and deduplicate
+    all_chunks = list(set(graph_chunks + vector_chunks))
+    
+    # 5. Rerank by combined score
+    return self.rerank(query, all_chunks, top_k=k)
+```
+
+## Evaluation Criteria
+
+Your implementation will be tested on:
+
+1. **Correctness**: Finds correct multi-hop paths
+2. **Efficiency**: Handles cycles and large graphs
+3. **Relevance**: Returns query-relevant paths
+4. **Completeness**: Finds all reasonable paths
+
+## Test Cases
+
+```python
+def test_two_hop_query():
+    """Test simple 2-hop traversal."""
+    rag = GraphTraversalRAG(test_graph, test_vectors)
+    
+    # Graph: Alice --works_at--> OpenAI --founded_by--> Sam
+    result = rag.multi_hop_retrieve(
+        "Who founded the company where Alice works?"
+    )
+    
+    assert any("Sam Altman" in chunk for chunk in result)
+
+def test_cycle_handling():
+    """Ensure BFS doesn't infinite loop on cycles."""
+    # Graph with cycle: A -> B -> C -> A
+    result = rag.traverse_bfs("A", max_depth=5)
+    assert len(result) == 3  # A, B, C only
+
+def test_no_path():
+    """Handle disconnected entities gracefully."""
+    result = rag.find_relationship_path("Alice", "Unknown Entity")
+    assert result == []
+```
+
+## Complexity Analysis
+
+| Operation | Time | Space |
+|-----------|------|-------|
+| BFS Traversal | O(V + E) | O(V) |
+| Shortest Path | O(V + E) | O(V) |
+| Guided Traversal | O(k(V + E)) | O(V) |
+| Multi-hop Retrieve | O(k × depth × (V + E)) | O(V + E) |
+
+Where:
+- V = number of vertices (entities)
+- E = number of edges (relationships)
+- k = number of query entities
+- depth = maximum traversal depth
+
+## Real-World Considerations
+
+### Graph Database Selection
+
+| Database | Best For | Query Language |
+|----------|----------|----------------|
+| Neo4j | Production systems | Cypher |
+| NetworkX | Prototyping, analysis | Python API |
+| Kuzu | Embedded, fast startup | Cypher |
+| Nebula Graph | Large scale distributed | nGQL |
+
+### Production Tips
+
+1. **Index entities** for fast lookup
+2. **Cache frequent traversals** to reduce latency
+3. **Limit traversal depth** to prevent explosion
+4. **Use relationship weights** for better ranking
+5. **Monitor path relevance** with query embeddings
+
+## Further Reading
+
+- [GraphRAG Paper](https://arxiv.org/abs/2404.16130) - Microsoft's approach
+- [Neo4j Graph Data Science](https://neo4j.com/docs/graph-data-science/current/)
+- [Multi-hop QA Datasets](https://hotpotqa.github.io/)

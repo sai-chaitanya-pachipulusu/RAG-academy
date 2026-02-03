@@ -1,30 +1,80 @@
 ---
 title: "Answer Relevancy Score"
-difficulty: "Medium"
-stage: "evaluation-ops"
-group: "Phase 6 — Evaluation"
-xpReward: 45
-estimatedMinutes: 20
-tags: ["evaluation", "metrics", "ragas", "embeddings"]
+description: |
+  Implement the embedding-based Answer Relevancy metric from RAGAS. Measure how well 
+  the generated answer addresses the original question using question generation and similarity.
+difficulty: intermediate
+estimatedMinutes: 25
+topics: ["evaluation", "metrics", "ragas", "embeddings", "relevancy"]
+language: python
+prerequisites:
+  - faithfulness-judge
+  - cosine-similarity
+  - basic-retrieval
+related:
+  - context-recall-judge
+  - llm-as-judge
+  - evaluator-f1-score
+next:
+  - context-recall-judge
+  - llm-as-judge
+xp: 100
 ---
 
-# Challenge: Answer Relevancy Score
+# Answer Relevancy Score
 
-Implement the embedding-based **Answer Relevancy** metric from RAGAS. This metric measures how well the generated answer addresses the original question by checking if questions generated from the answer are similar to the original.
+<Callout title="Goal" variant="info">
+  Implement the embedding-based Answer Relevancy metric from RAGAS. Measure how well 
+  the generated answer addresses the original question.
+</Callout>
 
-## Formula
+## Why Answer Relevancy Matters
+
+An answer can be:
+- **Faithful** (grounded in context) but **irrelevant** (doesn't answer the question)
+- **Relevant** (answers the question) but **unfaithful** (makes things up)
+
+Answer Relevancy ensures the RAG system actually addresses what the user asked.
+
+### Example: Faithful but Irrelevant
+
+```
+Question: "What is the company's revenue?"
+Answer: "The company was founded in 2010 by John Smith."
+
+Analysis:
+- Faithful: ✓ (fact is in context)
+- Relevant: ✗ (doesn't answer about revenue)
+```
+
+## The Theory
+
+### Core Idea
+
+If an answer is relevant to a question, we should be able to **generate questions from the answer** that are **similar to the original question**.
+
+### Mathematical Formula
 
 $$\text{Answer Relevancy} = \frac{1}{N} \sum_{i=1}^{N} \cos(E_{g_i}, E_o)$$
 
 Where:
+- $E_{g_i}$ = Embedding of generated question $i$
+- $E_o$ = Embedding of original question
+- $N$ = Number of generated questions
+- $\cos$ = Cosine similarity
 
-- $E_{g_i}$ is the embedding of generated question $i$
-- $E_o$ is the embedding of the original question
-- $N$ is the number of generated questions
+### Algorithm
 
-## Task
+```
+1. Generate N questions from the answer
+2. Embed original question → E_o
+3. For each generated question:
+   a. Embed → E_g
+   b. Compute cos(E_g, E_o)
+4. Return mean of all similarities
+```
 
-Complete the `answer_relevancy` function:
+## Your Task
 
 ```python
 from typing import List, Callable
@@ -80,55 +130,302 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     pass
 ```
 
-## Test Cases
+## Implementation
+
+### Complete Solution
+
+```python
+from typing import List, Callable
+import numpy as np
+
+def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
+    """
+    Calculate cosine similarity between two vectors.
+    
+    Formula: cos(θ) = (A · B) / (||A|| ||B||)
+    
+    Args:
+        a: First vector
+        b: Second vector
+        
+    Returns:
+        Cosine similarity (-1 to 1)
+    """
+    dot_product = np.dot(a, b)
+    norm_a = np.linalg.norm(a)
+    norm_b = np.linalg.norm(b)
+    
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    
+    return dot_product / (norm_a * norm_b)
+
+def answer_relevancy(
+    original_question: str,
+    generated_answer: str,
+    question_generator: Callable[[str], List[str]],
+    embed_fn: Callable[[str], np.ndarray]
+) -> float:
+    """
+    Calculate Answer Relevancy using embedding similarity.
+    
+    Based on RAGAS metric: https://docs.ragas.io/en/stable/concepts/metrics/answer_relevance.html
+    """
+    # Step 1: Generate questions from the answer
+    generated_questions = question_generator(generated_answer)
+    
+    # Handle edge case: no questions generated
+    if not generated_questions:
+        return 0.0
+    
+    # Step 2: Embed the original question
+    original_embedding = embed_fn(original_question)
+    
+    # Step 3 & 4: Embed each generated question and calculate similarity
+    similarities = []
+    for gen_question in generated_questions:
+        gen_embedding = embed_fn(gen_question)
+        sim = cosine_similarity(original_embedding, gen_embedding)
+        similarities.append(sim)
+    
+    # Step 5: Return mean similarity
+    return float(np.mean(similarities))
+```
+
+### Question Generator (Mock)
+
+```python
+def mock_question_generator(answer: str) -> List[str]:
+    """
+    Mock question generator for testing.
+    
+    In production, use an LLM to generate questions like:
+    "Given this answer, what question was asked?"
+    """
+    # Simple heuristic: extract key phrases and form questions
+    questions = []
+    
+    # Check for location patterns
+    if "located in" in answer or "is in" in answer:
+        questions.append("Where is it located?")
+        questions.append("What is the location?")
+    
+    # Check for time patterns
+    if any(year in answer for year in ["2020", "2021", "2022", "2023", "2024"]):
+        questions.append("When did this happen?")
+        questions.append("What year was it?")
+    
+    # Check for person patterns
+    if "founded by" in answer or "CEO" in answer:
+        questions.append("Who founded it?")
+        questions.append("Who is the CEO?")
+    
+    # Check for number patterns
+    if any(char.isdigit() for char in answer):
+        questions.append("What is the number?")
+        questions.append("How many?")
+    
+    # Fallback
+    if not questions:
+        questions.append("What is this about?")
+    
+    return questions[:3]  # Return up to 3 questions
+```
+
+## Testing
 
 ```python
 import numpy as np
 
-def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
-    """Reference implementation."""
-    return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+def test_answer_relevancy():
+    """Test answer relevancy implementation."""
+    
+    # Deterministic embeddings for testing
+    def deterministic_embed(text: str) -> np.ndarray:
+        """Create deterministic embeddings based on text content."""
+        np.random.seed(hash(text) % (2**32))
+        return np.random.randn(64)
+    
+    # Test 1: High relevancy (generated questions similar to original)
+    def high_relevancy_generator(answer: str) -> List[str]:
+        return [
+            "Where is France located?",
+            "What region is France in?",
+            "In which part of Europe is France?"
+        ]
+    
+    original = "Where is France located?"
+    answer = "France is located in Western Europe."
+    score1 = answer_relevancy(original, answer, high_relevancy_generator, deterministic_embed)
+    
+    assert score1 is not None
+    assert -1 <= score1 <= 1
+    print(f"✓ High relevancy score: {score1:.3f}")
+    
+    # Test 2: Low relevancy (answer doesn't address question)
+    def low_relevancy_generator(answer: str) -> List[str]:
+        return [
+            "What is the weather like?",
+            "How many people live there?",
+            "What language is spoken?"
+        ]
+    
+    original = "Where is France located?"
+    answer = "The weather is nice in summer."
+    score2 = answer_relevancy(original, answer, low_relevancy_generator, deterministic_embed)
+    
+    assert score2 is not None
+    # Score should be different from high relevancy
+    print(f"✓ Low relevancy score: {score2:.3f}")
+    
+    # Test 3: Empty generated questions
+    def empty_generator(answer: str) -> List[str]:
+        return []
+    
+    score3 = answer_relevancy("Question?", "Answer.", empty_generator, deterministic_embed)
+    assert score3 == 0.0  # No questions = 0 relevancy
+    print("✓ Empty questions handled")
+    
+    # Test 4: Cosine similarity edge cases
+    a = np.array([1, 0, 0])
+    b = np.array([0, 1, 0])
+    assert abs(cosine_similarity(a, b)) < 0.01  # Orthogonal = 0
+    
+    c = np.array([1, 0, 0])
+    d = np.array([1, 0, 0])
+    assert abs(cosine_similarity(c, d) - 1.0) < 0.01  # Same = 1
+    print("✓ Cosine similarity works")
+    
+    print("\n✓ All answer relevancy tests passed!")
 
-# Mock embeddings that are predictable for testing
-def deterministic_embed(text: str) -> np.ndarray:
-    """Create deterministic embeddings based on text content."""
-    np.random.seed(hash(text) % (2**32))
-    return np.random.randn(64)
-
-# Test 1: High relevancy (generated questions similar to original)
-def high_relevancy_generator(answer: str) -> List[str]:
-    return [
-        "Where is France located?",
-        "What region is France in?",
-        "In which part of Europe is France?"
-    ]
-
-original = "Where is France located?"
-answer = "France is located in Western Europe."
-score1 = answer_relevancy(original, answer, high_relevancy_generator, deterministic_embed)
-# Generated questions are very similar to original, score should be reasonable
-assert score1 is not None
-
-# Test 2: Low relevancy (answer doesn't address question)
-def low_relevancy_generator(answer: str) -> List[str]:
-    return [
-        "What is the weather like?",
-        "How many people live there?",
-        "What language is spoken?"
-    ]
-
-original = "Where is France located?"
-answer = "The weather is nice in summer."
-score2 = answer_relevancy(original, answer, low_relevancy_generator, deterministic_embed)
-# Generated questions are unrelated, score should differ from score1
-assert score2 is not None
-
-# Test 3: Empty generated questions
-def empty_generator(answer: str) -> List[str]:
-    return []
-
-score3 = answer_relevancy("Question?", "Answer.", empty_generator, deterministic_embed)
-assert score3 == 0.0  # No questions = 0 relevancy
-
-print("All tests passed!")
+test_answer_relevancy()
 ```
+
+## Production Implementation
+
+### Using Real LLM for Question Generation
+
+```python
+import openai
+
+def llm_question_generator(answer: str, n_questions: int = 3) -> List[str]:
+    """
+    Generate questions from answer using an LLM.
+    
+    Args:
+        answer: The generated answer
+        n_questions: Number of questions to generate
+        
+    Returns:
+        List of generated questions
+    """
+    prompt = f"""Given the following answer, generate {n_questions} questions that could have led to this answer.
+
+Answer: {answer}
+
+Questions (one per line):"""
+
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.7
+    )
+    
+    questions = response.choices[0].message.content.strip().split("\n")
+    return [q.strip("- ") for q in questions if q.strip()][:n_questions]
+```
+
+### Using Real Embeddings
+
+```python
+from sentence_transformers import SentenceTransformer
+
+# Load embedding model
+embedder = SentenceTransformer('all-MiniLM-L6-v2')
+
+def real_embed_fn(text: str) -> np.ndarray:
+    """Generate real embeddings using sentence-transformers."""
+    return embedder.encode(text)
+```
+
+### Complete Evaluation Pipeline
+
+```python
+class AnswerRelevancyEvaluator:
+    """Production evaluator for answer relevancy."""
+    
+    def __init__(
+        self,
+        question_generator: Callable,
+        embed_fn: Callable,
+        threshold: float = 0.7
+    ):
+        self.question_generator = question_generator
+        self.embed_fn = embed_fn
+        self.threshold = threshold
+    
+    def evaluate(self, question: str, answer: str) -> dict:
+        """
+        Evaluate answer relevancy.
+        
+        Returns:
+            {
+                "score": float,
+                "is_relevant": bool,
+                "generated_questions": List[str]
+            }
+        """
+        score = answer_relevancy(
+            question,
+            answer,
+            self.question_generator,
+            self.embed_fn
+        )
+        
+        return {
+            "score": score,
+            "is_relevant": score >= self.threshold,
+            "generated_questions": self.question_generator(answer)
+        }
+```
+
+## Interpretation Guide
+
+| Score | Interpretation | Action |
+|-------|---------------|--------|
+| 0.8 - 1.0 | Highly relevant | ✓ Pass |
+| 0.6 - 0.8 | Moderately relevant | ⚠ Review |
+| 0.4 - 0.6 | Low relevance | ⚠ Flag |
+| 0.0 - 0.4 | Not relevant | ✗ Fail |
+
+## Company Examples
+
+| Company | Use Case | Implementation |
+|---------|----------|----------------|
+| **RAGAS** | Open-source evaluation | Reference implementation |
+| **Arize** | LLM observability | Production monitoring |
+| **LangSmith** | Evaluation suite | Integrated testing |
+| **TruLens** | Feedback functions | Real-time tracking |
+
+## Resources
+
+### Papers
+- [RAGAS: Automated Evaluation](https://arxiv.org/abs/2309.15217) - Original paper
+- [Evaluating RAG](https://arxiv.org/abs/2401.04536) - Comprehensive survey
+
+### Tools
+- [RAGAS](https://docs.ragas.io/) - Evaluation framework
+- [Sentence Transformers](https://www.sbert.net/) - Embedding models
+- [OpenAI Embeddings](https://platform.openai.com/docs/guides/embeddings)
+
+## Related Challenges
+
+- [faithfulness-judge](/challenges/faithfulness-judge) - Check factual grounding
+- [context-recall-judge](/challenges/context-recall-judge) - Evaluate retrieval
+- [llm-as-judge](/challenges/llm-as-judge) - LLM-based evaluation
+- [evaluator-f1-score](/challenges/evaluator-f1-score) - Classification metrics
+
+## Next Steps
+
+- [context-recall-judge](/challenges/context-recall-judge) - Evaluate retrieval quality
+- [llm-as-judge](/challenges/llm-as-judge) - Build LLM-based evaluation systems

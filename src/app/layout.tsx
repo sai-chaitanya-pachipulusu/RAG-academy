@@ -1,9 +1,11 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "@/styles/mobile.css";
 import { AppProviders } from "@/components/providers/AppProviders";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { MobileNav } from "@/components/navigation/MobileNav";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,11 +17,33 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+  ],
+  viewportFit: "cover",
+};
+
 export const metadata: Metadata = {
   title: "RAG Academy",
   description: "Interactive, code-first learning for Retrieval-Augmented Generation (RAG).",
   icons: {
     icon: "/favicon.svg",
+    apple: "/icon.svg",
+  },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "RAG Academy",
+  },
+  formatDetection: {
+    telephone: false,
   },
 };
 
@@ -37,10 +61,11 @@ export default function RootLayout({
         <AppProviders>
           <div className="flex flex-col min-h-screen">
             <Header />
-            <main className="flex-1">
+            <main className="flex-1 pb-16 md:pb-0">
               {children}
             </main>
             <Footer />
+            <MobileNav />
           </div>
         </AppProviders>
       </body>

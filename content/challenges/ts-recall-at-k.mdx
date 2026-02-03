@@ -1,23 +1,239 @@
+---
+title: "Recall@K (TypeScript)"
+description: "Implement Recall@K — the fundamental metric for RAG retrieval quality."
+language: "typescript"
+difficulty: "beginner"
+category: "evaluation"
+prerequisites: []
+related: ["evaluator-recall-at-k", "ts-mrr", "ts-ndcg"]
+tags: ["recall", "evaluation", "metrics", "retrieval"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Implement Recall@K — the fundamental metric for RAG retrieval quality.
+  Implement Recall@K — the fundamental metric for measuring RAG retrieval quality.
 </Callout>
 
-## Why this matters in production
+## Why Recall@K Matters in Production
 
-Recall@K answers: "Of all relevant documents, what fraction did we retrieve in the top K?" It's the primary metric for RAG because if you don't retrieve relevant context, the LLM can't use it.
+Recall@K answers: "Of all relevant documents, what fraction did we retrieve in the top K?" It's the primary metric for RAG because if you don't retrieve relevant context, the LLM can't use it. Without good recall:
 
-## What you're implementing
+- LLM lacks information to answer accurately
+- Hallucinations increase due to missing context
+- User trust decreases
+- System fails its primary purpose
 
-- Count relevant documents in top K results.
-- Divide by total relevant documents.
-- Return recall score (0 to 1).
+### Real-World Scenario
 
-## Common pitfalls
+For a query about "machine learning benefits":
 
-- Dividing by retrieved count instead of relevant count.
-- Not handling empty relevant set (division by zero).
+**Ground truth relevant documents:** [doc_A, doc_B, doc_C, doc_D] (4 total)
 
-## After you pass
+**Retrieved top-5:** [doc_X, doc_A, doc_Y, doc_B, doc_Z]
 
-Implement **MRR** and **nDCG** for more nuanced retrieval evaluation.
+**Analysis:**
+- Relevant retrieved: doc_A, doc_B (2 documents)
+- Total relevant: 4 documents
+- Recall@5 = 2/4 = 0.5
 
+Interpretation: We found 50% of relevant documents in top-5.
+
+## The Mathematical Foundation
+
+### Recall@K Formula
+
+$$\text{Recall}@K = \frac{|\{\text{Relevant documents}\} \cap \{\text{Top-K retrieved}\}|}{|\{\text{Relevant documents}\}|}$$
+
+Or simply:
+
+$$\text{Recall}@K = \frac{\text{Relevant retrieved}}{\text{Total relevant}}$$
+
+### Example Calculations
+
+| K | Retrieved | Relevant | Relevant in Top-K | Recall@K |
+|---|-----------|----------|-------------------|----------|
+| 1 | [A, B, C] | [A, D] | [A] | 1/2 = 0.5 |
+| 3 | [A, B, C] | [A, D] | [A] | 1/2 = 0.5 |
+| 5 | [A, B, C, D, E] | [A, D] | [A, D] | 2/2 = 1.0 |
+
+### Properties
+
+| Property | Description |
+|----------|-------------|
+| **Range** | [0, 1] where 1 = perfect recall |
+| **Monotonic** | Recall@K+1 ≥ Recall@K |
+| **Position independent** | Only cares about presence, not rank |
+| **Binary relevance** | Document is relevant or not |
+
+## Theoretical Deep Dive
+
+### Recall vs Precision
+
+| Metric | Question | Focus |
+|--------|----------|-------|
+| **Recall@K** | "Did we find relevant items?" | Coverage |
+| **Precision@K** | "Are retrieved items relevant?" | Accuracy |
+
+For RAG, recall is typically more important because:
+- LLM can filter out irrelevant context
+- LLM cannot invent missing context
+
+### The Recall-Precision Trade-off
+
+```
+Higher K → Higher recall, Lower precision
+Lower K → Lower recall, Higher precision
+
+Optimal K balances:
+- Enough context for LLM
+- Not overwhelming with noise
+```
+
+### Multi-Query Aggregation
+
+Across multiple queries:
+
+$$\text{Mean Recall}@K = \frac{1}{|Q|} \sum_{i=1}^{|Q|} \text{Recall}_i@K$$
+
+Or macro-average by averaging per-query recall.
+
+## Production Considerations
+
+### Choosing K
+
+Common values for RAG:
+
+| K | Use Case | Trade-off |
+|---|----------|-----------|
+| 3-5 | Concise answers | May miss relevant context |
+| 10 | Balanced | Good coverage, manageable noise |
+| 20-50 | Comprehensive research | High coverage, more filtering needed |
+| 100 | Maximum recall | Use with reranking |
+
+### Recall@K vs MRR
+
+| Scenario | Use Recall@K | Use MRR |
+|----------|--------------|---------|
+| Multiple relevant docs | ✓ | ✗ |
+| Single best answer needed | ✗ | ✓ |
+| Need coverage metric | ✓ | ✗ |
+| Need ranking quality | ✗ | ✓ |
+
+### Statistical Significance
+
+```typescript
+function bootstrapRecall(
+  results: QueryResult[],
+  k: number,
+  iterations: number = 1000
+): { mean: number; ci95: [number, number] } {
+  const samples = [];
+  for (let i = 0; i < iterations; i++) {
+    const sample = resample(results);
+    samples.push(calculateMeanRecall(sample, k));
+  }
+  return {
+    mean: mean(samples),
+    ci95: [percentile(samples, 0.025), percentile(samples, 0.975)]
+  };
+}
+```
+
+## Your Task
+
+Implement Recall@K calculation:
+
+```typescript
+interface QueryResult {
+  queryId: string;
+  rankedDocIds: string[];        // In ranked order
+  relevantDocIds: Set<string>;   // Ground truth relevant docs
+}
+
+interface RecallResult {
+  recallAtK: number;
+  relevantRetrieved: number;
+  totalRelevant: number;
+}
+
+function calculateRecallAtK(
+  rankedDocIds: string[],
+  relevantDocIds: Set<string>,
+  k: number
+): RecallResult {
+  /**
+   * Calculate Recall@K for a single query.
+   * 
+   * Args:
+   *   rankedDocIds: Documents in ranked order (all retrieved)
+   *   relevantDocIds: Set of ground truth relevant document IDs
+   *   k: Number of top results to consider
+   * 
+   * Returns:
+   *   RecallResult with recall score and counts
+   * 
+   * Formula:
+   *   Recall@K = |relevant ∩ topK| / |relevant|
+   * 
+   * Edge Cases:
+   *   - No relevant documents: return recall = 0 (or undefined)
+   *   - k > length: use all retrieved documents
+   *   - k <= 0: return recall = 0
+   *   - Empty relevant set: handle gracefully
+   */
+}
+
+function calculateMeanRecallAtK(
+  results: QueryResult[],
+  k: number
+): { meanRecall: number; perQuery: Map<string, number> } {
+  /**
+   * Calculate mean Recall@K across multiple queries.
+   */
+}
+
+function calculateRecallCurve(
+  results: QueryResult[],
+  maxK: number
+): Array<{ k: number; recall: number }> {
+  /**
+   * Calculate recall at various K values for plotting.
+   * Returns array of {k, recall} points.
+   */
+}
+```
+
+### Validation Checklist
+
+- [ ] All relevant in top-K → recall = 1.0
+- [ ] No relevant in top-K → recall = 0.0
+- [ ] Half relevant in top-K → recall = 0.5
+- [ ] k > length uses all documents
+- [ ] k <= 0 returns 0
+- [ ] Empty relevant set handled (return 0 or throw)
+- [ ] Duplicate doc IDs handled correctly
+- [ ] Multiple queries averaged correctly
+
+## Common Pitfalls
+
+- **Dividing by retrieved count instead of relevant count**: That's precision, not recall
+- **Not handling empty relevant set**: Division by zero
+- **Using 0-indexed K**: Recall@1 should check first document only
+- **Counting duplicates**: Ensure unique document counting
+
+## After You Pass
+
+Implement **MRR** and **nDCG** for more nuanced retrieval evaluation, or use these metrics to evaluate your retrieval pipelines before deploying.
+
+## Resources
+
+### Academic Papers
+- ["Introduction to Information Retrieval"](https://nlp.stanford.edu/IR-book/) - Manning et al. (Chapter 8)
+- ["BEIR: A Heterogeneous Benchmark"](https://arxiv.org/abs/2104.08663) - Thakur et al.
+
+### Documentation
+- [IR Metrics Library](https://ir-measur.es/en/latest/) - Python implementation
+- [MTEB Leaderboard](https://huggingface.co/spaces/mteb/leaderboard) - Benchmark results
+
+### Tutorials
+- ["Precision and Recall"](https://en.wikipedia.org/wiki/Precision_and_recall) - Wikipedia
+- ["RAG Evaluation Metrics"](https://www.pinecone.io/learn/rag-evaluation/) - Pinecone guide

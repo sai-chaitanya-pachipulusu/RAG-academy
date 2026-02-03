@@ -1,37 +1,174 @@
-﻿<Callout title="Goal" variant="info">
-  Implement Reciprocal Rank Fusion (RRF) — the simplest robust hybrid retrieval fusion used in production.
+﻿---
+title: "RRF Fusion"
+description: "Implement Reciprocal Rank Fusion (RRF) to combine multiple ranked result lists into a single, superior ranking"
+difficulty: "intermediate"
+estimatedMinutes: 40
+xpReward: 80
+prerequisites: ["bm25-from-scratch"]
+related: ["hybrid-search-tuning", "multi-query-fusion", "rerank-cascade"]
+next: "hybrid-search-tuning"
+---
+
+<Callout title="Goal" variant="info">
+  Implement Reciprocal Rank Fusion (RRF) to combine multiple ranked result lists into a single, superior ranking without requiring score normalization or training data.
 </Callout>
 
-## Why this matters in production
+## Objective
 
-Hybrid retrieval typically runs multiple retrievers (BM25 + dense) and then **fuses** results.
+Implement Reciprocal Rank Fusion (RRF) to combine multiple ranked result lists into a single, superior ranking without requiring score normalization or training data.
 
-RRF is popular because it’s:
+## Purpose
 
-- stable
-- hard to overfit
-- works even when score scales differ (BM25 scores vs cosine similarity scores)
+RRF is the industry-standard algorithm for fusing results from multiple retrieval systems. Unlike score-based fusion that requires normalization, RRF uses only rank positions, making it robust, parameter-light, and effective across diverse retrieval methods.
 
-## The scoring rule
+### Real-World Impact
+- **Enterprise search**: Combine keyword, vector, and graph retrieval
+- **E-commerce**: Merge product search across catalogs, reviews, and descriptions
+- **Legal research**: Fuse citation-based and semantic legal document retrieval
+- **Academic search**: Combine publication databases with different ranking methods
 
-For each doc in a ranked list:
+## The Problem
 
-\[
-\mathrm{score}(doc)=\sum_{lists}\frac{1}{k + rank}
-\]
+Production RAG systems often use multiple retrieval strategies:
+- BM25 for exact keyword matching
+- Dense retrieval for semantic similarity  
+- Graph traversal for relationship-based search
+- Sparse learned retrieval (SPLADE) for term expansion
 
-Where `rank` is **1-based**.
+**Challenges with combining these:**
+- Different score scales (BM25: 0-∞, cosine: [-1,1], dot product: unbounded)
+- Different score distributions across queries
+- Tuning weights requires labeled data
+- Score normalization assumptions often violated
 
-## When to use RRF
+RRF solves these by ignoring scores entirely and using only ranks.
 
-- You have **two+ retrievers** with different scoring scales.
-- You want a strong baseline before learning-to-rank.
-- You don’t have time to tune many weights.
+## Theory
+
+### The RRF Formula
+
+```
+RRF_score(d) = Σᵢ 1 / (k + rankᵢ(d))
+```
+
+Where:
+- `d` = document
+- `i` = retriever index (1, 2, 3... for each source)
+- `rankᵢ(d)` = rank of document d in retriever i's results (1-indexed)
+- `k` = constant (typically 60) to dampen the impact of top ranks
+
+### Why k = 60?
+
+The constant `k` (often called `rank_constant`) serves to:
+1. Prevent documents ranked #1 from completely dominating
+2. Give lower-ranked documents a chance to surface
+3. The value 60 was empirically found to work well (from the original paper)
+
+**Effect of k values:**
+- k = 0: Top ranks heavily weighted (aggressive fusion)
+- k = 60: Balanced (recommended default)
+- k → ∞: All ranks weighted nearly equally (conservative fusion)
+
+### Mathematical Properties
+
+**Monotonicity**: If a document improves its rank in any list, its RRF score increases.
+
+**Boundedness**: Each retriever contributes between `1/(k+m)` and `1/(k+1)` where m is max rank.
+
+**Symmetry**: RRF treats all retrievers equally (can add weights if needed).
+
+## The Algorithm
+
+```python
+def reciprocal_rank_fusion(
+    ranked_lists: list[list[int]],
+    k: int = 60
+) -> list[tuple[int, float]]:
+    """
+    Fuse multiple ranked lists using Reciprocal Rank Fusion.
+    
+    Time Complexity: O(N × M) where N = total unique docs, M = number of lists
+    Space Complexity: O(N) for scores
+    
+    Args:
+        ranked_lists: List of ranked document ID lists (each is 1-indexed ranks)
+        k: RRF constant (default 60)
+        
+    Returns:
+        List of (doc_id, rrf_score) tuples sorted by score descending
+    """
+    from collections import defaultdict
+    
+    rrf_scores = defaultdict(float)
+    
+    # Compute RRF score for each document
+    for ranked_list in ranked_lists:
+        for rank, doc_id in enumerate(ranked_list, start=1):
+            rrf_scores[doc_id] += 1.0 / (k + rank)
+    
+    # Sort by score descending
+    return sorted(rrf_scores.items(), key=lambda x: x[1], reverse=True)
+
+
+# Example usage
+bm25_results = [101, 205, 342, 156]  # Doc IDs ranked by BM25
+vector_results = [205, 101, 400, 156]  # Doc IDs ranked by vector search
+
+fused = reciprocal_rank_fusion([bm25_results, vector_results], k=60)
+# Returns: [(101, 0.0328), (205, 0.0328), (156, 0.0161), (342, 0.0161), (400, 0.0161)]
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Time | O(N × M) | N docs, M retrievers |
+| Space | O(N) | Score accumulator |
+| Parameters | 1 (k) | Very simple! |
+
+## Comparison with Other Fusion Methods
+
+| Method | Requires Scores | Requires Training | Parameters | Robustness |
+|--------|----------------|-------------------|------------|------------|
+| RRF | No | No | 1 (k) | High |
+| Linear Comb | Yes | Optional | 1+ (α) | Medium |
+| Borda Count | No | No | 0 | Medium |
+| Machine Learning | Yes | Yes | Many | Variable |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Master the industry-standard algorithm for result fusion
+- Understand why rank-based fusion beats score-based approaches
+- Be able to combine multiple retrieval systems robustly
+
+## Real-World Applications
+
+| Company | Use Case |
+|---------|----------|
+| **Microsoft** | Bing search fusion |
+| **Amazon** | Product search combining multiple signals |
+| **Elastic** | Hybrid search implementation |
+| **Pinecone** | Hybrid search with RRF |
 
 ## Common pitfalls
 
-- Using 0-based rank (off by one).
-- Forgetting to sum across lists (docs appearing in both should be rewarded).
+- Using 0-indexed ranks (must be 1-indexed).
+- Forgetting to handle documents that appear in only some lists.
+- Choosing k too small (overweights top ranks) or too large (flattens everything).
 
+## Resources
 
+### Papers
+- **"Reciprocal Rank Fusion outperforms Condorcet and individual Rank Learning Methods"** - Cormack et al.
 
+### Tools
+- **Rank-BM25**: Python BM25 with RRF support
+- **Elasticsearch**: RRF for hybrid search
+- **Pinecone**: Built-in RRF fusion
+
+## Related Challenges
+
+- [hybrid-search-tuning](hybrid-search-tuning) - Optimize hybrid parameters
+- [multi-query-fusion](multi-query-fusion) - Fuse multiple query variants
+- [rerank-cascade](rerank-cascade) - Multi-stage ranking

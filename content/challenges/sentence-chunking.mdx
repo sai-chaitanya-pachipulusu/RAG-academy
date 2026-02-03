@@ -1,37 +1,193 @@
 ﻿---
 title: "Sentence-based Chunking"
-description: "Chunk text by sentences instead of characters."
+description: "Chunk text by sentences instead of characters to preserve semantic coherence."
+prerequisites: ["tokenizer-basics"]
+related: ["recursive-splitter", "semantic-chunking"]
+next: ["recursive-splitter"]
 ---
 
-# Sentence-based Chunking
+<Callout title="Goal" variant="info">
+  Master sentence-based chunking — the foundation of semantic chunking that preserves complete thoughts for better embeddings and retrieval quality.
+</Callout>
 
-Character-based chunking can split words and sentences in half. **Sentence-based chunking** preserves complete thoughts.
+## The Problem with Character Chunking
 
-### The Problem with Character Chunking
+Character-based chunking can split words and sentences in half, destroying semantic coherence:
 
 ```
 "Dr. Smith works at NASA. He leads the AI team."
+
 # Character split at position 25:
 Chunk 1: "Dr. Smith works at NASA."
 Chunk 2: " He leads the AI team."
-```
+# ✅ Fine - at sentence boundary
 
-This is fine, but:
-
-```
 # Character split at position 20:
 Chunk 1: "Dr. Smith works at N"
 Chunk 2: "ASA. He leads the AI team."
+# ❌ Broken - split in middle of "NASA"
 ```
 
-This is broken!
+## Theoretical Foundation
 
-### Your Task
+### Sentence Boundary Detection
 
-1. Split text into sentences using `.!?` as delimiters.
-2. Group sentences into chunks of `max_sentences`.
+Sentences typically end with punctuation followed by whitespace:
+- **Period (.)**: Standard sentence ending
+- **Exclamation (!)**: Emphatic ending
+- **Question mark (?)**: Interrogative ending
 
-### Why It Matters
+**Edge Cases to Handle**:
+- Abbreviations: "Dr.", "Mr.", "e.g.", "i.e."
+- Decimal numbers: "3.14", "v2.0"
+- Ellipses: "..."
+- Quotes: `"He said." She replied.`
 
-LlamaIndex's `SentenceSplitter` uses this approach. It ensures that each chunk represents a complete, coherent idea—improving embedding quality and retrieval relevance.
+### Semantic Coherence
 
+Sentence boundaries align with **propositional boundaries** — discrete units of meaning:
+
+| Chunking Method | Semantic Coherence | Embedding Quality |
+|----------------|-------------------|-------------------|
+| Character (100) | Low (mid-word splits) | Poor |
+| Character (500) | Medium | Fair |
+| Sentence (3 sent) | High | Good |
+| Paragraph | Very High | Best (if not too long) |
+
+**Trade-off**: Longer chunks = better context, but may exceed token limits.
+
+## Production Implementations
+
+### LlamaIndex SentenceSplitter
+
+```python
+from llama_index.core.node_parser import SentenceSplitter
+
+splitter = SentenceSplitter(
+    chunk_size=1024,  # Target token size
+    chunk_overlap=20,  # Sentence overlap
+)
+nodes = splitter.get_nodes_from_documents(documents)
+```
+
+### LangChain RecursiveCharacterTextSplitter
+
+```python
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+splitter = RecursiveCharacterTextSplitter(
+    separators=["\n\n", "\n", ". ", " ", ""],
+    chunk_size=1000,
+    chunk_overlap=200,
+)
+chunks = splitter.split_text(text)
+```
+
+### spaCy Sentence Detection
+
+```python
+import spacy
+
+nlp = spacy.load("en_core_web_sm")
+doc = nlp(text)
+sentences = [sent.text for sent in doc.sents]
+```
+
+## Advanced Considerations
+
+### Sentence Complexity
+
+Not all sentences are equal:
+
+| Sentence Type | Avg Tokens | Chunking Strategy |
+|--------------|------------|-------------------|
+| Simple | 10-15 | Group 3-5 sentences |
+| Complex | 20-30 | Group 2-3 sentences |
+| Technical | 30-50 | Group 1-2 sentences |
+
+### Multi-language Support
+
+Different languages have different sentence structures:
+
+- **English**: Clear punctuation boundaries
+- **Chinese**: No spaces, uses punctuation heavily
+- **Japanese**: Topic markers (は、が) help identify clauses
+- **German**: Long compound sentences common
+
+## Your Task
+
+Implement sentence-based chunking:
+
+```python
+import re
+from typing import List
+
+def split_sentences(text: str) -> List[str]:
+    """
+    Split text into sentences.
+    
+    Rules:
+    - Split on '.', '!', '?' followed by whitespace or end of string
+    - Preserve the delimiter at the end of each sentence
+    - Strip leading/trailing whitespace from each sentence
+    - Discard empty strings
+    
+    Edge cases to handle:
+    - Multiple whitespace between sentences
+    - Sentences ending with different punctuation
+    """
+    pass
+
+def chunk_by_sentences(text: str, max_sentences: int = 3) -> List[str]:
+    """
+    Chunk text so each chunk has at most max_sentences.
+    
+    Args:
+        text: Input text to chunk
+        max_sentences: Maximum sentences per chunk
+        
+    Returns:
+        List of chunks, each containing up to max_sentences sentences
+        
+    Combine sentences with a single space.
+    """
+    pass
+```
+
+### Validation Checklist
+
+- [ ] "Hello world. How are you?" → ["Hello world.", "How are you?"]
+- [ ] Handles multiple spaces: "Hello.   World." → ["Hello.", "World."]
+- [ ] Preserves punctuation: "Wow!" → ["Wow!"]
+- [ ] Empty text returns empty list
+- [ ] Chunks respect max_sentences limit
+- [ ] Final chunk may have fewer sentences
+
+## Resources
+
+### Academic Papers
+- ["Sentence Boundary Detection: A Comparison of Paradigms"](https://aclanthology.org/J00-4003/) - Palmer & Hearst
+- ["Unsupervised Multilingual Sentence Boundary Detection"](https://aclanthology.org/J06-4003/) - Reynar & Ratnaparkhi
+- ["Semantic Text Chunking for Long Document RAG"](https://arxiv.org/abs/2402.05131) - Recent work on semantic chunking
+
+### Documentation
+- [LlamaIndex SentenceSplitter](https://docs.llamaindex.ai/en/stable/module_guides/loading/node_parsers/) - Official docs
+- [LangChain Text Splitters](https://python.langchain.com/docs/modules/data_connection/document_transformers/) - Comparison
+- [spaCy Sentencizer](https://spacy.io/api/sentencizer) - Production-grade sentence detection
+
+### Tutorials
+- ["The Art of Chunking"](https://www.pinecone.io/learn/chunking-strategies/) - Pinecone
+- ["RAG Chunking Best Practices"](https://blog.langchain.dev/semantic-chunking/) - LangChain Blog
+- ["Sentence Embeddings vs Document Embeddings"](https://huggingface.co/blog/sentence-embeddings) - Hugging Face
+
+### Tools
+- [NLTK Punkt](https://www.nltk.org/api/nltk.tokenize.punkt.html) - Statistical sentence tokenizer
+- [spaCy](https://spacy.io/) - Industrial-strength NLP
+- [Stanza](https://stanfordnlp.github.io/stanza/) - Stanford NLP library
+
+## Next Steps
+
+After mastering sentence chunking:
+- **Recursive Splitter**: Hierarchical splitting with fallback
+- **Semantic Chunking**: Cluster-based semantic boundaries
+- **Markdown Header Chunking**: Structure-aware chunking

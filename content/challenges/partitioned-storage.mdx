@@ -1,18 +1,31 @@
 ﻿---
 title: "Partitioned Vector Tables"
-description: "Design a multi-tenant storage layer with hard data isolation."
+description: "Design a multi-tenant storage layer with hard data isolation"
+difficulty: "hard"
+estimatedMinutes: 45
+xpReward: 100
+prerequisites: ["metadata-filtering", "multi-tenant-rag"]
+related: ["multi-tenant-rag", "metadata-filtering", "index-sharding"]
 ---
 
 # Partitioned Vector Tables
 
 In enterprise RAG environments, **Multi-Tenancy** is a critical security requirement. You cannot risk User A's data leaking into User B's search results.
 
-### Physical vs. Logical Isolation
+## Why This Matters in Production
+
+| Isolation Type | Security | Complexity | Use Case |
+|----------------|----------|------------|----------|
+| **None** | ❌ None | Low | Single-tenant only |
+| **Logical** | ⚠️ Filter-based | Medium | Small-scale multi-tenant |
+| **Physical** | ✅ Guaranteed | High | Enterprise/Compliance |
+
+## Physical vs. Logical Isolation
 
 - **Logical Isolation**: All data is in one index, and you filter by `tenant_id`. This is risky; a bug in the filter logic could expose data.
 - **Physical Isolation (Partitioning)**: Data for different tenants is stored in separate physical "buckets" or tables.
 
-### Your Task
+## What You're Implementing
 
 Implement a `DividedVectorDB` that:
 
@@ -20,7 +33,335 @@ Implement a `DividedVectorDB` that:
 2.  Ensures that when a user searches, they **only** hit the partition belonging to their ID.
 3.  Prevents cross-partition access even if the query is identical.
 
+## The Partitioning Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    DividedVectorDB                           │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │  Tenant A    │  │  Tenant B    │  │  Tenant C    │      │
+│  │  Partition   │  │  Partition   │  │  Partition   │      │
+│  │              │  │              │  │              │      │
+│  │  [Vectors]   │  │  [Vectors]   │  │  [Vectors]   │      │
+│  │  [Metadata]  │  │  [Metadata]  │  │  [Metadata]  │      │
+│  │  [Index]     │  │  [Index]     │  │  [Index]     │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
+│                                                              │
+│  Router: tenant_id → Partition                               │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Mathematical Foundations
+
+### Partition Addressing
+
+```
+PartitionID = Hash(tenant_id) % num_partitions
+
+Or:
+PartitionID = tenant_id (direct mapping)
+```
+
+### Isolation Guarantee
+
+```
+∀ query_q, tenant_t:
+  Search(q, t) ⊆ Partition(t)
+
+No cross-partition data access possible
+```
+
+## Implementation Example
+
+```python
+from typing import Dict, List, Optional, Any
+from dataclasses import dataclass
+import numpy as np
+
+@dataclass
+class Partition:
+    """A single tenant partition containing vectors and metadata."""
+    tenant_id: str
+    vectors: List[np.ndarray]
+    metadata: List[Dict[str, Any]]
+    ids: List[str]
+    
+    def __init__(self, tenant_id: str):
+        self.tenant_id = tenant_id
+        self.vectors = []
+        self.metadata = []
+        self.ids = []
+    
+    def add(self, vector: np.ndarray, doc_id: str, meta: Dict[str, Any]):
+        """Add vector to this partition."""
+        self.vectors.append(vector)
+        self.ids.append(doc_id)
+        self.metadata.append(meta)
+    
+    def search(
+        self,
+        query_vec: np.ndarray,
+        k: int = 10,
+        filter_fn: Optional[callable] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Search within this partition only.
+        
+        Time Complexity: O(N × d) where N = vectors, d = dimension
+        Space Complexity: O(N) for scores
+        """
+        if not self.vectors:
+            return []
+        
+        # Compute similarities
+        scores = []
+        for i, vec in enumerate(self.vectors):
+            # Apply metadata filter if provided
+            if filter_fn and not filter_fn(self.metadata[i]):
+                continue
+            
+            # Cosine similarity (assuming normalized vectors)
+            similarity = np.dot(query_vec, vec)
+            scores.append((i, similarity))
+        
+        # Sort by score
+        scores.sort(key=lambda x: x[1], reverse=True)
+        
+        # Return top k
+        results = []
+        for idx, score in scores[:k]:
+            results.append({
+                "id": self.ids[idx],
+                "score": float(score),
+                "metadata": self.metadata[idx]
+            })
+        
+        return results
+
+class DividedVectorDB:
+    """Multi-tenant vector database with physical partitioning."""
+    
+    def __init__(self, dimension: int):
+        """
+        Initialize divided vector database.
+        
+        Args:
+            dimension: Vector dimension
+        """
+        self.dimension = dimension
+        self.partitions: Dict[str, Partition] = {}
+    
+    def _get_or_create_partition(self, tenant_id: str) -> Partition:
+        """Get existing partition or create new one."""
+        if tenant_id not in self.partitions:
+            self.partitions[tenant_id] = Partition(tenant_id)
+        return self.partitions[tenant_id]
+    
+    def upsert(
+        self,
+        tenant_id: str,
+        vectors: List[np.ndarray],
+        ids: List[str],
+        metadata: Optional[List[Dict[str, Any]]] = None
+    ):
+        """
+        Add vectors to a tenant's partition.
+        
+        Time Complexity: O(N) where N = vectors
+        Space Complexity: O(N × d) for storage
+        
+        Args:
+            tenant_id: Tenant identifier
+            vectors: List of vectors to add
+            ids: Unique identifiers for vectors
+            metadata: Optional metadata for each vector
+        """
+        partition = self._get_or_create_partition(tenant_id)
+        
+        if metadata is None:
+            metadata = [{} for _ in vectors]
+        
+        for vec, doc_id, meta in zip(vectors, ids, metadata):
+            # Validate dimension
+            if len(vec) != self.dimension:
+                raise ValueError(f"Vector dimension {len(vec)} != {self.dimension}")
+            
+            # Add to partition
+            partition.add(vec, doc_id, meta)
+    
+    def search(
+        self,
+        tenant_id: str,
+        query_vector: np.ndarray,
+        k: int = 10,
+        filter_fn: Optional[callable] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Search within a specific tenant's partition.
+        
+        Args:
+            tenant_id: Tenant to search (isolation enforced)
+            query_vector: Query vector
+            k: Number of results
+            filter_fn: Optional metadata filter
+            
+        Returns:
+            Search results from tenant's partition only
+            
+        Raises:
+            KeyError: If tenant doesn't exist
+            
+        Example:
+            >>> db = DividedVectorDB(dimension=128)
+            >>> db.upsert("tenant_a", vectors, ids)
+            >>> results = db.search("tenant_a", query_vec, k=5)
+            >>> # Only tenant_a's data is searched
+        """
+        if tenant_id not in self.partitions:
+            raise KeyError(f"Tenant '{tenant_id}' not found")
+        
+        # Validate query dimension
+        if len(query_vector) != self.dimension:
+            raise ValueError(f"Query dimension {len(query_vector)} != {self.dimension}")
+        
+        partition = self.partitions[tenant_id]
+        return partition.search(query_vector, k=k, filter_fn=filter_fn)
+    
+    def delete_partition(self, tenant_id: str):
+        """Delete a tenant's partition entirely."""
+        if tenant_id in self.partitions:
+            del self.partitions[tenant_id]
+    
+    def get_partition_stats(self, tenant_id: str) -> Dict[str, Any]:
+        """Get statistics for a tenant's partition."""
+        if tenant_id not in self.partitions:
+            return {"exists": False}
+        
+        partition = self.partitions[tenant_id]
+        return {
+            "exists": True,
+            "vector_count": len(partition.vectors),
+            "dimension": self.dimension,
+            "tenant_id": tenant_id
+        }
+    
+    def list_tenants(self) -> List[str]:
+        """List all tenant IDs."""
+        return list(self.partitions.keys())
+
+# Usage Example
+db = DividedVectorDB(dimension=3)
+
+# Add data for tenant A
+db.upsert(
+    tenant_id="tenant_a",
+    vectors=[np.array([1.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0])],
+    ids=["doc_a1", "doc_a2"],
+    metadata=[{"type": "red"}, {"type": "green"}]
+)
+
+# Add data for tenant B
+db.upsert(
+    tenant_id="tenant_b",
+    vectors=[np.array([0.0, 0.0, 1.0])],
+    ids=["doc_b1"],
+    metadata=[{"type": "blue"}]
+)
+
+# Search - only tenant_a's data is returned
+results = db.search("tenant_a", np.array([1.0, 0.0, 0.0]), k=2)
+print(f"Found {len(results)} results for tenant_a")
+
+# tenant_b cannot access tenant_a's data
+try:
+    db.search("tenant_b", np.array([1.0, 0.0, 0.0]))
+    # Only returns doc_b1, not doc_a1
+except KeyError:
+    print("Tenant not found")
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Partition Lookup | O(1) | Hash map access |
+| Insertion | O(N) | N = vectors to insert |
+| Search | O(V × d) | V = vectors in partition |
+| Delete Partition | O(1) | Reference removal |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand physical vs logical isolation trade-offs
+- Be able to implement partitioned storage systems
+- Know how to enforce tenant boundaries at the storage layer
+
+## Real-World Applications
+
+| Service | Partitioning Strategy |
+|---------|----------------------|
+| **Pinecone** | Namespaces for tenant isolation |
+| **Weaviate** | Multi-tenancy with class-level isolation |
+| **Milvus** | Partitions within collections |
+| **Chroma** | Collection-based isolation |
+
+## Common Pitfalls
+
+- **Shared indexes**: Logical isolation only, vulnerable to bugs
+- **Missing validation**: Not checking tenant_id on every operation
+- **Resource limits**: No per-tenant quotas
+- **Backup complexity**: Each partition needs separate backup
+- **Cross-tenant analytics**: Hard to aggregate across partitions
+
+## Production Extensions (Optional)
+
+- **Dynamic Partitioning**: Auto-create partitions on first write
+- **Partition Migration**: Move tenants between nodes
+- **Resource Quotas**: Per-tenant limits on storage/queries
+- **Encryption**: Per-tenant encryption keys
+- **Audit Logging**: Track all cross-partition access attempts
+
+## Resources
+
+### Documentation
+- [Pinecone Namespaces](https://docs.pinecone.io/docs/namespaces)
+- [Weaviate Multi-Tenancy](https://weaviate.io/developers/weaviate/concepts/data#multi-tenancy)
+- [Database Partitioning Patterns](https://docs.microsoft.com/en-us/azure/architecture/best-practices/data-partitioning)
+
+### Tools
+- **Pinecone**: Managed vector DB with namespaces
+- **Weaviate**: Open-source with multi-tenancy
+- **Milvus**: Distributed vector database
+
+### Papers
+- "Security and Privacy in Database Systems" (Various)
+- "Multi-Tenant Database Architectures" (SaaS best practices)
+
+## Interview Questions
+
+1. **Why prefer physical over logical isolation for sensitive data?**
+   - Physical isolation guarantees boundaries at storage layer; logical relies on query filters
+
+2. **How do you handle a tenant that outgrows their partition?**
+   - Shard within tenant, migrate to dedicated resources, or implement partition splitting
+
+3. **What are the downsides of physical partitioning?**
+   - Resource overhead, complex cross-tenant queries, harder to optimize globally
+
+## After You Pass
+
+Build complete multi-tenant systems:
+- [multi-tenant-rag](multi-tenant-rag) - Full multi-tenant RAG
+- [metadata-filtering](metadata-filtering) - Filter-based isolation
+- [index-sharding](index-sharding) - Distributed partitioning
+
+---
+
+**🔒 Security First:** Physical partitioning is the gold standard for multi-tenant data isolation!
+
 ### Industry Standard
 
 Services like **Pinecone** use "Namespaces" to provide this isolation, while others might spin up entirely separate index instances for high-value enterprise clients.
-

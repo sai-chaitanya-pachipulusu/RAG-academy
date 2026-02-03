@@ -1,24 +1,69 @@
 ---
 title: "User Profile RAG"
-description: |
-  Build a personalized RAG system that adapts retrieval and generation to individual user preferences.
-difficulty: intermediate
-estimatedMinutes: 35
-topics: ["personalization", "user-context", "multi-tenant", "adaptation"]
-language: python
-prerequisites:
-  - basic-retrieval
-  - metadata-filtering
-xp: 150
+description: "Build a personalized RAG system that adapts retrieval and generation to individual user preferences"
+difficulty: "intermediate"
+xpReward: 150
+prerequisites: ["basic-retrieval", "metadata-filtering"]
 ---
 
 # User Profile RAG
+
+<Callout title="Goal" variant="info">
+  Build a personalized RAG system that adapts retrieval and generation to individual user preferences.
+</Callout>
+
+## The Personalization Problem
 
 Generic RAG treats all users the same. A CEO and an intern asking "What's our sales performance?" should get different responses—executive summary vs. detailed explanation.
 
 **Your task**: Build a RAG system that personalizes both retrieval and generation based on user profiles.
 
-## Dataset
+## Why This Matters
+
+- **Role-Based Access**: Different information for different roles
+- **Expertise Adaptation**: Technical depth matched to user level
+- **Preference Learning**: Response style adapted to user preferences
+- **Security**: Access control based on user permissions
+
+## Real-World Applications
+
+**Companies:** Salesforce, Microsoft, Google Workspace
+**Use Cases:**
+- Enterprise knowledge bases
+- Customer support portals
+- Educational platforms
+- Healthcare systems
+
+## Key Concepts
+
+### Personalization Dimensions
+
+| Dimension | Options | Impact |
+|-----------|---------|--------|
+| **Role** | CEO, Manager, Intern | Access level, detail depth |
+| **Expertise** | Beginner, Intermediate, Expert | Technical terminology |
+| **Style** | Concise, Detailed, Conversational | Response format |
+| **Department** | Sales, Engineering, HR | Relevance scoring |
+
+### Personalization Pipeline
+
+```
+User Query + User Profile
+         ↓
+    [Access Filter]
+         ↓
+    [Personalized Retrieve]
+         ↓
+    [Relevance Scoring + Boosts]
+         ↓
+    [Personalized Prompt]
+         ↓
+    [Generate Response]
+```
+
+## Implementation
+
+### Data Models
 
 ```python
 from dataclasses import dataclass, field
@@ -37,6 +82,7 @@ class ResponseStyle(Enum):
 
 @dataclass
 class UserProfile:
+    """User profile for personalization."""
     user_id: str
     name: str
     role: str
@@ -48,10 +94,15 @@ class UserProfile:
 
 @dataclass
 class Document:
+    """Document with access metadata."""
     id: str
     content: str
     metadata: Dict
+```
 
+### Sample Data
+
+```python
 # Sample documents with department access control
 DOCUMENTS = [
     Document("sales-q3", "Q3 Sales: $15M revenue, 25% growth. Top performer: APAC region.", 
@@ -105,15 +156,24 @@ USERS = {
 }
 ```
 
-## Your Task
-
-Implement the `PersonalizedRAG` class:
+### Personalized RAG Class
 
 ```python
 class PersonalizedRAG:
+    """
+    RAG system with user personalization.
+    
+    Adapts retrieval and generation based on user profiles,
+    including access control, expertise level, and style preferences.
+    """
+    
     def __init__(self, documents: List[Document], users: Dict[str, UserProfile]):
         """
         Initialize with documents and user profiles.
+        
+        Args:
+            documents: List of documents with metadata
+            users: Dictionary mapping user_id to UserProfile
         """
         self.documents = documents
         self.users = users
@@ -121,6 +181,12 @@ class PersonalizedRAG:
     def get_user_profile(self, user_id: str) -> UserProfile:
         """
         Fetch user profile by ID.
+        
+        Args:
+            user_id: User identifier
+            
+        Returns:
+            UserProfile for the user
         """
         return self.users.get(user_id)
     
@@ -136,11 +202,27 @@ class PersonalizedRAG:
         - User can access docs from their accessible_departments
         - Docs with visibility="all" are accessible to everyone
         
+        Args:
+            user: User profile
+            documents: List of documents to filter
+            
         Returns:
             List of accessible documents
         """
-        # YOUR CODE HERE
-        pass
+        accessible = []
+        
+        for doc in documents:
+            # Check visibility
+            if doc.metadata.get("visibility") == "all":
+                accessible.append(doc)
+                continue
+            
+            # Check department access
+            doc_dept = doc.metadata.get("department")
+            if doc_dept in user.accessible_departments:
+                accessible.append(doc)
+        
+        return accessible
     
     def personalized_retrieve(
         self, 
@@ -156,11 +238,44 @@ class PersonalizedRAG:
         2. Score by relevance
         3. Boost by user preferences (department, recent topics)
         
+        Args:
+            user_id: User identifier
+            query: Search query
+            k: Number of documents to return
+            
         Returns:
             Top-k personalized documents
         """
-        # YOUR CODE HERE
-        pass
+        user = self.get_user_profile(user_id)
+        if not user:
+            raise ValueError(f"Unknown user: {user_id}")
+        
+        # Filter accessible documents
+        accessible = self.filter_accessible_documents(user, self.documents)
+        
+        # Score documents
+        scored = []
+        for doc in accessible:
+            # Base relevance (keyword match)
+            query_terms = set(query.lower().split())
+            doc_terms = set(doc.content.lower().split())
+            relevance = len(query_terms & doc_terms) / max(len(query_terms), 1)
+            
+            # Boost user's department
+            if doc.metadata.get("department") == user.department:
+                relevance *= 1.5
+            
+            # Boost recent topics
+            for topic in user.recent_topics:
+                if topic.lower() in doc.content.lower():
+                    relevance *= 1.2
+                    break
+            
+            scored.append((doc, relevance))
+        
+        # Sort by score and return top-k
+        scored.sort(key=lambda x: x[1], reverse=True)
+        return [doc for doc, score in scored[:k]]
     
     def build_system_prompt(self, user: UserProfile) -> str:
         """
@@ -171,11 +286,32 @@ class PersonalizedRAG:
         - preferred_style: Response format
         - role: Context awareness
         
+        Args:
+            user: User profile
+            
         Returns:
             System prompt string
         """
-        # YOUR CODE HERE
-        pass
+        # Style instructions
+        style_map = {
+            ResponseStyle.CONCISE: "Be brief. Use bullet points. No fluff.",
+            ResponseStyle.DETAILED: "Provide thorough explanations with examples.",
+            ResponseStyle.CONVERSATIONAL: "Be friendly and approachable."
+        }
+        
+        # Expertise instructions
+        expertise_map = {
+            ExpertiseLevel.BEGINNER: "Explain technical terms. Use simple language.",
+            ExpertiseLevel.INTERMEDIATE: "Assume basic knowledge. Define advanced terms.",
+            ExpertiseLevel.EXPERT: "Use technical language freely. Skip basics."
+        }
+        
+        return f"""You are an assistant for {user.name} ({user.role}).
+
+Style: {style_map[user.preferred_style]}
+Expertise: {expertise_map[user.expertise_level]}
+
+Adapt your response to their role and expertise level."""
     
     def generate_response(
         self, 
@@ -186,37 +322,60 @@ class PersonalizedRAG:
         """
         Generate personalized response.
         
+        Args:
+            user_id: User identifier
+            query: User question
+            documents: Retrieved documents
+            
         Returns:
             Response adapted to user preferences
         """
-        # YOUR CODE HERE
-        pass
+        user = self.get_user_profile(user_id)
+        
+        # Build personalized prompt
+        system_prompt = self.build_system_prompt(user)
+        
+        # Build context
+        context = "\n\n".join([
+            f"[{doc.id}] {doc.content}"
+            for doc in documents
+        ])
+        
+        # In practice, call LLM here
+        # For now, return mock response
+        return f"[Personalized response for {user.name} with {user.preferred_style.value} style]"
     
     def answer(self, user_id: str, query: str) -> Dict:
         """
         Main entry point: personalized RAG answer.
         
+        Args:
+            user_id: User identifier
+            query: User question
+            
         Returns:
-            {
-                "answer": str,
-                "documents_used": List[str],
-                "personalization": {
-                    "style": str,
-                    "expertise": str,
-                    "departments_searched": List[str]
-                }
-            }
+            Dictionary with answer and metadata
         """
-        # YOUR CODE HERE
-        pass
+        # Retrieve personalized documents
+        docs = self.personalized_retrieve(user_id, query)
+        
+        # Generate personalized response
+        response = self.generate_response(user_id, query, docs)
+        
+        user = self.get_user_profile(user_id)
+        
+        return {
+            "answer": response,
+            "documents_used": [doc.id for doc in docs],
+            "personalization": {
+                "style": user.preferred_style.value,
+                "expertise": user.expertise_level.value,
+                "departments_searched": list(set(
+                    doc.metadata.get("department") for doc in docs
+                ))
+            }
+        }
 ```
-
-## Requirements
-
-1. **Access control**: Users only see docs from accessible departments
-2. **Style adaptation**: Response format matches user preference
-3. **Expertise adaptation**: Technical depth matches user level
-4. **Relevance boosting**: Prioritize user's department and recent topics
 
 ## Test Scenarios
 
@@ -250,101 +409,9 @@ TEST_SCENARIOS = [
         }
     },
 ]
-```
 
-## Hints
-
-<details>
-<summary>Hint 1: Access filtering</summary>
-
-```python
-def filter_accessible_documents(self, user: UserProfile, documents: List[Document]):
-    accessible = []
-    for doc in documents:
-        # Check visibility
-        if doc.metadata.get("visibility") == "all":
-            accessible.append(doc)
-            continue
-        
-        # Check department access
-        doc_dept = doc.metadata.get("department")
-        if doc_dept in user.accessible_departments:
-            accessible.append(doc)
-    
-    return accessible
-```
-
-</details>
-
-<details>
-<summary>Hint 2: Personalized scoring</summary>
-
-```python
-def personalized_retrieve(self, user_id: str, query: str, k: int = 5):
-    user = self.get_user_profile(user_id)
-    
-    # Filter accessible
-    accessible = self.filter_accessible_documents(user, self.documents)
-    
-    # Score documents
-    scored = []
-    for doc in accessible:
-        # Base relevance (keyword match)
-        query_terms = set(query.lower().split())
-        doc_terms = set(doc.content.lower().split())
-        relevance = len(query_terms & doc_terms) / max(len(query_terms), 1)
-        
-        # Boost user's department
-        if doc.metadata.get("department") == user.department:
-            relevance *= 1.5
-        
-        # Boost recent topics
-        for topic in user.recent_topics:
-            if topic.lower() in doc.content.lower():
-                relevance *= 1.2
-                break
-        
-        scored.append((doc, relevance))
-    
-    scored.sort(key=lambda x: x[1], reverse=True)
-    return [doc for doc, score in scored[:k]]
-```
-
-</details>
-
-<details>
-<summary>Hint 3: System prompt building</summary>
-
-```python
-def build_system_prompt(self, user: UserProfile) -> str:
-    # Style instructions
-    style_map = {
-        ResponseStyle.CONCISE: "Be brief. Use bullet points. No fluff.",
-        ResponseStyle.DETAILED: "Provide thorough explanations with examples.",
-        ResponseStyle.CONVERSATIONAL: "Be friendly and approachable."
-    }
-    
-    # Expertise instructions
-    expertise_map = {
-        ExpertiseLevel.BEGINNER: "Explain technical terms. Use simple language.",
-        ExpertiseLevel.INTERMEDIATE: "Assume basic knowledge. Define advanced terms.",
-        ExpertiseLevel.EXPERT: "Use technical language freely. Skip basics."
-    }
-    
-    return f"""You are an assistant for {user.name} ({user.role}).
-
-Style: {style_map[user.preferred_style]}
-Expertise: {expertise_map[user.expertise_level]}
-
-Adapt your response to their role and expertise level."""
-```
-
-</details>
-
-## Test Your Solution
-
-```python
 def test_personalized_rag():
+    """Test the personalized RAG system."""
     rag = PersonalizedRAG(DOCUMENTS, USERS)
     
     for scenario in TEST_SCENARIOS:
@@ -374,27 +441,83 @@ def test_personalized_rag():
     
     print("\n✓ All tests passed!")
 
+# Run tests
 test_personalized_rag()
 ```
 
-## Bonus: Conversation Memory
+## Advanced Features
 
-Extend to remember user interactions:
+### Conversation Memory
 
 ```python
 def update_user_context(self, user_id: str, query: str, response: str):
     """
     Update user's recent topics based on interaction.
+    
+    Args:
+        user_id: User identifier
+        query: User's query
+        response: Generated response
     """
     # Extract topics from query
-    topics = extract_topics(query)
+    topics = self._extract_topics(query)
     
     # Update profile
     user = self.users[user_id]
     user.recent_topics = (topics + user.recent_topics)[:10]
+
+def _extract_topics(self, text: str) -> List[str]:
+    """Extract key topics from text."""
+    # Simple keyword extraction
+    # In practice, use NER or topic modeling
+    keywords = []
+    important_words = ["revenue", "sales", "engineering", "product", "budget"]
+    
+    for word in important_words:
+        if word in text.lower():
+            keywords.append(word)
+    
+    return keywords
 ```
+
+### Dynamic Profile Learning
+
+```python
+class AdaptivePersonalizedRAG(PersonalizedRAG):
+    """RAG that learns from user feedback."""
+    
+    def record_feedback(
+        self,
+        user_id: str,
+        query: str,
+        response: str,
+        rating: int  # 1-5
+    ):
+        """Record user feedback to improve personalization."""
+        user = self.get_user_profile(user_id)
+        
+        # Adjust style based on feedback
+        if rating < 3:
+            # User didn't like response, try different style
+            if user.preferred_style == ResponseStyle.CONCISE:
+                user.preferred_style = ResponseStyle.DETAILED
+            elif user.preferred_style == ResponseStyle.DETAILED:
+                user.preferred_style = ResponseStyle.CONVERSATIONAL
+        
+        # Store feedback for analysis
+        # (In practice, use this to train a preference model)
+```
+
+## Best Practices
+
+1. **Privacy First**: Don't expose user profiles to other users
+2. **Fallback**: If personalization fails, fall back to generic RAG
+3. **Transparency**: Let users know when responses are personalized
+4. **Testing**: Test with diverse user profiles
+5. **Monitoring**: Track personalization effectiveness
 
 ## Resources
 
 - [Personalization in AI Systems](https://arxiv.org/abs/2406.00000)
 - [Multi-Tenant RAG Patterns](https://www.pinecone.io/learn/multi-tenant/)
+- [Role-Based Access Control](https://en.wikipedia.org/wiki/Role-based_access_control)

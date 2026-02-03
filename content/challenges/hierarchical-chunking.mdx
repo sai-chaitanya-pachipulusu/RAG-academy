@@ -1,10 +1,12 @@
 ﻿---
 title: "Hierarchical Chunking: Multi-Resolution Retrieval"
 description: "Create chunks at multiple levels for queries that need different granularity"
-difficulty: "hard"
-timeEstimate: "50-60 min"
+difficulty: "advanced"
+estimatedMinutes: 60
 xpReward: 150
 prerequisites: ["section-based-chunking", "recursive-chunking"]
+related: ["raptor-tree", "metadata-aware-chunking", "parent-document-chunking"]
+next: "raptor-tree"
 ---
 
 # Hierarchical Chunking: Multi-Resolution Retrieval
@@ -46,37 +48,51 @@ Now ANY query can find a match at the right level!
 
 ```python
 def hierarchical_chunk(text):
+    """
+    Create hierarchical chunks at multiple resolution levels.
+    
+    Time Complexity: O(N × L) where N = text length, L = levels
+    Space Complexity: O(N × L) for all levels
+    
+    Args:
+        text: Input document
+        
+    Returns:
+        Root node of hierarchical tree
+    """
+    from uuid import uuid4
+    
     # Create document-level node
     doc_node = {
-        'id': uuid(),
+        'id': str(uuid4()),
         'level': 'document',
         'text': text,
         'summary': summarize(text),  # Optional
         'children': []
     }
-
+    
     # Split into sections
     for section in split_sections(text):
         section_node = {
-            'id': uuid(),
+            'id': str(uuid4()),
             'level': 'section',
             'text': section,
             'parent_id': doc_node['id'],
             'children': []
         }
-
+        
         # Split into paragraphs
         for para in split_paragraphs(section):
             para_node = {
-                'id': uuid(),
+                'id': str(uuid4()),
                 'level': 'paragraph',
                 'text': para,
                 'parent_id': section_node['id']
             }
             section_node['children'].append(para_node)
-
+        
         doc_node['children'].append(section_node)
-
+    
     return doc_node
 ```
 
@@ -155,6 +171,19 @@ specific = search_within(section.children, query)
 
 ---
 
+## Resources
+
+### Papers
+- **"RAPTOR: Recursive Abstractive Processing"** - Stanford NLP
+- **"Hierarchical Document Representation"** - Research on multi-level embeddings
+
+### Tools
+- **LlamaIndex**: Auto-merging retriever
+- **LangChain**: ParentDocumentRetriever
+- **FAISS**: Hierarchical index structures
+
+---
+
 ## Key Insight
 
 Hierarchical chunking teaches us:
@@ -165,7 +194,7 @@ Hierarchical chunking teaches us:
 
 ## Related Challenges
 
-- `section-based-chunking` - Simpler structure-aware approach
-- `semantic-chunking` - Combine for smart leaf detection
-- `metadata-aware-chunking` - Track parent-child relationships
-
+- [raptor-tree](raptor-tree) - Full RAPTOR implementation
+- [section-based-chunking](section-based-chunking) - Simpler structure-aware approach
+- [semantic-chunking](semantic-chunking) - Combine for smart leaf detection
+- [metadata-aware-chunking](metadata-aware-chunking) - Track parent-child relationships

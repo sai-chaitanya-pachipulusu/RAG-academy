@@ -1,0 +1,125 @@
+---
+title: "Fixed-Size Chunking Fundamentals"
+description: "Master the foundational chunking strategy that serves as the baseline for all RAG systems"
+difficulty: "beginner"
+estimatedMinutes: 20
+xpReward: 25
+prerequisites: []
+related: ["overlapping-chunking-explained", "recursive-chunking", "sentence-based-chunking"]
+next: "overlapping-chunking-explained"
+---
+
+<Callout title="Goal" variant="info">
+  Implement your first chunker: fixed-size chunking (baseline).
+</Callout>
+
+## Why this matters in production
+
+Chunking quality dominates retrieval quality for most RAG systems.
+
+Even if you later use:
+
+- header-aware chunking
+- semantic chunking
+- proposition chunking
+
+…you still need a rock-solid baseline to compare against.
+
+## What you're implementing
+
+- Split raw text into contiguous slices of size `chunk_size`
+- Preserve text exactly (no trimming)
+- Validate parameters (`chunk_size > 0`)
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand why chunking is the foundation of RAG
+- Be able to implement the simplest (but surprisingly effective) chunking strategy
+- Know when fixed-size chunking is the right choice vs. more complex approaches
+
+## Real-World Applications
+
+Fixed-size chunking is still widely used in production:
+
+| Company | Use Case |
+|---------|----------|
+| **Evernote** | Note search and summarization |
+| **Zoom** | Transcript processing |
+| **Legal tech** | Contract analysis (predictable chunk sizes) |
+| **Healthcare** | Medical record processing |
+
+## When Simple Chunking Wins
+
+Simple chunking is often the best choice when:
+- Documents have consistent structure
+- You need predictable chunk sizes for cost estimation
+- You're building a baseline to compare against fancy chunkers
+- Processing speed is critical
+
+## The Algorithm
+
+```python
+def fixed_size_chunk(text: str, chunk_size: int) -> list[str]:
+    """
+    Split text into fixed-size chunks.
+    
+    Time Complexity: O(N) where N = len(text)
+    Space Complexity: O(N) for output chunks
+    
+    Args:
+        text: Input text to chunk
+        chunk_size: Size of each chunk in characters
+        
+    Returns:
+        List of chunks, each with length <= chunk_size
+        
+    Raises:
+        ValueError: If chunk_size <= 0
+    """
+    if chunk_size <= 0:
+        raise ValueError("chunk_size must be positive")
+    
+    chunks = []
+    for i in range(0, len(text), chunk_size):
+        chunks.append(text[i:i + chunk_size])
+    
+    return chunks
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Time | O(N) | Single pass through text |
+| Space | O(N) | Output storage |
+| Memory | O(chunk_size) | Working buffer |
+
+## Common pitfalls
+
+- Off-by-one errors at the end of the string.
+- Accidentally trimming whitespace (this changes hashes/traceability later).
+- Not validating `chunk_size > 0` (infinite loops or crashes).
+
+## Resources
+
+### Documentation
+- [LangChain Text Splitters](https://python.langchain.com/docs/concepts/text_splitters/)
+- [LlamaIndex Node Parsers](https://docs.llamaindex.ai/en/stable/module_guides/loading/node_parsers/)
+
+### Tutorials
+- [Chunking Strategies for RAG](https://www.pinecone.io/learn/chunking-strategies/)
+- [RAG Chunking Best Practices](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/long-context-tips)
+
+### Tools
+- **LangChain**: `CharacterTextSplitter`
+- **LlamaIndex**: `TokenTextSplitter`
+- **tiktoken**: Accurate token counting
+
+## After you pass
+
+Add **overlap** with [overlapping-chunking-explained](overlapping-chunking-explained) to reduce boundary loss, then add stable IDs and metadata with [metadata-tagging](metadata-tagging).
+
+---
+
+**🎯 Challenge Series:** This is the first of 5 Data Layer challenges. Complete them all to master document ingestion and indexing — the foundation of any production RAG system.

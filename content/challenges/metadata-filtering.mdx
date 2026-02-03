@@ -1,34 +1,348 @@
-﻿<Callout title="Goal" variant="warning">
-  Enforce metadata filters **before** scoring/ranking. This is a core safety requirement for multi-tenant RAG.
-</Callout>
+﻿---
+title: "Metadata Filtering"
+description: "Enforce metadata filters before scoring/ranking for multi-tenant RAG security"
+difficulty: "medium"
+xpReward: 100
+topics: ["metadata", "filtering", "security", "multi-tenancy"]
+prerequisites: ["metadata-tagging"]
+---
 
-## Why this matters in production
+# Metadata Filtering
 
-If you retrieve across tenants and filter later, you will eventually leak data:
+## Overview
 
-- the wrong tenant’s chunks can be retrieved, reranked, and cited
-- logging/tracing can store leaked snippets
-- an LLM can paraphrase leaked content even if you “remove it later”
+If you retrieve across tenants and filter later, you will eventually leak data. The wrong tenant's chunks can be retrieved, reranked, and cited. Logging/tracing can store leaked snippets. An LLM can paraphrase leaked content even if you "remove it later."
 
-**Rule:** apply ACL/tenant filters at the retrieval boundary.
+**Rule:** Apply ACL/tenant filters at the retrieval boundary.
 
-## Offline vs online
+## Why This Matters
 
-- **Offline**: attach `tenant_id`, `doc_type`, `classification`, etc. to every chunk.
-- **Online**: filter by these fields first, then score/rerank only eligible docs.
+- **Data Security**: Prevent cross-tenant data leakage
+- **Compliance**: GDPR, HIPAA require proper isolation
+- **Audit Safety**: Logs shouldn't contain unauthorized data
+- **Trust**: Customers expect their data to be private
 
-## What you’re building
+## Key Concepts
 
-A filtered search that:
+- **Pre-filtering**: Filter before retrieval, not after
+- **Metadata indexing**: Store filterable fields in vector DB
+- **Composite filters**: Combine multiple conditions
+- **Performance**: Index metadata for fast filtering
 
-- refuses to consider docs missing `tenant_id` (unsafe-by-default)
-- supports extra filters (e.g., `doc_type`)
+## Real-World Applications
 
-## Production extensions (optional)
+| Scenario | Filter Application |
+|----------|-------------------|
+| **SaaS platforms** | `tenant_id` isolation per customer |
+| **Healthcare** | `patient_id` + `provider_id` filtering |
+| **Financial services** | `classification:public/internal/confidential` |
+| **Enterprise search** | `department`, `role`, `clearance_level` |
 
-- role-based access (`allowed_roles`)
-- row-level security (RLS) patterns
-- audit logging of `(query, tenant_id, retrieved_chunk_ids)`
+## The Security Boundary
 
+```
+❌ WRONG: Filter after retrieval
+Query → Retrieve (all tenants) → Score → Filter → Return
+                    ↓
+            Data already leaked!
 
+✅ CORRECT: Filter at retrieval boundary
+Query → Apply Filters → Retrieve (tenant only) → Score → Return
+              ↓
+        Only tenant data ever touched
+```
 
+## The Challenge
+
+### Part 1: Filter Types
+
+```python
+from typing import Dict, Any, List, Union
+from dataclasses import dataclass
+from enum import Enum
+
+class FilterOperator(Enum):
+    EQ = "eq"           # Equal
+    NE = "ne"           # Not equal
+    GT = "gt"           # Greater than
+    GTE = "gte"         # Greater than or equal
+    LT = "lt"           # Less than
+    LTE = "lte"         # Less than or equal
+    IN = "in"           # In list
+    NIN = "nin"         # Not in list
+    EXISTS = "exists"   # Field exists
+    CONTAINS = "contains"  # String contains
+
+@dataclass
+class FilterCondition:
+    """Single filter condition."""
+    field: str
+    operator: FilterOperator
+    value: Any
+
+@dataclass
+class Filter:
+    """Composite filter with AND/OR logic."""
+    conditions: List[FilterCondition]
+    operator: str = "AND"  # "AND" or "OR"
+```
+
+### Part 2: Metadata Filter Engine
+
+```python
+class MetadataFilterEngine:
+    """Apply metadata filters to documents."""
+    
+    def __init__(self):
+        self.supported_operators = {
+            FilterOperator.EQ: self._eq,
+            FilterOperator.NE: self._ne,
+            FilterOperator.GT: self._gt,
+            FilterOperator.GTE: self._gte,
+            FilterOperator.LT: self._lt,
+            FilterOperator.LTE: self._lte,
+            FilterOperator.IN: self._in,
+            FilterOperator.NIN: self._nin,
+            FilterOperator.EXISTS: self._exists,
+            FilterOperator.CONTAINS: self._contains,
+        }
+    
+    def apply(
+        self,
+        documents: List[Dict],
+        filter_obj: Filter
+    ) -> List[Dict]:
+        """Apply filter to documents."""
+        if not filter_obj.conditions:
+            return documents
+        
+        results = []
+        for doc in documents:
+            matches = self._evaluate_filter(doc, filter_obj)
+            if matches:
+                results.append(doc)
+        
+        return results
+    
+    def _evaluate_filter(self, doc: Dict, filter_obj: Filter) -> bool:
+        """Evaluate if document matches filter."""
+        results = []
+        
+        for condition in filter_obj.conditions:
+            matches = self._evaluate_condition(doc, condition)
+            results.append(matches)
+        
+        if filter_obj.operator == "AND":
+            return all(results)
+        else:  # OR
+            return any(results)
+    
+    def _evaluate_condition(
+        self,
+        doc: Dict,
+        condition: FilterCondition
+    ) -> bool:
+        """Evaluate single condition against document."""
+        handler = self.supported_operators.get(condition.operator)
+        if not handler:
+            return False
+        
+        return handler(doc, condition.field, condition.value)
+    
+    # Operator implementations
+    def _eq(self, doc: Dict, field: str, value: Any) -> bool:
+        return doc.get(field) == value
+    
+    def _ne(self, doc: Dict, field: str, value: Any) -> bool:
+        return doc.get(field) != value
+    
+    def _gt(self, doc: Dict, field: str, value: Any) -> bool:
+        doc_val = doc.get(field)
+        return doc_val is not None and doc_val > value
+    
+    def _gte(self, doc: Dict, field: str, value: Any) -> bool:
+        doc_val = doc.get(field)
+        return doc_val is not None and doc_val >= value
+    
+    def _lt(self, doc: Dict, field: str, value: Any) -> bool:
+        doc_val = doc.get(field)
+        return doc_val is not None and doc_val < value
+    
+    def _lte(self, doc: Dict, field: str, value: Any) -> bool:
+        doc_val = doc.get(field)
+        return doc_val is not None and doc_val <= value
+    
+    def _in(self, doc: Dict, field: str, value: List) -> bool:
+        return doc.get(field) in value
+    
+    def _nin(self, doc: Dict, field: str, value: List) -> bool:
+        return doc.get(field) not in value
+    
+    def _exists(self, doc: Dict, field: str, value: bool) -> bool:
+        exists = field in doc and doc[field] is not None
+        return exists if value else not exists
+    
+    def _contains(self, doc: Dict, field: str, value: str) -> bool:
+        doc_val = doc.get(field, "")
+        return value in str(doc_val)
+```
+
+### Part 3: Vector Store Integration
+
+```python
+class FilteredVectorStore:
+    """Vector store with pre-filtering support."""
+    
+    def __init__(self, base_store, filter_engine: MetadataFilterEngine):
+        self.store = base_store
+        self.filter_engine = filter_engine
+    
+    def search(
+        self,
+        query_embedding: List[float],
+        filter_obj: Filter = None,
+        top_k: int = 10
+    ) -> List[Dict]:
+        """Search with metadata pre-filtering."""
+        # If filter provided, apply before vector search
+        if filter_obj:
+            # Get candidate IDs from filtered metadata
+            candidate_ids = self._get_filtered_candidates(filter_obj)
+            
+            # Search only within candidates
+            results = self.store.search_filtered(
+                query_embedding,
+                candidate_ids=candidate_ids,
+                top_k=top_k
+            )
+        else:
+            # No filter, search all
+            results = self.store.search(query_embedding, k=top_k)
+        
+        return results
+    
+    def _get_filtered_candidates(self, filter_obj: Filter) -> List[str]:
+        """Get document IDs matching filter."""
+        # This would use the vector store's metadata index
+        # For this example, we scan (in production, use indexed query)
+        all_docs = self.store.get_all_metadata()
+        filtered = self.filter_engine.apply(all_docs, filter_obj)
+        return [doc['id'] for doc in filtered]
+```
+
+### Part 4: Multi-Tenant Filter Builder
+
+```python
+class MultiTenantFilterBuilder:
+    """Build filters for multi-tenant scenarios."""
+    
+    @staticmethod
+    def tenant_isolation(tenant_id: str) -> Filter:
+        """Create filter for tenant isolation."""
+        return Filter(
+            conditions=[
+                FilterCondition(
+                    field="tenant_id",
+                    operator=FilterOperator.EQ,
+                    value=tenant_id
+                )
+            ]
+        )
+    
+    @staticmethod
+    def access_control(
+        user_roles: List[str],
+        user_clearance: str
+    ) -> Filter:
+        """Create filter based on access control."""
+        return Filter(
+            conditions=[
+                FilterCondition(
+                    field="allowed_roles",
+                    operator=FilterOperator.IN,
+                    value=user_roles
+                ),
+                FilterCondition(
+                    field="min_clearance",
+                    operator=FilterOperator.LTE,
+                    value=user_clearance
+                )
+            ],
+            operator="AND"
+        )
+    
+    @staticmethod
+    def time_range(
+        field: str,
+        start: str = None,
+        end: str = None
+    ) -> Filter:
+        """Create time range filter."""
+        conditions = []
+        
+        if start:
+            conditions.append(FilterCondition(
+                field=field,
+                operator=FilterOperator.GTE,
+                value=start
+            ))
+        
+        if end:
+            conditions.append(FilterCondition(
+                field=field,
+                operator=FilterOperator.LTE,
+                value=end
+            ))
+        
+        return Filter(conditions=conditions, operator="AND")
+    
+    @staticmethod
+    def combine_filters(*filters: Filter, operator: str = "AND") -> Filter:
+        """Combine multiple filters."""
+        all_conditions = []
+        for f in filters:
+            all_conditions.extend(f.conditions)
+        
+        return Filter(conditions=all_conditions, operator=operator)
+```
+
+## Example Usage
+
+```python
+# Create filter engine
+engine = MetadataFilterEngine()
+
+# Build tenant filter
+tenant_filter = MultiTenantFilterBuilder.tenant_isolation("tenant_123")
+
+# Add time filter
+time_filter = MultiTenantFilterBuilder.time_range(
+    field="created_at",
+    start="2024-01-01",
+    end="2024-12-31"
+)
+
+# Combine filters
+combined = MultiTenantFilterBuilder.combine_filters(
+    tenant_filter,
+    time_filter,
+    operator="AND"
+)
+
+# Apply to search
+results = vector_store.search(
+    query_embedding=embed_query("What is RAG?"),
+    filter_obj=combined,
+    top_k=10
+)
+```
+
+## Evaluation Criteria
+
+Your solution will be evaluated on:
+
+1. **Correctness**: Filters work as expected
+2. **Completeness**: All common operators supported
+3. **Security**: Pre-filtering prevents data leakage
+4. **Performance**: Efficient filter application
+5. **Composability**: Easy to combine filters

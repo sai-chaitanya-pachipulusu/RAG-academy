@@ -1,27 +1,443 @@
 ﻿---
 title: "Multi-Modal Retrieval (CLIP)"
-description: "Implement retrieval of relevant images for text queries using a shared embedding space."
+description: "Implement retrieval of relevant images for text queries using a shared embedding space"
+difficulty: "hard"
+xpReward: 150
+estimatedMinutes: 45
+stage: "advanced-retrieval"
+track: "multimodal"
+tags: ["multimodal", "clip", "cross-modal", "image-retrieval", "text-to-image"]
+prerequisites: ["image-embedding-rag", "cosine-similarity"]
+relatedChallenges: ["image-embedding-rag", "multimodal-rag-guide", "ocr-rag-pipeline"]
+nextChallenges: ["multimodal-rag-guide"]
+theory:
+  overview: |
+    Multi-modal retrieval using CLIP enables searching across different modalities 
+    (text and images) within a shared embedding space. Because CLIP projects both 
+    text and images into the same vector space, we can retrieve images using text 
+    queries and vice versa, enabling powerful cross-modal search capabilities.
+  keyFormulas:
+    - name: "CLIP Contrastive Loss"
+      formula: "L = -1/N Σ_i log(exp(sim(I_i,T_i)/τ) / Σ_j exp(sim(I_i,T_j)/τ))"
+    - name: "Cosine Similarity"
+      formula: "sim(A,B) = (A·B) / (||A|| × ||B||)"
+    - name: "Temperature Scaling"
+      formula: "P(match) = exp(sim/τ) / Σ exp(sim/τ)"
+    - name: "Multi-Modal Fusion"
+      formula: "E_combined = [E_text; E_image] (concatenation)"
+  visualIntuition: |
+    Cross-Modal Retrieval:
+    
+    ```
+    Text Query: "golden retriever in park"
+              ↓
+         [Text Encoder]
+              ↓
+         Embedding ●
+                  /|\
+                 / | \
+                /  |  \
+    Images: 🐕   🚗   🌳   🏠
+            |    |    |    |
+         [Image Encoder]
+            |    |    |    |
+           ●    ●    ●    ●
+           |\   |    |   /
+           | \  |    |  /
+           |  \ |    | /
+           |   \|    |/
+           Most Similar
+           
+    Result: 🐕 (dog image) retrieved!
+    ```
+  whyItMatters: |
+    Multi-modal retrieval enables:
+    1. **Text-to-image search**: Find images from descriptions
+    2. **Image-to-text search**: Find relevant captions/docs
+    3. **Cross-modal RAG**: Combine visual and textual evidence
+    4. **Zero-shot classification**: Classify without training
+  commonMistakes:
+    - "Not normalizing embeddings before comparison"
+    - "Using different encoders for text and images"
+    - "Ignoring embedding dimension mismatches"
+    - "Not handling batch processing efficiently"
+  interviewTips:
+    - "Explain CLIP's contrastive learning approach"
+    - "Compare zero-shot vs fine-tuned retrieval"
+    - "Discuss handling multiple images per query"
+    - "Mention retrieval augmentation with captions"
+realWorld:
+  description: |
+    Pinterest uses multi-modal embeddings for visual discovery. Google Lens enables 
+    image-based search. E-commerce platforms use it for product recommendations. 
+    Content moderation systems employ CLIP for detecting inappropriate imagery.
+  companies: ["OpenAI", "Google", "Pinterest", "Meta", "Snap"]
+  useCases:
+    - "Visual product search in e-commerce"
+    - "Content moderation and safety"
+    - "Digital asset management"
+    - "Medical image retrieval"
+    - "Educational content discovery"
+complexity:
+  time: "O(n × d) for n images, d dimensions"
+  space: "O(n × d) for embedding storage"
+  latency: "10-50ms per query with index"
+resources:
+  papers:
+    - title: "Learning Transferable Visual Models From Natural Language Supervision"
+      url: "https://arxiv.org/abs/2103.00020"
+      authors: "Radford et al., OpenAI"
+      year: 2021
+    - title: "CLIP4Clip: An Empirical Study of CLIP for Video Retrieval"
+      url: "https://arxiv.org/abs/2104.08860"
+      authors: "Luo et al."
+      year: 2021
+    - title: "FILIP: Fine-grained Interactive Language-Image Pre-Training"
+      url: "https://arxiv.org/abs/2111.07783"
+      authors: "Yao et al."
+      year: 2021
+  documentation:
+    - title: "OpenAI CLIP"
+      url: "https://github.com/openai/CLIP"
+    - title: "Hugging Face CLIP"
+      url: "https://huggingface.co/docs/transformers/model_doc/clip"
+    - title: "Sentence Transformers Image Search"
+      url: "https://www.sbert.net/examples/applications/image-search/README.html"
+  tutorials:
+    - title: "Building a Semantic Image Search Engine"
+      url: "https://blog.roboflow.com/clip-image-search/"
+    - title: "Multi-Modal RAG with CLIP"
+      url: "https://blog.langchain.dev/multi-modal-rag/"
+  tools:
+    - name: "CLIP"
+      description: "OpenAI's vision-language model"
+      url: "https://github.com/openai/CLIP"
+    - name: "OpenCLIP"
+      description: "Open-source CLIP with more models"
+      url: "https://github.com/mlfoundations/open_clip"
+    - name: "Weaviate"
+      description: "Vector DB with multi-modal support"
+      url: "https://weaviate.io/"
+    - name: "Pinecone"
+      description: "Vector database for image search"
+      url: "https://www.pinecone.io/"
 ---
 
 # Multi-Modal Retrieval (CLIP)
 
-Modern RAG isn't limited to text. Multi-modal models like **CLIP** (Contrastive Language-Image Pre-training) allow us to embed both images and text into the **same vector space**.
+Implement cross-modal retrieval using CLIP to search for images using text queries and vice versa within a shared embedding space.
 
-### The Magic of Shared Space
+## The Magic of Shared Space
+
+Modern RAG isn't limited to text. Multi-modal models like **CLIP** (Contrastive Language-Image Pre-training) allow us to embed both images and text into the **same vector space**.
 
 Because the text "a golden retriever in a park" and an actual image of a golden retriever in a park are mapped to similar vectors, we can search for images using text queries (and vice versa).
 
-### Your Task
+## Your Task
 
-Implement a similarity search that:
+Implement a `MultimodalRetriever` class:
 
-1.  Takes a **text query** vector.
-2.  Compares it against a set of **image vectors**.
-3.  Returns the index of the most similar image.
+```python
+class MultimodalRetriever:
+    def __init__(self, model_name: str = "clip-ViT-B-32"):
+        """
+        Initialize multi-modal retriever with CLIP.
+        
+        Args:
+            model_name: CLIP model variant
+        """
+        pass
+    
+    def index_images(self, images: list[Union[str, Image.Image]], 
+                    metadata: list[dict] = None) -> None:
+        """
+        Index images for retrieval.
+        
+        Args:
+            images: List of image paths or PIL Images
+            metadata: Optional metadata for each image
+        """
+        pass
+    
+    def text_to_image_search(self, query: str, k: int = 5) -> list[dict]:
+        """
+        Search for images using text query.
+        
+        Args:
+            query: Text description
+            k: Number of results
+            
+        Returns:
+            List of image results with similarity scores
+        """
+        pass
+    
+    def image_to_text_search(self, query_image: Union[str, Image.Image],
+                            text_corpus: list[str], k: int = 5) -> list[dict]:
+        """
+        Search for text using image query.
+        
+        Args:
+            query_image: Query image
+            text_corpus: List of text documents
+            k: Number of results
+            
+        Returns:
+            List of text results with similarity scores
+        """
+        pass
+    
+    def image_to_image_search(self, query_image: Union[str, Image.Image],
+                             k: int = 5) -> list[dict]:
+        """
+        Search for similar images.
+        
+        Args:
+            query_image: Query image
+            k: Number of results
+            
+        Returns:
+            List of similar images
+        """
+        pass
+    
+    def hybrid_search(self, text_query: str, 
+                     image_query: Union[str, Image.Image] = None,
+                     text_weight: float = 0.5,
+                     k: int = 5) -> list[dict]:
+        """
+        Search with both text and image queries.
+        
+        Args:
+            text_query: Text description
+            image_query: Optional image query
+            text_weight: Weight for text vs image (0-1)
+            k: Number of results
+            
+        Returns:
+            Combined search results
+        """
+        pass
+```
 
-### Use Cases
+## Example
 
-- **E-commerce**: Finding products based on visual descriptions.
-- **Digital Asset Management**: Searching through millions of stock photos with natural language.
-- **Advanced RAG**: Creating reports that combine text facts with relevant visual evidence.
+```python
+# Initialize retriever
+retriever = MultimodalRetriever("clip-ViT-B-32")
 
+# Index image collection
+images = ["dog1.jpg", "cat1.jpg", "car1.jpg", "tree1.jpg", "dog2.jpg"]
+metadata = [
+    {"label": "dog", "breed": "golden retriever"},
+    {"label": "cat", "breed": "tabby"},
+    {"label": "car", "make": "toyota"},
+    {"label": "tree", "type": "oak"},
+    {"label": "dog", "breed": "beagle"}
+]
+retriever.index_images(images, metadata)
+
+# Text-to-image search
+results = retriever.text_to_image_search("a dog playing in the park", k=3)
+for r in results:
+    print(f"Image: {r['image']}, Score: {r['score']:.3f}")
+# Output:
+# Image: dog1.jpg, Score: 0.892
+# Image: dog2.jpg, Score: 0.871
+# Image: cat1.jpg, Score: 0.654
+
+# Image-to-image search (find similar images)
+query_img = Image.open("golden_retriever.jpg")
+similar = retriever.image_to_image_search(query_img, k=3)
+
+# Hybrid search (text + image)
+results = retriever.hybrid_search(
+    text_query="dog running",
+    image_query="golden_retriever.jpg",
+    text_weight=0.6,
+    k=5
+)
+```
+
+## Algorithm Details
+
+### CLIP-based Retrieval
+
+```python
+def text_to_image_search(self, query: str, k: int = 5) -> list[dict]:
+    """Search images using text query."""
+    # Encode text query
+    query_embedding = self.model.encode(query, convert_to_tensor=True)
+    query_embedding = query_embedding / query_embedding.norm()
+    
+    # Compute similarities with all images
+    similarities = cosine_similarity(
+        query_embedding.cpu().numpy().reshape(1, -1),
+        self.image_embeddings
+    )[0]
+    
+    # Get top-k
+    top_indices = np.argsort(similarities)[-k:][::-1]
+    
+    results = []
+    for idx in top_indices:
+        results.append({
+            "image": self.image_paths[idx],
+            "score": float(similarities[idx]),
+            "metadata": self.metadata[idx] if self.metadata else {}
+        })
+    
+    return results
+```
+
+### Hybrid Multi-Modal Search
+
+```python
+def hybrid_search(self, text_query: str,
+                 image_query: Union[str, Image.Image] = None,
+                 text_weight: float = 0.5,
+                 k: int = 5) -> list[dict]:
+    """Combine text and image queries."""
+    # Get text query embedding
+    text_emb = self.model.encode(text_query, convert_to_tensor=True)
+    text_emb = text_emb / text_emb.norm()
+    
+    if image_query is not None:
+        # Get image query embedding
+        if isinstance(image_query, str):
+            image_query = Image.open(image_query)
+        
+        img_emb = self.model.encode(image_query, convert_to_tensor=True)
+        img_emb = img_emb / img_emb.norm()
+        
+        # Combine embeddings
+        combined_emb = (text_weight * text_emb + 
+                       (1 - text_weight) * img_emb)
+        combined_emb = combined_emb / combined_emb.norm()
+    else:
+        combined_emb = text_emb
+    
+    # Search with combined embedding
+    similarities = cosine_similarity(
+        combined_emb.cpu().numpy().reshape(1, -1),
+        self.image_embeddings
+    )[0]
+    
+    top_indices = np.argsort(similarities)[-k:][::-1]
+    
+    return [
+        {
+            "image": self.image_paths[i],
+            "score": float(similarities[i]),
+            "metadata": self.metadata[i] if self.metadata else {}
+        }
+        for i in top_indices
+    ]
+```
+
+## Use Cases
+
+| Use Case | Query Type | Example |
+|----------|-----------|---------|
+| **E-commerce** | Text → Image | "red summer dress" → product images |
+| **Content Discovery** | Image → Text | screenshot → relevant articles |
+| **Visual Search** | Image → Image | product photo → similar products |
+| **Mixed Search** | Text + Image | "in blue color" + product image |
+
+## Evaluation Criteria
+
+1. **Retrieval Accuracy**: Relevant images returned for text queries
+2. **Cross-Modal Alignment**: Text and image embeddings align properly
+3. **Hybrid Fusion**: Combined queries work effectively
+4. **Efficiency**: Fast search with index
+
+## Test Cases
+
+```python
+def test_text_to_image():
+    """Test text query retrieves relevant images."""
+    retriever = MultimodalRetriever()
+    retriever.index_images(["dog.jpg", "car.jpg", "tree.jpg"])
+    
+    results = retriever.text_to_image_search("a dog", k=2)
+    
+    assert len(results) == 2
+    assert results[0]["image"] == "dog.jpg"  # Should be top result
+
+def test_image_to_image():
+    """Test image query finds similar images."""
+    retriever = MultimodalRetriever()
+    retriever.index_images(["dog1.jpg", "dog2.jpg", "car.jpg"])
+    
+    results = retriever.image_to_image_search("dog1.jpg", k=2)
+    
+    # dog2.jpg should be more similar than car.jpg
+    dog2_score = next(r["score"] for r in results if r["image"] == "dog2.jpg")
+    car_score = next(r["score"] for r in results if r["image"] == "car.jpg")
+    assert dog2_score > car_score
+
+def test_hybrid_search():
+    """Test combining text and image queries."""
+    retriever = MultimodalRetriever()
+    retriever.index_images(["red_dress.jpg", "blue_dress.jpg", "red_car.jpg"])
+    
+    # Search for "blue" with red_dress image
+    results = retriever.hybrid_search(
+        "blue dress",
+        image_query="red_dress.jpg",
+        text_weight=0.8,
+        k=3
+    )
+    
+    assert len(results) == 3
+```
+
+## Integration with RAG
+
+```python
+class MultimodalRAG:
+    def __init__(self):
+        self.text_retriever = TextRetriever()
+        self.image_retriever = MultimodalRetriever()
+        self.llm = LanguageModel()
+    
+    def retrieve(self, query: str, query_image=None, k: int = 5):
+        """Retrieve both text and image context."""
+        # Text retrieval
+        text_results = self.text_retriever.search(query, k=k)
+        
+        # Image retrieval (if query has visual component)
+        if query_image:
+            image_results = self.image_retriever.hybrid_search(
+                query, query_image, k=k
+            )
+        else:
+            image_results = self.image_retriever.text_to_image_search(query, k=k)
+        
+        return {
+            "text_context": text_results,
+            "image_context": image_results
+        }
+    
+    def generate(self, query: str, query_image=None) -> str:
+        """Generate answer with multi-modal context."""
+        context = self.retrieve(query, query_image)
+        
+        prompt = f"""Answer based on the following context:
+        
+Text Context:
+{format_text_context(context['text_context'])}
+
+Image Context:
+{format_image_context(context['image_context'])}
+
+Question: {query}
+"""
+        return self.llm.generate(prompt)
+```
+
+## Further Reading
+
+- [CLIP Paper](https://arxiv.org/abs/2103.00020)
+- [OpenCLIP Repository](https://github.com/mlfoundations/open_clip)
+- [Multi-Modal RAG Patterns](multimodal-rag-guide)

@@ -1,16 +1,35 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "Extractive Compression"
+description: "Compress a chunk by extracting only the most relevant sentences (safe token savings)"
+difficulty: "medium"
+estimatedMinutes: 35
+xpReward: 60
+prerequisites: ["token-budget-packing", "context-window-optimization"]
+related: ["contextual-compression-llm", "token-budget-packing", "extractive-compression"]
+---
+
+<Callout title="Goal" variant="info">
   Compress a chunk by extracting only the most relevant sentences (safe token savings).
 </Callout>
 
-## Why this matters in production
+## Why This Matters in Production
 
 Long chunks cost tokens and can reduce answer quality.
 Extractive compression is safer than abstractive summarization because it:
 
-- doesn’t invent new facts
+- doesn't invent new facts
 - keeps original wording (good for citations)
 
-## Where this fits
+## Why This Matters in Production
+
+| Problem | Impact |
+|---------|--------|
+| **Token overflow** | Long chunks exceed context budget |
+| **Dilution** | Important facts lost in noise |
+| **Cost** | More tokens = higher API costs |
+| **Latency** | Longer context = slower generation |
+
+## What You're Implementing
 
 Post-retrieval context shaping:
 
@@ -20,11 +39,314 @@ Post-retrieval context shaping:
 4. pack + order under token budget
 5. generate with citations
 
-## Production extensions (optional)
+## The Compression Pipeline
+
+```
+Long Chunk → Sentence Split → Score Sentences → Select Top-K → Compressed Chunk
+     ↓              ↓                ↓                  ↓               ↓
+"Sentence1.   [s1, s2, s3,     Relevance to     [s1, s3]      "Sentence1.
+ Sentence2.    s4]              query            (top 2)        Sentence3."
+ Sentence3.
+ Sentence4."
+```
+
+## Mathematical Foundations
+
+### Sentence Scoring
+
+```
+Score(sentence) = Σ(word_overlap(query, sentence)) / |sentence|
+
+Or using embeddings:
+Score(sentence) = cosine_similarity(embed(query), embed(sentence))
+```
+
+### Compression Ratio
+
+```
+Compression Ratio = (Original Tokens - Compressed Tokens) / Original Tokens
+
+Target: 30-50% reduction while preserving key information
+```
+
+## Implementation Example
+
+```python
+import re
+from typing import List, Tuple
+from dataclasses import dataclass
+import numpy as np
+
+@dataclass
+class Sentence:
+    """Represents a sentence with its text and position."""
+    text: str
+    index: int
+    score: float = 0.0
+
+class ExtractiveCompressor:
+    """Compress chunks by extracting most relevant sentences."""
+    
+    def __init__(self, embedding_model=None):
+        """
+        Initialize compressor.
+        
+        Args:
+            embedding_model: Optional model for semantic scoring
+        """
+        self.embedding_model = embedding_model
+    
+    def compress(
+        self,
+        text: str,
+        query: str,
+        target_ratio: float = 0.5,
+        min_sentences: int = 1
+    ) -> str:
+        """
+        Compress text by extracting relevant sentences.
+        
+        Time Complexity: O(S × L) where S = sentences, L = length
+        Space Complexity: O(S) for sentence storage
+        
+        Args:
+            text: Text to compress
+            query: Query for relevance scoring
+            target_ratio: Target compression ratio (0-1)
+            min_sentences: Minimum sentences to keep
+            
+        Returns:
+            Compressed text with most relevant sentences
+            
+        Example:
+            >>> compressor = ExtractiveCompressor()
+            >>> text = "RAG is useful. It combines retrieval. LLMs are powerful."
+            >>> query = "What is RAG?"
+            >>> compressed = compressor.compress(text, query, target_ratio=0.5)
+            >>> # Returns most relevant sentences
+        """
+        # Split into sentences
+        sentences = self._split_sentences(text)
+        
+        if len(sentences) <= min_sentences:
+            return text
+        
+        # Score sentences
+        scored = self._score_sentences(sentences, query)
+        
+        # Determine how many to keep
+        target_count = max(min_sentences, int(len(sentences) * (1 - target_ratio)))
+        
+        # Select top sentences (preserving original order)
+        top_sentences = sorted(scored, key=lambda s: s.score, reverse=True)[:target_count]
+        top_sentences.sort(key=lambda s: s.index)  # Restore order
+        
+        # Reconstruct text
+        compressed = ' '.join(s.text for s in top_sentences)
+        
+        return compressed
+    
+    def _split_sentences(self, text: str) -> List[Sentence]:
+        """Split text into sentences."""
+        # Simple sentence splitting
+        sentence_endings = r'[.!?]+\s+'
+        splits = re.split(sentence_endings, text)
+        
+        sentences = []
+        for i, sent in enumerate(splits):
+            sent = sent.strip()
+            if sent:
+                sentences.append(Sentence(text=sent, index=i))
+        
+        return sentences
+    
+    def _score_sentences(
+        self,
+        sentences: List[Sentence],
+        query: str
+    ) -> List[Sentence]:
+        """Score sentences by relevance to query."""
+        query_words = set(query.lower().split())
+        
+        for sent in sentences:
+            if self.embedding_model:
+                # Semantic scoring with embeddings
+                sent.score = self._semantic_score(sent.text, query)
+            else:
+                # Lexical scoring with word overlap
+                sent_words = set(sent.text.lower().split())
+                overlap = len(query_words & sent_words)
+                sent.score = overlap / max(len(sent_words), 1)
+        
+        return sentences
+    
+    def _semantic_score(self, sentence: str, query: str) -> float:
+        """Calculate semantic similarity using embeddings."""
+        if not self.embedding_model:
+            return 0.0
+        
+        sent_vec = self.embedding_model.encode(sentence)
+        query_vec = self.embedding_model.encode(query)
+        
+        # Cosine similarity
+        dot = np.dot(sent_vec, query_vec)
+        norm = np.linalg.norm(sent_vec) * np.linalg.norm(query_vec)
+        
+        return dot / norm if norm > 0 else 0.0
+    
+    def compress_with_context(
+        self,
+        text: str,
+        query: str,
+        context_window: int = 1
+    ) -> str:
+        """
+        Compress while preserving context around important sentences.
+        
+        Keeps neighboring sentences of highly relevant ones.
+        
+        Args:
+            text: Text to compress
+            query: Query for relevance
+            context_window: Number of context sentences to keep
+        """
+        sentences = self._split_sentences(text)
+        scored = self._score_sentences(sentences, query)
+        
+        # Mark sentences to keep
+        keep = [False] * len(sentences)
+        
+        for i, sent in enumerate(scored):
+            if sent.score > 0.5:  # Threshold for importance
+                # Keep this sentence and context window
+                start = max(0, sent.index - context_window)
+                end = min(len(sentences), sent.index + context_window + 1)
+                for j in range(start, end):
+                    keep[j] = True
+        
+        # Reconstruct
+        kept_sentences = [sentences[i].text for i in range(len(sentences)) if keep[i]]
+        
+        return ' '.join(kept_sentences) if kept_sentences else text
+    
+    def get_compression_stats(
+        self,
+        original: str,
+        compressed: str
+    ) -> dict:
+        """Calculate compression statistics."""
+        orig_tokens = len(original.split())
+        comp_tokens = len(compressed.split())
+        
+        return {
+            "original_tokens": orig_tokens,
+            "compressed_tokens": comp_tokens,
+            "tokens_saved": orig_tokens - comp_tokens,
+            "compression_ratio": (orig_tokens - comp_tokens) / orig_tokens if orig_tokens > 0 else 0
+        }
+
+# Usage Example
+compressor = ExtractiveCompressor()
+
+text = """
+RAG stands for Retrieval-Augmented Generation. It is a technique that combines 
+retrieval systems with language models. The retrieval system finds relevant 
+documents. The language model generates answers based on the retrieved content. 
+This approach improves accuracy and reduces hallucinations. Many companies use 
+RAG for customer support and knowledge management.
+"""
+
+query = "What is RAG and how does it work?"
+
+compressed = compressor.compress(text, query, target_ratio=0.5)
+stats = compressor.get_compression_stats(text, compressed)
+
+print(f"Compression ratio: {stats['compression_ratio']:.2%}")
+print(f"Tokens saved: {stats['tokens_saved']}")
+print(f"\nCompressed text:\n{compressed}")
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Sentence Splitting | O(L) | L = text length |
+| Scoring (lexical) | O(S × W) | S sentences, W words |
+| Scoring (semantic) | O(S × E) | E = embedding time |
+| Selection | O(S log S) | Sort by score |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand extractive vs. abstractive compression
+- Be able to implement sentence-level compression
+- Know how to balance compression ratio with information preservation
+
+## Real-World Applications
+
+| System | Compression Approach |
+|--------|---------------------|
+| **LangChain** | Contextual compression retriever |
+| **LlamaIndex** | Node postprocessors |
+| **RAGFlow** | Extractive summarization |
+| **Enterprise RAG** | Custom compression pipelines |
+
+## Common Pitfalls
+
+- **Over-compression**: Losing critical information
+- **Context loss**: Removing sentences that provide necessary context
+- **Citation breakage**: Compressed text no longer matches source
+- **Semantic drift**: Lexical scoring misses relevant but differently-worded content
+- **Sentence boundaries**: Poor splitting breaks meaning
+
+## Production Extensions (Optional)
+
+- **Cross-encoder Scoring**: More accurate relevance scoring
+- **Hierarchical Compression**: Paragraph → Sentence → Phrase
+- **Preserved Spans**: Track which parts of original are kept
+- **Adaptive Ratio**: Adjust compression based on content type
+- **Multi-document**: Compress across multiple retrieved chunks
+
+## Resources
+
+### Documentation
+- [LangChain Contextual Compression](https://python.langchain.com/docs/modules/data_connection/retrievers/contextual_compression/)
+- [Text Summarization Techniques](https://huggingface.co/docs/transformers/tasks/summarization)
+- [Sentence Transformers](https://www.sbert.net/)
+
+### Tools
+- **spaCy**: Sentence segmentation
+- **NLTK**: Text processing
+- **sentence-transformers**: Semantic similarity
+
+### Papers
+- "Extractive Summarization as Text Matching" (Zhong et al., 2020)
+- "Contextual Compression for RAG" (Various)
+
+## Interview Questions
+
+1. **Why extractive over abstractive compression for RAG?**
+   - Preserves factual accuracy, maintains citations, no hallucination risk
+
+2. **How do you handle sentences that lose meaning when isolated?**
+   - Use context windows, preserve anaphora resolution, or skip compression
+
+3. **What metrics evaluate compression quality?**
+   - ROUGE, BERTScore, human evaluation, downstream task performance
+
+## After You Pass
+
+Build advanced compression systems:
+- [contextual-compression-llm](contextual-compression-llm) - LLM-based compression
+- [token-budget-packing](token-budget-packing) - Optimize context packing
+- [context-window-optimization](context-window-optimization) - Advanced window management
+
+---
+
+**✂️ Smart Trimming:** Extractive compression safely reduces token usage while preserving accuracy!
+
+## Production Extensions (Optional)
 
 - compress only when total context > threshold
 - use a cross-encoder sentence scorer
 - preserve provenance (sentence offsets) for quote-attribution
-
-
-

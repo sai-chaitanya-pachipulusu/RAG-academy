@@ -45,13 +45,37 @@ async function initEsbuild() {
 async function compileTypeScript(code) {
   await initEsbuild();
   
-  const result = await esbuild.transform(code, {
-    loader: 'ts',
-    target: 'es2020',
-    format: 'iife',
-  });
-  
-  return result.code;
+  try {
+    const result = await esbuild.transform(code, {
+      loader: 'ts',
+      target: 'es2020',
+      format: 'iife',
+    });
+    
+    return { code: result.code, errors: [] };
+  } catch (err) {
+    // Enhanced error extraction for compilation errors
+    const errorInfo = {
+      message: err.message || String(err),
+      location: null,
+      stack: err.stack || null,
+    };
+    
+    // Try to extract location info from esbuild errors
+    if (err.errors && err.errors.length > 0) {
+      const firstError = err.errors[0];
+      if (firstError.location) {
+        errorInfo.location = {
+          line: firstError.location.line,
+          column: firstError.location.column,
+          lineText: firstError.location.lineText,
+        };
+      }
+      errorInfo.message = firstError.text || errorInfo.message;
+    }
+    
+    throw errorInfo;
+  }
 }
 
 async function executeCode(jsCode, mockConsole) {
@@ -101,13 +125,56 @@ async function executeCode(jsCode, mockConsole) {
   return fn(...Object.values(sandbox));
 }
 
+/**
+ * Enhanced error formatter that extracts detailed error information
+ */
+function formatError(error, isCompilation = false) {
+  if (typeof error === 'string') {
+    return { message: error, type: 'Error', line: null, column: null };
+  }
+  
+  const errorObj = {
+    message: error.message || String(error),
+    type: error.name || 'Error',
+    line: null,
+    column: null,
+    stack: error.stack || null,
+    isCompilation: isCompilation,
+  };
+  
+  // Extract line/column from location if available
+  if (error.location) {
+    errorObj.line = error.location.line;
+    errorObj.column = error.location.column;
+    if (error.location.lineText) {
+      errorObj.codeSnippet = error.location.lineText;
+    }
+  }
+  
+  // Try to parse stack trace for runtime errors
+  if (error.stack && !isCompilation) {
+    const lines = error.stack.split('\n');
+    for (const line of lines) {
+      // Look for patterns like "at eval (line X:Y)" or "at <anonymous>:X:Y"
+      const match = line.match(/:(\d+):(\d+)\)?/);
+      if (match && !errorObj.line) {
+        errorObj.line = parseInt(match[1], 10);
+        errorObj.column = parseInt(match[2], 10);
+        break;
+      }
+    }
+  }
+  
+  return errorObj;
+}
+
 async function runCode(userCode) {
   const mockConsole = captureConsole();
   const startTime = performance.now();
   
   try {
-    const jsCode = await compileTypeScript(userCode);
-    await executeCode(jsCode, mockConsole);
+    const compileResult = await compileTypeScript(userCode);
+    await executeCode(compileResult.code, mockConsole);
     
     const durationMs = Math.round(performance.now() - startTime);
     
@@ -118,11 +185,14 @@ async function runCode(userCode) {
     };
   } catch (err) {
     const durationMs = Math.round(performance.now() - startTime);
+    const formattedError = formatError(err, true);
+    
     return {
       ok: false,
       stdout: capturedOutput.join('\n'),
-      stderr: err.message || String(err),
-      error: err.message || String(err),
+      stderr: formattedError.message,
+      error: formattedError.message,
+      errorDetails: formattedError,
       durationMs,
     };
   }
@@ -147,7 +217,13 @@ async function testCode(userCode, testCode, dataset) {
               __testResults.passed++;
             } else {
               __testResults.failed++;
-              __testResults.errors.push(\`Expected \${expected}, got \${actual}\`);
+              const errorMsg = 'Expected ' + JSON.stringify(expected) + ', got ' + JSON.stringify(actual);
+              __testResults.errors.push({
+                message: errorMsg,
+                expected: expected,
+                actual: actual,
+                operator: 'toBe'
+              });
             }
           },
           toEqual(expected) {
@@ -156,7 +232,13 @@ async function testCode(userCode, testCode, dataset) {
               __testResults.passed++;
             } else {
               __testResults.failed++;
-              __testResults.errors.push(\`Expected \${JSON.stringify(expected)}, got \${JSON.stringify(actual)}\`);
+              const errorMsg = 'Expected ' + JSON.stringify(expected) + ', got ' + JSON.stringify(actual);
+              __testResults.errors.push({
+                message: errorMsg,
+                expected: expected,
+                actual: actual,
+                operator: 'toEqual'
+              });
             }
           },
           toBeGreaterThan(expected) {
@@ -164,7 +246,13 @@ async function testCode(userCode, testCode, dataset) {
               __testResults.passed++;
             } else {
               __testResults.failed++;
-              __testResults.errors.push(\`Expected \${actual} to be greater than \${expected}\`);
+              const errorMsg = 'Expected ' + JSON.stringify(actual) + ' to be greater than ' + JSON.stringify(expected);
+              __testResults.errors.push({
+                message: errorMsg,
+                expected: expected,
+                actual: actual,
+                operator: 'toBeGreaterThan'
+              });
             }
           },
           toBeLessThan(expected) {
@@ -172,7 +260,13 @@ async function testCode(userCode, testCode, dataset) {
               __testResults.passed++;
             } else {
               __testResults.failed++;
-              __testResults.errors.push(\`Expected \${actual} to be less than \${expected}\`);
+              const errorMsg = 'Expected ' + JSON.stringify(actual) + ' to be less than ' + JSON.stringify(expected);
+              __testResults.errors.push({
+                message: errorMsg,
+                expected: expected,
+                actual: actual,
+                operator: 'toBeLessThan'
+              });
             }
           },
           toBeTruthy() {
@@ -180,7 +274,13 @@ async function testCode(userCode, testCode, dataset) {
               __testResults.passed++;
             } else {
               __testResults.failed++;
-              __testResults.errors.push(\`Expected truthy, got \${actual}\`);
+              const errorMsg = 'Expected truthy value, got ' + JSON.stringify(actual);
+              __testResults.errors.push({
+                message: errorMsg,
+                expected: true,
+                actual: actual,
+                operator: 'toBeTruthy'
+              });
             }
           },
           toBeFalsy() {
@@ -188,15 +288,28 @@ async function testCode(userCode, testCode, dataset) {
               __testResults.passed++;
             } else {
               __testResults.failed++;
-              __testResults.errors.push(\`Expected falsy, got \${actual}\`);
+              const errorMsg = 'Expected falsy value, got ' + JSON.stringify(actual);
+              __testResults.errors.push({
+                message: errorMsg,
+                expected: false,
+                actual: actual,
+                operator: 'toBeFalsy'
+              });
             }
           },
           toContain(item) {
-            if (Array.isArray(actual) ? actual.includes(item) : actual.indexOf(item) !== -1) {
+            const hasItem = Array.isArray(actual) ? actual.includes(item) : actual.indexOf(item) !== -1;
+            if (hasItem) {
               __testResults.passed++;
             } else {
               __testResults.failed++;
-              __testResults.errors.push(\`Expected \${JSON.stringify(actual)} to contain \${item}\`);
+              const errorMsg = 'Expected ' + JSON.stringify(actual) + ' to contain ' + JSON.stringify(item);
+              __testResults.errors.push({
+                message: errorMsg,
+                expected: item,
+                actual: actual,
+                operator: 'toContain'
+              });
             }
           },
         };
@@ -205,11 +318,16 @@ async function testCode(userCode, testCode, dataset) {
       function test(name, fn) {
         try {
           fn();
-          console.log(\`✓ \${name}\`);
+          console.log('✓ ' + name);
         } catch (err) {
           __testResults.failed++;
-          __testResults.errors.push(\`\${name}: \${err.message}\`);
-          console.log(\`✗ \${name}: \${err.message}\`);
+          const errorInfo = {
+            message: err.message || String(err),
+            testName: name,
+            stack: err.stack
+          };
+          __testResults.errors.push(errorInfo);
+          console.log('✗ ' + name + ': ' + err.message);
         }
       }
       
@@ -220,15 +338,15 @@ async function testCode(userCode, testCode, dataset) {
       ${testCode}
       
       // Report results
-      console.log(\`\\nResults: \${__testResults.passed} passed, \${__testResults.failed} failed\`);
-      __testResults.errors.forEach(e => console.log(\`  - \${e}\`));
+      console.log('\\nResults: ' + __testResults.passed + ' passed, ' + __testResults.failed + ' failed');
+      __testResults.errors.forEach(e => console.log('  - ' + e.message));
       
       // Return results for scoring
       __testResults;
     `;
     
-    const jsCode = await compileTypeScript(combinedCode);
-    const results = await executeCode(jsCode, mockConsole);
+    const compileResult = await compileTypeScript(combinedCode);
+    const results = await executeCode(compileResult.code, mockConsole);
     
     const durationMs = Math.round(performance.now() - startTime);
     const passed = results?.passed || 0;
@@ -236,9 +354,21 @@ async function testCode(userCode, testCode, dataset) {
     const total = passed + failed;
     const score = total > 0 ? Math.round((passed / total) * 100) : 0;
     
+    // Build detailed error message if tests failed
+    let errorMessage = null;
+    if (failed > 0 && results?.errors?.length > 0) {
+      const errorDetails = results.errors.map(e => {
+        if (typeof e === 'string') return e;
+        return e.message || String(e);
+      }).join('\n');
+      errorMessage = 'Test failures:\n' + errorDetails;
+    }
+    
     return {
       ok: failed === 0 && passed > 0,
       stdout: capturedOutput.join('\n'),
+      stderr: errorMessage,
+      error: errorMessage,
       durationMs,
       score,
       metrics: {
@@ -246,15 +376,25 @@ async function testCode(userCode, testCode, dataset) {
         failed,
         total,
       },
+      testDetails: results?.errors || [],
     };
   } catch (err) {
     const durationMs = Math.round(performance.now() - startTime);
+    const formattedError = formatError(err, false);
+    
     return {
       ok: false,
       stdout: capturedOutput.join('\n'),
-      stderr: err.message || String(err),
-      error: err.message || String(err),
+      stderr: formattedError.message,
+      error: formattedError.message,
+      errorDetails: formattedError,
       durationMs,
+      score: 0,
+      metrics: {
+        passed: 0,
+        failed: 1,
+        total: 1,
+      },
     };
   }
 }
@@ -270,10 +410,16 @@ self.onmessage = async (event) => {
     } else if (mode === 'test') {
       result = await testCode(userCode, testCode, dataset);
     } else {
-      result = { ok: false, stdout: '', error: `Unknown mode: ${mode}` };
+      result = { ok: false, stdout: '', error: 'Unknown mode: ' + mode };
     }
   } catch (err) {
-    result = { ok: false, stdout: '', error: err.message || String(err) };
+    const formattedError = formatError(err, false);
+    result = { 
+      ok: false, 
+      stdout: '', 
+      error: formattedError.message,
+      errorDetails: formattedError
+    };
   }
   
   self.postMessage({ id, ...result });

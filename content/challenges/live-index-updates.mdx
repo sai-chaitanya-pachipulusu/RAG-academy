@@ -1,48 +1,495 @@
 ﻿---
 title: "Live Index Updates"
-description: "Real-time index updates without downtime"
-difficulty: "hard"
-xpReward: 150
-prerequisites: ["embedding-cache"]
+description: "Implement real-time vector index updates without downtime using version-based deduplication and thread-safe operations"
+difficulty: advanced
+xp: 160
+estimatedMinutes: 45
+topics: ["production", "real-time", "concurrency", "databases"]
+prerequisites:
+  - realtime-document-sync
+  - hnsw-index
+  - basic-retrieval
+related:
+  - index-warmup
+  - kv-cache-optimization
+  - multi-tenancy-rag
+next:
+  - rag-observability
+resources:
+  papers:
+    - title: "Online Index Maintenance in High-Dimensional Spaces"
+      url: "https://dl.acm.org/doi/10.1145/276675.276685"
+      description: "Theoretical foundations for online vector index updates"
+    - title: "Versioned Concurrency Control for Vector Databases"
+      url: "https://arxiv.org/abs/2010.08246"
+  docs:
+    - title: "Pinecone Live Index Guide"
+      url: "https://docs.pinecone.io/docs/manage-indexes"
+    - title: "Weaviate CRUD Operations"
+      url: "https://weaviate.io/developers/weaviate/manage-data/create"
+    - title: "Qdrant Points API"
+      url: "https://qdrant.tech/documentation/concepts/points/"
+  tools:
+    - name: "Qdrant Cloud"
+      url: "https://cloud.qdrant.io/"
+      description: "Managed vector DB with live updates"
+    - name: "Pinecone"
+      url: "https://www.pinecone.io/"
+      description: "Serverless live index updates"
 ---
 
 # Live Index Updates
 
-Implement real-time index updates without service downtime.
+Implement real-time vector index updates without service downtime.
 
-## Why This Matters
+## The Production Challenge
 
-Data changes constantly (news, docs, tickets). Live updates keep RAG current without rebuilding entire index.
+Data never stops flowing—documents update, users edit content, knowledge evolves. Traditional batch reindexing causes:
 
-## What You'll Learn
+- **Stale knowledge**: Hours/days of outdated information
+- **Downtime**: Service interruption during rebuilds
+- **Resource spikes**: Bursty CPU/memory during batch jobs
 
-- Thread-safe data structures
-- Version-based deduplication
-- Concurrent read/write patterns
-- Real-time indexing
+**Your task**: Build a live indexing system that handles updates in real-time while maintaining search availability.
 
-## Real-World Application
+## Why Live Updates Matter
 
-**Companies:** Pinecone, Weaviate, Qdrant, Milvus
-**Use Cases:** News RAG, Support ticketing, Real-time docs
+| Scenario | Without Live Updates | With Live Updates |
+|----------|---------------------|-------------------|
+| News RAG | 30-min delay on breaking news | Instant availability |
+| Support tickets | Stale status replies | Real-time ticket state |
+| Code documentation | Outdated API docs | Latest changes reflected |
+| Financial data | Delayed market info | Real-time prices |
 
-## Key Concepts
+### Real-World Systems
 
-### Version Tracking
+- **Pinecone**: Metadata updates in milliseconds
+- **Weaviate**: Async indexing with eventual consistency
+- **Qdrant**: WAL-based persistence for durability
+- **Milvus**: Timestamp-based MVCC
 
-```python
-@dataclass
-class Document:
-    id: str
-    content: str
-    version: int = 1
+## Theoretical Foundation
+
+### Version-Based Concurrency Control
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│  Writer T1  │     │  Writer T2  │     │   Reader    │
+│  v=1, ts=10 │     │  v=2, ts=20 │     │  ts=15      │
+└──────┬──────┘     └──────┬──────┘     └──────┬──────┘
+       │                   │                   │
+       ▼                   ▼                   ▼
+┌─────────────────────────────────────────────────────┐
+│                    Document Store                     │
+├─────────────────────────────────────────────────────┤
+│  doc_001: [(v=1, ts=10, vec=[...]),                 │
+│           (v=2, ts=20, vec=[...]), marked_active]   │
+├─────────────────────────────────────────────────────┤
+│  Reader at ts=15 sees v=1 (snapshot isolation)       │
+│  New readers at ts>20 see v=2                        │
+└─────────────────────────────────────────────────────┘
 ```
 
-### Thread Safety
+Each update creates a new version; readers see consistent snapshots.
 
-Use `threading.RLock()` for safe concurrent access.
+### Thread Safety Patterns
 
-### Upsert Pattern
+```
+Single Writer, Multiple Readers (SWMR):
+┌────────────────────────────────────────┐
+│         Vector Index (Read-Mostly)      │
+├────────────────────────────────────────┤
+│  ┌─────────┐    ┌─────────────────┐    │
+│  │  Read   │◄───│   Read Lock     │    │
+│  │  Path   │    │   (Shared)      │    │
+│  │ (99.9%) │    └─────────────────┘    │
+│  └────┬────┘           ▲                │
+│       │               │                │
+│       ▼               │                │
+│  ┌─────────┐    ┌───────────────┐      │
+│  │  Write  │───►│  Write Lock   │      │
+│  │  Path   │    │  (Exclusive)  │      │
+│  │ (0.1%)  │    └───────────────┘      │
+│  └─────────┘                            │
+└────────────────────────────────────────┘
+```
 
-Only update if new_version > current_version.
+## Setup
 
+```python
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Callable
+from datetime import datetime
+from threading import RLock
+import time
+import hashlib
+
+@dataclass
+class VectorDocument:
+    """Versioned document with vector embedding."""
+    id: str
+    vector: List[float]
+    content: str
+    version: int = 1
+    timestamp: float = field(default_factory=time.time)
+    metadata: Dict = field(default_factory=dict)
+    deleted: bool = False
+
+@dataclass
+class IndexUpdate:
+    """Represents an update operation."""
+    doc_id: str
+    operation: str  # "upsert", "delete"
+    vector: Optional[List[float]] = None
+    content: Optional[str] = None
+    metadata: Optional[Dict] = None
+    timestamp: float = field(default_factory=time.time)
+```
+
+## Your Task
+
+Implement the `LiveVectorIndex` class:
+
+```python
+class LiveVectorIndex:
+    """
+    Thread-safe vector index with live updates.
+    
+    Features:
+    - Concurrent reads during writes
+    - Version-based conflict resolution
+    - WAL durability simulation
+    - Soft deletes with tombstones
+    """
+    
+    def __init__(self, dimension: int = 128):
+        """
+        Initialize live index.
+        
+        Args:
+            dimension: Vector dimension
+        """
+        self.dimension = dimension
+        self._lock = RLock()
+        self._documents: Dict[str, List[VectorDocument]] = {}
+        self._versions: Dict[str, int] = {}
+        self._write_ahead_log: List[dict] = []
+        self._update_callbacks: List[Callable] = []
+        
+        # Stats
+        self._total_inserts = 0
+        self._total_updates = 0
+        self._total_deletes = 0
+    
+    def upsert(self, doc_id: str, vector: List[float], content: str,
+               metadata: Dict = None) -> VectorDocument:
+        """
+        Insert or update a document with optimistic locking.
+        
+        Args:
+            doc_id: Unique document identifier
+            vector: Embedding vector
+            content: Document content
+            metadata: Optional metadata
+            
+        Returns:
+            The created/updated document
+            
+        Raises:
+            ValueError: If vector dimension mismatch
+        """
+        # YOUR CODE HERE
+        # 1. Validate vector dimension
+        # 2. Acquire write lock
+        # 3. Determine next version
+        # 4. Create new version
+        # 5. Append to WAL
+        # 6. Update index
+        # 7. Notify callbacks
+        # 8. Release lock
+        pass
+    
+    def delete(self, doc_id: str) -> bool:
+        """
+        Delete a document (soft delete with tombstone).
+        
+        Args:
+            doc_id: Document to delete
+            
+        Returns:
+            True if document existed and was deleted
+        """
+        # YOUR CODE HERE
+        # 1. Check if document exists
+        # 2. Create tombstone version
+        # 3. Append to WAL
+        # 4. Mark as deleted
+        pass
+    
+    def get(self, doc_id: str, as_of: float = None) -> Optional[VectorDocument]:
+        """
+        Get document, optionally at a specific time.
+        
+        Args:
+            doc_id: Document ID
+            as_of: Optional timestamp for point-in-time query
+            
+        Returns:
+            Document version or None
+        """
+        # YOUR CODE HERE
+        # 1. Acquire read lock (shared)
+        # 2. Find version chain
+        # 3. Return latest (or as_of snapshot)
+        pass
+    
+    def search(self, query_vector: List[float], k: int = 10,
+               filter_fn: Callable = None) -> List[VectorDocument]:
+        """
+        Thread-safe similarity search.
+        
+        Args:
+            query_vector: Query embedding
+            k: Number of results
+            filter_fn: Optional filter function
+            
+        Returns:
+            List of matching documents (no deleted docs)
+        """
+        # YOUR CODE HERE
+        # 1. Validate dimensions
+        # 2. Acquire read lock
+        # 3. Scan non-deleted documents
+        # 4. Compute similarities
+        # 5. Return top-k
+        pass
+    
+    def _cosine_similarity(self, a: List[float], b: List[float]) -> float:
+        """Compute cosine similarity (helper method)."""
+        # YOUR CODE HERE
+        pass
+    
+    def register_callback(self, callback: Callable):
+        """Register a callback to be called on every update."""
+        self._update_callbacks.append(callback)
+    
+    def get_stats(self) -> Dict:
+        """Get index statistics."""
+        with self._lock:
+            return {
+                "total_documents": len(self._documents),
+                "total_versions": sum(len(v) for v in self._documents.values()),
+                "wal_entries": len(self._write_ahead_log),
+                "inserts": self._total_inserts,
+                "updates": self._total_updates,
+                "deletes": self._total_deletes,
+            }
+    
+    def recover_from_wal(self) -> int:
+        """
+        Simulate recovery from write-ahead log.
+        
+        Returns:
+            Number of entries recovered
+        """
+        # YOUR CODE HERE
+        # Replay WAL to restore state
+        pass
+```
+
+## Requirements
+
+1. **Thread Safety**: Concurrent reads during writes
+2. **Version Tracking**: Each update increments version
+3. **WAL Simulation**: Log all operations for durability
+4. **Soft Deletes**: Tombstones preserve history
+5. **Snapshot Reads**: Optional point-in-time queries
+
+## Example Usage
+
+```python
+# Create index
+index = LiveVectorIndex(dimension=3)
+
+# Track updates via callback
+updates_received = []
+def on_update(doc):
+    updates_received.append(doc)
+index.register_callback(on_update)
+
+# Insert documents
+doc1 = index.upsert("doc1", [1.0, 0.0, 0.0], "First document")
+doc2 = index.upsert("doc2", [0.0, 1.0, 0.0], "Second document")
+
+# Update creates new version
+doc1_v2 = index.upsert("doc1", [0.9, 0.1, 0.0], "Updated first document")
+
+# Search (no deleted docs)
+results = index.search([1.0, 0.0, 0.0], k=2)
+print(f"Found {len(results)} results")
+
+# Delete (soft)
+index.delete("doc2")
+
+# Verify deletion
+doc2_latest = index.get("doc2")
+print(f"doc2 deleted: {doc2_latest.deleted if doc2_latest else 'not found'}")
+
+# Stats
+stats = index.get_stats()
+print(f"Total versions: {stats['total_versions']}")
+print(f"WAL entries: {stats['wal_entries']}")
+```
+
+## Concurrency Test
+
+```python
+import threading
+import random
+
+def test_concurrent_access():
+    """Test thread safety with concurrent readers and writers."""
+    index = LiveVectorIndex(dimension=3)
+    errors = []
+    
+    # Writer thread
+    def writer():
+        for i in range(100):
+            try:
+                index.upsert(f"doc_{i%20}", 
+                           [random.random() for _ in range(3)],
+                           f"Content {i}")
+                time.sleep(0.001)
+            except Exception as e:
+                errors.append(f"Write error: {e}")
+    
+    # Reader thread
+    def reader():
+        for i in range(200):
+            try:
+                results = index.search([1.0, 0.0, 0.0], k=5)
+                time.sleep(0.0005)
+            except Exception as e:
+                errors.append(f"Read error: {e}")
+    
+    # Run concurrently
+    threads = [
+        threading.Thread(target=writer),
+        threading.Thread(target=writer),
+        threading.Thread(target=reader),
+        threading.Thread(target=reader),
+        threading.Thread(target=reader),
+    ]
+    
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    
+    assert len(errors) == 0, f"Errors: {errors}"
+    print(f"✅ Concurrent test passed!")
+    print(f"   Final stats: {index.get_stats()}")
+
+test_concurrent_access()
+```
+
+## Expected Output
+
+```
+Found 2 results
+Total versions: 3
+current version: 2
+deleted: True
+WAL entries: 4
+✅ Concurrent test passed!
+   Final stats: {'total_documents': 20, 'total_versions': ..., 'wal_entries': 200, ...}
+```
+
+## Implementation Hints
+
+<details>
+<summary>Hint 1: Locking Pattern</summary>
+
+```python
+# Use RLock for reentrant locking
+with self._lock:
+    # Critical section - exclusive access
+    self._documents[doc_id] = new_version
+```
+
+</details>
+
+<details>
+<summary>Hint 2: Version Handling</summary>
+
+```python
+# Get next version
+current_version = self._versions.get(doc_id, 0)
+new_version = current_version + 1
+self._versions[doc_id] = new_version
+```
+
+</details>
+
+<details>
+<summary>Hint 3: WAL Entry</summary>
+
+```python
+wal_entry = {
+    "timestamp": time.time(),
+    "operation": "upsert",
+    "doc_id": doc_id,
+    "version": new_version,
+    "vector": vector,
+    "content": content
+}
+self._write_ahead_log.append(wal_entry)
+```
+
+</details>
+
+## Real-World Considerations
+
+### Production Vector DB Architectures
+
+| Database | Update Strategy | Consistency | Notes |
+|----------|----------------|-------------|-------|
+| **Pinecone** | Async metadata | Eventual | Fast metadata, async vector |
+| **Weaviate** | Async indexing | Eventual | Background HNSW updates |
+| **Qdrant** | WAL + segments | Strong | Segment-based immutability |
+| **Milvus** | MVCC | Snapshot | Timestamp-based isolation |
+| **pgvector** | PostgreSQL ACID | Strong | Full transactional safety |
+
+### Performance Trade-offs
+
+```
+Update Latency vs Query Performance:
+
+Strong Consistency (pgvector, some configs):
+├── Writes: 10-50ms (transaction overhead)
+├── Reads: 1-5ms
+└── Best for: Financial, healthcare, compliance
+
+Eventual Consistency (Pinecone, Weaviate):
+├── Writes: <1ms (async)
+├── Reads: <10ms
+└── Best for: Search, recommendations, content
+
+Custom Hybrid (Milvus, Qdrant):
+├── Writes: 5-20ms (buffered)
+├── Reads: 2-10ms
+└── Best for: Balanced workloads
+```
+
+## Related Challenges
+
+- [Index Warmup](/challenges/index-warmup) - Preload hot data
+- [Real-Time Document Sync](/challenges/realtime-document-sync) - Event-driven updates
+- [Multi-Tenancy RAG](/challenges/multi-tenancy-rag) - Isolated tenant indexes
+
+## Resources
+
+- [Pinecone Upsert API](https://docs.pinecone.io/reference/upsert)
+- [Weaviate Data Management](https://weaviate.io/developers/weaviate/manage-data)
+- [Qdrant Update API](https://qdrant.tech/documentation/concepts/points/#upsert-points)
+- [Vector DB Comparison](https://www.pinecone.io/learn/vector-database/)

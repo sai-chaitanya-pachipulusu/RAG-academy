@@ -1,36 +1,336 @@
-﻿<Callout title="Goal" variant="info">
-  Build a tiny tokenizer + token counter so you stop thinking in characters and start thinking in tokens.
-</Callout>
+﻿---
+title: "Tokenizer Basics"
+description: "Build a tiny tokenizer and token counter to understand how LLMs process text"
+difficulty: "beginner"
+xpReward: 50
+topics: ["tokenization", "text-processing", "llm-fundamentals"]
+prerequisites: []
+---
 
-## Why this matters in production
+# Tokenizer Basics
 
-Token budgets drive almost every critical RAG decision:
+## Overview
 
-- chunk size
-- candidate top‑k vs final top‑k
-- prompt templates and safety instructions
+Token budgets drive almost every critical RAG decision: chunk size, candidate top-k vs final top-k, prompt templates and safety instructions. If you can't estimate tokens, you can't reason about latency/cost/quality tradeoffs.
 
-If you can’t estimate tokens, you can’t reason about latency/cost/quality tradeoffs.
+## Why This Matters
 
-## What you’re implementing
+- **API Costs**: OpenAI charges per token, not per character
+- **Context Windows**: Prevent "Context Window Exceeded" errors
+- **Chunk Sizing**: Balance retrieval precision vs context coverage
+- **Prompt Engineering**: Fit more instructions in limited space
 
-A simple tokenization rule:
+## Key Concepts
 
-- lowercase
-- keep sequences of `[a-z0-9]+`
-- treat punctuation as separators
+- **Tokens vs Characters**: LLMs process tokens (~0.75 words/token)
+- **BPE Tokenization**: Subword units for vocabulary efficiency
+- **Special Tokens**: `<|endoftext|>`, `<|pad|>`, etc.
+- **Counting**: Estimate before sending to API
 
-This is **not** a real tokenizer (BPE etc), but it builds the habit.
+## Real-World Impact
 
-## Common pitfalls
+| Scenario | Token Knowledge Required |
+|----------|-------------------------|
+| **API cost estimation** | OpenAI charges per token |
+| **Context window management** | Prevent overflow errors |
+| **Chunk size optimization** | Balance precision vs coverage |
+| **Prompt engineering** | Maximize limited space |
 
-- Not lowercasing consistently.
-- Returning empty tokens.
-- Trying to “preserve punctuation” (the lab explicitly treats it as separators).
+## The Token Economy
 
-## After you pass
+```
+GPT-4:        ~$0.03 per 1K input tokens
+Claude 3:     ~$0.03 per 1K input tokens  
+Llama 2 70B:  ~$0.01 per 1K input tokens (self-hosted)
+```
 
-Use token counting when implementing chunking and context packing.
+## The Challenge
 
+### Part 1: Simple Tokenizer
 
+```python
+import re
+from typing import List
 
+class SimpleTokenizer:
+    """A simple tokenizer for educational purposes.
+    
+    This is NOT a real BPE tokenizer, but demonstrates the concepts.
+    """
+    
+    def __init__(self):
+        # Common English stopwords
+        self.stopwords = {
+            'the', 'a', 'an', 'is', 'are', 'was', 'were',
+            'be', 'been', 'being', 'have', 'has', 'had',
+            'do', 'does', 'did', 'will', 'would', 'could',
+            'should', 'may', 'might', 'must', 'shall',
+            'can', 'need', 'dare', 'ought', 'used',
+            'to', 'of', 'in', 'for', 'on', 'with',
+            'at', 'by', 'from', 'as', 'into', 'through',
+            'during', 'before', 'after', 'above', 'below',
+            'between', 'under', 'again', 'further', 'then',
+            'once', 'here', 'there', 'when', 'where',
+            'why', 'how', 'all', 'any', 'both', 'each',
+            'few', 'more', 'most', 'other', 'some',
+            'such', 'no', 'nor', 'not', 'only', 'own',
+            'same', 'so', 'than', 'too', 'very', 'just'
+        }
+    
+    def tokenize(self, text: str) -> List[str]:
+        """Tokenize text into tokens.
+        
+        Rules:
+        - Convert to lowercase
+        - Keep sequences of [a-z0-9]+
+        - Treat punctuation as separators
+        """
+        # Lowercase
+        text = text.lower()
+        
+        # Extract alphanumeric sequences
+        tokens = re.findall(r'[a-z0-9]+', text)
+        
+        return tokens
+    
+    def count_tokens(self, text: str) -> int:
+        """Count tokens in text."""
+        return len(self.tokenize(text))
+    
+    def count_characters(self, text: str) -> int:
+        """Count characters in text."""
+        return len(text)
+    
+    def get_token_ratio(self, text: str) -> float:
+        """Get ratio of characters to tokens."""
+        tokens = self.tokenize(text)
+        if not tokens:
+            return 0.0
+        return len(text) / len(tokens)
+```
+
+### Part 2: Token Budget Manager
+
+```python
+from dataclasses import dataclass
+
+@dataclass
+class TokenBudget:
+    """Budget allocation for RAG components."""
+    max_total: int
+    system_prompt: int
+    query: int
+    context: int
+    response_buffer: int
+
+class TokenBudgetManager:
+    """Manage token budgets for RAG operations."""
+    
+    def __init__(
+        self,
+        max_context_window: int = 4096,
+        response_buffer: int = 500
+    ):
+        self.max_window = max_context_window
+        self.response_buffer = response_buffer
+        self.tokenizer = SimpleTokenizer()
+    
+    def calculate_budget(
+        self,
+        system_prompt: str,
+        query: str,
+        num_chunks: int = 5
+    ) -> TokenBudget:
+        """Calculate token budget allocation."""
+        # Count fixed costs
+        system_tokens = self.tokenizer.count_tokens(system_prompt)
+        query_tokens = self.tokenizer.count_tokens(query)
+        
+        # Available for context
+        available = (
+            self.max_window -
+            system_tokens -
+            query_tokens -
+            self.response_buffer
+        )
+        
+        # Per-chunk budget
+        per_chunk = available // num_chunks if num_chunks > 0 else available
+        
+        return TokenBudget(
+            max_total=self.max_window,
+            system_prompt=system_tokens,
+            query=query_tokens,
+            context=available,
+            response_buffer=self.response_buffer
+        )
+    
+    def fit_chunks_to_budget(
+        self,
+        chunks: List[str],
+        budget: TokenBudget
+    ) -> List[str]:
+        """Select chunks that fit within budget."""
+        selected = []
+        used_tokens = 0
+        
+        for chunk in chunks:
+            chunk_tokens = self.tokenizer.count_tokens(chunk)
+            
+            if used_tokens + chunk_tokens <= budget.context:
+                selected.append(chunk)
+                used_tokens += chunk_tokens
+            else:
+                break
+        
+        return selected
+    
+    def estimate_cost(
+        self,
+        input_tokens: int,
+        output_tokens: int,
+        price_per_1k: float = 0.03
+    ) -> float:
+        """Estimate API cost."""
+        total_tokens = input_tokens + output_tokens
+        return (total_tokens / 1000) * price_per_1k
+```
+
+### Part 3: Chunk Size Optimizer
+
+```python
+class ChunkSizeOptimizer:
+    """Optimize chunk size based on token constraints."""
+    
+    def __init__(self, tokenizer: SimpleTokenizer = None):
+        self.tokenizer = tokenizer or SimpleTokenizer()
+    
+    def recommend_chunk_size(
+        self,
+        avg_document_length: int,
+        target_chunks_per_doc: int = 10,
+        overlap_ratio: float = 0.1
+    ) -> Dict[str, int]:
+        """Recommend chunk size parameters."""
+        # Target chunk size
+        target_size = avg_document_length // target_chunks_per_doc
+        
+        # Calculate overlap
+        overlap = int(target_size * overlap_ratio)
+        
+        # Ensure reasonable bounds
+        chunk_size = max(100, min(target_size, 1000))
+        overlap = min(overlap, chunk_size // 2)
+        
+        return {
+            'chunk_size': chunk_size,
+            'overlap': overlap,
+            'step_size': chunk_size - overlap,
+            'estimated_chunks': avg_document_length // (chunk_size - overlap)
+        }
+    
+    def analyze_text_complexity(self, text: str) -> Dict[str, float]:
+        """Analyze text complexity for token estimation."""
+        tokens = self.tokenizer.tokenize(text)
+        
+        if not tokens:
+            return {}
+        
+        # Average token length
+        avg_token_len = sum(len(t) for t in tokens) / len(tokens)
+        
+        # Character-to-token ratio
+        char_token_ratio = len(text) / len(tokens)
+        
+        # Unique token ratio (vocabulary density)
+        unique_ratio = len(set(tokens)) / len(tokens)
+        
+        return {
+            'avg_token_length': avg_token_len,
+            'char_token_ratio': char_token_ratio,
+            'unique_token_ratio': unique_ratio,
+            'total_tokens': len(tokens),
+            'total_characters': len(text)
+        }
+```
+
+### Part 4: Token-Aware RAG Pipeline
+
+```python
+class TokenAwareRAG:
+    """RAG pipeline with token budget awareness."""
+    
+    def __init__(
+        self,
+        retriever,
+        generator,
+        budget_manager: TokenBudgetManager
+    ):
+        self.retriever = retriever
+        self.generator = generator
+        self.budget = budget_manager
+    
+    def query(
+        self,
+        query: str,
+        system_prompt: str = "",
+        max_chunks: int = 5
+    ) -> Dict[str, any]:
+        """Execute token-aware RAG query."""
+        # Calculate budget
+        token_budget = self.budget.calculate_budget(
+            system_prompt,
+            query,
+            num_chunks=max_chunks
+        )
+        
+        # Retrieve chunks
+        chunks = self.retriever.retrieve(query, k=max_chunks * 2)
+        
+        # Fit to budget
+        selected_chunks = self.budget.fit_chunks_to_budget(
+            [c['content'] for c in chunks],
+            token_budget
+        )
+        
+        # Calculate actual token usage
+        total_input = (
+            token_budget.system_prompt +
+            token_budget.query +
+            sum(self.budget.tokenizer.count_tokens(c) for c in selected_chunks)
+        )
+        
+        # Generate response
+        response = self.generator.generate(
+            query,
+            context=selected_chunks,
+            system_prompt=system_prompt
+        )
+        
+        response_tokens = self.budget.tokenizer.count_tokens(response)
+        
+        return {
+            'answer': response,
+            'chunks_used': len(selected_chunks),
+            'token_usage': {
+                'input': total_input,
+                'output': response_tokens,
+                'total': total_input + response_tokens
+            },
+            'budget': token_budget,
+            'estimated_cost': self.budget.estimate_cost(
+                total_input,
+                response_tokens
+            )
+        }
+```
+
+## Evaluation Criteria
+
+Your solution will be evaluated on:
+
+1. **Tokenization**: Correctly split text into tokens
+2. **Counting**: Accurate token counts
+3. **Budgeting**: Proper allocation of token budgets
+4. **Optimization**: Reasonable chunk size recommendations
+5. **Integration**: Token awareness in full pipeline

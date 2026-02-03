@@ -112,13 +112,32 @@ export function SupabaseAuthProvider({
       subscriptionLoading,
       hasPaidAccess: subscription ? hasPaidAccess(subscription) : false,
       refreshSubscription,
-      async signUp(email: string, password: string) {
+      async signUp(email: string, password: string, name?: string) {
         const client = requireSupabase();
-        const { error } = await client.auth.signUp({
+        const { data, error } = await client.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              name: name || email.split('@')[0],
+            },
+          },
         });
         if (error) return { error: error.message };
+        
+        // Send welcome email (non-blocking)
+        if (data.user) {
+          import('@/lib/email/triggers').then(({ sendWelcomeEmail }) => {
+            import('@/lib/challenges/catalog').then(({ getPlatformStats }) => {
+              const stats = getPlatformStats();
+              sendWelcomeEmail(
+                { id: data.user!.id, email, name: name || email.split('@')[0] },
+                stats.freeChallenges
+              ).catch(console.error);
+            });
+          });
+        }
+        
         return {};
       },
       async signIn(email: string, password: string) {

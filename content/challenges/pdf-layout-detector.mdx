@@ -1,36 +1,391 @@
 ﻿---
 title: "PDF Layout Detection"
-description: "Detect and separate headers, paragraphs, and sidebars from PDF text."
+description: "Detect and separate headers, paragraphs, footnotes, and sidebars from PDF text for clean RAG chunking"
+difficulty: "medium"
+xpReward: 100
+topics: ["pdf-processing", "layout-analysis", "document-parsing", "chunking"]
+prerequisites: ["document-parsing-guide"]
 ---
 
 # PDF Layout Detection
 
-Raw PDF extraction mixes everything together: headers, body text, footnotes, sidebars. This ruins chunking.
+## Overview
 
-### Why Layout Matters
+Raw PDF extraction mixes everything together: headers, body text, footnotes, sidebars, page numbers, and captions. Without proper layout detection, "CHAPTER 1" and "Page 1" become part of the same chunk as body text, destroying semantic coherence and retrieval quality.
+
+## Why Layout Matters
+
+Consider this raw PDF extraction:
 
 ```
 CHAPTER 1: INTRODUCTION
-This is the body text...
-*Figure 1: A diagram*
+This is the important body text that contains the actual content...
+*Figure 1: A diagram showing the system architecture*
 Page 1
 ```
 
-Without layout detection, "CHAPTER 1" and "Page 1" become part of the same chunk as body text.
+Without layout detection, a naive chunker might produce:
+- Chunk 1: "CHAPTER 1: INTRODUCTION\nThis is the important..."
+- Chunk 2: "...body text that contains\n*Figure 1: A diagram..."
+- Chunk 3: "...showing the system architecture*\nPage 1"
 
-### Heuristics
+Each chunk is polluted with non-content elements, hurting retrieval accuracy.
 
-- **Large font + bold** → Header
-- **Medium font + bold** → Subheader
-- **Small font** → Caption/footnote
-- **Regular font** → Paragraph
+## Key Concepts
 
-### Your Task
+- **Visual hierarchy**: Font size, weight, and position indicate importance
+- **Reading order**: Left-to-right, top-to-bottom flow
+- **Semantic regions**: Headers, body, captions, footers
+- **Spatial relationships**: Proximity indicates grouping
 
-1. Classify text blocks by formatting.
-2. Group paragraphs under their headers for structured chunking.
+## Real-World Applications
 
-### Real-World Tools
+Document AI systems like Google Document AI, Azure Form Recognizer, and open-source tools like LayoutParser all rely on layout detection for accurate document understanding.
 
-Unstructured.io, LlamaParse, and Adobe's PDF Services all provide layout-aware parsing.
+## Layout Elements
 
+| Element | Characteristics | Handling |
+|---------|----------------|----------|
+| **Headers** | Large font, bold, top of page | Preserve as metadata |
+| **Subheaders** | Medium font, bold | Include in chunk context |
+| **Body text** | Regular font, justified | Primary chunk content |
+| **Footnotes** | Small font, bottom | Separate or exclude |
+| **Captions** | Small font, near figures | Link to figure |
+| **Page numbers** | Small, corners | Strip entirely |
+| **Sidebars** | Narrow, margins | Separate document |
+
+## The Challenge
+
+### Part 1: Text Block Classification
+
+Build a classifier that categorizes text blocks by their layout role:
+
+```python
+from enum import Enum
+from dataclasses import dataclass
+from typing import List, Tuple
+
+class LayoutElement(Enum):
+    HEADER = "header"
+    SUBHEADER = "subheader"
+    BODY = "body"
+    FOOTNOTE = "footnote"
+    CAPTION = "caption"
+    PAGE_NUMBER = "page_number"
+    SIDEBAR = "sidebar"
+
+@dataclass
+class TextBlock:
+    """A block of text with layout information."""
+    text: str
+    bbox: Tuple[float, float, float, float]  # x0, y0, x1, y1
+    font_size: float
+    font_name: str
+    is_bold: bool
+    page_number: int
+
+class LayoutClassifier:
+    """Classify text blocks by layout element type."""
+    
+    def __init__(self, page_height: float, page_width: float):
+        self.page_height = page_height
+        self.page_width = page_width
+        
+        # Thresholds (adjust based on document analysis)
+        self.header_size_threshold = 14.0
+        self.subheader_size_threshold = 12.0
+        self.footnote_size_threshold = 9.0
+        self.margin_threshold = 0.15  # 15% of page width
+    
+    def classify(self, block: TextBlock) -> LayoutElement:
+        """Classify a single text block."""
+        
+        # Check for page numbers (small, in corners)
+        if self._is_page_number(block):
+            return LayoutElement.PAGE_NUMBER
+        
+        # Check for footnotes (small, bottom of page)
+        if self._is_footnote(block):
+            return LayoutElement.FOOTNOTE
+        
+        # Check for sidebars (in margins)
+        if self._is_sidebar(block):
+            return LayoutElement.SIDEBAR
+        
+        # Check for captions (small, contains "Figure" or "Table")
+        if self._is_caption(block):
+            return LayoutElement.CAPTION
+        
+        # Check headers by font size and weight
+        if block.font_size >= self.header_size_threshold and block.is_bold:
+            return LayoutElement.HEADER
+        
+        if block.font_size >= self.subheader_size_threshold and block.is_bold:
+            return LayoutElement.SUBHEADER
+        
+        # Default to body text
+        return LayoutElement.BODY
+    
+    def _is_page_number(self, block: TextBlock) -> bool:
+        """Detect page numbers."""
+        # Small font, in corners, numeric or roman numeral
+        if block.font_size > self.footnote_size_threshold:
+            return False
+        
+        # Check if in corner regions
+        is_corner = (
+            block.bbox[1] < self.page_height * 0.1 or  # Top
+            block.bbox[3] > self.page_height * 0.9     # Bottom
+        )
+        
+        text = block.text.strip()
+        is_numeric = text.isdigit() or self._is_roman_numeral(text)
+        
+        return is_corner and is_numeric and len(text) < 10
+    
+    def _is_footnote(self, block: TextBlock) -> bool:
+        """Detect footnotes."""
+        # Small font, bottom of page, may start with number
+        if block.font_size > self.footnote_size_threshold:
+            return False
+        
+        is_bottom = block.bbox[1] > self.page_height * 0.85
+        
+        # Often starts with superscript number
+        text = block.text.strip()
+        starts_with_ref = text[0].isdigit() if text else False
+        
+        return is_bottom and (starts_with_ref or len(text) < 200)
+    
+    def _is_sidebar(self, block: TextBlock) -> bool:
+        """Detect sidebar content."""
+        # In left or right margin, narrower than body
+        left_margin = block.bbox[2] < self.page_width * self.margin_threshold
+        right_margin = block.bbox[0] > self.page_width * (1 - self.margin_threshold)
+        
+        return left_margin or right_margin
+    
+    def _is_caption(self, block: TextBlock) -> bool:
+        """Detect figure/table captions."""
+        if block.font_size > self.subheader_size_threshold:
+            return False
+        
+        text = block.text.lower()
+        caption_markers = ['figure', 'fig.', 'table', 'exhibit', 'diagram']
+        
+        return any(marker in text for marker in caption_markers)
+    
+    def _is_roman_numeral(self, text: str) -> bool:
+        """Check if text is a roman numeral."""
+        roman_chars = set('ivxlcdm')
+        return text and all(c in roman_chars for c in text.lower())
+```
+
+### Part 2: Reading Order Detection
+
+```python
+class ReadingOrderDetector:
+    """Determine correct reading order of text blocks."""
+    
+    def __init__(self, column_threshold: float = 50.0):
+        self.column_threshold = column_threshold
+    
+    def sort_blocks(self, blocks: List[TextBlock]) -> List[TextBlock]:
+        """Sort blocks in reading order."""
+        if not blocks:
+            return []
+        
+        # Group blocks into columns
+        columns = self._detect_columns(blocks)
+        
+        # Sort blocks within each column by y-position
+        for col in columns:
+            col.sort(key=lambda b: b.bbox[1])  # Sort by y0
+        
+        # Interleave columns (left to right)
+        sorted_blocks = []
+        max_rows = max(len(col) for col in columns) if columns else 0
+        
+        for row_idx in range(max_rows):
+            for col in columns:
+                if row_idx < len(col):
+                    sorted_blocks.append(col[row_idx])
+        
+        return sorted_blocks
+    
+    def _detect_columns(self, blocks: List[TextBlock]) -> List[List[TextBlock]]:
+        """Group blocks into columns based on x-position."""
+        if not blocks:
+            return []
+        
+        # Sort by x-position
+        sorted_by_x = sorted(blocks, key=lambda b: b.bbox[0])
+        
+        columns = []
+        current_col = [sorted_by_x[0]]
+        
+        for block in sorted_by_x[1:]:
+            # Check if this block starts a new column
+            x_gap = block.bbox[0] - current_col[-1].bbox[2]
+            
+            if x_gap > self.column_threshold:
+                columns.append(current_col)
+                current_col = [block]
+            else:
+                current_col.append(block)
+        
+        if current_col:
+            columns.append(current_col)
+        
+        return columns
+```
+
+### Part 3: Document Structure Builder
+
+```python
+@dataclass
+class DocumentSection:
+    """A section of the document with hierarchy."""
+    level: int
+    title: str
+    content: List[str]
+    subsections: List['DocumentSection']
+
+class DocumentStructureBuilder:
+    """Build hierarchical document structure from classified blocks."""
+    
+    def __init__(self):
+        self.sections = []
+        self.current_section = None
+        self.section_stack = []
+    
+    def build_structure(
+        self,
+        blocks: List[Tuple[TextBlock, LayoutElement]]
+    ) -> List[DocumentSection]:
+        """Build document hierarchy from classified blocks."""
+        
+        for block, element_type in blocks:
+            if element_type == LayoutElement.HEADER:
+                self._start_section(block.text, level=1)
+            
+            elif element_type == LayoutElement.SUBHEADER:
+                self._start_section(block.text, level=2)
+            
+            elif element_type == LayoutElement.BODY:
+                self._add_content(block.text)
+            
+            # Skip footnotes, page numbers, etc. or handle separately
+            elif element_type == LayoutElement.FOOTNOTE:
+                self._add_footnote(block.text)
+        
+        return self.sections
+    
+    def _start_section(self, title: str, level: int):
+        """Start a new section at given level."""
+        new_section = DocumentSection(
+            level=level,
+            title=title,
+            content=[],
+            subsections=[]
+        )
+        
+        # Pop sections with level >= current
+        while (self.section_stack and 
+               self.section_stack[-1].level >= level):
+            self.section_stack.pop()
+        
+        if self.section_stack:
+            # Add as subsection
+            self.section_stack[-1].subsections.append(new_section)
+        else:
+            # Top-level section
+            self.sections.append(new_section)
+        
+        self.section_stack.append(new_section)
+    
+    def _add_content(self, text: str):
+        """Add content to current section."""
+        if self.section_stack:
+            self.section_stack[-1].content.append(text)
+    
+    def _add_footnote(self, text: str):
+        """Add footnote (can be stored separately)."""
+        # Implementation depends on requirements
+        pass
+```
+
+## Chunking with Layout Awareness
+
+```python
+class LayoutAwareChunker:
+    """Create chunks that respect document layout."""
+    
+    def __init__(self, max_chunk_size: int = 1000):
+        self.max_chunk_size = max_chunk_size
+    
+    def chunk_document(
+        self,
+        sections: List[DocumentSection]
+    ) -> List[DocumentChunk]:
+        """Create chunks preserving section boundaries."""
+        chunks = []
+        
+        for section in sections:
+            section_chunks = self._chunk_section(section)
+            chunks.extend(section_chunks)
+        
+        return chunks
+    
+    def _chunk_section(self, section: DocumentSection) -> List[DocumentChunk]:
+        """Chunk a single section."""
+        chunks = []
+        current_chunk = []
+        current_size = 0
+        
+        # Add section header as context
+        header = section.title
+        
+        for paragraph in section.content:
+            para_size = len(paragraph)
+            
+            if current_size + para_size > self.max_chunk_size:
+                # Save current chunk
+                if current_chunk:
+                    chunks.append(DocumentChunk(
+                        content="\n\n".join(current_chunk),
+                        metadata={
+                            "section": header,
+                            "level": section.level
+                        }
+                    ))
+                
+                # Start new chunk
+                current_chunk = [paragraph]
+                current_size = para_size
+            else:
+                current_chunk.append(paragraph)
+                current_size += para_size
+        
+        # Don't forget the last chunk
+        if current_chunk:
+            chunks.append(DocumentChunk(
+                content="\n\n".join(current_chunk),
+                metadata={
+                    "section": header,
+                    "level": section.level
+                }
+            ))
+        
+        return chunks
+```
+
+## Evaluation Criteria
+
+Your solution will be evaluated on:
+
+1. **Classification Accuracy**: Correctly identify layout elements
+2. **Reading Order**: Proper left-to-right, top-to-bottom flow
+3. **Header Hierarchy**: Correct section nesting
+4. **Noise Reduction**: Exclusion of page numbers, footers
+5. **Chunk Quality**: Semantically coherent chunks

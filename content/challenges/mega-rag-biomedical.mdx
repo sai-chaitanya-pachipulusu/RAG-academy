@@ -1,32 +1,395 @@
 ---
 title: "MEGA-RAG Biomedical"
-description: "Implement domain-specific RAG for biomedical literature"
+description: "Implement domain-specific RAG for biomedical literature with entity recognition, citation linking, and evidence grading"
+difficulty: "expert"
+xpReward: 200
+topics: ["biomedical", "domain-specific", "entity-recognition", "evidence-grading"]
+prerequisites: ["entity-extraction", "knowledge-graph-extraction", "llm-as-judge"]
 ---
 
 # MEGA-RAG Biomedical
 
-Implement a specialized RAG system for biomedical literature with entity recognition, citation linking, and evidence grading.
+## Overview
 
-## Requirements
+Biomedical literature presents unique challenges for RAG: specialized terminology, complex entity relationships, and the critical need for evidence-based answers. This challenge implements a domain-specific RAG system for PubMed papers and clinical documents.
 
-1. Extract biomedical entities (genes, drugs, diseases)
-2. Link entities to knowledge bases (UMLS, PubMed)
-3. Grade evidence strength
-4. Generate answers with evidence levels
+## Why This Matters
 
-## Starter Code
+- **Clinical Decision Support**: Doctors need evidence-backed answers
+- **Research Acceleration**: Quickly synthesize findings across papers
+- **Regulatory Compliance**: FDA and EMA require evidence trails
+- **Safety Critical**: Wrong answers can impact patient care
+
+## Key Concepts
+
+- **Biomedical NER**: Recognize genes, proteins, drugs, diseases, symptoms
+- **Knowledge Base Linking**: Connect to UMLS, PubMed, DrugBank
+- **Evidence Grading**: Assess study quality and relevance
+- **Citation Tracking**: Maintain provenance for all claims
+
+## Real-World Applications
+
+IBM Watson Health, Google Health, and pharmaceutical companies use biomedical RAG for drug discovery, clinical trials, and literature review.
+
+## Biomedical Entity Types
+
+| Entity Type | Examples | Knowledge Base |
+|-------------|----------|----------------|
+| **Disease** | Diabetes, Alzheimer's | MeSH, SNOMED CT |
+| **Drug** | Metformin, Aspirin | DrugBank, RxNorm |
+| **Gene** | BRCA1, TP53 | NCBI Gene |
+| **Protein** | Insulin, Hemoglobin | UniProt |
+| **Symptom** | Fever, Hypertension | HPO, MedDRA |
+| **Anatomy** | Heart, Hippocampus | UMLS |
+
+## The Challenge
+
+### Part 1: Biomedical Entity Recognition
+
+```python
+from typing import List, Dict, Tuple
+from dataclasses import dataclass
+
+@dataclass
+class BiomedicalEntity:
+    """A biomedical entity with normalization."""
+    text: str
+    label: str  # DISEASE, DRUG, GENE, etc.
+    start: int
+    end: int
+    confidence: float
+    cui: str = None  # UMLS Concept Unique Identifier
+    canonical_name: str = None
+
+class BiomedicalNER:
+    """Extract and normalize biomedical entities."""
+    
+    def __init__(
+        self,
+        model_name: str = "dmis-lab/biobert-v1.1",
+        linker: str = "umls"
+    ):
+        self.nlp = spacy.load(model_name)
+        self.linker = self._load_linker(linker)
+    
+    def extract(self, text: str) -> List[BiomedicalEntity]:
+        """Extract all biomedical entities from text."""
+        doc = self.nlp(text)
+        
+        entities = []
+        for ent in doc.ents:
+            # Link to knowledge base
+            kb_entry = self.linker.link(ent.text, ent.label_)
+            
+            entities.append(BiomedicalEntity(
+                text=ent.text,
+                label=ent.label_,
+                start=ent.start_char,
+                end=ent.end_char,
+                confidence=ent._.confidence,
+                cui=kb_entry.get('cui') if kb_entry else None,
+                canonical_name=kb_entry.get('name') if kb_entry else None
+            ))
+        
+        return entities
+    
+    def extract_relationships(
+        self,
+        text: str,
+        entities: List[BiomedicalEntity]
+    ) -> List[Dict]:
+        """Extract relationships between entities."""
+        # Use dependency parsing or relation extraction model
+        doc = self.nlp(text)
+        
+        relationships = []
+        for sent in doc.sents:
+            sent_entities = [
+                e for e in entities
+                if e.start >= sent.start_char and e.end <= sent.end_char
+            ]
+            
+            if len(sent_entities) >= 2:
+                # Look for verbs connecting entities
+                for token in sent:
+                    if token.pos_ == "VERB":
+                        subj = self._find_subject(token)
+                        obj = self._find_object(token)
+                        
+                        if subj and obj:
+                            relationships.append({
+                                "subject": subj,
+                                "predicate": token.lemma_,
+                                "object": obj,
+                                "sentence": sent.text
+                            })
+        
+        return relationships
+```
+
+### Part 2: Evidence Grading System
+
+```python
+from enum import Enum
+
+class EvidenceLevel(Enum):
+    """Evidence quality hierarchy."""
+    SYSTEMATIC_REVIEW = 1  # Meta-analyses, systematic reviews
+    RCT = 2                # Randomized controlled trials
+    COHORT = 3             # Cohort studies
+    CASE_CONTROL = 4       # Case-control studies
+    CASE_SERIES = 5        # Case series/reports
+    EXPERT_OPINION = 6     # Expert opinion
+
+@dataclass
+class Evidence:
+    """Graded evidence from a source."""
+    claim: str
+    source: str
+    evidence_level: EvidenceLevel
+    confidence: float
+    sample_size: int = None
+    study_design: str = None
+    limitations: List[str] = None
+
+class EvidenceGrader:
+    """Grade evidence quality from biomedical papers."""
+    
+    def __init__(self):
+        self.study_type_patterns = {
+            EvidenceLevel.SYSTEMATIC_REVIEW: [
+                r"systematic review",
+                r"meta-analysis",
+                r"cochrane review"
+            ],
+            EvidenceLevel.RCT: [
+                r"randomized controlled trial",
+                r"randomised controlled trial",
+                r"RCT"
+            ],
+            EvidenceLevel.COHORT: [
+                r"cohort study",
+                r"prospective cohort",
+                r"retrospective cohort"
+            ],
+            # ... more patterns
+        }
+    
+    def grade_paper(self, paper: Dict) -> EvidenceLevel:
+        """Determine evidence level from paper metadata."""
+        text = f"{paper.get('title', '')} {paper.get('abstract', '')}"
+        text_lower = text.lower()
+        
+        for level, patterns in self.study_type_patterns.items():
+            for pattern in patterns:
+                if re.search(pattern, text_lower):
+                    return level
+        
+        return EvidenceLevel.EXPERT_OPINION
+    
+    def calculate_confidence(
+        self,
+        evidence_level: EvidenceLevel,
+        paper: Dict
+    ) -> float:
+        """Calculate confidence score for evidence."""
+        base_confidence = 1.0 / evidence_level.value
+        
+        # Adjust based on sample size
+        sample_size = paper.get('sample_size', 0)
+        if sample_size > 1000:
+            base_confidence *= 1.2
+        elif sample_size < 50:
+            base_confidence *= 0.8
+        
+        # Adjust based on journal impact
+        impact_factor = paper.get('journal_impact', 1.0)
+        base_confidence *= min(impact_factor / 5.0, 1.5)
+        
+        return min(base_confidence, 1.0)
+```
+
+### Part 3: Biomedical RAG Pipeline
 
 ```python
 class BiomedicalRAG:
-    def __init__(self, entity_recognizer, knowledge_base):
+    """Domain-specific RAG for biomedical literature."""
+    
+    def __init__(
+        self,
+        entity_recognizer: BiomedicalNER,
+        vector_store: VectorStore,
+        knowledge_base: KnowledgeBase,
+        llm: LLM
+    ):
         self.ner = entity_recognizer
+        self.store = vector_store
         self.kb = knowledge_base
+        self.llm = llm
     
-    def index_paper(self, paper: dict):
-        """Index a biomedical paper with entity extraction."""
-        pass
+    def index_paper(self, paper: Dict) -> str:
+        """Index a biomedical paper with rich metadata."""
+        # Extract entities
+        entities = self.ner.extract(paper['abstract'])
+        relationships = self.ner.extract_relationships(
+            paper['abstract'], entities
+        )
+        
+        # Grade evidence
+        evidence_level = self.grader.grade_paper(paper)
+        confidence = self.grader.calculate_confidence(evidence_level, paper)
+        
+        # Create enriched document
+        doc = Document(
+            content=paper['abstract'],
+            metadata={
+                "pmid": paper['pmid'],
+                "title": paper['title'],
+                "journal": paper['journal'],
+                "year": paper['year'],
+                "entities": [
+                    {"text": e.text, "type": e.label, "cui": e.cui}
+                    for e in entities
+                ],
+                "relationships": relationships,
+                "evidence_level": evidence_level.name,
+                "confidence": confidence,
+                "sample_size": paper.get('sample_size'),
+                "study_design": paper.get('study_design')
+            }
+        )
+        
+        # Index with entity-aware chunking
+        chunks = self._chunk_with_entities(doc, entities)
+        for chunk in chunks:
+            self.store.add_document(chunk)
+        
+        return paper['pmid']
     
-    def query(self, query: str) -> dict:
-        """Query with evidence grading."""
-        pass
+    def query(self, query: str, top_k: int = 5) -> Dict:
+        """Query with evidence grading and citations."""
+        # Extract entities from query
+        query_entities = self.ner.extract(query)
+        
+        # Enhance query with entity synonyms
+        enhanced_query = self._enhance_query(query, query_entities)
+        
+        # Retrieve relevant papers
+        results = self.store.search(enhanced_query, k=top_k * 2)
+        
+        # Rerank by evidence quality
+        reranked = self._rerank_by_evidence(results, query_entities)
+        
+        # Select top-k
+        top_results = reranked[:top_k]
+        
+        # Generate answer with citations
+        answer = self._generate_answer(query, top_results)
+        
+        return {
+            "answer": answer['text'],
+            "citations": answer['citations'],
+            "evidence_summary": self._summarize_evidence(top_results),
+            "confidence": answer['confidence'],
+            "retrieved_papers": [
+                {
+                    "pmid": r.metadata['pmid'],
+                    "title": r.metadata['title'],
+                    "evidence_level": r.metadata['evidence_level'],
+                    "confidence": r.metadata['confidence']
+                }
+                for r in top_results
+            ]
+        }
+    
+    def _generate_answer(
+        self,
+        query: str,
+        papers: List[Document]
+    ) -> Dict:
+        """Generate evidence-based answer."""
+        # Sort by evidence quality
+        sorted_papers = sorted(
+            papers,
+            key=lambda p: (
+                EvidenceLevel[p.metadata['evidence_level']].value,
+                -p.metadata['confidence']
+            )
+        )
+        
+        # Build context with evidence annotations
+        context_parts = []
+        citations = []
+        
+        for i, paper in enumerate(sorted_papers, 1):
+            citation = f"[{i}]"
+            citations.append({
+                "number": i,
+                "pmid": paper.metadata['pmid'],
+                "title": paper.metadata['title'],
+                "evidence_level": paper.metadata['evidence_level']
+            })
+            
+            context_parts.append(
+                f"{citation} {paper.metadata['evidence_level']} - "
+                f"{paper.content[:500]}..."
+            )
+        
+        context = "\n\n".join(context_parts)
+        
+        prompt = f"""Based on the following biomedical literature, answer the question.
+Include citation numbers [1], [2], etc. in your answer.
+
+Context:
+{context}
+
+Question: {query}
+
+Provide your answer with evidence levels (High/Medium/Low) for each claim."""
+        
+        response = self.llm.generate(prompt)
+        
+        # Calculate overall confidence
+        avg_confidence = sum(
+            p.metadata['confidence'] for p in sorted_papers
+        ) / len(sorted_papers)
+        
+        return {
+            "text": response,
+            "citations": citations,
+            "confidence": avg_confidence
+        }
 ```
+
+## Evidence Visualization
+
+```python
+def format_evidence_summary(results: List[Document]) -> str:
+    """Create human-readable evidence summary."""
+    lines = ["Evidence Summary:", "=" * 50]
+    
+    # Group by evidence level
+    by_level = defaultdict(list)
+    for r in results:
+        level = r.metadata['evidence_level']
+        by_level[level].append(r)
+    
+    for level in sorted(by_level.keys(), key=lambda x: EvidenceLevel[x].value):
+        papers = by_level[level]
+        lines.append(f"\n{level} ({len(papers)} papers):")
+        for p in papers:
+            lines.append(f"  - {p.metadata['title'][:60]}...")
+            lines.append(f"    Confidence: {p.metadata['confidence']:.2f}")
+    
+    return "\n".join(lines)
+```
+
+## Evaluation Criteria
+
+Your solution will be evaluated on:
+
+1. **Entity Recognition**: Accurate biomedical NER
+2. **Evidence Grading**: Correct study classification
+3. **Citation Quality**: Relevant papers retrieved
+4. **Answer Quality**: Evidence-backed, accurate answers
+5. **Safety**: Appropriate confidence calibration

@@ -1,15 +1,47 @@
 ---
 title: "KV-Cache Optimization for RAG"
 description: |
-  Optimize RAG latency by reusing KV-cache across similar queries.
+  Optimize RAG latency by reusing KV-cache across similar queries. Reduce token computation and improve response time in production LLM systems.
 difficulty: advanced
+xp: 160
 estimatedMinutes: 35
-topics: ["optimization", "caching", "latency", "production"]
-language: python
 prerequisites:
   - embedding-cache
   - semantic-cache
-xp: 160
+topics:
+  - optimization
+  - caching
+  - latency
+  - production
+  - inference
+language: python
+related:
+  - semantic-cache
+  - cost-aware-router
+  - rag-observability
+next:
+  - cost-aware-router
+resources:
+  papers:
+    - title: "Efficiently Scaling Transformer Inference"
+      url: "https://arxiv.org/abs/2211.05102"
+      authors: "Pope et al. (Google)"
+    - title: "FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning"
+      url: "https://arxiv.org/abs/2307.08691"
+      authors: "Dao (2023)"
+  docs:
+    - title: "vLLM PagedAttention"
+      url: "https://docs.vllm.ai/en/latest/models/engine_args.html"
+    - title: "NVIDIA TensorRT-LLM KV Cache"
+      url: "https://developer.nvidia.com/tensorrt-llm"
+  tutorials:
+    - title: "KV Cache in Transformers"
+      url: "https://huggingface.co/docs/transformers/v4.40.0/en/kv_cache"
+  tools:
+    - vLLM
+    - TensorRT-LLM
+    - Text Generation Inference (TGI)
+    - llama.cpp
 ---
 
 # KV-Cache Optimization for RAG
@@ -31,6 +63,26 @@ With KV-Cache Optimization:
   
 Latency reduction: 40-60% for similar queries
 ```
+
+### How KV-Cache Works
+
+In transformer attention, each layer produces:
+- **Key (K)**: What a token "offers" to other tokens
+- **Value (V)**: What information a token provides
+
+**Space Complexity**: $O(L \cdot d_{model} \cdot n_{layers} \cdot 2)$ where $L$ is sequence length
+
+**Time Savings**: Avoid $O(L^2 \cdot d_{head} \cdot n_{heads})$ operations on cached prefix
+
+### Real-World Impact
+
+| System | Without Cache | With KV Cache | Savings |
+|--------|--------------|---------------|---------|
+| 2K context | 500ms | 220ms | 56% |
+| 4K context | 800ms | 320ms | 60% |
+| 8K context | 1.5s | 550ms | 63% |
+
+**Companies Using This**: Anyscale (Ray Serve), Together AI, Fireworks AI, Groq
 
 ## Setup
 
@@ -348,62 +400,91 @@ def test_kv_cache():
                       f"({result.latency_ms:.0f}ms)")
         else:
             # Same context, different questions
-            for q in scenario["questions"]:
-                result = rag.generate(system, scenario["context"], q)
+            for question in scenario["questions"]:
+                result = rag.generate(system, scenario["context"], question)
                 if result.cache_hit:
                     cache_hits += 1
-                print(f"  '{q[:30]}...': "
+                print(f"  '{question[:30]}...': "
                       f"{'HIT' if result.cache_hit else 'MISS'} "
                       f"({result.latency_ms:.0f}ms)")
         
-        expected = scenario["expected_cache_hits"]
-        status = "✓" if cache_hits == expected else "✗"
-        print(f"{status} Cache hits: {cache_hits} (expected {expected})")
+        print(f"  Expected hits: {scenario['expected_cache_hits']}, Got: {cache_hits}")
+        assert cache_hits == scenario["expected_cache_hits"]
     
-    # Print overall stats
+    # Get stats
     stats = rag.get_stats()
     print(f"\n{'='*60}")
-    print(f"Overall Stats:")
+    print("Final Stats:")
     print(f"  Total queries: {stats['total_queries']}")
-    print(f"  Cache hit rate: {stats['hit_rate']:.0%}")
-    
-    print("\n✓ All tests completed!")
+    print(f"  Cache hits: {stats['cache_hits']}")
+    print(f"  Hit rate: {stats['hit_rate']:.1%}")
+    print(f"  Avg latency reduction: {stats['avg_latency_reduction']:.1%}")
 
 test_kv_cache()
 ```
 
-## Real-World Implementation Notes
+## Theory: Why KV-Cache Works
 
-In production, KV-cache optimization requires:
+### Attention Mechanism Recap
 
-1. **Model support**: vLLM, TensorRT-LLM, or custom inference
-2. **Prefix caching**: Some providers (e.g., Anthropic) offer this natively
-3. **Careful ordering**: Context order must be consistent
-4. **Memory management**: KV-caches are large (GB scale)
+Transformer attention computes:
+
+$$Attention(Q, K, V) = softmax\left(\frac{QK^T}{\sqrt{d_k}}\right)V$$
+
+For a sequence of length $L$, computing $K$ and $V$ involves:
+- Matrix multiplication: $O(L \cdot d_{model}^2)$
+- For $n_{layers}$ layers: $O(n_{layers} \cdot L \cdot d_{model}^2)$
+
+### With KV-Cache
+
+Once prefix $P$ is processed:
+- Cache $(K_P, V_P)$ for all layers
+- For new tokens $T$, only compute $(K_T, V_T)$
+- Concatenate: $K = [K_P, K_T]$, $V = [V_P, V_T]$
+
+**New computation**: Only for $|T|$ tokens instead of $|P| + |T|$
+
+### Complexity Analysis
+
+| Metric | Without Cache | With Cache | Ratio |
+|--------|---------------|------------|-------|
+| Compute | $O((P+T)^2)$ | $O(P^2 + PT + T^2)$ | ~50% for P≥T |
+| Memory | -- | $O(P \cdot d \cdot h)$ | PagedAttention reduces |
+
+## Real-World Integration
+
+### vLLM with Continuous Batching
 
 ```python
-# Anthropic prompt caching example
-response = client.messages.create(
-    model="claude-3-5-sonnet-20241022",
-    messages=[{
-        "role": "user",
-        "content": [
-            {
-                "type": "text",
-                "text": long_context,
-                "cache_control": {"type": "ephemeral"}  # Cache this
-            },
-            {
-                "type": "text", 
-                "text": question  # Don't cache this
-            }
-        ]
-    }]
-)
+# vLLM automatically manages KV cache
+from vllm import LLM, SamplingParams
+
+llm = LLM(model="meta-llama/Llama-2-7b")
+# vLLM uses PagedAttention for efficient KV-cache management
+
+# Same prefix automatically shares cache
+outputs = llm.generate([
+    "Context: [same long doc]\nQ1: What is...",
+    "Context: [same long doc]\nQ2: How does...",
+])
 ```
+
+### Production Considerations
+
+1. **Cache Sizing**: Memory = 2 × layers × heads × head_dim × seq_len × batch_size
+2. **Prefix Caching**: Use exact match or fuzzy deduplication
+3. **Multi-GPU**: Cache per GPU, share within node
+4. **Eviction Policy**: LRU works well; consider query frequency patterns
+
+## Related Challenges
+
+- [Semantic Cache](challenges/semantic-cache) - Cache based on meaning, not exact match
+- [Cost-Aware Router](challenges/cost-aware-router) - Route by complexity and cost
+- [RAG Observability](challenges/rag-observability) - Monitor cache hit rates
+- [Context Window Optimization](challenges/context-window-optimization) - Maximize context efficiency
 
 ## Resources
 
-- [vLLM PagedAttention](https://docs.vllm.ai/en/latest/)
-- [Anthropic Prompt Caching](https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching)
-- [KV-Cache in Transformers](https://huggingface.co/docs/transformers/kv_cache)
+- **Paper**: "Efficiently Scaling Transformer Inference" (Pope et al., Google)
+- **Tool**: [vLLM](https://docs.vllm.ai) - High-throughput LLM serving with KV cache optimization
+- **GitHub**: [llama.cpp](https://github.com/ggerganov/llama.cpp) - See their KV cache implementation

@@ -1,17 +1,425 @@
 ﻿---
 title: "Index Sharding Strategy"
-description: "Design a sharding scheme to distribute vectors across nodes."
+description: "Design a sharding scheme to distribute vectors across nodes"
+difficulty: "hard"
+estimatedMinutes: 45
+xpReward: 90
+prerequisites: ["naive-flat-index", "partitioned-storage"]
+related: ["partitioned-storage", "hnsw-index", "distributed-vector-search"]
 ---
 
 # Index Sharding Strategy
 
 When your index grows beyond a single machine's memory, you need **sharding**: distributing data across multiple nodes.
 
-### How Sharding Works
+## Why This Matters in Production
+
+| Scale | Single Node | Sharded |
+|-------|-------------|---------|
+| **1M vectors** | ✅ Works | ✅ Works |
+| **10M vectors** | ⚠️ Slow | ✅ Works |
+| **100M vectors** | ❌ Fails | ✅ Works |
+| **1B+ vectors** | ❌ Impossible | ✅ Works |
+
+## How Sharding Works
 
 1. **Hash the document ID** → Deterministic shard assignment.
 2. **Insert** to the correct shard.
 3. **Search** by querying all shards (scatter) and merging results (gather).
+
+## What You're Implementing
+
+Implement a `ShardRouter` that:
+
+- Routes documents to shards deterministically.
+- Searches all shards and merges results.
+
+## The Sharding Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Sharded Vector Index                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   Query → Shard Router → Shard 0 → Local Search → Results       │
+│              ↓           Shard 1 → Local Search →    ↓          │
+│              ↓           Shard 2 → Local Search →  Merge        │
+│              ↓           Shard 3 → Local Search →    ↓          │
+│         Hash(doc_id)                               Final        │
+│                                                    Results      │
+│                                                                  │
+│   Consistent Hashing: hash(doc_id) % num_shards                 │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Mathematical Foundations
+
+### Consistent Hashing
+
+```
+shard_id = hash(doc_id) % num_shards
+
+Benefits:
+- Deterministic: Same doc always same shard
+- Even distribution: Hash spreads docs uniformly
+- Minimal remapping: Add shards → minimal data movement
+```
+
+### Replication Factor
+
+```
+Total Storage = N × D × R
+
+Where:
+- N = number of vectors
+- D = dimension size
+- R = replication factor (for fault tolerance)
+```
+
+### Query Complexity with Sharding
+
+```
+Single Shard Query: O(N/S × d)
+S = number of shards
+
+Total Query (parallel): O(N/S × d)
+Total Query (sequential): O(N × d)
+```
+
+## Implementation Example
+
+```python
+import hashlib
+from typing import List, Dict, Tuple, Optional
+from dataclasses import dataclass
+import numpy as np
+
+@dataclass
+class VectorDocument:
+    """Document with vector and metadata."""
+    doc_id: str
+    vector: np.ndarray
+    metadata: Dict
+
+class Shard:
+    """A single shard containing a subset of vectors."""
+    
+    def __init__(self, shard_id: int, dimension: int):
+        """
+        Initialize shard.
+        
+        Args:
+            shard_id: Unique shard identifier
+            dimension: Vector dimension
+        """
+        self.shard_id = shard_id
+        self.dimension = dimension
+        self.documents: Dict[str, VectorDocument] = {}
+    
+    def add(self, doc: VectorDocument):
+        """Add document to shard."""
+        if len(doc.vector) != self.dimension:
+            raise ValueError(f"Vector dimension mismatch")
+        self.documents[doc.doc_id] = doc
+    
+    def search(
+        self,
+        query_vec: np.ndarray,
+        k: int = 10
+    ) -> List[Tuple[str, float]]:
+        """
+        Search within this shard.
+        
+        Time Complexity: O(N × d) where N = docs in shard
+        """
+        if not self.documents:
+            return []
+        
+        scores = []
+        for doc_id, doc in self.documents.items():
+            # Cosine similarity (assuming normalized vectors)
+            similarity = np.dot(query_vec, doc.vector)
+            scores.append((doc_id, similarity))
+        
+        # Sort by score
+        scores.sort(key=lambda x: x[1], reverse=True)
+        return scores[:k]
+    
+    def get_stats(self) -> Dict:
+        """Get shard statistics."""
+        return {
+            "shard_id": self.shard_id,
+            "document_count": len(self.documents),
+            "dimension": self.dimension
+        }
+
+class ShardRouter:
+    """Routes documents to shards and coordinates search."""
+    
+    def __init__(self, num_shards: int, dimension: int):
+        """
+        Initialize shard router.
+        
+        Args:
+            num_shards: Number of shards to create
+            dimension: Vector dimension
+        """
+        self.num_shards = num_shards
+        self.dimension = dimension
+        self.shards: List[Shard] = [
+            Shard(i, dimension) for i in range(num_shards)
+        ]
+    
+    def _get_shard_id(self, doc_id: str) -> int:
+        """
+        Determine shard for document using consistent hashing.
+        
+        Time Complexity: O(1)
+        """
+        hash_val = int(hashlib.md5(doc_id.encode()).hexdigest(), 16)
+        return hash_val % self.num_shards
+    
+    def add_document(self, doc: VectorDocument):
+        """
+        Add document to appropriate shard.
+        
+        Time Complexity: O(1)
+        
+        Args:
+            doc: Document to add
+            
+        Example:
+            >>> router = ShardRouter(num_shards=4, dimension=128)
+            >>> router.add_document(VectorDocument(
+            ...     doc_id="doc_001",
+            ...     vector=np.random.randn(128),
+            ...     metadata={"source": "web"}
+            ... ))
+        """
+        shard_id = self._get_shard_id(doc.doc_id)
+        self.shards[shard_id].add(doc)
+    
+    def search(
+        self,
+        query_vec: np.ndarray,
+        k: int = 10,
+        search_all_shards: bool = True
+    ) -> List[Tuple[str, float]]:
+        """
+        Search across shards.
+        
+        Time Complexity: O(S × N/S × d) = O(N × d) where
+            S = shards, N = total docs, d = dimension
+        
+        Args:
+            query_vec: Query vector
+            k: Total results to return
+            search_all_shards: If True, search all shards; else route to specific shard
+            
+        Returns:
+            Merged results from all shards
+        """
+        if len(query_vec) != self.dimension:
+            raise ValueError(f"Query dimension {len(query_vec)} != {self.dimension}")
+        
+        # Collect results from all shards
+        all_results = []
+        
+        for shard in self.shards:
+            shard_results = shard.search(query_vec, k=k)
+            all_results.extend(shard_results)
+        
+        # Merge and re-rank
+        all_results.sort(key=lambda x: x[1], reverse=True)
+        
+        return all_results[:k]
+    
+    def get_shard_for_doc(self, doc_id: str) -> Shard:
+        """Get the shard containing a specific document."""
+        shard_id = self._get_shard_id(doc_id)
+        return self.shards[shard_id]
+    
+    def get_stats(self) -> Dict:
+        """Get statistics for all shards."""
+        total_docs = sum(s.get_stats()["document_count"] for s in self.shards)
+        
+        shard_stats = [s.get_stats() for s in self.shards]
+        
+        # Calculate distribution evenness
+        doc_counts = [s["document_count"] for s in shard_stats]
+        avg_count = total_docs / self.num_shards if self.num_shards > 0 else 0
+        variance = sum((c - avg_count) ** 2 for c in doc_counts) / self.num_shards if self.num_shards > 0 else 0
+        
+        return {
+            "total_documents": total_docs,
+            "num_shards": self.num_shards,
+            "dimension": self.dimension,
+            "average_per_shard": avg_count,
+            "distribution_variance": variance,
+            "shard_stats": shard_stats
+        }
+    
+    def rebalance(self):
+        """
+        Rebalance shards if distribution is uneven.
+        
+        In production, this is complex and requires:
+        - Moving documents between shards
+        - Updating routing tables
+        - Maintaining availability
+        """
+        # Placeholder for rebalancing logic
+        pass
+
+class ConsistentHashRouter(ShardRouter):
+    """Shard router using consistent hashing for minimal remapping."""
+    
+    def __init__(self, dimension: int, virtual_nodes: int = 150):
+        """
+        Initialize with consistent hashing.
+        
+        Args:
+            dimension: Vector dimension
+            virtual_nodes: Number of virtual nodes per physical shard
+        """
+        super().__init__(num_shards=1, dimension=dimension)
+        self.virtual_nodes = virtual_nodes
+        self.ring: Dict[int, int] = {}  # hash -> shard_id
+        self.physical_shards: Dict[int, Shard] = {}
+    
+    def add_shard(self, shard_id: int):
+        """Add a new shard with virtual nodes."""
+        self.physical_shards[shard_id] = Shard(shard_id, self.dimension)
+        
+        # Add virtual nodes to ring
+        for i in range(self.virtual_nodes):
+            virtual_key = f"{shard_id}:{i}"
+            hash_val = int(hashlib.md5(virtual_key.encode()).hexdigest(), 16)
+            self.ring[hash_val] = shard_id
+        
+        # Re-sort ring
+        self.ring = dict(sorted(self.ring.items()))
+    
+    def _get_shard_id(self, doc_id: str) -> int:
+        """Find shard using consistent hashing ring."""
+        hash_val = int(hashlib.md5(doc_id.encode()).hexdigest(), 16)
+        
+        # Find first virtual node >= hash_val
+        for node_hash, shard_id in self.ring.items():
+            if node_hash >= hash_val:
+                return shard_id
+        
+        # Wrap around to first node
+        return next(iter(self.ring.values()))
+
+# Usage Example
+router = ShardRouter(num_shards=4, dimension=3)
+
+# Add documents
+for i in range(100):
+    doc = VectorDocument(
+        doc_id=f"doc_{i:03d}",
+        vector=np.random.randn(3),
+        metadata={"index": i}
+    )
+    router.add_document(doc)
+
+# Check distribution
+stats = router.get_stats()
+print(f"Total documents: {stats['total_documents']}")
+print(f"Distribution variance: {stats['distribution_variance']:.2f}")
+
+for shard_stat in stats['shard_stats']:
+    print(f"  Shard {shard_stat['shard_id']}: {shard_stat['document_count']} docs")
+
+# Search
+query = np.array([1.0, 0.0, 0.0])
+results = router.search(query, k=5)
+print(f"\nTop 5 results:")
+for doc_id, score in results:
+    print(f"  {doc_id}: {score:.4f}")
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Shard Assignment | O(1) | Hash modulo |
+| Insertion | O(1) | Direct shard write |
+| Search (parallel) | O(N/S × d) | S = shards, distributed |
+| Search (sequential) | O(N × d) | Query each shard |
+| Merge Results | O(S × k log(S × k)) | k = results per shard |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand distributed vector search
+- Be able to implement sharding strategies
+- Know how to balance load across shards
+
+## Real-World Applications
+
+| Database | Sharding Strategy |
+|----------|------------------|
+| **Milvus** | Consistent hashing with virtual nodes |
+| **Pinecone** | Managed sharding (serverless) |
+| **Weaviate** | Class-based partitioning |
+| **Elasticsearch** | Index sharding with routing |
+
+## Common Pitfalls
+
+- **Hot shards**: Uneven data distribution
+- **Cross-shard queries**: High latency for scatter-gather
+- **Rebalancing complexity**: Moving data without downtime
+- **Shard size limits**: Shards growing too large
+- **Query routing**: Wrong shard selection
+
+## Production Extensions (Optional)
+
+- **Virtual Nodes**: Consistent hashing for minimal remapping
+- **Replication**: Copy shards for fault tolerance
+- **Shard Splitting**: Divide large shards
+- **Geo-sharding**: Location-aware shard placement
+- **Query Routing**: Route to specific shard when possible
+
+## Resources
+
+### Documentation
+- [Consistent Hashing](https://www.toptal.com/big-data/consistent-hashing)
+- [Milvus Sharding](https://milvus.io/docs/v2.0.x/four_layers.md)
+- [Elasticsearch Sharding](https://www.elastic.co/guide/en/elasticsearch/reference/current/scalability.html)
+
+### Tools
+- **Milvus**: Distributed vector database
+- **Pinecone**: Managed vector search
+- **Redis Cluster**: Consistent hashing implementation
+
+### Papers
+- "Consistent Hashing and Random Trees" (Karger et al., 1997)
+- "Dynamo: Amazon's Highly Available Key-Value Store" (DeCandia et al., 2007)
+
+## Interview Questions
+
+1. **Why use consistent hashing for sharding?**
+   - Minimal data movement when adding/removing shards
+
+2. **How do you handle a hot shard?**
+   - Split shard, add replicas, or rehash with more virtual nodes
+
+3. **What's the trade-off of more shards?**
+   - Better parallelism but higher coordination overhead
+
+## After You Pass
+
+Build distributed systems:
+- [partitioned-storage](partitioned-storage) - Tenant-based partitioning
+- [hnsw-index](hnsw-index) - Approximate nearest neighbors
+- [distributed-vector-search](distributed-vector-search) - Full distributed search
+
+---
+
+**🌐 Scale Out:** Sharding transforms single-node limits into distributed scale!
 
 ### Consistent Hashing
 
@@ -25,14 +433,6 @@ This ensures:
 - Even distribution across shards.
 - Adding shards requires minimal data movement (with consistent hashing).
 
-### Your Task
-
-Implement a `ShardRouter` that:
-
-- Routes documents to shards deterministically.
-- Searches all shards and merges results.
-
 ### Production Scale
 
 This is how Pinecone, Weaviate, and Milvus scale to billions of vectors.
-

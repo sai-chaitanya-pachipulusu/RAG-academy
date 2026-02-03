@@ -1,23 +1,322 @@
+---
+title: "Metadata Filter Engine (TypeScript)"
+description: "Build a metadata filter engine with AND/OR/NOT operations."
+language: "typescript"
+difficulty: "intermediate"
+category: "retrieval"
+prerequisites: ["ts-inverted-index"]
+related: ["metadata-filtering", "document-access-control", "multi-tenant-rag"]
+tags: ["metadata", "filtering", "query", "retrieval"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Build a metadata filter engine with AND/OR/NOT operations.
+  Build a metadata filter engine with AND/OR/NOT operations — essential for multi-tenant RAG, permission systems, and scoped search.
 </Callout>
 
-## Why this matters in production
+## Why Metadata Filtering Matters in Production
 
-Metadata filtering is essential for multi-tenant RAG, permission systems, and scoped search. Every production vector database supports this.
+Metadata filtering is essential for multi-tenant RAG, permission systems, and scoped search. Every production vector database supports this. Without metadata filtering:
 
-## What you're implementing
+- Users see documents from other tenants
+- Private documents appear in public search
+- Time-bounded queries return outdated results
+- Source-specific searches fail
 
-- Filter operations: eq, ne, gt, lt, in.
-- Compound operations: and, or, not.
-- Recursive evaluation for nested filters.
+### Real-World Scenario
 
-## Common pitfalls
+A multi-tenant knowledge base:
 
-- Forgetting to handle missing metadata fields.
-- Not short-circuiting AND/OR evaluation.
+**Documents with metadata:**
+```javascript
+{
+  text: "Q4 revenue was $5M...",
+  metadata: {
+    tenant_id: "acme_corp",
+    department: "finance",
+    created_at: "2024-01-15",
+    is_public: false
+  }
+}
+```
 
-## After you pass
+**Query with filter:**
+```javascript
+{
+  query: "Q4 revenue",
+  filter: {
+    and: [
+      { eq: { tenant_id: "acme_corp" } },
+      { or: [
+        { eq: { department: "finance" } },
+        { eq: { is_public: true } }
+      ]},
+      { gte: { created_at: "2024-01-01" } }
+    ]
+  }
+}
+```
 
-Combine with vector search for filtered retrieval.
+Result: Only documents matching all conditions are searched.
 
+## The Mathematical Foundation
+
+### Filter Operations
+
+| Operation | Syntax | Description |
+|-----------|--------|-------------|
+| **eq** | `{ eq: { field: value } }` | Equal |
+| **ne** | `{ ne: { field: value } }` | Not equal |
+| **gt** | `{ gt: { field: value } }` | Greater than |
+| **gte** | `{ gte: { field: value } }` | Greater than or equal |
+| **lt** | `{ lt: { field: value } }` | Less than |
+| **lte** | `{ lte: { field: value } }` | Less than or equal |
+| **in** | `{ in: { field: [values] } }` | In array |
+| **contains** | `{ contains: { field: value } }` | Array contains |
+
+### Boolean Algebra
+
+Filters form a Boolean algebra:
+
+```
+AND: Intersection of result sets
+OR:  Union of result sets
+NOT: Complement of result set
+```
+
+### Filter Evaluation
+
+```typescript
+// Recursive evaluation
+function evaluateFilter(doc: Document, filter: Filter): boolean {
+  if (filter.and) {
+    return filter.and.every(f => evaluateFilter(doc, f));
+  }
+  if (filter.or) {
+    return filter.or.some(f => evaluateFilter(doc, f));
+  }
+  if (filter.not) {
+    return !evaluateFilter(doc, filter.not);
+  }
+  return evaluateCondition(doc, filter);
+}
+```
+
+## Theoretical Deep Dive
+
+### Filter Pushdown
+
+Push filters as early as possible:
+
+```
+Without pushdown:  Retrieve all → Filter → Rank
+With pushdown:     Filter index → Retrieve → Rank
+
+Efficiency gain: O(n) → O(k) where k << n
+```
+
+### Indexing Strategies
+
+| Metadata Type | Index Type | Query Complexity |
+|---------------|-----------|------------------|
+| **Categorical** (enum values) | Inverted index | O(1) |
+| **Numerical** | B-tree, Range index | O(log n) |
+| **Text** | Inverted index | O(k) |
+| **Array** | Inverted index per element | O(k) |
+
+### Query Planning
+
+Optimize filter order:
+
+```typescript
+// Reorder to most selective first
+const optimized = filters.sort((a, b) => 
+  estimateSelectivity(a) - estimateSelectivity(b)
+);
+```
+
+## Production Considerations
+
+### Multi-Tenancy Isolation
+
+Strict tenant isolation:
+
+```typescript
+// Always add tenant filter
+function addTenantFilter(userFilter: Filter, tenantId: string): Filter {
+  return {
+    and: [
+      { eq: { tenant_id: tenantId } },
+      userFilter
+    ]
+  };
+}
+```
+
+### Permission Integration
+
+Combine with RBAC:
+
+```typescript
+function addPermissionFilter(
+  userFilter: Filter,
+  userPermissions: string[]
+): Filter {
+  return {
+    and: [
+      { in: { required_permission: userPermissions } },
+      userFilter
+    ]
+  };
+}
+```
+
+### Performance Monitoring
+
+Track filter performance:
+
+```typescript
+interface FilterMetrics {
+  filter: string;
+  selectivity: number;  // % of docs passing filter
+  executionTimeMs: number;
+}
+```
+
+## Your Task
+
+Implement a metadata filter engine:
+
+```typescript
+interface Document {
+  id: string;
+  text: string;
+  metadata: Record<string, any>;
+}
+
+type FilterOperator = 
+  | { eq: { field: string; value: any } }
+  | { ne: { field: string; value: any } }
+  | { gt: { field: string; value: any } }
+  | { gte: { field: string; value: any } }
+  | { lt: { field: string; value: any } }
+  | { lte: { field: string; value: any } }
+  | { in: { field: string; values: any[] } }
+  | { contains: { field: string; value: any } };
+
+interface CompoundFilter {
+  and?: Filter[];
+  or?: Filter[];
+  not?: Filter;
+}
+
+type Filter = FilterOperator | CompoundFilter;
+
+class MetadataFilterEngine {
+  /**
+   * Evaluate if a document matches a filter.
+   * 
+   * Args:
+   *   doc: Document with metadata
+   *   filter: Filter condition
+   * 
+   * Returns:
+   *   true if document matches, false otherwise
+   * 
+   * Supported operations:
+   *   - Comparison: eq, ne, gt, gte, lt, lte
+   *   - Array: in, contains
+   *   - Boolean: and, or, not
+   * 
+   * Edge Cases:
+   *   - Missing field: ne returns true, others return false
+   *   - Null values: compare using ===
+   *   - Type mismatch: attempt coercion or return false
+   */
+  evaluate(doc: Document, filter: Filter): boolean {
+    // Handle compound filters
+    if ('and' in filter) {
+      return filter.and!.every(f => this.evaluate(doc, f));
+    }
+    if ('or' in filter) {
+      return filter.or!.some(f => this.evaluate(doc, f));
+    }
+    if ('not' in filter) {
+      return !this.evaluate(doc, filter.not!);
+    }
+    
+    // Handle operators
+    return this.evaluateOperator(doc, filter as FilterOperator);
+  }
+
+  private evaluateOperator(doc: Document, op: FilterOperator): boolean {
+    /**
+     * Evaluate a single filter operator against document.
+     */
+  }
+
+  /**
+   * Filter a list of documents.
+   */
+  filter(docs: Document[], filter: Filter): Document[] {
+    return docs.filter(doc => this.evaluate(doc, filter));
+  }
+
+  /**
+   * Validate filter syntax.
+   * Throws error for invalid filters.
+   */
+  validate(filter: Filter): void {
+    /**
+     * Check:
+     * - Valid operator names
+     * - Required fields present
+     * - No empty and/or arrays
+     * - Valid value types
+     */
+  }
+}
+
+// Convenience function
+function matchesFilter(doc: Document, filter: Filter): boolean {
+  const engine = new MetadataFilterEngine();
+  return engine.evaluate(doc, filter);
+}
+```
+
+### Validation Checklist
+
+- [ ] All comparison operators work (eq, ne, gt, gte, lt, lte)
+- [ ] Array operators work (in, contains)
+- [ ] Boolean operators work (and, or, not)
+- [ ] Nested compound filters supported
+- [ ] Missing fields handled correctly
+- [ ] Short-circuit evaluation for AND/OR
+- [ ] Empty and/or arrays handled
+- [ ] Type coercion or strict comparison
+
+## Common Pitfalls
+
+- **Forgetting to handle missing metadata fields**: Default behavior must be defined
+- **Not short-circuiting AND/OR evaluation**: Wastes computation
+- **Type coercion surprises**: "5" vs 5 comparisons
+- **Deep recursion on nested filters**: Stack overflow risk
+- **Not validating filter syntax**: Cryptic errors from malformed filters
+
+## After You Pass
+
+Combine with vector search for filtered retrieval, or integrate with database query builders for SQL generation.
+
+## Resources
+
+### Documentation
+- [Pinecone Metadata Filtering](https://docs.pinecone.io/docs/metadata-filtering) - Production examples
+- [Weaviate Filters](https://weaviate.io/developers/weaviate/search/filters) - GraphQL-style filtering
+- [MongoDB Query Operators](https://www.mongodb.com/docs/manual/reference/operator/query/) - Rich operator set
+
+### Tutorials
+- ["Building Query Languages"](https://www.honeybadger.io/blog/building-a-query-language/) - Parser design
+- ["Database Indexing"](https://use-the-index-luke.com/) - Index strategies
+
+### Libraries
+- [json-logic-js](https://github.com/jwadhams/json-logic-js/) - JSON-based rule engine
+- [sift.js](https://github.com/crcn/sift.js) - MongoDB query matching

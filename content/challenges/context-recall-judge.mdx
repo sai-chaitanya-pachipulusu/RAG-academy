@@ -1,13 +1,19 @@
 ﻿---
 title: "Context Recall Evaluator"
-description: "Measure what fraction of ground-truth facts are in retrieved context."
+description: "Measure what fraction of ground-truth facts are in retrieved context — high faithfulness + low recall = incomplete answers."
+difficulty: "medium"
+estimatedMinutes: 30
+prerequisites: ["llm-as-judge", "evaluator-recall-at-k"]
+related: ["faithfulness-judge", "relevance-judge", "rag-evaluation-suite"]
+next: "relevance-judge"
+xpReward: 80
 ---
 
-# Context Recall Evaluator
+<Callout title="Goal" variant="info">
+  Measure what fraction of ground-truth facts are in retrieved context.
+</Callout>
 
-**Faithfulness** checks if the answer comes from the context. **Recall** checks if the context contains all the facts.
-
-### The RAG Triad
+## The RAG Triad
 
 | Metric       | Question                                   |
 | ------------ | ------------------------------------------ |
@@ -15,23 +21,271 @@ description: "Measure what fraction of ground-truth facts are in retrieved conte
 | Relevance    | Does the answer address the query?         |
 | **Recall**   | Does the context contain all needed facts? |
 
-### Why Recall Matters
+## Why Recall Matters
 
 High faithfulness + low recall = **incomplete answers**.
 
 The model might truthfully say "Paris is the capital" but miss "It has the Eiffel Tower" because that fact wasn't retrieved.
 
-### Your Task
+## Complexity Analysis
 
-Implement a recall scorer:
+| Operation | Time Complexity | Space Complexity |
+|-----------|-----------------|------------------|
+| Fact extraction | O(F × L) | O(F) |
+| Context matching | O(F × C × L) | O(1) |
+| Overall | O(F × C × L) | O(F) |
 
-1. Extract significant words from ground truth.
-2. Check how many appear in the retrieved contexts.
-3. Return: `matched / total`.
+Where F = facts, C = contexts, L = average length
 
-### Use Cases
+## Real-World Context
 
-- Evaluating chunking strategies.
-- Comparing embedding models.
-- A/B testing retrieval parameters.
+| Company | Use Case | Recall Focus |
+|---------|----------|--------------|
+| **Perplexity** | Answer completeness | Context recall for citations |
+| **ChatGPT** | Browse with Bing | Multi-source fact coverage |
+| **Claude** | Citations | Retrieved document completeness |
+| **Google** | SGE (Search Generative Experience) | Grounding fact coverage |
 
+## Resources
+
+### Papers
+- **"RAGAS: Automated Evaluation of Retrieval Augmented Generation"** - Context recall metric
+- **"Evaluating Factual Consistency"** - Fact extraction methods
+
+### Tools
+- **RAGAS**: ContextRecall metric implementation
+- **TruLens**: Context relevance evaluation
+- **Arize**: Retrieval evaluation
+
+## Implementation
+
+```python
+from typing import List, Set, Dict
+import re
+
+class ContextRecallEvaluator:
+    """
+    Evaluate context recall: what fraction of ground-truth facts
+    are present in the retrieved contexts.
+    """
+    
+    def __init__(self):
+        pass
+    
+    def extract_facts(self, ground_truth: str) -> List[str]:
+        """
+        Extract atomic facts from ground truth answer.
+        
+        In production, use an LLM for this. Here we use simple
+        sentence splitting as a baseline.
+        """
+        # Simple sentence tokenization
+        sentences = re.split(r'[.!?]+', ground_truth)
+        facts = [s.strip() for s in sentences if len(s.strip()) > 10]
+        return facts
+    
+    def fact_in_contexts(self, fact: str, contexts: List[str]) -> bool:
+        """
+        Check if a fact is supported by any context.
+        
+        In production, use semantic similarity or LLM verification.
+        Here we use keyword matching as a baseline.
+        """
+        fact_words = set(fact.lower().split())
+        
+        for context in contexts:
+            context_words = set(context.lower().split())
+            # Simple overlap check
+            overlap = len(fact_words & context_words)
+            if overlap >= len(fact_words) * 0.5:  # 50% word overlap
+                return True
+        
+        return False
+    
+    def evaluate(
+        self,
+        ground_truth: str,
+        contexts: List[str]
+    ) -> Dict:
+        """
+        Compute context recall score.
+        
+        Args:
+            ground_truth: The ideal complete answer
+            contexts: Retrieved contexts provided to the model
+        
+        Returns:
+            Dict with score and details
+        """
+        facts = self.extract_facts(ground_truth)
+        
+        if not facts:
+            return {
+                "score": 1.0,
+                "facts_found": 0,
+                "total_facts": 0,
+                "missing_facts": []
+            }
+        
+        found_facts = []
+        missing_facts = []
+        
+        for fact in facts:
+            if self.fact_in_contexts(fact, contexts):
+                found_facts.append(fact)
+            else:
+                missing_facts.append(fact)
+        
+        score = len(found_facts) / len(facts)
+        
+        return {
+            "score": score,
+            "facts_found": len(found_facts),
+            "total_facts": len(facts),
+            "missing_facts": missing_facts
+        }
+```
+
+## Challenge: Implement Context Recall Evaluator
+
+### Requirements
+
+1. Implement `extract_facts()` to extract atomic facts from ground truth
+2. Implement `fact_in_contexts()` to check fact presence
+3. Implement `evaluate()` to compute recall score
+4. Return detailed breakdown of found/missing facts
+
+### Starter Code
+
+```python
+from typing import List, Dict
+import re
+
+class ContextRecallEvaluator:
+    """Evaluate context recall for RAG."""
+    
+    def extract_facts(self, ground_truth: str) -> List[str]:
+        """Extract atomic facts from ground truth."""
+        # TODO: Implement fact extraction
+        pass
+    
+    def fact_in_contexts(self, fact: str, contexts: List[str]) -> bool:
+        """Check if a fact is present in any context."""
+        # TODO: Implement fact matching
+        pass
+    
+    def evaluate(self, ground_truth: str, contexts: List[str]) -> Dict:
+        """Compute context recall score."""
+        # TODO: Implement evaluation
+        pass
+
+
+# Test your implementation
+def test_context_recall():
+    evaluator = ContextRecallEvaluator()
+    
+    ground_truth = """
+    Paris is the capital of France. It has a population of 2.1 million.
+    The Eiffel Tower is located there. French is the official language.
+    """
+    
+    # Case 1: All facts present
+    contexts_full = [
+        "Paris is the capital of France with 2.1 million people.",
+        "The Eiffel Tower stands in Paris.",
+        "French is spoken throughout France."
+    ]
+    result = evaluator.evaluate(ground_truth, contexts_full)
+    assert result["score"] > 0.7  # Most facts should be found
+    
+    # Case 2: Missing facts
+    contexts_partial = [
+        "Paris is the capital of France.",
+        "The city is beautiful."
+    ]
+    result = evaluator.evaluate(ground_truth, contexts_partial)
+    assert result["score"] < 0.5  # Many facts missing
+    assert len(result["missing_facts"]) > 0
+    
+    print(f"Full context score: {result['score']}")
+    print(f"Missing facts: {result['missing_facts']}")
+    print("All tests passed!")
+
+test_context_recall()
+```
+
+### Solution
+
+<details>
+<summary>Click to reveal solution</summary>
+
+```python
+from typing import List, Dict
+import re
+
+class ContextRecallEvaluator:
+    """Evaluate context recall for RAG."""
+    
+    def extract_facts(self, ground_truth: str) -> List[str]:
+        """Extract atomic facts from ground truth."""
+        sentences = re.split(r'[.!?]+', ground_truth)
+        facts = [s.strip() for s in sentences if len(s.strip()) > 10]
+        return facts
+    
+    def fact_in_contexts(self, fact: str, contexts: List[str]) -> bool:
+        """Check if a fact is present in any context."""
+        fact_words = set(fact.lower().split())
+        
+        for context in contexts:
+            context_words = set(context.lower().split())
+            overlap = len(fact_words & context_words)
+            if overlap >= len(fact_words) * 0.5:
+                return True
+        
+        return False
+    
+    def evaluate(self, ground_truth: str, contexts: List[str]) -> Dict:
+        """Compute context recall score."""
+        facts = self.extract_facts(ground_truth)
+        
+        if not facts:
+            return {
+                "score": 1.0,
+                "facts_found": 0,
+                "total_facts": 0,
+                "missing_facts": []
+            }
+        
+        found_facts = []
+        missing_facts = []
+        
+        for fact in facts:
+            if self.fact_in_contexts(fact, contexts):
+                found_facts.append(fact)
+            else:
+                missing_facts.append(fact)
+        
+        score = len(found_facts) / len(facts)
+        
+        return {
+            "score": score,
+            "facts_found": len(found_facts),
+            "total_facts": len(facts),
+            "missing_facts": missing_facts
+        }
+```
+
+</details>
+
+## Use Cases
+
+- Evaluating chunking strategies
+- Comparing embedding models
+- A/B testing retrieval parameters
+
+## Production Considerations
+
+1. **Use LLM for fact extraction**: Simple splitting misses complex facts
+2. **Semantic matching**: Keyword overlap fails on paraphrases
+3. **Threshold tuning**: Balance precision/recall of fact detection
+4. **Multi-hop facts**: Track facts requiring multiple contexts

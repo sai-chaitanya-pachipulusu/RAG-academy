@@ -1,23 +1,284 @@
+---
+title: "LRU Cache (TypeScript)"
+description: "Implement an LRU cache — essential for embedding and API response caching."
+language: "typescript"
+difficulty: "intermediate"
+category: "optimization"
+prerequisites: []
+related: ["ts-semantic-cache", "ts-embedding-cache-key", "embedding-cache"]
+tags: ["caching", "lru", "data-structures", "performance"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Implement an LRU cache — essential for embedding and API response caching.
+  Implement an LRU (Least Recently Used) cache — essential for embedding and API response caching in production RAG systems.
 </Callout>
 
-## Why this matters in production
+## Why LRU Caching Matters in Production
 
-LRU caches are everywhere: embedding caches, API caches, query result caches. Understanding this data structure helps you optimize RAG latency and cost.
+LRU caches are everywhere: embedding caches, API caches, query result caches. Understanding this data structure helps you optimize RAG latency and cost. An effective cache can:
 
-## What you're implementing
+- **Reduce API costs**: Avoid redundant embedding/LLM calls
+- **Improve latency**: Serve cached responses instantly
+- **Handle burst traffic**: Absorb spikes without overwhelming backends
+- **Increase availability**: Serve stale data during outages
 
-- Get: retrieve value, mark as recently used.
-- Set: add value, evict LRU if at capacity.
-- Efficient O(1) operations using Map (preserves insertion order).
+### Real-World Scenario
 
-## Common pitfalls
+A RAG system handling 1000 queries/minute:
 
-- Not updating recency on get().
-- Evicting wrong item (newest instead of oldest).
+- **Without cache**: 1000 API calls/minute = $0.10/minute = $144/day
+- **With 70% hit rate cache**: 300 API calls/minute = $0.03/minute = $43/day
 
-## After you pass
+**Savings**: $101/day (70% cost reduction)
 
-Build a **Semantic Cache** on top of LRU for intelligent caching.
+Plus latency improvement: 5-50ms (cache) vs 100-500ms (API)
 
+## The Mathematical Foundation
+
+### LRU Principle
+
+When cache is full, evict the **least recently accessed** item:
+
+```
+Access pattern: A, B, C, A, D
+Cache size: 3
+
+Step 1: [A]           (add A)
+Step 2: [A, B]        (add B)
+Step 3: [A, B, C]     (add C)
+Step 4: [B, C, A]     (access A, move to front)
+Step 5: [C, A, D]     (evict B, add D)
+```
+
+### Time Complexity
+
+| Operation | Array | Linked List + Hash Map |
+|-----------|-------|------------------------|
+| **Get** | O(n) | O(1) |
+| **Set** | O(n) | O(1) |
+| **Evict** | O(n) | O(1) |
+
+Production implementation uses **Hash Map + Doubly Linked List** or **JavaScript Map** (preserves insertion order).
+
+### Hit Rate Analysis
+
+```
+Hit Rate = Cache Hits / Total Requests
+
+Factors affecting hit rate:
+- Cache size (larger = higher hit rate, diminishing returns)
+- Access pattern (temporal locality)
+- TTL (time-to-live) settings
+```
+
+## Theoretical Deep Dive
+
+### Cache Eviction Policies
+
+| Policy | Eviction Criteria | Best For |
+|--------|-------------------|----------|
+| **LRU** | Least recently used | General purpose |
+| **LFU** | Least frequently used | Stable popularity |
+| **FIFO** | First in, first out | Simple streaming |
+| **Random** | Random selection | Avoiding pathological patterns |
+| **TTL** | Expiration time | Time-sensitive data |
+
+### LRU-K
+
+Track last K accesses instead of just one:
+
+```
+Standard LRU: Consider only last access
+LRU-K: Consider K most recent accesses
+
+Better for: Workloads with periodic scans
+```
+
+### Adaptive Replacement Cache (ARC)
+
+Balance between recency and frequency:
+
+```
+ARC maintains two lists:
+- T1: Recently used once
+- T2: Frequently used
+
+Dynamically adjusts size of T1 vs T2 based on hit patterns
+```
+
+## Production Considerations
+
+### Memory Management
+
+```typescript
+// Estimate memory usage
+const entrySize = keySize + valueSize + overhead;
+const maxMemory = maxEntries × entrySize;
+
+// For embeddings: 1536 floats × 4 bytes = ~6KB per entry
+// 10K entries = ~60MB
+```
+
+### TTL and Expiration
+
+```typescript
+interface CacheEntry<V> {
+  value: V;
+  accessedAt: number;
+  expiresAt?: number;
+}
+
+// Check expiration on get
+get(key: K): V | undefined {
+  const entry = this.cache.get(key);
+  if (entry && entry.expiresAt && Date.now() > entry.expiresAt) {
+    this.cache.delete(key);
+    return undefined;
+  }
+  return entry?.value;
+}
+```
+
+### Cache Warming
+
+Pre-populate cache for common queries:
+
+```typescript
+async function warmCache(commonQueries: string[]): Promise<void> {
+  for (const query of commonQueries) {
+    const embedding = await getEmbedding(query);
+    cache.set(query, embedding);
+  }
+}
+```
+
+## Your Task
+
+Implement an LRU cache:
+
+```typescript
+interface CacheEntry<V> {
+  value: V;
+  lastAccessed: number;
+}
+
+interface LRUCacheConfig {
+  maxSize: number;
+  ttlMs?: number;  // Optional time-to-live
+}
+
+class LRUCache<K, V> {
+  private cache: Map<K, CacheEntry<V>>;
+  private maxSize: number;
+  private ttlMs?: number;
+
+  constructor(config: LRUCacheConfig) {
+    this.cache = new Map();
+    this.maxSize = config.maxSize;
+    this.ttlMs = config.ttlMs;
+  }
+
+  get(key: K): V | undefined {
+    /**
+     * Retrieve value and mark as recently used.
+     * 
+     * Args:
+     *   key: Cache key
+     * 
+     * Returns:
+     *   Value if found and not expired, undefined otherwise
+     * 
+     * Process:
+     *   1. Check if key exists
+     *   2. Check if entry expired (if TTL set)
+     *   3. Update lastAccessed timestamp
+     *   4. Return value
+     * 
+     * Note: JavaScript Map maintains insertion order,
+     * so we delete and re-set to move to "front"
+     */
+  }
+
+  set(key: K, value: V): void {
+    /**
+     * Add or update value, evict LRU if at capacity.
+     * 
+     * Args:
+     *   key: Cache key
+     *   value: Value to cache
+     * 
+     * Process:
+     *   1. If key exists, delete old entry
+     *   2. If at capacity, evict oldest (first in Map)
+     *   3. Add new entry with current timestamp
+     */
+  }
+
+  has(key: K): boolean {
+    /**
+     * Check if key exists and not expired.
+     * Does NOT update access order.
+     */
+  }
+
+  delete(key: K): boolean {
+    /**
+     * Remove entry from cache.
+     * Returns true if entry existed.
+     */
+  }
+
+  clear(): void {
+    /**
+     * Remove all entries.
+     */
+  }
+
+  getStats(): {
+    size: number;
+    maxSize: number;
+    utilization: number;
+  } {
+    /**
+     * Return cache statistics.
+     */
+  }
+}
+```
+
+### Validation Checklist
+
+- [ ] Get moves entry to most-recent position
+- [ ] Set evicts oldest when at capacity
+- [ ] TTL expiration works correctly
+- [ ] Delete removes entry
+- [ ] Clear removes all entries
+- [ ] Has checks expiration without updating order
+- [ ] Zero or negative maxSize handled gracefully
+- [ ] Works with various key/value types
+
+## Common Pitfalls
+
+- **Not updating recency on get()**: Entry should move to "front"
+- **Evicting wrong item**: Remove oldest, not newest
+- **Memory leaks**: Clear expired entries periodically
+- **Not handling TTL**: Implement expiration checks
+- **Race conditions**: Synchronize concurrent access
+
+## After You Pass
+
+Build a **Semantic Cache** on top of LRU for intelligent caching, or implement a multi-tier cache with Redis backend.
+
+## Resources
+
+### Documentation
+- [JavaScript Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) - Ordered key-value store
+- [Node.js LRU Cache](https://www.npmjs.com/package/lru-cache) - Production implementation
+
+### Tutorials
+- ["LRU Cache Explained"](https://www.geeksforgeeks.org/lru-cache-implementation/) - GeeksforGeeks
+- ["Caching Strategies"](https://www.youtube.com/watch?v=hwHRI59iGlw) - System Design Primer
+
+### Libraries
+- [lru-cache](https://github.com/isaacs/node-lru-cache) - Popular Node.js implementation
+- [quick-lru](https://github.com/sindresorhus/quick-lru) - Faster alternative

@@ -3,28 +3,501 @@ title: "Conversation Buffer Memory"
 description: "Implement sliding window conversation memory for multi-turn RAG"
 difficulty: "medium"
 xpReward: 100
+prerequisites: ["agent-long-term-memory"]
+related: ["entity-memory", "conversational-rag", "context-window-optimization"]
+next: ["conversational-query-rewrite"]
 ---
+
+<Callout title="Goal" variant="info">
+  Implement sliding window conversation memory for multi-turn RAG that maintains context continuity while respecting token limits.
+</Callout>
 
 # Conversation Buffer Memory
 
 ## Overview
 
-Multi-turn RAG needs context from previous conversation turns. This challenge teaches you to manage conversation history within token limits.
+Multi-turn RAG needs context from previous conversation turns. This challenge teaches you to manage conversation history within token limits for coherent, context-aware responses.
+
+---
 
 ## Why This Matters
 
-- **Context Continuity**: "What about the second one?" needs prior context
-- **Token Management**: LLMs have fixed context windows
-- **User Experience**: Natural conversational flow
+| Challenge | Impact |
+|-----------|--------|
+| **Context Continuity** | "What about the second one?" needs prior context |
+| **Token Management** | LLMs have fixed context windows (4K-200K tokens) |
+| **User Experience** | Natural conversational flow builds trust |
+| **Cost Control** | Unbounded history = exponential costs |
 
-## Key Concepts
+**Real-World Impact**: ChatGPT, Claude, and every production conversational AI use sophisticated memory management.
 
-- Sliding window with max_messages limit
-- Token estimation for context fitting
-- Message role tracking (user/assistant)
-- Context string formatting
+---
+
+## Theory: Memory Management Approaches
+
+### 1. Sliding Window Buffer
+
+```
+Messages: [M1, M2, M3, M4, M5, M6, M7, M8, M9, M10]
+                 ↑ Window Size = 4 ↑
+Active Context: [M7, M8, M9, M10]
+```
+
+```python
+class SlidingWindowBuffer:
+    """Fixed-size message buffer with FIFO eviction."""
+    
+    def __init__(self, max_messages: int = 10):
+        self.max_messages = max_messages
+        self.messages: List[Message] = []
+    
+    def add(self, message: Message) -> None:
+        """Add message, evict oldest if at capacity."""
+        self.messages.append(message)
+        if len(self.messages) > self.max_messages:
+            self.messages.pop(0)  # O(n) - use deque for O(1)
+    
+    def get_context(self) -> List[Message]:
+        """Get current window of messages."""
+        return self.messages.copy()
+```
+
+**Time Complexity**:
+- Add: O(n) with list, O(1) with deque
+- Get: O(k) where k = window size
+- Space: O(k)
+
+### 2. Token-Based Buffer
+
+```python
+class TokenBuffer:
+    """Buffer constrained by token count, not message count."""
+    
+    def __init__(self, max_tokens: int = 4000, 
+                 tokenizer: Optional[Tokenizer] = None):
+        self.max_tokens = max_tokens
+        self.tokenizer = tokenizer or tiktoken.get_encoding("cl100k_base")
+        self.messages: Deque[Message] = deque()
+        self.current_tokens = 0
+    
+    def estimate_tokens(self, message: Message) -> int:
+        """Estimate token count for message."""
+        content = f"{message.role}: {message.content}"
+        return len(self.tokenizer.encode(content))
+    
+    def add(self, message: Message) -> None:
+        """Add message, evict oldest until under token budget."""
+        msg_tokens = self.estimate_tokens(message)
+        
+        # Evict until we have room
+        while (self.current_tokens + msg_tokens > self.max_tokens 
+               and self.messages):
+            removed = self.messages.popleft()
+            self.current_tokens -= self.estimate_tokens(removed)
+        
+        self.messages.append(message)
+        self.current_tokens += msg_tokens
+```
+
+**Token Estimation Formula**:
+$$
+\text{tokens} \approx \frac{\text{chars}}{4} \text{ (rough estimate)}\\
+\text{or use tiktoken for exact count}
+$$
+
+### 3. Summary Buffer (Hybrid)
+
+```python
+class SummaryBuffer:
+    """Keep recent messages in full, summarize older ones."""
+    
+    def __init__(self, max_recent: int = 4, 
+                 summary_token_budget: int = 500):
+        self.max_recent = max_recent
+        self.summary_budget = summary_token_budget
+        self.recent: Deque[Message] = deque(maxlen=max_recent)
+        self.summary: str = ""
+        self.older_messages: List[Message] = []
+    
+    def add(self, message: Message) -> None:
+        """Add message, potentially triggering summary."""
+        if len(self.recent) == self.max_recent:
+            # Move oldest recent to older
+            oldest = self.recent.popleft()
+            self.older_messages.append(oldest)
+            
+            # Regenerate summary if needed
+            if self.should_regenerate_summary():
+                self.summary = self.generate_summary()
+        
+        self.recent.append(message)
+    
+    def get_context(self) -> str:
+        """Get formatted context: summary + recent messages."""
+        parts = []
+        
+        if self.summary:
+            parts.append(f"Summary of earlier conversation:\n{self.summary}")
+        
+        parts.append("Recent messages:")
+        for msg in self.recent:
+            parts.append(f"{msg.role}: {msg.content}")
+        
+        return "\n".join(parts)
+    
+    def generate_summary(self) -> str:
+        """Generate summary of older messages using LLM."""
+        prompt = f"""Summarize this conversation history concisely:
+        
+        {self.format_messages(self.older_messages)}
+        
+        Summary (key facts, decisions, context):"""
+        
+        return llm.generate(prompt, max_tokens=self.summary_budget)
+```
+
+---
+
+## Implementation: Complete Memory Manager
+
+```python
+from dataclasses import dataclass, field
+from typing import List, Optional, Literal, Deque
+from collections import deque
+import time
+
+@dataclass
+class Message:
+    """A single message in the conversation."""
+    role: Literal["user", "assistant", "system", "tool"]
+    content: str
+    timestamp: float = field(default_factory=time.time)
+    metadata: dict = field(default_factory=dict)
+
+@dataclass  
+class MemoryConfig:
+    """Configuration for memory management."""
+    strategy: Literal["window", "token", "summary"] = "token"
+    max_messages: int = 20
+    max_tokens: int = 4000
+    max_recent: int = 6
+    summary_tokens: int = 500
+
+class ConversationBuffer:
+    """
+    Production-grade conversation memory for RAG systems.
+    
+    Supports three strategies:
+    - window: Fixed number of recent messages
+    - token: Messages fitting within token budget
+    - summary: Keep recent in full, summarize rest
+    """
+    
+    def __init__(self, config: Optional[MemoryConfig] = None):
+        self.config = config or MemoryConfig()
+        self.messages: Deque[Message] = deque()
+        self.summary: str = ""
+        self._token_count = 0
+    
+    def add_user_message(self, content: str, **metadata) -> None:
+        """Add a user message to the buffer."""
+        self._add_message(Message(
+            role="user", 
+            content=content,
+            metadata=metadata
+        ))
+    
+    def add_assistant_message(self, content: str, **metadata) -> None:
+        """Add an assistant message to the buffer."""
+        self._add_message(Message(
+            role="assistant",
+            content=content,
+            metadata=metadata
+        ))
+    
+    def add_tool_result(self, tool_name: str, result: str) -> None:
+        """Add a tool execution result."""
+        self._add_message(Message(
+            role="tool",
+            content=f"[{tool_name}] {result}",
+            metadata={"tool": tool_name}
+        ))
+    
+    def _add_message(self, message: Message) -> None:
+        """Internal add with strategy-specific handling."""
+        if self.config.strategy == "window":
+            self._add_window(message)
+        elif self.config.strategy == "token":
+            self._add_token(message)
+        else:  # summary
+            self._add_summary(message)
+    
+    def _add_window(self, message: Message) -> None:
+        """Sliding window strategy."""
+        self.messages.append(message)
+        while len(self.messages) > self.config.max_messages:
+            self.messages.popleft()
+    
+    def _add_token(self, message: Message) -> None:
+        """Token-bounded strategy."""
+        msg_tokens = self._estimate_tokens(message)
+        
+        while (self._token_count + msg_tokens > self.config.max_tokens 
+               and self.messages):
+            removed = self.messages.popleft()
+            self._token_count -= self._estimate_tokens(removed)
+        
+        self.messages.append(message)
+        self._token_count += msg_tokens
+    
+    def _add_summary(self, message: Message) -> None:
+        """Summary buffer strategy."""
+        # Keep recent messages
+        if len(self.messages) >= self.config.max_recent:
+            # Move to summary-eligible
+            if not hasattr(self, '_older'):
+                self._older: List[Message] = []
+            self._older.append(self.messages.popleft())
+        
+        self.messages.append(message)
+    
+    def _estimate_tokens(self, message: Message) -> int:
+        """Rough token estimation (4 chars ≈ 1 token)."""
+        return len(message.content) // 4 + len(message.role) // 4 + 4
+    
+    def get_messages(self, n: Optional[int] = None) -> List[Message]:
+        """Get messages for context, newest last."""
+        msgs = list(self.messages)
+        if n:
+            msgs = msgs[-n:]
+        return msgs
+    
+    def get_context_string(self, n: Optional[int] = None) -> str:
+        """Get formatted context for LLM prompt."""
+        parts = []
+        
+        # Include summary if available
+        if self.summary:
+            parts.append(f"Previous context summary:\n{self.summary}\n")
+        
+        # Add messages
+        parts.append("Conversation history:")
+        for msg in self.get_messages(n):
+            role_label = msg.role.capitalize()
+            parts.append(f"{role_label}: {msg.content}")
+        
+        return "\n".join(parts)
+    
+    def get_history_for_rag(self, query: str) -> str:
+        """Get conversation history formatted for RAG query enhancement."""
+        context = self.get_context_string(n=5)
+        return f"""Given this conversation history:
+{context}
+
+The user asks: "{query}"
+
+Consider the conversation context when retrieving relevant documents."""
+    
+    def clear(self) -> None:
+        """Clear all memory."""
+        self.messages.clear()
+        self.summary = ""
+        self._token_count = 0
+    
+    def to_dict(self) -> dict:
+        """Serialize for storage."""
+        return {
+            "strategy": self.config.strategy,
+            "messages": [
+                {
+                    "role": m.role,
+                    "content": m.content,
+                    "timestamp": m.timestamp,
+                    "metadata": m.metadata
+                }
+                for m in self.messages
+            ],
+            "summary": self.summary
+        }
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> "ConversationBuffer":
+        """Deserialize from storage."""
+        config = MemoryConfig(strategy=data.get("strategy", "token"))
+        buffer = cls(config)
+        buffer.summary = data.get("summary", "")
+        
+        for m in data.get("messages", []):
+            buffer.messages.append(Message(
+                role=m["role"],
+                content=m["content"],
+                timestamp=m.get("timestamp", time.time()),
+                metadata=m.get("metadata", {})
+            ))
+        
+        return buffer
+```
+
+---
 
 ## Real-World Applications
 
-ChatGPT, Claude, and every conversational AI uses some form of conversation memory management.
+### Company Examples
 
+| Company | Implementation | Scale |
+|---------|---------------|-------|
+| **OpenAI (ChatGPT)** | Token-based with smart truncation | Billions of conversations |
+| **Anthropic (Claude)** | Sliding window with compression | Enterprise deployments |
+| **Google (Bard/Gemini)** | Hierarchical memory with summaries | Multi-turn reasoning |
+| **Perplexity** | Context-aware with source tracking | Research conversations |
+
+### Industry Use Cases
+
+```python
+# Customer Support
+support_buffer = ConversationBuffer(
+    config=MemoryConfig(
+        strategy="summary",
+        max_recent=10,  # Keep full context for ticket
+        summary_tokens=300
+    )
+)
+
+# Document Analysis
+doc_buffer = ConversationBuffer(
+    config=MemoryConfig(
+        strategy="token",  # Fit in smaller model context
+        max_tokens=2000
+    )
+)
+
+# Code Assistant
+code_buffer = ConversationBuffer(
+    config=MemoryConfig(
+        strategy="window",
+        max_messages=50  # Code needs lot of context
+    )
+)
+```
+
+---
+
+## Challenge Requirements
+
+### Your Task
+
+Implement a `ConversationBuffer` that:
+
+1. **Tracks messages** with role, content, timestamp, metadata
+2. **Manages token budget** using estimation
+3. **Maintains conversation flow** across multiple turns
+4. **Clears oldest messages** when budget exceeded
+5. **Provides formatted context** for RAG enhancement
+
+### Test Cases
+
+```python
+def test_sliding_window():
+    buffer = ConversationBuffer(
+        config=MemoryConfig(strategy="window", max_messages=3)
+    )
+    
+    buffer.add_user_message("Hello")
+    buffer.add_assistant_message("Hi there!")
+    buffer.add_user_message("What's the weather?")
+    buffer.add_assistant_message("It's sunny.")
+    
+    msgs = buffer.get_messages()
+    assert len(msgs) == 3
+    assert msgs[0].content == "Hi there!"  # Oldest removed
+
+def test_token_budget():
+    buffer = ConversationBuffer(
+        config=MemoryConfig(strategy="token", max_tokens=100)
+    )
+    
+    # Each message ~25 tokens (100 chars / 4)
+    for i in range(10):
+        buffer.add_user_message("A" * 100)
+    
+    # Should keep ~4 messages
+    assert len(buffer.get_messages()) <= 5
+
+def test_rag_context():
+    buffer = ConversationBuffer()
+    buffer.add_user_message("Tell me about Python")
+    buffer.add_assistant_message("Python is a programming language...")
+    buffer.add_user_message("What about JavaScript?")
+    
+    context = buffer.get_history_for_rag("What about Java?")
+    assert "Python" in context
+    assert "JavaScript" in context
+```
+
+---
+
+## Production Considerations
+
+### Memory Persistence
+
+```python
+import redis
+import json
+
+class PersistentConversationBuffer(ConversationBuffer):
+    """Buffer with Redis persistence."""
+    
+    def __init__(self, conversation_id: str, 
+                 redis_client: redis.Redis,
+                 config: Optional[MemoryConfig] = None):
+        super().__init__(config)
+        self.conversation_id = conversation_id
+        self.redis = redis_client
+        self._load()
+    
+    def _add_message(self, message: Message) -> None:
+        super()._add_message(message)
+        self._save()
+    
+    def _save(self):
+        """Persist to Redis."""
+        key = f"conversation:{self.conversation_id}"
+        self.redis.setex(
+            key,
+            timedelta(hours=24),
+            json.dumps(self.to_dict())
+        )
+    
+    def _load(self):
+        """Load from Redis."""
+        key = f"conversation:{self.conversation_id}"
+        data = self.redis.get(key)
+        if data:
+            loaded = self.from_dict(json.loads(data))
+            self.messages = loaded.messages
+            self.summary = loaded.summary
+```
+
+### Performance Metrics
+
+| Metric | Target | Monitoring |
+|--------|--------|------------|
+| Add latency | <5ms | Track P99 |
+| Context generation | <10ms | Track P99 |
+| Memory usage | <configured limit | Alert at 90% |
+| Hit rate | >95% | Redis monitoring |
+
+---
+
+## Summary
+
+Conversation Buffer Memory is foundational for multi-turn RAG:
+
+1. **Choose strategy** based on use case (window/token/summary)
+2. **Monitor token usage** to stay within LLM context limits
+3. **Persist conversations** for continuity across sessions
+4. **Format for RAG** to enhance retrieval with conversation context
+
+---
+
+**Next:** [Conversational Query Rewrite](conversational-query-rewrite) - Learn to expand follow-up queries using conversation context.

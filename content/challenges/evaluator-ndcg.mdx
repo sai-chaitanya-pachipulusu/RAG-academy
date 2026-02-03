@@ -1,4 +1,15 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "nDCG (Normalized Discounted Cumulative Gain) Evaluator"
+description: "Implement Normalized Discounted Cumulative Gain (nDCG) for graded relevance ranking."
+difficulty: "medium"
+estimatedMinutes: 25
+prerequisites: ["evaluator-map", "evaluator-mrr"]
+related: ["evaluator-map", "beir-evaluation-setup", "mteb-evaluation"]
+next: "beir-evaluation-setup"
+xpReward: 75
+---
+
+<Callout title="Goal" variant="info">
   Implement Normalized Discounted Cumulative Gain (nDCG) for graded relevance
   ranking.
 </Callout>
@@ -40,6 +51,25 @@ This gives a score between 0 and 1, where **1.0 = perfect ranking**.
 
 DCG@4 = 3.00 + 1.26 + 0.00 + 0.43 = **4.69**
 
+## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity |
+|-----------|-----------------|------------------|
+| DCG computation | O(K log K) | O(K) |
+| IDCG computation | O(K log K) | O(K) |
+| nDCG computation | O(K log K) | O(K) |
+
+The log factor comes from sorting for IDCG computation.
+
+## Real-World Context
+
+| Company | Use Case | nDCG Application |
+|---------|----------|------------------|
+| **Google** | Web search | nDCG@10 for ranking quality |
+| **Amazon** | Product search | nDCG for relevance grading |
+| **Netflix** | Content recommendation | nDCG for personalized ranking |
+| **Spotify** | Music discovery | nDCG for playlist quality |
+
 ## When to use nDCG vs Recall
 
 - **Recall@K**: "Did we find it?" (binary)
@@ -47,3 +77,165 @@ DCG@4 = 3.00 + 1.26 + 0.00 + 0.43 = **4.69**
 
 For RAG, use Recall@K for retrieval debugging and nDCG for reranker evaluation.
 
+## Resources
+
+### Papers
+- **"Cumulated Gain-based Evaluation of IR Techniques"** - Järvelin & Kekäläinen (2002) - Original nDCG paper
+- **"Discounted Cumulative Gain"** - Foundational work on graded relevance
+
+### Documentation
+- [scikit-learn DCG](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.dcg_score.html)
+- [nDCG in Information Retrieval](https://en.wikipedia.org/wiki/Discounted_cumulative_gain)
+
+### Tools
+- **BEIR**: Benchmarking IR with nDCG metrics
+- **ir-measures**: Comprehensive IR metrics library
+- **pytrec_eval**: TREC evaluation with nDCG support
+
+## Implementation
+
+```python
+import math
+from typing import List, Dict
+
+def dcg_at_k(relevances: List[float], k: int) -> float:
+    """
+    Compute DCG@K.
+    
+    DCG = sum(rel_i / log2(i + 2)) for i in range(k)
+    """
+    dcg = 0.0
+    for i, rel in enumerate(relevances[:k], start=1):
+        dcg += rel / math.log2(i + 1)
+    return dcg
+
+
+def ndcg_at_k(retrieved: List[str], relevance: Dict[str, float], k: int) -> float:
+    """
+    Compute nDCG@K.
+    
+    Args:
+        retrieved: Ordered list of retrieved document IDs
+        relevance: Dict mapping doc_id to relevance score
+        k: Cutoff position
+    
+    Returns:
+        nDCG score between 0.0 and 1.0
+    """
+    # Get relevance scores for retrieved docs
+    retrieved_relevances = [relevance.get(doc, 0.0) for doc in retrieved[:k]]
+    
+    # Compute DCG
+    actual_dcg = dcg_at_k(retrieved_relevances, k)
+    
+    # Compute IDCG (ideal DCG)
+    ideal_relevances = sorted(relevance.values(), reverse=True)[:k]
+    ideal_dcg = dcg_at_k(ideal_relevances, k)
+    
+    if ideal_dcg == 0:
+        return 0.0
+    
+    return actual_dcg / ideal_dcg
+```
+
+## Challenge: Implement nDCG
+
+### Requirements
+
+1. Implement `dcg_at_k(relevances, k)` function
+2. Implement `ndcg_at_k(retrieved, relevance, k)` function
+3. Handle edge cases (empty relevance, zero ideal DCG)
+4. Add comprehensive test cases
+
+### Starter Code
+
+```python
+import math
+from typing import List, Dict
+
+def dcg_at_k(relevances: List[float], k: int) -> float:
+    """Compute DCG@K."""
+    # TODO: Implement DCG calculation
+    pass
+
+def ndcg_at_k(retrieved: List[str], relevance: Dict[str, float], k: int) -> float:
+    """Compute nDCG@K."""
+    # TODO: Implement nDCG calculation
+    pass
+
+
+# Test your implementation
+def test_ndcg():
+    # Test 1: Perfect nDCG
+    relevance = {"a": 3.0, "b": 2.0, "c": 1.0}
+    assert ndcg_at_k(["a", "b", "c"], relevance, 3) == 1.0
+    
+    # Test 2: Imperfect ranking
+    # Retrieved: [b, a, c] - not in perfect order
+    # DCG = 2/log2(2) + 3/log2(3) + 1/log2(4) = 2 + 1.89 + 0.5 = 4.39
+    # IDCG = 3/log2(2) + 2/log2(3) + 1/log2(4) = 3 + 1.26 + 0.5 = 4.76
+    # nDCG = 4.39 / 4.76 ≈ 0.92
+    result = ndcg_at_k(["b", "a", "c"], relevance, 3)
+    assert 0.9 < result < 1.0
+    
+    # Test 3: DCG calculation
+    relevances = [3.0, 2.0, 0.0, 1.0]
+    # DCG = 3/1 + 2/1.58 + 0/2 + 1/2.32 = 3 + 1.26 + 0 + 0.43 = 4.69
+    result = dcg_at_k(relevances, 4)
+    assert 4.5 < result < 4.8
+    
+    # Test 4: No relevance scores
+    assert ndcg_at_k(["a", "b"], {}, 2) == 0.0
+    
+    print("All tests passed!")
+
+test_ndcg()
+```
+
+### Solution
+
+<details>
+<summary>Click to reveal solution</summary>
+
+```python
+import math
+from typing import List, Dict
+
+def dcg_at_k(relevances: List[float], k: int) -> float:
+    """
+    Compute DCG@K.
+    
+    DCG = sum(rel_i / log2(i + 1)) for i in range(1, k+1)
+    """
+    dcg = 0.0
+    for i, rel in enumerate(relevances[:k], start=1):
+        dcg += rel / math.log2(i + 1)
+    return dcg
+
+
+def ndcg_at_k(retrieved: List[str], relevance: Dict[str, float], k: int) -> float:
+    """
+    Compute nDCG@K.
+    
+    nDCG = DCG / IDCG
+    """
+    if k <= 0:
+        return 0.0
+    
+    # Get relevance scores for retrieved docs
+    retrieved_relevances = [relevance.get(doc, 0.0) for doc in retrieved[:k]]
+    
+    # Compute DCG
+    actual_dcg = dcg_at_k(retrieved_relevances, k)
+    
+    # Compute IDCG (ideal DCG with perfect ranking)
+    ideal_relevances = sorted(relevance.values(), reverse=True)[:k]
+    ideal_dcg = dcg_at_k(ideal_relevances, k)
+    
+    if ideal_dcg == 0:
+        return 0.0
+    
+    return actual_dcg / ideal_dcg
+```
+
+</details>

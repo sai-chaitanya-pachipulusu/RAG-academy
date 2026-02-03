@@ -1,24 +1,271 @@
+---
+title: "Groundedness Check (TypeScript)"
+description: "Build a groundedness checker to verify LLM claims against sources."
+language: "typescript"
+difficulty: "advanced"
+category: "evaluation"
+prerequisites: ["ts-cosine-similarity", "ts-citation-extractor"]
+related: ["faithfulness-judge", "hallucination-detection", "ts-answer-confidence"]
+tags: ["groundedness", "fact-checking", "hallucination", "verification"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Build a groundedness checker to verify LLM claims against sources.
+  Build a groundedness checker to verify that LLM claims are supported by retrieved context.
 </Callout>
 
-## Why this matters in production
+## Why Groundedness Checking Matters in Production
 
-Groundedness checking prevents hallucinations by verifying that LLM claims are supported by retrieved context. This is how production RAG systems build trust.
+Groundedness checking prevents hallucinations by verifying that LLM claims are supported by retrieved context. This is how production RAG systems build trust. Without groundedness checking:
 
-## What you're implementing
+- LLMs may invent facts not in the sources
+- Users can't verify answer accuracy
+- Compliance requirements can't be met
+- System reliability suffers
 
-- Split response into individual claims.
-- Check each claim against source documents.
-- Calculate overall groundedness score.
-- List unsupported claims for review.
+### Real-World Scenario
 
-## Common pitfalls
+A medical Q&A system answering "What are the side effects of aspirin?"
 
-- Splitting on punctuation inside quotes.
-- Setting similarity threshold too high (false negatives).
+**LLM Response:**
+> "Aspirin commonly causes stomach upset [1]. It may also reduce the risk of heart attack [2]. However, it can cause Reye's syndrome in children [3]."
 
-## After you pass
+**Groundedness Check:**
+- Claim 1: "stomach upset" → Found in source [1] ✓
+- Claim 2: "reduce heart attack risk" → Found in source [2] ✓
+- Claim 3: "Reye's syndrome in children" → NOT found in any source ✗
 
-Use this in your RAG pipeline to flag potentially hallucinated content.
+**Result**: Flag claim 3 for review or remove from answer.
 
+## The Mathematical Foundation
+
+### Groundedness Score
+
+```
+groundedness = (supported_claims) / (total_claims)
+```
+
+| Score | Interpretation | Action |
+|-------|---------------|--------|
+| 1.0 | Fully grounded | Deliver with confidence |
+| 0.7-0.9 | Mostly grounded | Minor caveats |
+| 0.5-0.7 | Partially grounded | Significant caveats |
+| <0.5 | Poorly grounded | Reject or escalate |
+
+### Claim Extraction
+
+Split response into atomic claims:
+
+```
+"Aspirin causes stomach upset and reduces heart attack risk."
+→
+1. "Aspirin causes stomach upset"
+2. "Aspirin reduces heart attack risk"
+```
+
+Methods:
+- **Sentence splitting**: Simple but may miss compound claims
+- **LLM extraction**: Accurate but expensive
+- **Dependency parsing**: Linguistic approach
+
+### Claim Verification
+
+For each claim, find supporting evidence:
+
+```
+verification_score = max(similarity(claim_embedding, source_embedding))
+
+if verification_score > threshold:
+    claim is supported
+else:
+    claim is unsupported
+```
+
+## Theoretical Deep Dive
+
+### Types of Groundedness
+
+| Type | Definition | Example |
+|------|-----------|---------|
+| **Entailment** | Source directly implies claim | Source: "A causes B", Claim: "A causes B" |
+| **Paraphrase** | Claim restates source | Source: "B is caused by A", Claim: "A causes B" |
+| **Inference** | Claim logically follows | Source: "All A are B, X is A", Claim: "X is B" |
+| **Unsupported** | No evidence in sources | Source: "A exists", Claim: "A causes B" |
+| **Contradicted** | Source contradicts claim | Source: "A does not cause B", Claim: "A causes B" |
+
+### The Attribution Problem
+
+Groundedness requires **attribution** — linking claims to specific sources:
+
+```
+Claim ←→ Source Passage ←→ Source Document
+```
+
+Challenges:
+- **Abstractive summarization**: LLM paraphrases, making matching hard
+- **Synthesis**: LLM combines multiple sources
+- **Implication**: LLM draws unstated conclusions
+
+### Semantic vs Lexical Matching
+
+| Method | Pros | Cons |
+|--------|------|------|
+| **Lexical (exact)** | Precise, fast | Misses paraphrases |
+| **Semantic (embedding)** | Catches paraphrases | May have false positives |
+| **Hybrid** | Balanced | More complex |
+
+## Production Considerations
+
+### Threshold Tuning
+
+Balance precision vs recall:
+
+```typescript
+const thresholds = {
+  strict: 0.8,    // High precision, may miss valid paraphrases
+  balanced: 0.6,  // Default
+  lenient: 0.4    // High recall, may allow hallucinations
+};
+```
+
+### Claim Granularity
+
+Too coarse: Misses partial hallucinations
+Too fine: Excessive computation
+
+Optimal: One claim per fact/assertion
+
+### Real-time vs Batch
+
+| Mode | Use Case | Latency |
+|------|----------|---------|
+| **Real-time** | User-facing responses | <100ms |
+| **Batch** | Content moderation, audit | Minutes acceptable |
+
+## Your Task
+
+Implement a groundedness checker:
+
+```typescript
+interface Claim {
+  text: string;
+  position: { start: number; end: number };
+}
+
+interface Source {
+  id: string;
+  text: string;
+  embedding?: number[];
+}
+
+interface VerificationResult {
+  claim: Claim;
+  isSupported: boolean;
+  confidence: number;      // 0-1 similarity score
+  supportingSource?: string;
+  supportingText?: string;
+}
+
+interface GroundednessResult {
+  score: number;           // 0-1 overall groundedness
+  claims: VerificationResult[];
+  unsupportedClaims: Claim[];
+  stats: {
+    totalClaims: number;
+    supportedClaims: number;
+    unsupportedClaims: number;
+  };
+}
+
+interface GroundednessConfig {
+  similarityThreshold: number;  // Min similarity to consider supported (default: 0.7)
+  claimSplitter?: 'sentence' | 'llm';  // Method to split into claims
+}
+
+function checkGroundedness(
+  response: string,
+  sources: Source[],
+  config?: Partial<GroundednessConfig>
+): GroundednessResult {
+  /**
+   * Check if LLM response is grounded in provided sources.
+   * 
+   * Args:
+   *   response: LLM-generated text to check
+   *   sources: Retrieved context documents
+   *   config: Optional configuration
+   * 
+   * Returns:
+   *   GroundednessResult with score and per-claim verification
+   * 
+   * Algorithm:
+   *   1. Split response into atomic claims
+   *   2. For each claim:
+   *      a. Compute embedding
+   *      b. Find most similar source passage
+   *      c. Mark as supported if similarity > threshold
+   *   3. Calculate overall groundedness score
+   *   4. Return detailed results
+   * 
+   * Edge Cases:
+   *   - Empty response: return score 0, no claims
+   *   - No sources: all claims unsupported
+   *   - Very short claims: may need special handling
+   */
+}
+
+function splitIntoClaims(text: string, method: string): Claim[] {
+  /**
+   * Split text into atomic claims.
+   * 
+   * Sentence method: Split on sentence boundaries
+   * LLM method: Use LLM to extract factual claims (not implemented here)
+   */
+}
+
+function findBestMatch(
+  claim: Claim,
+  sources: Source[]
+): { source: Source; similarity: number; passage: string } | null {
+  /**
+   * Find the best matching source passage for a claim.
+   * Returns null if no source exceeds threshold.
+   */
+}
+```
+
+### Validation Checklist
+
+- [ ] Empty response handled (score 0, no claims)
+- [ ] Each claim checked against all sources
+- [ ] Best match selected per claim
+- [ ] Threshold comparison correct (>= vs >)
+- [ ] Score calculated as supported/total
+- [ ] Unsupported claims listed separately
+- [ ] Position tracking accurate for highlighting
+
+## Common Pitfalls
+
+- **Splitting on punctuation inside quotes**: "Dr. Smith said..." shouldn't split
+- **Setting similarity threshold too high**: False negatives on paraphrases
+- **Not handling negation**: "Aspirin doesn't cause X" vs "Aspirin causes X"
+- **Ignoring claim context**: Surrounding text may clarify
+- **Single-sentence claims**: Compound sentences need splitting
+
+## After You Pass
+
+Use this in your RAG pipeline to flag potentially hallucinated content, or combine with confidence scoring for comprehensive answer quality assessment.
+
+## Resources
+
+### Academic Papers
+- ["Evaluating Verifiability in Generative Search Engines"](https://arxiv.org/abs/2304.09848) - Liu et al.
+- ["FActScore: Fine-grained Atomic Evaluation of Factual Precision"](https://arxiv.org/abs/2305.14251) - Min et al.
+- ["RAGAS: Automated Evaluation of Retrieval Augmented Generation"](https://arxiv.org/abs/2309.15217) - Es et al.
+
+### Documentation
+- [LangChain Fact Checking](https://python.langchain.com/docs/guides/evaluation/) - Evaluation patterns
+- [OpenAI Embeddings](https://platform.openai.com/docs/guides/embeddings) - Semantic similarity
+
+### Tutorials
+- ["Building Trustworthy AI"](https://pair.withgoogle.com/guidebook/) - Google PAIR
+- ["Hallucination Detection"](https://blog.langchain.dev/fighting-hallucinations/) - LangChain blog

@@ -2,6 +2,17 @@
   Parse the "Thought/Action/Observation" loop output from an LLM.
 </Callout>
 
+---
+
+title: "ReAct Implementation"
+description: "Build the reasoning-acting loop that powers modern AI agents"
+difficulty: "intermediate"
+timeEstimate: "35-45 min"
+xpReward: 100
+topics: ["agentic-rag", "react", "reasoning"]
+prerequisites: ["tool-use-basics"]
+---
+
 ## The ReAct Pattern
 
 **ReAct** (Reason + Act) is the prompting pattern that enabled modern agents.
@@ -18,13 +29,171 @@ Thought: The price is 150. I can answer now.
 Answer: The price of Apple is $150.
 ```
 
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand the ReAct agent loop pattern
+- Be able to parse structured LLM outputs for tool use
+- Know how to build agents that reason and act
+- Implement error handling for malformed outputs
+
+## Real-World Applications
+
+| System | ReAct Use |
+|--------|-----------|
+| **ChatGPT Plugins** | Tool selection and execution |
+| **LangChain Agents** | Multi-step reasoning |
+| **AutoGPT** | Autonomous task completion |
+| **Enterprise assistants** | Complex workflow automation |
+
+### Company Examples
+
+| Company | Implementation |
+|---------|---------------|
+| **Google DeepMind** | Original ReAct paper authors |
+| **OpenAI** | ChatGPT's plugin system |
+| **Microsoft** | Copilot's reasoning engine |
+| **LangChain** | ReAct agent implementation |
+
+## The ReAct Loop
+
+```
+User Query: "What's Apple's stock price?"
+    ↓
+LLM generates:
+  Thought: I need to check the current stock price for Apple.
+  Action: stock_lookup
+  Action Input: AAPL
+    ↓
+Parser extracts: action="stock_lookup", input="AAPL"
+    ↓
+Execute tool → Observation: "150.25"
+    ↓
+LLM generates:
+  Thought: The stock price is $150.25.
+  Answer: Apple's stock is currently trading at $150.25.
+```
+
+### ReAct Algorithm
+
+$$\text{ReAct}(q) = \begin{cases} 
+\text{LLM}(q, H) \rightarrow (T, A, I) & \text{if not done} \\
+\text{Execute}(A, I) \rightarrow O & \text{tool execution} \\
+H \leftarrow H \cup \{(T, A, I, O)\} & \text{update history}
+\end{cases}$$
+
+Where:
+- $q$ = query
+- $H$ = history of thoughts, actions, inputs, observations
+- $T$ = thought
+- $A$ = action
+- $I$ = action input
+- $O$ = observation
+
 ## Why parsing matters
 
 LLMs output text. To make them "do" things, you need a reliable parser that can extract the `Action` and `Input` so your code can execute the function.
 If the parser fails, the agent crashes.
 
+### Parsing Complexity
+
+| Approach | Time | Accuracy | Use Case |
+|----------|------|----------|----------|
+| Regex | O(n) | 85% | Simple, fast |
+| JSON Mode | O(1) | 95% | Structured output |
+| Pydantic | O(n) | 98% | Validation heavy |
+
 ## Implementation details
 
-- You typically use **RegEx** or strict **JSON mode** to enforce this structure.
-- The `Thought` trace is crucial for debugging—it shows you _why_ the agent chose a tool.
+You typically use **RegEx** or strict **JSON mode** to enforce this structure.
+The `Thought` trace is crucial for debugging—it shows you _why_ the agent chose a tool.
 
+### ReAct Parser Implementation
+
+```python
+import re
+from dataclasses import dataclass
+from typing import Optional
+
+@dataclass
+class ReActStep:
+    thought: str
+    action: str
+    action_input: str
+    observation: Optional[str] = None
+
+class ReActParser:
+    """Parse ReAct format LLM outputs."""
+    
+    # Regex patterns for extraction
+    THOUGHT_PATTERN = r'Thought:\s*(.+?)(?=\nAction:|$)'
+    ACTION_PATTERN = r'Action:\s*(\w+)'
+    INPUT_PATTERN = r'Action Input:\s*(.+?)(?=\n|$)'
+    
+    def parse(self, output: str) -> ReActStep:
+        """
+        Parse ReAct output into structured step.
+        
+        Time Complexity: O(n) where n = output length
+        Space Complexity: O(1)
+        """
+        thought = self._extract_thought(output)
+        action = self._extract_action(output)
+        action_input = self._extract_input(output)
+        
+        return ReActStep(
+            thought=thought,
+            action=action,
+            action_input=action_input
+        )
+    
+    def _extract_thought(self, output: str) -> str:
+        match = re.search(self.THOUGHT_PATTERN, output, re.DOTALL)
+        return match.group(1).strip() if match else ""
+    
+    def _extract_action(self, output: str) -> str:
+        match = re.search(self.ACTION_PATTERN, output)
+        return match.group(1).strip() if match else ""
+    
+    def _extract_input(self, output: str) -> str:
+        match = re.search(self.INPUT_PATTERN, output, re.DOTALL)
+        return match.group(1).strip() if match else ""
+```
+
+## Common pitfalls
+
+- Not validating the action is in the allowed tool list.
+- Missing error handling for malformed outputs.
+- Not logging the thought trace for debugging.
+- Infinite loops without max iteration limits.
+
+## Resources
+
+### Papers
+- [ReAct: Synergizing Reasoning and Acting in Language Models](https://arxiv.org/abs/2210.03629) - Original paper
+- [Reflexion: Self-Reflective Agents](https://arxiv.org/abs/2303.11366) - Self-improving agents
+- [Reasoning with Language Model is Planning with World Model](https://arxiv.org/abs/2305.14992) - Advanced reasoning
+
+### Documentation
+- [LangChain ReAct Agents](https://python.langchain.com/docs/concepts/agents/)
+- [OpenAI Function Calling](https://platform.openai.com/docs/guides/function-calling)
+- [LlamaIndex Agents](https://docs.llamaindex.ai/en/stable/understanding/agents/)
+
+### Tutorials
+- [Building ReAct Agents from Scratch](https://www.youtube.com/watch?v=0g2jB0U1eNc) - Code explanation
+- [ReAct Pattern Tutorial](https://react-lm.github.io/) - Official examples
+
+### Tools
+- [LangChain](https://python.langchain.com/) - Agent framework
+- [AutoGen](https://microsoft.github.io/autogen/) - Multi-agent conversations
+- [CrewAI](https://www.crewai.com/) - Role-based agents
+
+## Related Challenges
+
+- **Prerequisites**: [tool-use-basics](tool-use-basics)
+- **Next**: [agentic-rag-workflows](agentic-rag-workflows) - Combine RAG with agents
+- **Related**: [multi-step-reasoning](multi-step-reasoning), [self-correction-loop](self-correction-loop)
+
+---
+
+**🧠 Agent Core:** ReAct is the foundation of modern AI agents. Master this pattern to build systems that can reason through complex tasks!

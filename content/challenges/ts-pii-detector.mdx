@@ -1,23 +1,266 @@
+---
+title: "PII Detector (TypeScript)"
+description: "Build a PII detector for data privacy compliance."
+language: "typescript"
+difficulty: "intermediate"
+category: "security"
+prerequisites: ["ts-injection-detector"]
+related: ["pii-filtering", "pii-redaction", "output-safety-filter"]
+tags: ["pii", "privacy", "security", "compliance", "gdpr"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Build a PII detector for data privacy compliance.
+  Build a PII (Personally Identifiable Information) detector for GDPR, HIPAA, and other compliance frameworks.
 </Callout>
 
-## Why this matters in production
+## Why PII Detection Matters in Production
 
-PII detection is required for GDPR, HIPAA, and other compliance frameworks. Every production RAG system that handles user data needs this.
+PII detection is required for GDPR, HIPAA, and other compliance frameworks. Every production RAG system that handles user data needs this. PII detection enables:
 
-## What you're implementing
+- **Compliance**: Meet regulatory requirements
+- **Privacy**: Protect user sensitive information
+- **Trust**: Build user confidence in data handling
+- **Risk mitigation**: Prevent data breaches
 
-- Detect: email, phone, SSN, credit card, IP address.
-- Track match positions for highlighting.
-- Redact by replacing with type labels like [EMAIL].
+### Real-World Scenario
 
-## Common pitfalls
+A customer support chatbot receives:
 
-- Regex too loose (false positives).
-- Regex too strict (missed PII).
+> "Hi, I'm John Smith. My email is john.smith@email.com and my phone is (555) 123-4567. My SSN is 123-45-6789."
 
-## After you pass
+**PII Detected:**
+- Name: "John Smith"
+- Email: "john.smith@email.com"
+- Phone: "(555) 123-4567"
+- SSN: "123-45-6789"
 
-Combine with **Prompt Injection Detector** for comprehensive input safety.
+**Actions:**
+- Log with redaction: "Hi, I'm [NAME]. My email is [EMAIL]..."
+- Flag for review before storage
+- Apply retention policies
+- Block from training data
 
+## The Mathematical Foundation
+
+### PII Categories
+
+| Type | Pattern Example | Regex Approach |
+|------|-----------------|----------------|
+| **Email** | `user@domain.com` | `[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}` |
+| **Phone** | `(555) 123-4567` | Multiple formats (US, international) |
+| **SSN** | `123-45-6789` | `\d{3}-\d{2}-\d{4}` |
+| **Credit Card** | `4532-1234-5678-9012` | Luhn algorithm validation |
+| **IP Address** | `192.168.1.1` | IPv4 and IPv6 patterns |
+
+### Confidence Scoring
+
+```
+confidence = pattern_match_score × context_score
+
+pattern_match_score: 0-1 based on regex match quality
+context_score: 0-1 based on surrounding context (optional)
+```
+
+### Detection Pipeline
+
+```
+Input Text → Tokenize → Pattern Match → Validate → Redact → Output
+```
+
+## Theoretical Deep Dive
+
+### Types of PII
+
+| Category | Examples | Sensitivity |
+|----------|----------|-------------|
+| **Direct identifiers** | SSN, passport number | Highest |
+| **Quasi-identifiers** | Zip code, birth date | High (combinable) |
+| **Contact info** | Email, phone | Medium |
+| **Financial** | Credit card, bank account | Highest |
+| **Health** | Medical record number | Highest (HIPAA) |
+
+### False Positive Management
+
+| Pattern | False Positive | Solution |
+|---------|---------------|----------|
+| SSN | "My order #123-45-6789" | Context validation |
+| Phone | "Version 1.2.3-4567" | Format validation |
+| Email | "user@localhost" | Domain validation |
+
+### Context-Aware Detection
+
+Improve accuracy with surrounding context:
+
+```
+"My SSN is 123-45-6789" → High confidence (keyword "SSN")
+"Call 123-45-6789" → Medium confidence (could be phone)
+"Product code: 123-45-6789" → Low confidence (context suggests code)
+```
+
+## Production Considerations
+
+### Compliance Requirements
+
+| Regulation | Requirements |
+|------------|--------------|
+| **GDPR** | Consent, right to deletion, data minimization |
+| **HIPAA** | PHI protection, audit logs, encryption |
+| **CCPA** | Disclosure, opt-out, deletion rights |
+| **PCI DSS** | Card data protection, tokenization |
+
+### Detection Performance
+
+```
+Target: <50ms for typical input
+Method: Optimized regex, avoid LLM-based detection for speed
+```
+
+### Redaction Strategies
+
+| Strategy | Example | Use Case |
+|----------|---------|----------|
+| **Replacement** | "[SSN]" | Logging, analytics |
+| **Hashing** | "a3f7..." | Pseudonymization |
+| **Tokenization** | "tok_123" | Reversible for authorized users |
+| **Truncation** | "***-**-6789" | Partial visibility |
+
+## Your Task
+
+Implement a PII detector:
+
+```typescript
+interface PIIPattern {
+  name: string;
+  regex: RegExp;
+  confidence: number;
+  validator?: (match: string) => boolean;
+}
+
+interface PIIMatch {
+  type: string;
+  value: string;
+  position: { start: number; end: number };
+  confidence: number;
+}
+
+interface DetectionResult {
+  matches: PIIMatch[];
+  hasPii: boolean;
+  redactedText: string;
+  stats: {
+    totalMatches: number;
+    byType: Map<string, number>;
+  };
+}
+
+interface DetectorConfig {
+  patterns?: PIIPattern[];
+  redactionTemplate?: string;  // Default: "[{type}]"
+  minConfidence?: number;      // Default: 0.5
+}
+
+class PIIDetector {
+  private patterns: PIIPattern[];
+
+  constructor(private config: DetectorConfig = {}) {
+    this.patterns = config.patterns || this.getDefaultPatterns();
+  }
+
+  detect(text: string): DetectionResult {
+    /**
+     * Detect PII in text.
+     * 
+     * Args:
+     *   text: Input text to analyze
+     * 
+     * Returns:
+     *   DetectionResult with matches and redacted text
+     * 
+     * Process:
+     *   1. Apply all patterns to text
+     *   2. Validate matches (if validators provided)
+     *   3. Filter by confidence threshold
+     *   4. Sort by position
+     *   5. Generate redacted text
+     * 
+     * Default patterns should detect:
+     *   - Email addresses
+     *   - Phone numbers (US and international)
+     *   - Social Security Numbers
+     *   - Credit card numbers (with Luhn check)
+     *   - IP addresses (IPv4 and IPv6)
+     * 
+     * Edge Cases:
+     *   - Overlapping matches: prioritize higher confidence
+     *   - Nested matches: handle innermost first
+     *   - Empty text: return empty result
+     */
+  }
+
+  redact(text: string, template?: string): string {
+    /**
+     * Redact detected PII from text.
+     * Replace matches with template (default: "[{type}]").
+     */
+  }
+
+  validateCreditCard(cardNumber: string): boolean {
+    /**
+     * Validate credit card using Luhn algorithm.
+     */
+  }
+
+  private getDefaultPatterns(): PIIPattern[] {
+    /**
+     * Return default PII detection patterns.
+     */
+  }
+}
+
+// Convenience function
+function detectPII(text: string, config?: Partial<DetectorConfig>): DetectionResult {
+  const detector = new PIIDetector(config);
+  return detector.detect(text);
+}
+```
+
+### Validation Checklist
+
+- [ ] Email addresses detected correctly
+- [ ] Phone numbers in various formats detected
+- [ ] SSN pattern detected (###-##-####)
+- [ ] Credit cards validated with Luhn algorithm
+- [ ] IP addresses (v4 and v6) detected
+- [ ] Position tracking accurate
+- [ ] Redaction replaces with type label
+- [ ] Confidence threshold filters low-confidence matches
+- [ ] Overlapping matches handled
+
+## Common Pitfalls
+
+- **Regex too loose**: False positives on non-PII
+- **Regex too strict**: Missed PII (false negatives)
+- **Not validating credit cards**: Luhn check catches many false positives
+- **Overlapping matches**: "john@email.com" contains "john" (name) and email
+- **International formats**: Phone/address formats vary by country
+- **Context ignored**: "SSN" keyword increases confidence
+
+## After You Pass
+
+Combine with **Prompt Injection Detector** for comprehensive input safety, or integrate with data loss prevention (DLP) pipelines.
+
+## Resources
+
+### Compliance Documentation
+- [GDPR Text](https://gdpr.eu/) - Official regulation
+- [HIPAA Privacy Rule](https://www.hhs.gov/hipaa/for-professionals/privacy/index.html) - HHS guidance
+- [PCI DSS Standards](https://www.pcisecuritystandards.org/) - Security standards
+
+### Tools and Libraries
+- [Presidio](https://microsoft.github.io/presidio/) - Microsoft PII detection
+- [AWS Comprehend PII](https://docs.aws.amazon.com/comprehend/latest/dg/how-pii.html) - Cloud PII detection
+- [Google Cloud DLP](https://cloud.google.com/dlp) - Data loss prevention
+
+### Tutorials
+- ["Building a PII Scanner"](https://medium.com/@gajdaservices/detecting-pii-in-unstructured-text-7f41e9947f7d) - Implementation guide
+- ["Regex for PII Detection"](https://www.regextutorial.org/regex-for-pii.php) - Pattern reference

@@ -1,14 +1,26 @@
-﻿---
-title: "LLM Context Compression"
-description: "Use an LLM to summarize chunks before passing to the generator."
----
+﻿# Contextual Compression LLM
 
-# LLM Context Compression
+**Difficulty**: Tier 3 - Advanced Retrieval  
+**Prerequisites**: LLM Reranker, Extractive Compression  
+**Time Estimate**: 4-5 hours
 
-Raw retrieved chunks contain noise: irrelevant sentences, boilerplate text, headers. **LLM compression** distills only the relevant facts.
+## Objective
 
-### Before Compression (500 tokens)
+Use LLMs to compress retrieved context by extracting only query-relevant information, increasing effective context window by 3-5x while preserving answer quality.
 
+## Purpose
+
+Raw retrieved chunks contain noise: irrelevant sentences, boilerplate text, headers. Contextual compression distills chunks to essential information, fitting more documents into limited context windows and improving generation quality.
+
+### Real-World Impact
+- **Enterprise search**: 5x more documents per query within same token budget
+- **Legal research**: Focus on relevant clauses, skip boilerplate
+- **Technical support**: Extract error details from verbose logs
+- **Medical Q&A**: Isolate relevant symptoms from full records
+
+## The Problem
+
+**Before Compression (500 tokens):**
 ```
 API Key Rotation Policy
 Version 2.3, Updated 2024-01-15
@@ -24,19 +36,714 @@ Rotate API keys every 90 days to maintain security.
 ...
 ```
 
-### After Compression (50 tokens)
-
+**After Compression (50 tokens):**
 ```
 Rotate API keys every 90 days to maintain security.
 ```
 
-### How It Works
+**10x reduction** — fitting more documents into the same context window.
 
-1. Pass each chunk through an LLM with the query.
-2. Ask: "Extract only the sentences relevant to: '{query}'"
-3. Replace original chunks with compressed versions.
+### Information Density Problem
 
-### Your Task
+Not all text is equally informative:
 
-Implement a simulated compressor that keeps only sentences with 2+ token overlap with the query.
+| Text Type | Information Density | Compression Target |
+|-----------|---------------------|-------------------|
+| Boilerplate | Very Low | Remove entirely |
+| Context sentences | Low | Summarize |
+| Key facts | High | Preserve verbatim |
+| Examples | Medium | Condense |
 
+## Theory
+
+### Compression Strategies
+
+| Strategy | Method | Use Case | Compression |
+|----------|--------|----------|-------------|
+| **Extractive** | Select relevant sentences | High precision, fast | 2-3x |
+| **Abstractive** | Generate new summary | High compression, slower | 5-10x |
+| **Hybrid** | Extract then abstract | Balance quality/speed | 3-5x |
+| **Query-focused** | Compress relative to query | Maximum relevance | 3-5x |
+
+### The Compression Trade-off
+
+```
+Information Preservation vs Compression Ratio
+
+100% ┤                              ●───── No compression
+     │                        ●
+ 80% ┤                  ●              
+     │            ●                    
+ 60% ┤      ●                          
+     │  ●                              
+ 40% ┤                                 
+     │                                 
+ 20% ┤                                 
+     └────┬────┬────┬────┬────┬────┬───
+         1x   2x   3x   4x   5x   10x
+              Compression Ratio
+```
+
+**Sweet spot**: 3-5x compression with 80%+ information retention.
+
+### Query-Focused Compression
+
+Traditional summarization loses query-relevant details. Query-focused compression:
+
+1. Takes query as input
+2. Identifies query-relevant spans
+3. Preserves or rephrases relevant content
+4. Removes irrelevant content
+
+**Example:**
+```
+Query: "What is the API key rotation frequency?"
+
+Original: "API Key Rotation Policy v2.3... [100 tokens] ... 
+          Rotate API keys every 90 days... [100 tokens] ..."
+
+Compressed: "Rotate API keys every 90 days."
+```
+
+## Setup
+
+You have:
+- 10 retrieved chunks per query (avg 300 tokens each)
+- LLM API access (GPT-3.5-turbo or similar)
+- Token budget: 2000 tokens for context
+- Target: Compress to fit 8+ chunks within budget
+
+## Challenges
+
+### Challenge 1: Basic LLM Compression
+
+Implement query-focused extractive compression.
+
+**Acceptance Criteria:**
+- Use LLM to identify relevant sentences
+- Preserve original wording of relevant content
+- Remove irrelevant sentences
+- Achieve 3x compression with 90% answer accuracy
+
+**Prompt Template:**
+```python
+COMPRESSION_PROMPT = """Given the query and the following text, extract only the 
+sentences that are directly relevant to answering the query. 
+Preserve the original wording of relevant sentences.
+
+Query: {query}
+
+Text:
+{text}
+
+Relevant sentences only:"""
+```
+
+### Challenge 2: Multi-Stage Compression
+
+Implement a pipeline of compression stages.
+
+**Acceptance Criteria:**
+- Stage 1: Filter irrelevant chunks (relevance threshold)
+- Stage 2: Extract relevant sentences from remaining
+- Stage 3: Deduplicate across chunks
+- Stage 4: Re-rank by relevance
+- Overall 5x compression with 85% answer accuracy
+
+**Pipeline:**
+```python
+def multi_stage_compress(query: str, chunks: List[str]) -> List[str]:
+    # Stage 1: Filter
+    relevant = [c for c in chunks if relevance_score(query, c) > 0.5]
+    
+    # Stage 2: Extract
+    extracted = [extract_relevant_sentences(query, c) for c in relevant]
+    
+    # Stage 3: Deduplicate
+    unique = deduplicate_sentences(extracted)
+    
+    # Stage 4: Re-rank
+    return rerank_by_relevance(query, unique)
+```
+
+### Challenge 3: Token Budget Management
+
+Compress dynamically to fit within token budget.
+
+**Acceptance Criteria:**
+- Calculate total tokens before compression
+- Determine required compression ratio
+- Apply appropriate compression per chunk
+- Fit maximum information within budget
+
+**Algorithm:**
+```python
+def compress_to_budget(query: str, chunks: List[str], max_tokens: int) -> str:
+    total_tokens = sum(count_tokens(c) for c in chunks)
+    
+    if total_tokens <= max_tokens:
+        return "\n\n".join(chunks)
+    
+    # Calculate compression ratio needed
+    ratio = max_tokens / total_tokens
+    
+    compressed = []
+    for chunk in chunks:
+        target_tokens = int(count_tokens(chunk) * ratio)
+        compressed.append(compress_chunk(query, chunk, target_tokens))
+    
+    return "\n\n".join(compressed)
+```
+
+## Evaluation Metrics
+
+| Metric | Target | Description |
+|--------|--------|-------------|
+| Compression ratio | > 3x | Tokens before / after |
+| Answer accuracy | > 85% | Correct answers with compressed context |
+| Information retention | > 80% | ROUGE-L with original |
+| Latency | < 500ms | Compression time per chunk |
+
+## Starter Code
+
+```python
+from typing import List, Tuple, Optional
+from dataclasses import dataclass
+import re
+import openai
+
+@dataclass
+class CompressedChunk:
+    original: str
+    compressed: str
+    compression_ratio: float
+    relevance_score: float
+
+class LLMContextCompressor:
+    """
+    Compress retrieved context using LLM-based extraction.
+    """
+    
+    def __init__(self, 
+                 llm_client: openai.OpenAI = None,
+                 model: str = "gpt-3.5-turbo",
+                 max_output_tokens: int = 150):
+        self.llm = llm_client or openai.OpenAI()
+        self.model = model
+        self.max_output_tokens = max_output_tokens
+        
+    def compress(self, 
+                query: str, 
+                chunk: str,
+                method: str = "extractive") -> CompressedChunk:
+        """
+        Compress a single chunk relative to query.
+        
+        Args:
+            query: User query
+            chunk: Document chunk to compress
+            method: "extractive", "abstractive", or "hybrid"
+            
+        Returns:
+            CompressedChunk with metadata
+        """
+        original_tokens = self._count_tokens(chunk)
+        
+        if method == "extractive":
+            compressed = self._extractive_compress(query, chunk)
+        elif method == "abstractive":
+            compressed = self._abstractive_compress(query, chunk)
+        elif method == "hybrid":
+            compressed = self._hybrid_compress(query, chunk)
+        else:
+            raise ValueError(f"Unknown method: {method}")
+            
+        compressed_tokens = self._count_tokens(compressed)
+        ratio = original_tokens / max(compressed_tokens, 1)
+        
+        return CompressedChunk(
+            original=chunk,
+            compressed=compressed,
+            compression_ratio=ratio,
+            relevance_score=self._estimate_relevance(query, compressed)
+        )
+        
+    def _extractive_compress(self, query: str, chunk: str) -> str:
+        """
+        Extract only relevant sentences using LLM.
+        """
+        prompt = f"""Given the query and the following text, extract ONLY the sentences 
+that are directly relevant to answering the query. Preserve the exact wording.
+
+Query: {query}
+
+Text:
+{chunk}
+
+Extract only the relevant sentences, one per line. If no sentences are relevant, 
+respond with "NO_RELEVANT_CONTENT":"""
+
+        response = self.llm.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=self.max_output_tokens,
+            temperature=0.0
+        )
+        
+        result = response.choices[0].message.content.strip()
+        
+        if result == "NO_RELEVANT_CONTENT":
+            return ""
+            
+        return result
+        
+    def _abstractive_compress(self, query: str, chunk: str) -> str:
+        """
+        Generate abstractive summary focused on query.
+        """
+        prompt = f"""Summarize the following text in 1-2 sentences, focusing only on 
+information relevant to the query.
+
+Query: {query}
+
+Text:
+{chunk}
+
+Summary:"""
+
+        response = self.llm.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=self.max_output_tokens,
+            temperature=0.0
+        )
+        
+        return response.choices[0].message.content.strip()
+        
+    def _hybrid_compress(self, query: str, chunk: str) -> str:
+        """
+        First extract, then summarize if still too long.
+        """
+        extracted = self._extractive_compress(query, chunk)
+        
+        if self._count_tokens(extracted) > self.max_output_tokens:
+            return self._abstractive_compress(query, extracted)
+            
+        return extracted
+        
+    def compress_batch(self,
+                      query: str,
+                      chunks: List[str],
+                      budget_tokens: Optional[int] = None) -> List[CompressedChunk]:
+        """
+        Compress multiple chunks with optional token budget.
+        
+        Args:
+            query: User query
+            chunks: List of document chunks
+            budget_tokens: Maximum total tokens for compressed output
+            
+        Returns:
+            List of CompressedChunk, sorted by relevance
+        """
+        # Compress all chunks
+        compressed = [self.compress(query, chunk) for chunk in chunks]
+        
+        # Filter out empty results
+        compressed = [c for c in compressed if c.compressed]
+        
+        # Sort by relevance
+        compressed.sort(key=lambda x: -x.relevance_score)
+        
+        # Apply budget if specified
+        if budget_tokens:
+            compressed = self._apply_budget(compressed, budget_tokens)
+            
+        return compressed
+        
+    def _apply_budget(self, 
+                     compressed: List[CompressedChunk], 
+                     budget: int) -> List[CompressedChunk]:
+        """
+        Select chunks to fit within token budget.
+        """
+        result = []
+        total_tokens = 0
+        
+        for chunk in compressed:
+            tokens = self._count_tokens(chunk.compressed)
+            if total_tokens + tokens <= budget:
+                result.append(chunk)
+                total_tokens += tokens
+            else:
+                break
+                
+        return result
+        
+    def _count_tokens(self, text: str) -> int:
+        """Estimate token count (simplified)."""
+        # Rough estimate: 1 token ≈ 4 characters
+        return len(text) // 4
+        
+    def _estimate_relevance(self, query: str, text: str) -> float:
+        """Estimate relevance using token overlap."""
+        query_tokens = set(query.lower().split())
+        text_tokens = set(text.lower().split())
+        
+        if not query_tokens:
+            return 0.0
+            
+        overlap = len(query_tokens & text_tokens)
+        return overlap / len(query_tokens)
+
+class MultiStageCompressor:
+    """
+    Multi-stage compression pipeline.
+    """
+    
+    def __init__(self):
+        self.chunk_filter = RelevanceFilter(threshold=0.3)
+        self.sentence_extractor = SentenceExtractor()
+        self.deduplicator = SentenceDeduplicator()
+        self.reranker = SentenceReranker()
+        
+    def compress(self, query: str, chunks: List[str]) -> List[str]:
+        """
+        Run full compression pipeline.
+        """
+        # Stage 1: Filter irrelevant chunks
+        filtered = self.chunk_filter.filter(query, chunks)
+        
+        # Stage 2: Extract relevant sentences
+        extracted = []
+        for chunk in filtered:
+            sentences = self.sentence_extractor.extract(query, chunk)
+            extracted.extend(sentences)
+            
+        # Stage 3: Deduplicate
+        unique = self.deduplicator.deduplicate(extracted)
+        
+        # Stage 4: Re-rank
+        ranked = self.reranker.rerank(query, unique)
+        
+        return ranked
+
+class RelevanceFilter:
+    """Filter chunks by relevance threshold."""
+    
+    def __init__(self, threshold: float = 0.3):
+        self.threshold = threshold
+        
+    def filter(self, query: str, chunks: List[str]) -> List[str]:
+        """Keep only chunks above relevance threshold."""
+        query_tokens = set(query.lower().split())
+        
+        filtered = []
+        for chunk in chunks:
+            chunk_tokens = set(chunk.lower().split())
+            overlap = len(query_tokens & chunk_tokens)
+            relevance = overlap / len(query_tokens) if query_tokens else 0
+            
+            if relevance >= self.threshold:
+                filtered.append(chunk)
+                
+        return filtered
+
+class SentenceExtractor:
+    """Extract relevant sentences from chunk."""
+    
+    def extract(self, query: str, chunk: str) -> List[str]:
+        """Extract sentences with query token overlap."""
+        sentences = re.split(r'(?<=[.!?])\s+', chunk)
+        query_tokens = set(query.lower().split())
+        
+        relevant = []
+        for sent in sentences:
+            sent_tokens = set(sent.lower().split())
+            overlap = len(query_tokens & sent_tokens)
+            
+            if overlap >= 2:  # At least 2 matching tokens
+                relevant.append(sent)
+                
+        return relevant if relevant else [sentences[0]]  # Fallback
+
+class SentenceDeduplicator:
+    """Remove near-duplicate sentences."""
+    
+    def deduplicate(self, sentences: List[str], 
+                   threshold: float = 0.8) -> List[str]:
+        """Remove sentences with high Jaccard similarity to existing."""
+        unique = []
+        
+        for sent in sentences:
+            sent_tokens = set(sent.lower().split())
+            
+            is_duplicate = False
+            for existing in unique:
+                existing_tokens = set(existing.lower().split())
+                
+                intersection = len(sent_tokens & existing_tokens)
+                union = len(sent_tokens | existing_tokens)
+                jaccard = intersection / union if union > 0 else 0
+                
+                if jaccard > threshold:
+                    is_duplicate = True
+                    break
+                    
+            if not is_duplicate:
+                unique.append(sent)
+                
+        return unique
+
+class SentenceReranker:
+    """Re-rank sentences by relevance."""
+    
+    def rerank(self, query: str, sentences: List[str]) -> List[str]:
+        """Sort sentences by query relevance."""
+        query_tokens = set(query.lower().split())
+        
+        scored = []
+        for sent in sentences:
+            sent_tokens = set(sent.lower().split())
+            overlap = len(query_tokens & sent_tokens)
+            scored.append((sent, overlap))
+            
+        scored.sort(key=lambda x: -x[1])
+        return [sent for sent, _ in scored]
+```
+
+## Advanced Techniques
+
+### 1. Hierarchical Compression
+
+Compress at multiple granularities:
+
+```python
+def hierarchical_compress(query: str, document: str) -> str:
+    """
+    Multi-level compression:
+    1. Document-level: Select relevant sections
+    2. Section-level: Select relevant paragraphs
+    3. Paragraph-level: Select relevant sentences
+    """
+    # Level 1: Sections
+    sections = split_into_sections(document)
+    relevant_sections = [s for s in sections 
+                        if section_relevance(query, s) > 0.5]
+    
+    # Level 2: Paragraphs
+    compressed_sections = []
+    for section in relevant_sections:
+        paragraphs = split_into_paragraphs(section)
+        relevant_para = [p for p in paragraphs 
+                        if paragraph_relevance(query, p) > 0.5]
+        
+        # Level 3: Sentences
+        compressed_para = []
+        for para in relevant_para:
+            sentences = extract_relevant_sentences(query, para)
+            compressed_para.append(" ".join(sentences))
+            
+        compressed_sections.append("\n\n".join(compressed_para))
+    
+    return "\n\n".join(compressed_sections)
+```
+
+### 2. Iterative Refinement
+
+Progressively refine compression:
+
+```python
+def iterative_compress(query: str, chunk: str, 
+                      target_ratio: float = 0.3) -> str:
+    """
+    Iteratively compress until target ratio reached.
+    """
+    current = chunk
+    original_tokens = count_tokens(chunk)
+    target_tokens = int(original_tokens * target_ratio)
+    
+    iterations = 0
+    max_iterations = 3
+    
+    while count_tokens(current) > target_tokens and iterations < max_iterations:
+        # Compress
+        current = compress_once(query, current)
+        iterations += 1
+        
+        # Check if we're making progress
+        if count_tokens(current) >= count_tokens(chunk) * 0.95:
+            break  # No significant reduction
+    
+    return current
+```
+
+### 3. Cross-Chunk Deduplication
+
+Remove redundancy across multiple chunks:
+
+```python
+def cross_chunk_deduplicate(chunks: List[str], 
+                           threshold: float = 0.7) -> List[str]:
+    """
+    Remove sentences that appear in multiple chunks.
+    Keep the version from the most relevant chunk.
+    """
+    # Extract all sentences with chunk attribution
+    all_sentences = []
+    for i, chunk in enumerate(chunks):
+        for sent in split_sentences(chunk):
+            all_sentences.append((sent, i))
+    
+    # Find duplicates
+    to_remove = set()
+    for i, (sent1, chunk1) in enumerate(all_sentences):
+        if i in to_remove:
+            continue
+        for j, (sent2, chunk2) in enumerate(all_sentences[i+1:], i+1):
+            if similarity(sent1, sent2) > threshold:
+                # Remove from later chunk
+                to_remove.add(j if chunk2 > chunk1 else i)
+    
+    # Reconstruct chunks
+    result = []
+    for i, chunk in enumerate(chunks):
+        sentences = [s for j, (s, ci) in enumerate(all_sentences) 
+                    if ci == i and j not in to_remove]
+        if sentences:
+            result.append(" ".join(sentences))
+    
+    return result
+```
+
+## Production Tips
+
+### 1. Caching
+
+```python
+from functools import lru_cache
+import hashlib
+
+def hash_query_chunk(query: str, chunk: str) -> str:
+    """Create cache key for query-chunk pair."""
+    return hashlib.md5(f"{query}:{chunk}".encode()).hexdigest()
+
+@lru_cache(maxsize=10000)
+def cached_compress(cache_key: str) -> str:
+    """Cache compression results."""
+    # Implementation
+    pass
+```
+
+### 2. Fallback Strategy
+
+```python
+def compress_with_fallback(query: str, chunk: str) -> str:
+    """
+    Try LLM compression, fall back to heuristic if fails.
+    """
+    try:
+        return llm_compress(query, chunk)
+    except Exception as e:
+        logger.warning(f"LLM compression failed: {e}")
+        return heuristic_compress(query, chunk)
+```
+
+### 3. Quality Monitoring
+
+```python
+def monitor_compression_quality(original: str, compressed: str, 
+                               query: str, answer: str):
+    """Track compression effectiveness."""
+    ratio = len(original) / len(compressed)
+    
+    # Check if answer still in compressed
+    answer_in_compressed = answer.lower() in compressed.lower()
+    
+    metrics.gauge('compression.ratio', ratio)
+    metrics.counter('compression.answer_preserved', 
+                   1 if answer_in_compressed else 0)
+```
+
+## Company Examples
+
+- **LangChain**: ContextualCompressionRetriever with LLMChainExtractor
+- **LlamaIndex**: Node postprocessors for sentence-level filtering
+- **Vercel AI SDK**: Streaming compression for real-time apps
+- **Pinecone**: Integration with compression pipelines
+
+## Cost Analysis
+
+| Method | Compression | Cost/1K chunks | Quality |
+|--------|-------------|----------------|---------|
+| No compression | 1x | $0 | Baseline |
+| Heuristic | 2x | $0.001 | 70% |
+| LLM (GPT-3.5) | 5x | $0.05 | 90% |
+| LLM (GPT-4) | 5x | $0.50 | 95% |
+| Hybrid | 4x | $0.02 | 85% |
+
+**ROI**: At $0.01 per 1K tokens for generation, compression pays for itself if it allows fitting 2+ more chunks.
+
+## Resources
+
+### Academic Papers
+- "Contextual Compression for Retrieval-Augmented Generation" - Contextual AI (2023)
+- "Precise Zero-Shot Dense Retrieval without Relevance Labels" - Sachan et al. (2022)
+- "Lost in the Middle: How Language Models Use Long Contexts" - Liu et al. (2023)
+- "Recomp: Improving Retrieval-Augmented LMs with Compression" - Xu et al. (2023)
+
+### Official Documentation
+- [LangChain: Contextual Compression](https://python.langchain.com/docs/modules/data_connection/retrievers/contextual_compression/)
+- [LlamaIndex: Node Postprocessors](https://docs.llamaindex.ai/en/stable/module_guides/querying/node_postprocessors/node_postprocessors/)
+- [OpenAI: Prompt Compression](https://platform.openai.com/docs/guides/prompt-engineering)
+
+### Tools & Libraries
+- [LangChain Contextual Compression](https://api.python.langchain.com/en/latest/retrievers/langchain.retrievers.contextual_compression.ContextualCompressionRetriever.html)
+- [LlamaIndex Sentence Embedding Optimizer](https://docs.llamaindex.ai/en/stable/examples/node_postprocessor/SentenceEmbeddingOptimizer/)
+- [GPTCache](https://github.com/zilliztech/GPTCache) - Caching for compression
+
+### GitHub Repositories
+- [langchain-ai/langchain](https://github.com/langchain-ai/langchain) - Contextual compression implementations
+- [run-llama/llama_index](https://github.com/run-llama/llama_index) - Node postprocessors
+- [microsoft/DeepSpeed](https://github.com/microsoft/DeepSpeed) - Context window optimization
+
+## Challenge Links
+
+### Prerequisites
+- [LLM Reranker](/challenges/llm-reranker) - LLM-based relevance
+- [Extractive Compression](/challenges/extractive-compression) - Sentence selection
+- [Lost in the Middle Ordering](/challenges/lost-in-the-middle-ordering) - Context ordering
+
+### Related Challenges
+- [Token Budget Packing](/challenges/token-budget-packing) - Context management
+- [MMR Diversity](/challenges/mmr-diversity) - Diverse selection
+
+### Next Challenges
+- [Rate Limiter](/challenges/rate-limiter) - API cost management
+- [Self-RAG](/challenges/self-rag) - Iterative refinement
+
+## Implementation Checklist
+
+- [ ] Implement basic LLM extractive compression
+- [ ] Add abstractive compression option
+- [ ] Implement hybrid approach
+- [ ] Build multi-stage pipeline
+- [ ] Add token budget management
+- [ ] Implement caching layer
+- [ ] Add fallback strategies
+- [ ] Create quality monitoring
+- [ ] Optimize for latency
+- [ ] Document cost/quality trade-offs
+
+## Summary
+
+Contextual compression is essential for production RAG systems with limited context windows.
+
+**Key Takeaways:**
+1. **3-5x compression** is achievable with minimal quality loss
+2. **Query-focused** compression preserves answer-relevant information
+3. **Multi-stage pipelines** balance quality and cost
+4. **Caching** is critical for cost control
+5. **Monitor quality** to detect compression failures
+
+Compress smart, fit more, answer better!

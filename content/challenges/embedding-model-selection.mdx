@@ -1,6 +1,13 @@
-﻿<Callout title="Goal" variant="info">
-  Master embedding model selection with real MTEB benchmarks, cost analysis, and
-  production tradeoffs.
+﻿---
+title: "Embedding Model Selection"
+description: "Master embedding model selection with real MTEB benchmarks, cost analysis, and production tradeoffs."
+prerequisites: ["cosine-similarity", "vector-normalization"]
+related: ["embedding-finetuning", "mteb-evaluation"]
+next: ["dense-vector-class"]
+---
+
+<Callout title="Goal" variant="info">
+  Master embedding model selection with real MTEB benchmarks, cost analysis, and production tradeoffs — the most critical decision in RAG system design.
 </Callout>
 
 ## The MTEB Leaderboard (Dec 2024)
@@ -150,3 +157,58 @@ Before committing to a model:
 5. **Cost projection**: Calculate monthly cost at expected scale
 6. **Fallback plan**: What if the API goes down? (Cache, open-source backup)
 
+## Theoretical Deep Dive
+
+### What Makes a Good Embedding?
+
+A good embedding model maps semantically similar text to nearby vectors:
+
+$$\text{similarity}(\text{embed}(t_1), \text{embed}(t_2)) \propto \text{semantic\_similarity}(t_1, t_2)$$
+
+### Training Objectives
+
+| Objective | Description | Example Models |
+|-----------|-------------|----------------|
+| **Contrastive** | Pull similar pairs together, push dissimilar apart | SimCSE, E5 |
+| **Masked Language Model** | Predict masked tokens | BERT, RoBERTa |
+| **Autoregressive** | Predict next token | GPT, Llama |
+| **Multitask** | Combine multiple objectives | GritLM, Instructor |
+
+### The Curse of Dimensionality
+
+Higher dimensions don't always mean better:
+
+- **768-1024 dims**: Sweet spot for most applications
+- **3072+ dims**: Diminishing returns, higher storage costs
+- **Matryoshka**: Allows dynamic dimension selection
+
+## Resources
+
+### Academic Papers
+- ["MTEB: Massive Text Embedding Benchmark"](https://arxiv.org/abs/2210.07316) - Muennighoff et al. (2022)
+- ["Matryoshka Representation Learning"](https://arxiv.org/abs/2205.13147) - Kusupati et al. (2022)
+- ["Text Embeddings by Weakly-Supervised Contrastive Pre-training"](https://arxiv.org/abs/2212.03533) - Wang et al. (E5)
+- ["Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks"](https://arxiv.org/abs/1908.10084) - Reimers & Gurevych
+
+### Documentation
+- [MTEB Leaderboard](https://huggingface.co/spaces/mteb/leaderboard) - Official benchmark
+- [OpenAI Embeddings Guide](https://platform.openai.com/docs/guides/embeddings) - Best practices
+- [Voyage AI Documentation](https://docs.voyageai.com/) - Voyage-3 details
+- [Cohere Embed Documentation](https://docs.cohere.com/docs/embeddings) - Multilingual guide
+
+### Tutorials
+- ["Choosing an Embedding Model"](https://www.pinecone.io/learn/embedding-models/) - Pinecone
+- ["Embedding Models Explained"](https://huggingface.co/blog/getting-started-with-embeddings) - Hugging Face
+- ["RAG with OpenAI Embeddings"](https://platform.openai.com/docs/tutorials/web-qa-embeddings) - OpenAI
+
+### Tools
+- [MTEB](https://github.com/embeddings-benchmark/mteb) - Evaluation framework
+- [Sentence Transformers](https://www.sbert.net/) - Training and inference
+- [FlagEmbedding](https://github.com/FlagOpen/FlagEmbedding) - BGE models
+
+## Next Steps
+
+After mastering model selection:
+- **Dense Vector Class**: Implement vector storage
+- **Embedding Finetuning**: Customize models for your domain
+- **MTEB Evaluation**: Benchmark your own models

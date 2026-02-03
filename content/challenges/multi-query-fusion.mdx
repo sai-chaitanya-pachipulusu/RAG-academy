@@ -1,36 +1,362 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "Multi-Query Fusion"
+description: "Implement the RAG-Fusion pattern: multi-query retrieval → fuse rankings with RRF"
+difficulty: "hard"
+estimatedMinutes: 45
+xpReward: 85
+prerequisites: ["query-expansion", "rrf-fusion"]
+related: ["query-expansion", "rrf-fusion", "hyde-implementation"]
+---
+
+<Callout title="Goal" variant="info">
   Implement the RAG‑Fusion pattern: **multi‑query retrieval → fuse rankings with RRF**.
 </Callout>
 
-## Why this matters in production
+## Why This Matters in Production
 
 Many failures are recall failures:
 
 - query is ambiguous
-- user vocabulary doesn’t match corpus vocabulary
+- user vocabulary doesn't match corpus vocabulary
 - multiple facets need coverage (A + B + C)
 
 Multi-query expansion increases recall by retrieving with several query variants.
 RRF fusion is a robust way to merge results without score normalization headaches.
 
-## Online pipeline (query time)
+## Why This Matters in Production
+
+| Problem | Single Query | Multi-Query Fusion |
+|---------|-------------|-------------------|
+| **Vocabulary mismatch** | Misses relevant docs | Multiple phrasings catch more |
+| **Ambiguous queries** | One interpretation | Multiple interpretations |
+| **Multi-facet questions** | Partial coverage | Comprehensive coverage |
+| **Synonymy** | Literal matches | Expanded matches |
+
+## What You're Implementing
+
+## Online Pipeline (Query Time)
 
 1. Generate query variants (LLM or deterministic rules)
 2. Retrieve top‑K per variant
 3. Fuse rankings with RRF
 4. Rerank final shortlist (optional)
 
-## Common pitfalls
+## The Multi-Query Fusion Pipeline
+
+```
+User Query → Generate Variants → Retrieve Each → Fuse Rankings → Final Results
+     ↓              ↓                  ↓              ↓               ↓
+  "RAG"      ["RAG", "Retrieval    [results1,     RRF Score     [doc3,
+              Augmented           results2,       Calculation    doc1,
+              Generation",         results3]                      doc7]
+              "RAG systems"]
+```
+
+## Mathematical Foundations
+
+### RRF (Reciprocal Rank Fusion)
+
+```
+RRF_Score(d) = Σ 1 / (k + rank_i(d))
+
+Where:
+- k = constant (typically 60)
+- rank_i(d) = rank of document d in result list i
+- Documents not in a list have rank = ∞ (contribute 0)
+```
+
+### Query Variation Strategies
+
+```
+1. Synonym expansion: "RAG" → "Retrieval Augmented Generation"
+2. Paraphrasing: "What is X?" → "Explain X"
+3. Aspect decomposition: "A vs B" → ["A features", "B features", "A vs B"]
+4. HyDE: Generate hypothetical answer, use as query
+```
+
+## Implementation Example
+
+```python
+from typing import List, Dict, Tuple
+from dataclasses import dataclass
+from collections import defaultdict
+
+@dataclass
+class RetrievalResult:
+    """Result from a single retrieval."""
+    doc_id: str
+    score: float
+    rank: int
+
+class MultiQueryFusion:
+    """RAG-Fusion: Multi-query retrieval with RRF fusion."""
+    
+    def __init__(
+        self,
+        retriever,
+        query_generator,
+        k: int = 60,
+        num_variants: int = 3,
+        top_k_per_query: int = 10
+    ):
+        """
+        Initialize multi-query fusion.
+        
+        Args:
+            retriever: Function(query) -> List[RetrievalResult]
+            query_generator: Function(query) -> List[str] (query variants)
+            k: RRF constant (typically 60)
+            num_variants: Number of query variants to generate
+            top_k_per_query: Results to retrieve per variant
+        """
+        self.retriever = retriever
+        self.query_generator = query_generator
+        self.k = k
+        self.num_variants = num_variants
+        self.top_k_per_query = top_k_per_query
+    
+    def search(self, query: str) -> List[Tuple[str, float]]:
+        """
+        Search using multi-query fusion.
+        
+        Time Complexity: O(V × (G + R + F)) where
+            V = variants, G = generation, R = retrieval, F = fusion
+        Space Complexity: O(V × K) where K = results per variant
+        
+        Args:
+            query: Original user query
+            
+        Returns:
+            List of (doc_id, rrf_score) sorted by score
+            
+        Example:
+            >>> fusion = MultiQueryFusion(retriever, query_gen)
+            >>> results = fusion.search("What is RAG?")
+            >>> for doc_id, score in results[:5]:
+            ...     print(f"{doc_id}: {score:.4f}")
+        """
+        # Step 1: Generate query variants
+        variants = self.query_generator(query, n=self.num_variants)
+        variants = [query] + variants  # Include original
+        
+        # Step 2: Retrieve for each variant
+        all_results: List[List[RetrievalResult]] = []
+        
+        for variant in variants:
+            results = self.retriever(variant, k=self.top_k_per_query)
+            all_results.append(results)
+        
+        # Step 3: Fuse rankings with RRF
+        fused_scores = self._rrf_fuse(all_results)
+        
+        # Step 4: Sort by RRF score
+        sorted_results = sorted(
+            fused_scores.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )
+        
+        return sorted_results
+    
+    def _rrf_fuse(
+        self,
+        result_lists: List[List[RetrievalResult]]
+    ) -> Dict[str, float]:
+        """
+        Fuse multiple result lists using Reciprocal Rank Fusion.
+        
+        Args:
+            result_lists: List of retrieval results for each query variant
+            
+        Returns:
+            Dictionary mapping doc_id to RRF score
+        """
+        scores = defaultdict(float)
+        
+        for results in result_lists:
+            for result in results:
+                # RRF formula: 1 / (k + rank)
+                rrf_score = 1.0 / (self.k + result.rank)
+                scores[result.doc_id] += rrf_score
+        
+        return dict(scores)
+    
+    def _simple_query_generator(self, query: str, n: int = 3) -> List[str]:
+        """
+        Simple rule-based query generator.
+        
+        In production, use LLM for better variants.
+        """
+        variants = []
+        
+        # Synonym expansion
+        synonyms = {
+            "rag": ["retrieval augmented generation", "rag systems"],
+            "llm": ["large language model", "language models"],
+            "ai": ["artificial intelligence", "machine learning"]
+        }
+        
+        query_lower = query.lower()
+        
+        for term, alts in synonyms.items():
+            if term in query_lower:
+                for alt in alts[:n]:
+                    variant = query_lower.replace(term, alt)
+                    variants.append(variant)
+        
+        # Paraphrase patterns
+        if query_lower.startswith("what is"):
+            variants.append(query_lower.replace("what is", "explain"))
+            variants.append(query_lower.replace("what is", "describe"))
+        
+        if query_lower.startswith("how to"):
+            variants.append(query_lower.replace("how to", "steps to"))
+            variants.append(query_lower.replace("how to", "guide for"))
+        
+        return variants[:n]
+
+class LLMQueryGenerator:
+    """Generate query variants using an LLM."""
+    
+    def __init__(self, llm_client):
+        self.llm_client = llm_client
+    
+    def generate(self, query: str, n: int = 3) -> List[str]:
+        """Generate n query variants using LLM."""
+        prompt = f"""Generate {n} different ways to search for information about this query.
+Each variant should capture a different aspect or phrasing.
+
+Original query: {query}
+
+Variants (one per line):"""
+        
+        response = self.llm_client.generate(prompt)
+        variants = [v.strip() for v in response.split('\n') if v.strip()]
+        
+        return variants[:n]
+
+# Usage Example
+# Mock retriever
+def mock_retriever(query: str, k: int = 10) -> List[RetrievalResult]:
+    """Mock retriever for demonstration."""
+    # Simulate different results for different queries
+    if "rag" in query.lower():
+        return [
+            RetrievalResult("doc1", 0.9, 1),
+            RetrievalResult("doc2", 0.8, 2),
+            RetrievalResult("doc3", 0.7, 3),
+        ]
+    elif "retrieval" in query.lower():
+        return [
+            RetrievalResult("doc3", 0.95, 1),
+            RetrievalResult("doc1", 0.85, 2),
+            RetrievalResult("doc4", 0.75, 3),
+        ]
+    else:
+        return [
+            RetrievalResult("doc2", 0.9, 1),
+            RetrievalResult("doc4", 0.8, 2),
+        ]
+
+fusion = MultiQueryFusion(
+    retriever=mock_retriever,
+    query_generator=lambda q, n: ["retrieval augmented generation", "rag systems"],
+    k=60
+)
+
+results = fusion.search("What is RAG?")
+print("Fused results:")
+for doc_id, score in results:
+    print(f"  {doc_id}: {score:.4f}")
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Query Generation | O(V × G) | V variants, G = generation time |
+| Retrieval | O(V × R) | R = retrieval time per query |
+| RRF Fusion | O(V × K) | K = results per query |
+| Total | O(V × (G + R)) | Dominated by generation and retrieval |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand the RAG-Fusion pattern
+- Be able to implement RRF for result fusion
+- Know how to generate effective query variants
+
+## Real-World Applications
+
+| System | Multi-Query Approach |
+|--------|---------------------|
+| **LangChain** | MultiQueryRetriever |
+| **LlamaIndex** | Sub-question decomposition |
+| **Google Search** | Multiple query interpretations |
+| **RAG-Fusion** | Original implementation |
+
+## Common Pitfalls
+
+- **Too many variants**: Latency and cost explosion
+- **Low-quality variants**: Noise degrades results
+- **No deduplication**: Same doc from multiple variants
+- **Ignoring original query**: Variants may drift from intent
+- **Poor fusion**: Simple averaging instead of RRF
+
+## Production Extensions (Optional)
+
+- **Adaptive variant count**: More variants for ambiguous queries
+- **Variant quality scoring**: Filter low-quality expansions
+- **Deduplication**: Remove duplicates before fusion
+- **Query routing**: Different strategies per query type
+- **Caching**: Cache variant results
+
+## Resources
+
+### Documentation
+- [RAG-Fusion Paper](https://arxiv.org/abs/2402.03367)
+- [Reciprocal Rank Fusion](https://plg.uwaterloo.ca/~gvcormac/cormacksigir09-rrf.pdf)
+- [LangChain MultiQuery](https://python.langchain.com/docs/modules/data_connection/retrievers/MultiQueryRetriever)
+
+### Tools
+- **LangChain**: MultiQueryRetriever
+- **LlamaIndex**: Sub-question query engine
+- **RAGAS**: Evaluation for multi-query
+
+### Papers
+- "RAG-Fusion: Enhanced Retrieval for Generation" (Shapiro & Li, 2024)
+- "Reciprocal Rank Fusion outperforms Condorcet and Individual Rank Learning Methods" (Cormack et al., 2009)
+
+## Interview Questions
+
+1. **Why RRF instead of simple score averaging?**
+   - RRF doesn't require score normalization and handles missing documents gracefully
+
+2. **How many query variants should you generate?**
+   - Balance coverage vs. latency; typically 3-5 variants
+
+3. **What makes a good query variant?**
+   - Same intent, different vocabulary; covers different aspects
+
+## After You Pass
+
+Build advanced query systems:
+- [query-expansion](query-expansion) - Expand queries with synonyms
+- [rrf-fusion](rrf-fusion) - Deep dive into RRF
+- [hyde-implementation](hyde-implementation) - Generate hypothetical documents
+
+---
+
+**🔄 Better Together:** Multi-query fusion turns single-point failures into robust retrieval!
+
+## Common Pitfalls
 
 - Generating too many variants (cost explosion).
 - Not deduplicating variants (wasted retrieval).
 - Forgetting that RRF uses **1-based ranks**.
 
-## Production extensions (optional)
+## Production Extensions (Optional)
 
-- Route multi-query only for “hard” queries (short/ambiguous).
+- Route multi-query only for "hard" queries (short/ambiguous).
 - Add hybrid retrieval (BM25 + dense) per variant, then fuse.
-- Track Recall@K improvements on a golden set (don’t guess).
-
-
-
+- Track Recall@K improvements on a golden set (don't guess).

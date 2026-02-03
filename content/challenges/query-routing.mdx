@@ -1,336 +1,722 @@
-﻿<Callout title="Goal" variant="info">
-  Implement intelligent query routing — direct queries to the optimal retrieval
-  pipeline based on query characteristics.
-</Callout>
+﻿# Query Routing
 
-## Why Query Routing?
+**Difficulty**: Tier 3 - Post-Retrieval  
+**Prerequisites**: Intent Classification, Multiple Retrievers  
+**Time Estimate**: 4-5 hours
 
-Not all queries are equal:
+## Objective
 
-| Query Type                 | Best Approach                   |
-| -------------------------- | ------------------------------- |
-| "What is account #12345?"  | Exact match, structured DB      |
-| "Explain machine learning" | Dense retrieval, summarization  |
-| "Latest news on Acme Corp" | Real-time search + web          |
-| "Compare product A vs B"   | Multi-doc retrieval + synthesis |
-| "Hi, how are you?"         | No retrieval (chitchat)         |
+Implement intelligent query routing to direct queries to the optimal retrieval pipeline based on query characteristics, improving both efficiency and answer quality.
 
-One-size-fits-all RAG wastes resources and degrades quality.
+## Purpose
 
-## Router Types
+Not all queries need the same retrieval approach. Routing directs queries to specialized pipelines—structured DB for entity lookups, vector search for semantic queries, web search for real-time info—maximizing efficiency and accuracy.
 
-### 1. LLM-based Router
+### Real-World Impact
+- **Enterprise search**: 40% latency reduction by routing to appropriate index
+- **Customer support**: Entity queries → CRM, how-to → knowledge base
+- **Research platforms**: Academic papers vs. web sources
+- **E-commerce**: Product search vs. FAQ vs. reviews
 
-Use an LLM to classify query intent:
+## The Problem
 
-```python
-ROUTER_PROMPT = """Classify this query into one of these categories:
+**One-Size-Fits-All Issues:**
 
-- FACTUAL: Specific facts, numbers, definitions
-- ANALYTICAL: Comparisons, analysis, reasoning
-- PROCEDURAL: How-to, step-by-step instructions
-- CONVERSATIONAL: Chitchat, greetings, no info needed
-- REALTIME: Current events, live data needed
+| Query Type | Wrong Approach | Problem |
+|------------|---------------|---------|
+| "What is account #12345?" | Vector search | Imprecise, slow |
+| "Explain machine learning" | Exact match | No results |
+| "Latest news on Acme" | Static index | Stale information |
+| "Hi, how are you?" | Full retrieval | Wasted compute |
 
-Query: {query}
-
-Output exactly one category name:"""
-
-def llm_router(query: str) -> str:
-    response = llm.generate(ROUTER_PROMPT.format(query=query))
-    return response.strip().upper()
+**Query Routing Solution:**
+```
+Query → Classify → Route → Retrieve → Generate
+         │           │
+         ▼           ▼
+    "Entity"    →  SQL Database
+    "Concept"   →  Vector Store
+    "Realtime"  →  Web Search
+    "Chitchat"  →  No retrieval
 ```
 
-### 2. Classifier-based Router
+## Theory
 
-Train a fast classifier:
+### Router Architecture
 
-```python
-from sklearn.linear_model import LogisticRegression
-import numpy as np
-
-class ClassifierRouter:
-    def __init__(self, embedder):
-        self.embedder = embedder
-        self.classifier = LogisticRegression()
-        self.labels = []
-
-    def train(self, queries: list[str], labels: list[str]):
-        """Train router on labeled examples."""
-        embeddings = self.embedder.encode(queries)
-        self.classifier.fit(embeddings, labels)
-        self.labels = list(set(labels))
-
-    def route(self, query: str) -> str:
-        """Route a query to the best pipeline."""
-        embedding = self.embedder.encode([query])
-        prediction = self.classifier.predict(embedding)[0]
-        confidence = max(self.classifier.predict_proba(embedding)[0])
-        return prediction, confidence
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Query Routing Pipeline                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Query: "What are the latest earnings for Apple?"               │
+│          │                                                       │
+│          ▼                                                       │
+│  ┌─────────────────────────────────────────────────────┐        │
+│  │              Query Classification                    │        │
+│  │                                                      │        │
+│  │  Features:                                           │        │
+│  │    - Has entity: "Apple" ✓                          │        │
+│  │    - Has temporal: "latest" ✓                       │        │
+│  │    - Question type: WHAT                            │        │
+│  │    - Domain: finance                                │        │
+│  │                                                      │        │
+│  │  Classification: REALTIME_ENTITY_QUERY              │        │
+│  │  Confidence: 0.92                                   │        │
+│  └────────────────────────┬─────────────────────────────┘        │
+│                           │                                      │
+│                           ▼                                      │
+│  ┌─────────────────────────────────────────────────────┐        │
+│  │              Route Selection                         │        │
+│  │                                                      │        │
+│  │  REALTIME_ENTITY_QUERY →                            │        │
+│  │    Primary: Web Search (real-time)                  │        │
+│  │    Secondary: Vector Store (background)             │        │
+│  │    Fallback: SQL (if entity in DB)                  │        │
+│  └────────────────────────┬─────────────────────────────┘        │
+│                           │                                      │
+│                           ▼                                      │
+│  ┌─────────────────────────────────────────────────────┐        │
+│  │              Parallel Retrieval                      │        │
+│  │                                                      │        │
+│  │  Web: [Apple Q4 2024 earnings...]                   │        │
+│  │  Vector: [Apple financial history...]               │        │
+│  └────────────────────────┬─────────────────────────────┘        │
+│                           │                                      │
+│                           ▼                                      │
+│  ┌─────────────────────────────────────────────────────┐        │
+│  │              Result Fusion                           │        │
+│  │                                                      │        │
+│  │  1. Apple Q4 2024: Revenue $89.5B (from web)        │        │
+│  │  2. Apple earnings history (from vector)            │        │
+│  │  3. ...                                             │        │
+│  └─────────────────────────────────────────────────────┘        │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### 3. Semantic Router
+### Router Types
 
-Route based on similarity to example queries:
+**1. LLM-Based Router**
+- Pros: Flexible, handles novel queries
+- Cons: Latency, cost
+- Best for: Complex classification, low volume
 
+**2. Classifier-Based Router**
+- Pros: Fast, cheap, deterministic
+- Cons: Requires training data
+- Best for: High volume, stable query patterns
+
+**3. Semantic Router**
+- Pros: No training required, intuitive
+- Cons: Requires good examples
+- Best for: Medium volume, clear categories
+
+**4. Rule-Based Router**
+- Pros: Fastest, fully deterministic
+- Cons: Brittle, requires maintenance
+- Best for: Clear patterns, edge cases
+
+### Query Categories
+
+| Category | Description | Example | Route |
+|----------|-------------|---------|-------|
+| **ENTITY** | Specific entities, IDs | "Account #12345" | SQL/Structured DB |
+| **FACTUAL** | Known facts, definitions | "What is RAG?" | Vector Store |
+| **ANALYTICAL** | Comparisons, reasoning | "Compare X and Y" | Multi-doc + LLM |
+| **PROCEDURAL** | How-to, steps | "How do I reset?" | Knowledge Base |
+| **REALTIME** | Current events | "Latest news" | Web Search |
+| **CONVERSATIONAL** | Chitchat | "Hello" | No retrieval |
+
+## Setup
+
+You have:
+- 500 labeled queries across 6 categories
+- 3 retriever backends: SQL, Vector Store, Web Search
+- Latency budget: 100ms for routing decision
+- Target accuracy: > 90% routing accuracy
+
+## Challenges
+
+### Challenge 1: Rule-Based Router
+
+Implement pattern-based routing.
+
+**Acceptance Criteria:**
+- Route entity queries (IDs, emails) to SQL
+- Route "how to" queries to knowledge base
+- Route "latest/current" to web search
+- Handle greetings without retrieval
+- > 80% accuracy on test set
+
+**Example Patterns:**
+```python
+ROUTING_RULES = [
+    # Entity patterns
+    (r'\b\d{4,}\b', 'sql'),  # Account numbers
+    (r'[\w.-]+@[\w.-]+', 'sql'),  # Emails
+    
+    # Procedural patterns
+    (r'^(how (do|can|to)|steps?\s+(to|for))', 'knowledge_base'),
+    
+    # Realtime patterns
+    (r'\b(latest|current|today|now|recent)\b', 'web_search'),
+    
+    # Conversational
+    (r'^(hi|hello|hey|how are you)\b', 'no_retrieval'),
+]
+```
+
+### Challenge 2: Semantic Router
+
+Route based on similarity to example queries.
+
+**Acceptance Criteria:**
+- Embed query and example queries
+- Route to category with highest max similarity
+- Configurable similarity threshold
+- Handle "unknown" when below threshold
+- > 85% accuracy on test set
+
+**Implementation:**
 ```python
 class SemanticRouter:
     def __init__(self, embedder):
         self.embedder = embedder
-        self.routes = {}  # route_name -> (examples, embeddings)
-
-    def add_route(self, name: str, examples: list[str]):
-        """Add a route with example queries."""
+        self.routes = {}  # route_name -> example embeddings
+        
+    def add_route(self, name: str, examples: List[str]):
         embeddings = self.embedder.encode(examples)
-        self.routes[name] = (examples, embeddings)
-
-    def route(self, query: str, threshold: float = 0.5) -> tuple[str, float]:
-        """Find the best matching route."""
-        query_embedding = self.embedder.encode([query])[0]
-
+        self.routes[name] = embeddings
+        
+    def route(self, query: str, threshold: float = 0.5) -> Tuple[str, float]:
+        query_emb = self.embedder.encode([query])[0]
+        
         best_route = None
         best_score = threshold
-
-        for route_name, (_, embeddings) in self.routes.items():
-            similarities = query_embedding @ embeddings.T
+        
+        for route_name, embeddings in self.routes.items():
+            similarities = query_emb @ embeddings.T
             max_sim = similarities.max()
-
+            
             if max_sim > best_score:
                 best_score = max_sim
                 best_route = route_name
-
-        return best_route or "default", best_score
-
-# Usage
-router = SemanticRouter(embedder)
-
-router.add_route("factual", [
-    "What is the capital of France?",
-    "How tall is Mount Everest?",
-    "When was Einstein born?",
-])
-
-router.add_route("analytical", [
-    "Compare Python and JavaScript",
-    "What are the pros and cons of X?",
-    "Why did revenue decline?",
-])
-
-router.add_route("chitchat", [
-    "Hello",
-    "How are you?",
-    "What's up?",
-])
-
-route, confidence = router.route("What's the difference between AWS and GCP?")
-# Returns: ("analytical", 0.85)
+                
+        return best_route or 'unknown', best_score
 ```
 
-## Full Routing Pipeline
+### Challenge 3: Hybrid Router
 
-```python
-class RoutedRAG:
-    def __init__(self, router, pipelines: dict):
-        self.router = router
-        self.pipelines = pipelines
+Combine multiple routing strategies.
 
-    async def query(self, query: str) -> dict:
-        # Step 1: Route the query
-        route, confidence = self.router.route(query)
+**Acceptance Criteria:**
+- Rule-based for clear patterns (fast path)
+- Semantic for ambiguous queries
+- LLM for edge cases
+- Confidence-based fallback chain
+- > 90% accuracy on test set
 
-        # Step 2: Handle low-confidence routing
-        if confidence < 0.5:
-            route = "default"
-
-        # Step 3: Execute appropriate pipeline
-        pipeline = self.pipelines.get(route, self.pipelines["default"])
-        result = await pipeline.execute(query)
-
-        return {
-            "response": result,
-            "route": route,
-            "confidence": confidence
-        }
-
-# Define pipelines for each route
-pipelines = {
-    "factual": FactualPipeline(retriever, generator),
-    "analytical": AnalyticalPipeline(multi_retriever, reasoner),
-    "procedural": ProceduralPipeline(how_to_retriever, step_generator),
-    "chitchat": ChitchatPipeline(llm),  # No retrieval
-    "realtime": RealtimePipeline(web_search, generator),
-    "default": DefaultRAGPipeline(retriever, generator),
-}
-
-rag = RoutedRAG(router, pipelines)
+**Cascade:**
+```
+Query → Rules (confidence > 0.9) → Route
+    ↓
+    Semantic (confidence > 0.8) → Route
+    ↓
+    LLM (always) → Route
 ```
 
-## Route to Different Models
+## Evaluation Metrics
 
-Route by complexity/cost:
+| Metric | Target | Description |
+|--------|--------|-------------|
+| Routing accuracy | > 90% | Correct route selection |
+| Latency p99 | < 100ms | Routing decision time |
+| Fallback rate | < 10% | Queries needing LLM routing |
+| Cost per 1K | <$0.50 | API costs |
 
-```python
-MODEL_TIERS = {
-    "simple": "gpt-4o-mini",      # $0.15/1M tokens
-    "medium": "gpt-4o",           # $2.50/1M tokens
-    "complex": "claude-3-opus",   # $15/1M tokens
-}
-
-def complexity_router(query: str) -> str:
-    """Route based on query complexity."""
-    # Simple heuristics
-    word_count = len(query.split())
-    has_comparison = any(w in query.lower() for w in ["compare", "vs", "versus", "difference"])
-    has_reasoning = any(w in query.lower() for w in ["why", "how", "explain", "analyze"])
-
-    if word_count < 10 and not has_comparison and not has_reasoning:
-        return "simple"
-    elif has_reasoning or word_count > 30:
-        return "complex"
-    else:
-        return "medium"
-```
-
-## Route to Different Retrievers
+## Starter Code
 
 ```python
-RETRIEVER_ROUTES = {
-    "code": CodeRetriever(),           # Code-aware chunking
-    "legal": LegalRetriever(),         # Section-aware, citation tracking
-    "financial": FinancialRetriever(), # Table-aware, number extraction
-    "general": GeneralRetriever(),     # Standard RAG
-}
+from typing import List, Dict, Tuple, Optional, Callable
+from dataclasses import dataclass
+from enum import Enum
+import re
+import numpy as np
 
-def domain_router(query: str) -> str:
-    """Route to domain-specific retriever."""
-    keywords = {
-        "code": ["function", "code", "programming", "api", "bug", "error"],
-        "legal": ["contract", "clause", "liability", "agreement", "legal"],
-        "financial": ["revenue", "profit", "quarterly", "earnings", "stock"],
-    }
+class QueryCategory(Enum):
+    ENTITY = "entity"
+    FACTUAL = "factual"
+    ANALYTICAL = "analytical"
+    PROCEDURAL = "procedural"
+    REALTIME = "realtime"
+    CONVERSATIONAL = "conversational"
+    UNKNOWN = "unknown"
 
-    query_lower = query.lower()
-    for domain, terms in keywords.items():
-        if any(term in query_lower for term in terms):
-            return domain
+@dataclass
+class RouteResult:
+    """Result of query routing."""
+    category: QueryCategory
+    confidence: float
+    method: str
+    metadata: Dict
 
-    return "general"
-```
+class QueryRouter:
+    """Base class for query routers."""
+    
+    def route(self, query: str) -> RouteResult:
+        raise NotImplementedError
 
-## Hybrid Router
-
-Combine multiple routing strategies:
-
-```python
-class HybridRouter:
-    def __init__(self, semantic_router, keyword_rules: dict):
-        self.semantic = semantic_router
-        self.keyword_rules = keyword_rules
-
-    def route(self, query: str) -> tuple[str, float, str]:
-        """
-        Returns: (route, confidence, method)
-        """
-        # First: Check keyword rules (fast, explicit)
-        query_lower = query.lower()
-        for route, keywords in self.keyword_rules.items():
-            if any(kw in query_lower for kw in keywords):
-                return route, 1.0, "keyword"
-
-        # Second: Semantic matching
-        route, confidence = self.semantic.route(query)
-        return route, confidence, "semantic"
-
-# Configure
-keyword_rules = {
-    "account_lookup": ["account number", "account #", "my account"],
-    "password_reset": ["reset password", "forgot password", "change password"],
-    "pricing": ["how much", "pricing", "cost", "price"],
-}
-
-router = HybridRouter(semantic_router, keyword_rules)
-```
-
-## Guardrails & Fallbacks
-
-```python
-class SafeRouter:
-    def __init__(self, router, fallback_route: str = "default"):
-        self.router = router
-        self.fallback = fallback_route
-
-    def route(self, query: str) -> str:
-        try:
-            route, confidence = self.router.route(query)
-
-            # Fallback on low confidence
-            if confidence < 0.3:
-                return self.fallback
-
-            return route
-
-        except Exception as e:
-            # Log error, use fallback
-            logger.error(f"Router failed: {e}")
-            return self.fallback
-```
-
-## Metrics to Track
-
-| Metric             | Description                         |
-| ------------------ | ----------------------------------- |
-| Route distribution | % queries per route                 |
-| Route accuracy     | Did the route produce good results? |
-| Fallback rate      | % routed to default                 |
-| Latency by route   | Time per route type                 |
-| Cost by route      | $ per route type                    |
-
-```python
-class RouterMetrics:
+class RuleBasedRouter(QueryRouter):
+    """Route based on regex patterns."""
+    
     def __init__(self):
-        self.route_counts = Counter()
-        self.route_latencies = defaultdict(list)
-        self.fallback_count = 0
+        self.rules = [
+            # Entity patterns
+            (r'\b\d{6,}\b', QueryCategory.ENTITY, 0.9),  # Account numbers
+            (r'[\w.-]+@[\w.-]+\.\w+', QueryCategory.ENTITY, 0.95),  # Emails
+            (r'\b[A-Z]{2,6}-\d{3,}\b', QueryCategory.ENTITY, 0.9),  # Ticket IDs
+            
+            # Procedural patterns
+            (r'^(how (do|can|to)|steps?\s+(to|for)|guide\s+to)\b', 
+             QueryCategory.PROCEDURAL, 0.85),
+            
+            # Realtime patterns
+            (r'\b(latest|current|today|now|recent|news|update)\b', 
+             QueryCategory.REALTIME, 0.8),
+            
+            # Analytical patterns
+            (r'\b(compare|vs|versus|difference|better|best|analysis)\b',
+             QueryCategory.ANALYTICAL, 0.75),
+            
+            # Conversational
+            (r'^(hi|hello|hey|how are you|good morning|good afternoon)\b',
+             QueryCategory.CONVERSATIONAL, 0.95),
+            
+            # Factual (default)
+            (r'\b(what|who|when|where|why|explain|define)\b',
+             QueryCategory.FACTUAL, 0.6),
+        ]
+        
+    def route(self, query: str) -> RouteResult:
+        """Route based on first matching rule."""
+        query_lower = query.lower()
+        
+        for pattern, category, confidence in self.rules:
+            if re.search(pattern, query_lower):
+                return RouteResult(
+                    category=category,
+                    confidence=confidence,
+                    method='rule_based',
+                    metadata={'matched_pattern': pattern}
+                )
+                
+        return RouteResult(
+            category=QueryCategory.UNKNOWN,
+            confidence=0.0,
+            method='rule_based',
+            metadata={'matched_pattern': None}
+        )
 
-    def record(self, route: str, latency_ms: float, was_fallback: bool):
-        self.route_counts[route] += 1
-        self.route_latencies[route].append(latency_ms)
-        if was_fallback:
-            self.fallback_count += 1
+class SemanticRouter(QueryRouter):
+    """Route based on semantic similarity to examples."""
+    
+    def __init__(self, embedder, threshold: float = 0.5):
+        self.embedder = embedder
+        self.threshold = threshold
+        self.routes: Dict[QueryCategory, np.ndarray] = {}
+        
+    def add_examples(self, category: QueryCategory, 
+                    examples: List[str]):
+        """Add example queries for a category."""
+        embeddings = self.embedder.encode(examples)
+        self.routes[category] = embeddings
+        
+    def route(self, query: str) -> RouteResult:
+        """Route to category with highest similarity."""
+        query_emb = self.embedder.encode([query])[0]
+        
+        best_category = QueryCategory.UNKNOWN
+        best_score = self.threshold
+        all_scores = {}
+        
+        for category, embeddings in self.routes.items():
+            similarities = np.dot(embeddings, query_emb)
+            max_sim = float(np.max(similarities))
+            all_scores[category.value] = max_sim
+            
+            if max_sim > best_score:
+                best_score = max_sim
+                best_category = category
+                
+        return RouteResult(
+            category=best_category,
+            confidence=best_score,
+            method='semantic',
+            metadata={'all_scores': all_scores}
+        )
 
-    def report(self) -> dict:
-        total = sum(self.route_counts.values())
+class LLMRouter(QueryRouter):
+    """Route using LLM classification."""
+    
+    def __init__(self, llm_client, model: str = "gpt-3.5-turbo"):
+        self.llm = llm_client
+        self.model = model
+        
+    def route(self, query: str) -> RouteResult:
+        """Use LLM to classify query."""
+        prompt = f"""Classify this query into exactly one category:
+
+Categories:
+- ENTITY: Specific entities, IDs, account numbers
+- FACTUAL: Definitions, explanations, known facts
+- ANALYTICAL: Comparisons, analysis, reasoning
+- PROCEDURAL: How-to, step-by-step instructions
+- REALTIME: Current events, latest information
+- CONVERSATIONAL: Greetings, chitchat, no info needed
+
+Query: {query}
+
+Respond with only the category name:"""
+
+        try:
+            response = self.llm.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.0,
+                max_tokens=20
+            )
+            
+            category_str = response.choices[0].message.content.strip().upper()
+            
+            # Parse category
+            try:
+                category = QueryCategory[category_str]
+                confidence = 0.9  # LLM is generally confident
+            except KeyError:
+                category = QueryCategory.UNKNOWN
+                confidence = 0.0
+                
+            return RouteResult(
+                category=category,
+                confidence=confidence,
+                method='llm',
+                metadata={'raw_response': category_str}
+            )
+            
+        except Exception as e:
+            return RouteResult(
+                category=QueryCategory.UNKNOWN,
+                confidence=0.0,
+                method='llm_failed',
+                metadata={'error': str(e)}
+            )
+
+class HybridRouter(QueryRouter):
+    """Combine multiple routing strategies."""
+    
+    def __init__(self,
+                 rule_router: RuleBasedRouter = None,
+                 semantic_router: SemanticRouter = None,
+                 llm_router: LLMRouter = None):
+        self.rule_router = rule_router or RuleBasedRouter()
+        self.semantic_router = semantic_router
+        self.llm_router = llm_router
+        
+    def route(self, query: str, 
+             use_llm: bool = True) -> RouteResult:
+        """
+        Route with cascading fallback.
+        
+        1. Try rule-based (fastest)
+        2. Try semantic if available
+        3. Fall back to LLM if needed
+        """
+        # Stage 1: Rule-based
+        result = self.rule_router.route(query)
+        if result.confidence >= 0.9:
+            return result
+            
+        # Stage 2: Semantic
+        if self.semantic_router:
+            semantic_result = self.semantic_router.route(query)
+            if semantic_result.confidence >= 0.8:
+                return semantic_result
+                
+        # Stage 3: LLM
+        if use_llm and self.llm_router:
+            return self.llm_router.route(query)
+            
+        # Return best non-LLM result
+        if self.semantic_router:
+            semantic = self.semantic_router.route(query)
+            if semantic.confidence > result.confidence:
+                return semantic
+                
+        return result
+
+class RoutedRAGSystem:
+    """RAG system with query routing."""
+    
+    def __init__(self, router: QueryRouter):
+        self.router = router
+        self.retrievers = {}
+        
+    def add_retriever(self, category: QueryCategory, 
+                     retriever: Callable):
+        """Register retriever for a category."""
+        self.retrievers[category] = retriever
+        
+    def query(self, query: str) -> Dict:
+        """
+        Execute routed query.
+        """
+        # Route query
+        route_result = self.router.route(query)
+        
+        # Get appropriate retriever
+        retriever = self.retrievers.get(route_result.category)
+        
+        if retriever is None:
+            # Default to vector search
+            retriever = self.retrievers.get(QueryCategory.FACTUAL)
+            
+        # Execute retrieval
+        if route_result.category == QueryCategory.CONVERSATIONAL:
+            # No retrieval needed
+            context = []
+        else:
+            context = retriever(query)
+            
         return {
-            "distribution": {r: c/total for r, c in self.route_counts.items()},
-            "avg_latency_ms": {r: np.mean(l) for r, l in self.route_latencies.items()},
-            "fallback_rate": self.fallback_count / total if total > 0 else 0,
+            'query': query,
+            'route': route_result,
+            'context': context,
         }
 ```
 
-## When to Add Routing
+## Advanced Techniques
 
-**Add routing when:**
+### 1. Multi-Route Retrieval
 
-- Different query types need different handling
-- You want to optimize cost (route simple → cheap model)
-- Domain-specific retrievers exist
-- Chitchat detection saves unnecessary retrievals
-- Real-time vs static data distinction matters
+Retrieve from multiple sources and fuse:
 
-**Skip routing when:**
+```python
+def multi_route_retrieve(query: str, 
+                        routes: List[QueryCategory],
+                        weights: Dict[QueryCategory, float]) -> List:
+    """
+    Retrieve from multiple routes and combine results.
+    """
+    all_results = []
+    
+    for route in routes:
+        retriever = self.retrievers[route]
+        results = retriever(query)
+        
+        # Apply route weight
+        weight = weights.get(route, 1.0)
+        for r in results:
+            r['score'] *= weight
+            r['source_route'] = route
+            
+        all_results.extend(results)
+    
+    # Re-rank combined results
+    all_results.sort(key=lambda x: x['score'], reverse=True)
+    return all_results[:10]
+```
 
-- All queries are similar
-- Single pipeline handles everything well
-- Added complexity isn't justified
-- You're just getting started
+### 2. Adaptive Routing
 
-## Production Checklist
+Learn optimal routes from feedback:
 
-- [ ] Define clear route categories
-- [ ] Collect labeled examples for each route
-- [ ] Choose router type (LLM vs classifier vs semantic)
-- [ ] Implement fallback for uncertain routes
-- [ ] Track route distribution and accuracy
-- [ ] Monitor cost savings from routing
-- [ ] Regularly retrain/update router
+```python
+class AdaptiveRouter:
+    def __init__(self, base_router):
+        self.base_router = base_router
+        self.route_performance = defaultdict(lambda: {'success': 0, 'total': 0})
+        
+    def update_performance(self, query: str, route: str, success: bool):
+        """Update route performance metrics."""
+        self.route_performance[route]['total'] += 1
+        if success:
+            self.route_performance[route]['success'] += 1
+            
+    def get_best_route(self, query: str) -> str:
+        """Select route with best historical performance."""
+        candidates = self.base_router.get_candidate_routes(query)
+        
+        best_route = None
+        best_rate = 0
+        
+        for route in candidates:
+            stats = self.route_performance[route]
+            if stats['total'] > 0:
+                success_rate = stats['success'] / stats['total']
+                if success_rate > best_rate:
+                    best_rate = success_rate
+                    best_route = route
+                    
+        return best_route or candidates[0]
+```
 
+### 3. Query Decomposition Routing
+
+Route sub-queries separately:
+
+```python
+def decompose_and_route(query: str) -> List[RouteResult]:
+    """
+    Break complex query into parts and route each.
+    
+    "Compare Apple and Microsoft earnings in 2024"
+    → ["Apple earnings 2024", "Microsoft earnings 2024", "comparison"]
+    """
+    # Extract entities
+    entities = extract_entities(query)
+    
+    if len(entities) > 1 and 'compare' in query.lower():
+        # Create sub-queries
+        sub_queries = [f"{entity} earnings 2024" for entity in entities]
+        
+        # Route each
+        results = []
+        for sq in sub_queries:
+            results.append(router.route(sq))
+            
+        return results
+    else:
+        return [router.route(query)]
+```
+
+## Production Tips
+
+### 1. Route Caching
+
+```python
+from functools import lru_cache
+
+def normalize_for_routing(query: str) -> str:
+    """Normalize query for cache key."""
+    return query.lower().strip()
+
+@lru_cache(maxsize=10000)
+def cached_route(normalized_query: str) -> RouteResult:
+    """Cache routing decisions."""
+    return router.route(normalized_query)
+```
+
+### 2. A/B Testing Routes
+
+```python
+class RouteABTest:
+    def __init__(self, variant_a: QueryRouter, variant_b: QueryRouter):
+        self.variants = {'A': variant_a, 'B': variant_b}
+        
+    def route(self, query: str) -> Tuple[RouteResult, str]:
+        """Route with variant assignment."""
+        variant = 'A' if hash(query) % 2 == 0 else 'B'
+        result = self.variants[variant].route(query)
+        return result, variant
+        
+    def log_outcome(self, variant: str, query: str, 
+                   success: bool, latency: float):
+        """Log for comparison."""
+        metrics.counter(f'route_{variant}.query')
+        if success:
+            metrics.counter(f'route_{variant}.success')
+        metrics.histogram(f'route_{variant}.latency', latency)
+```
+
+### 3. Fallback Chain
+
+```python
+def route_with_fallback(query: str) -> RouteResult:
+    """
+    Try multiple routing strategies with fallback.
+    """
+    # Try fast rule-based
+    result = rule_router.route(query)
+    if result.confidence > 0.8:
+        return result
+        
+    # Try semantic
+    result = semantic_router.route(query)
+    if result.confidence > 0.7:
+        return result
+        
+    # Fall back to LLM
+    return llm_router.route(query)
+```
+
+## Company Examples
+
+- **Google**: Query understanding pipeline with 100+ signals
+- **Microsoft Bing**: Intent classification for vertical search
+- **Amazon**: Product vs. FAQ vs. Review routing
+- **OpenAI**: GPTs with retrieval routing
+
+## Resources
+
+### Academic Papers
+- "Intent Classification for Conversational Search" - Various
+- "Multi-Task Deep Neural Networks for Natural Language Understanding" - Microsoft
+- "Routing in Multi-Stage Retrieval Systems" - Google Research
+
+### Official Documentation
+- [LangChain Router Chains](https://python.langchain.com/docs/modules/chains/foundational/router)
+- [LlamaIndex Router Query Engine](https://docs.llamaindex.ai/en/stable/examples/query_engine/RouterQueryEngine/)
+- [Semantic Router](https://github.com/aurelio-labs/semantic-router)
+
+### Tools & Libraries
+- [Semantic Router](https://github.com/aurelio-labs/semantic-router) - Fast semantic routing
+- [scikit-learn](https://scikit-learn.org/) - Classifier training
+- [Sentence Transformers](https://www.sbert.net/) - Semantic similarity
+
+### GitHub Repositories
+- [aurelio-labs/semantic-router](https://github.com/aurelio-labs/semantic-router) - Production semantic router
+- [langchain-ai/langchain](https://github.com/langchain-ai/langchain) - Router chains
+- [run-llama/llama_index](https://github.com/run-llama/llama_index) - Router query engine
+
+## Challenge Links
+
+### Prerequisites
+- [Intent Classification](/challenges/intent-classification) - Query classification
+- [Self-Query Filters](/challenges/self-query-filters) - Structured filtering
+- [Hybrid Search Tuning](/challenges/hybrid-search-tuning) - Multiple retrievers
+
+### Related Challenges
+- [Query Expansion](/challenges/query-expansion) - Enhance queries before routing
+- [Query Decomposition](/challenges/query-decomposition) - Break complex queries
+- [Multi-Query Fusion](/challenges/multi-query-fusion) - Combine multiple queries
+
+### Next Challenges
+- [HyDE Search](/challenges/hyde-search) - Generate hypothetical answers
+- [Adaptive RAG Router](/challenges/adaptive-rag-router) - Learn optimal routes
+
+## Implementation Checklist
+
+- [ ] Implement rule-based router
+- [ ] Add semantic router with embeddings
+- [ ] Implement LLM-based router
+- [ ] Create hybrid cascading router
+- [ ] Add multi-route retrieval
+- [ ] Implement caching layer
+- [ ] Create A/B testing framework
+- [ ] Add performance monitoring
+- [ ] Build fallback strategies
+- [ ] Document routing logic
+
+## Summary
+
+Query routing is the traffic controller of RAG systems—directing each query to its optimal path.
+
+**Key Takeaways:**
+1. **Match approach to query**: Entity → SQL, Concept → Vector, Realtime → Web
+2. **Cascade strategies**: Rules (fast) → Semantic (medium) → LLM (slow)
+3. **Cache aggressively**: Routing decisions are repeatable
+4. **Monitor performance**: Track accuracy and latency per route
+5. **A/B test**: Continuously improve routing decisions
+
+Route smart, retrieve right!

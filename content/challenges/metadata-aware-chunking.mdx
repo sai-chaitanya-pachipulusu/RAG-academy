@@ -1,10 +1,12 @@
 ﻿---
 title: "Metadata-Aware Chunking: Production Context"
 description: "Add rich metadata to chunks for citations, filtering, and access control"
-difficulty: "hard"
-timeEstimate: "40-50 min"
+difficulty: "advanced"
+estimatedMinutes: 50
 xpReward: 125
 prerequisites: ["section-based-chunking"]
+related: ["document-access-control", "metadata-filtering", "metadata-tagging"]
+next: "metadata-tagging"
 ---
 
 # Metadata-Aware Chunking: Production Context
@@ -40,47 +42,64 @@ For real enterprise RAG, you need:
 
 ```python
 def metadata_chunk(text, source_info, chunk_size=500):
+    """
+    Chunk text with comprehensive metadata for production RAG.
+    
+    Time Complexity: O(N) where N = len(text)
+    Space Complexity: O(N) for output with metadata
+    
+    Args:
+        text: Input text
+        source_info: Dict with source metadata
+        chunk_size: Target chunk size
+        
+    Returns:
+        List of chunks with rich metadata
+    """
+    from hashlib import sha256
+    from datetime import datetime
+    
     chunks = []
     position = 0
     index = 0
-
+    
     for text_chunk in split_text(text, chunk_size):
         # Deterministic IDs for dedup
-        content_hash = sha256(text_chunk)
-        chunk_id = sha256(f"{source_info['id']}:{index}:{content_hash}")
-
+        content_hash = sha256(text_chunk.encode()).hexdigest()[:16]
+        chunk_id = sha256(f"{source_info['id']}:{index}:{content_hash}".encode()).hexdigest()[:16]
+        
         chunks.append({
             # Identity
             'chunk_id': chunk_id,
             'content_hash': content_hash,
-
+            
             # Content
             'text': text_chunk,
-
+            
             # Source tracking
             'source_id': source_info['id'],
             'source_name': source_info['name'],
             'source_url': source_info.get('url'),
-
+            
             # Position for citations
             'chunk_index': index,
             'char_start': position,
             'char_end': position + len(text_chunk),
             'page_number': calculate_page(position),
-
+            
             # Time filtering
             'created_at': source_info.get('date'),
-            'indexed_at': datetime.now(),
-
+            'indexed_at': datetime.now().isoformat(),
+            
             # Access control
             'access_level': source_info.get('access', 'public'),
             'allowed_users': source_info.get('allowed_users', []),
             'owner_id': source_info.get('owner_id')
         })
-
+        
         position += len(text_chunk)
         index += 1
-
+    
     return chunks
 ```
 
@@ -190,6 +209,19 @@ if new_chunk['content_hash'] in existing_hashes:
 
 ---
 
+## Resources
+
+### Documentation
+- [Vector DB Metadata Filtering](https://docs.pinecone.io/docs/metadata-filtering)
+- [Weaviate Multi-tenancy](https://weaviate.io/developers/weaviate/concepts/data#multi-tenancy)
+
+### Tools
+- **Pinecone**: Metadata filtering
+- **Weaviate**: Multi-tenant collections
+- **Chroma**: Metadata support
+
+---
+
 ## Key Insight
 
 Metadata-aware chunking teaches us:
@@ -202,7 +234,6 @@ Users need to verify AI answers. Give them the tools.
 
 ## Related Challenges
 
-- `stable-chunk-ids` - Deterministic ID generation
-- `acl-filter-enforcement` - Access control at retrieval
-- `citation-validator` - Verify citations are valid
-
+- [document-access-control](document-access-control) - ACL implementation
+- [metadata-filtering](metadata-filtering) - Query-time filtering
+- [metadata-tagging](metadata-tagging) - Adding metadata to chunks

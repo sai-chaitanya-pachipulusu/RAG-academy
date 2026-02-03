@@ -1,11 +1,16 @@
 ﻿---
 title: "Conversation Summary Memory"
-description: "Compress long conversations into summaries to maintain context"
+description: "Compress long conversations into summaries to maintain context and enable infinite conversation length"
 difficulty: "medium"
 xpReward: 100
+prerequisites: ["conversation-buffer-memory", "entity-memory"]
 ---
 
 # Conversation Summary Memory
+
+<Callout title="Goal" variant="info">
+  Compress long conversations into summaries to maintain context and enable "infinite" conversation length.
+</Callout>
 
 ## Overview
 
@@ -16,15 +21,463 @@ Long conversations exceed token limits. This challenge teaches progressive summa
 - **Token Limits**: GPT-4 has ~128K tokens, but that's still finite
 - **Cost Optimization**: Summaries are cheaper than full history
 - **Hour-long Sessions**: Support extended user interactions
-
-## Key Concepts
-
-- Chunk-based summarization triggers
-- Progressive compression of older messages
-- Hybrid context (summaries + recent messages)
-- Token budget management
+- **Context Preservation**: Maintain key information without bloat
 
 ## Real-World Applications
 
-LangChain's ConversationSummaryMemory and production chatbots handling long sessions.
+**Companies:** OpenAI (ChatGPT), Anthropic (Claude), Character.AI
+**Use Cases:**
+- Long customer support sessions
+- Multi-hour tutoring sessions
+- Extended brainstorming sessions
+- Therapy/coaching conversations
 
+## Key Concepts
+
+### Progressive Summarization
+
+```
+Conversation Flow:
+
+Turn 1-5: Full messages stored
+Turn 6-10: Older turns (1-3) summarized
+Turn 11-15: Summary + recent messages (11-13)
+Turn 16-20: Updated summary + recent messages (16-18)
+```
+
+### Hybrid Context
+
+Combine summaries with recent messages for optimal context:
+
+```python
+context = {
+    "summary": "User is learning Python. Covered variables, functions.",
+    "recent_messages": [
+        {"role": "user", "content": "How do classes work?"},
+        {"role": "assistant", "content": "Classes are blueprints..."}
+    ]
+}
+```
+
+## Implementation
+
+### Summary Memory Class
+
+```python
+from dataclasses import dataclass, field
+from typing import List, Dict, Optional
+import json
+
+@dataclass
+class Message:
+    role: str  # "user" or "assistant"
+    content: str
+    timestamp: Optional[float] = None
+
+@dataclass
+class ConversationSummary:
+    summary: str
+    key_entities: List[str] = field(default_factory=list)
+    topics: List[str] = field(default_factory=list)
+    message_count: int = 0
+
+class SummaryMemory:
+    """
+    Conversation memory using progressive summarization.
+    
+    Maintains a rolling summary of older conversation while
+    keeping recent messages in full detail.
+    """
+    
+    def __init__(
+        self,
+        llm_client,
+        max_recent_messages: int = 6,
+        summary_trigger: int = 10,
+        max_summary_tokens: int = 500
+    ):
+        self.llm = llm_client
+        self.max_recent_messages = max_recent_messages
+        self.summary_trigger = summary_trigger
+        self.max_summary_tokens = max_summary_tokens
+        
+        self.messages: List[Message] = []
+        self.summary: Optional[ConversationSummary] = None
+        self.recent_buffer: List[Message] = []
+    
+    def add_message(self, role: str, content: str):
+        """Add a message to the conversation."""
+        message = Message(role=role, content=content)
+        self.messages.append(message)
+        self.recent_buffer.append(message)
+        
+        # Check if we need to summarize
+        if len(self.messages) % self.summary_trigger == 0:
+            self._update_summary()
+    
+    def _update_summary(self):
+        """Update the conversation summary."""
+        # Messages to summarize (older ones)
+        messages_to_summarize = self.messages[:-self.max_recent_messages]
+        
+        if not messages_to_summarize:
+            return
+        
+        # Generate summary
+        new_summary = self._generate_summary(messages_to_summarize)
+        
+        # Merge with existing summary if present
+        if self.summary:
+            merged_summary = self._merge_summaries(self.summary, new_summary)
+        else:
+            merged_summary = new_summary
+        
+        self.summary = merged_summary
+        
+        # Update recent buffer to only keep recent messages
+        self.recent_buffer = self.messages[-self.max_recent_messages:]
+    
+    def _generate_summary(
+        self,
+        messages: List[Message]
+    ) -> ConversationSummary:
+        """Generate summary from messages."""
+        # Build conversation text
+        conversation_text = "\n".join([
+            f"{msg.role}: {msg.content}"
+            for msg in messages
+        ])
+        
+        prompt = f"""Summarize the following conversation concisely.
+Focus on:
+1. Key topics discussed
+2. Important facts or decisions
+3. User preferences or context
+4. Action items or next steps
+
+Conversation:
+{conversation_text}
+
+Provide your summary in JSON format:
+{{
+    "summary": "Brief summary of the conversation",
+    "key_entities": ["entity1", "entity2"],
+    "topics": ["topic1", "topic2"]
+}}"""
+        
+        response = self.llm.generate(prompt, max_tokens=self.max_summary_tokens)
+        
+        try:
+            data = json.loads(response)
+            return ConversationSummary(
+                summary=data["summary"],
+                key_entities=data.get("key_entities", []),
+                topics=data.get("topics", []),
+                message_count=len(messages)
+            )
+        except:
+            # Fallback to simple summary
+            return ConversationSummary(
+                summary=response[:500],
+                message_count=len(messages)
+            )
+    
+    def _merge_summaries(
+        self,
+        old_summary: ConversationSummary,
+        new_summary: ConversationSummary
+    ) -> ConversationSummary:
+        """Merge two summaries into one."""
+        prompt = f"""Combine these two conversation summaries into one coherent summary.
+
+Previous Summary (covering {old_summary.message_count} messages):
+{old_summary.summary}
+
+New Summary (covering {new_summary.message_count} messages):
+{new_summary.summary}
+
+Combined Summary:"""
+        
+        merged_text = self.llm.generate(prompt, max_tokens=self.max_summary_tokens)
+        
+        # Merge entities and topics
+        all_entities = list(set(
+            old_summary.key_entities + new_summary.key_entities
+        ))[:20]  # Keep top 20
+        
+        all_topics = list(set(
+            old_summary.topics + new_summary.topics
+        ))[:10]  # Keep top 10
+        
+        return ConversationSummary(
+            summary=merged_text,
+            key_entities=all_entities,
+            topics=all_topics,
+            message_count=old_summary.message_count + new_summary.message_count
+        )
+    
+    def get_context(self) -> Dict:
+        """Get conversation context for the LLM."""
+        context = {
+            "recent_messages": [
+                {"role": msg.role, "content": msg.content}
+                for msg in self.recent_buffer
+            ]
+        }
+        
+        if self.summary:
+            context["summary"] = self.summary.summary
+            context["key_entities"] = self.summary.key_entities
+            context["topics"] = self.summary.topics
+        
+        return context
+    
+    def format_for_prompt(self) -> str:
+        """Format context as a string for LLM prompt."""
+        parts = []
+        
+        if self.summary:
+            parts.append("Previous Conversation Summary:")
+            parts.append(self.summary.summary)
+            
+            if self.summary.key_entities:
+                parts.append(f"Key Entities: {', '.join(self.summary.key_entities)}")
+            
+            parts.append("")
+        
+        if self.recent_buffer:
+            parts.append("Recent Messages:")
+            for msg in self.recent_buffer:
+                parts.append(f"{msg.role}: {msg.content}")
+        
+        return "\n".join(parts)
+    
+    def get_stats(self) -> Dict:
+        """Get memory statistics."""
+        return {
+            "total_messages": len(self.messages),
+            "summarized_messages": self.summary.message_count if self.summary else 0,
+            "recent_messages": len(self.recent_buffer),
+            "compression_ratio": (
+                self.summary.message_count / len(self.messages)
+                if self.summary and self.messages else 0
+            )
+        }
+```
+
+### Token Budget Management
+
+```python
+class TokenBudgetMemory(SummaryMemory):
+    """Memory manager that respects token budgets."""
+    
+    def __init__(self, llm_client, max_tokens: int = 4000, **kwargs):
+        super().__init__(llm_client, **kwargs)
+        self.max_tokens = max_tokens
+        self.tokenizer = tiktoken.get_encoding("cl100k_base")
+    
+    def count_tokens(self, text: str) -> int:
+        """Count tokens in text."""
+        return len(self.tokenizer.encode(text))
+    
+    def get_context_within_budget(self) -> Dict:
+        """Get context that fits within token budget."""
+        context = self.get_context()
+        
+        # Start with summary
+        formatted = []
+        if "summary" in context:
+            formatted.append(f"Summary: {context['summary']}")
+        
+        # Add recent messages until budget is reached
+        recent = context.get("recent_messages", [])
+        included_messages = []
+        
+        # Add messages in reverse (newest first) until budget
+        current_tokens = self.count_tokens("\n".join(formatted))
+        
+        for msg in reversed(recent):
+            msg_text = f"{msg['role']}: {msg['content']}"
+            msg_tokens = self.count_tokens(msg_text)
+            
+            if current_tokens + msg_tokens > self.max_tokens:
+                break
+            
+            included_messages.insert(0, msg)
+            current_tokens += msg_tokens
+        
+        return {
+            "summary": context.get("summary", ""),
+            "recent_messages": included_messages,
+            "tokens_used": current_tokens
+        }
+```
+
+### Usage Example
+
+```python
+# Initialize memory
+memory = SummaryMemory(
+    llm_client=your_llm,
+    max_recent_messages=6,
+    summary_trigger=10
+)
+
+# Simulate conversation
+conversation = [
+    ("user", "Hi, I'm learning Python programming."),
+    ("assistant", "Great! Python is an excellent language to learn. What experience do you have?"),
+    ("user", "I'm a complete beginner. Where should I start?"),
+    ("assistant", "Let's start with variables and data types..."),
+    # ... more messages
+]
+
+for role, content in conversation:
+    memory.add_message(role, content)
+
+# Get context for next response
+context = memory.get_context()
+print(f"Summary: {context.get('summary', 'N/A')}")
+print(f"Recent messages: {len(context['recent_messages'])}")
+
+# Format for prompt
+prompt_context = memory.format_for_prompt()
+print(prompt_context)
+
+# Check stats
+stats = memory.get_stats()
+print(f"Compression ratio: {stats['compression_ratio']:.2%}")
+```
+
+## Advanced Features
+
+### Entity-Aware Summarization
+
+```python
+class EntityAwareSummaryMemory(SummaryMemory):
+    """Memory that tracks entities across summaries."""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.entity_history: Dict[str, List[Dict]] = {}
+    
+    def extract_entities(self, text: str) -> List[str]:
+        """Extract named entities from text."""
+        prompt = f"Extract named entities (people, places, organizations) from:\n{text}\n\nEntities:"
+        response = self.llm.generate(prompt)
+        return [e.strip() for e in response.split(",") if e.strip()]
+    
+    def track_entity(self, entity: str, context: str):
+        """Track entity mention with context."""
+        if entity not in self.entity_history:
+            self.entity_history[entity] = []
+        
+        self.entity_history[entity].append({
+            "context": context,
+            "message_index": len(self.messages)
+        })
+    
+    def get_entity_context(self, entity: str) -> str:
+        """Get history of an entity."""
+        history = self.entity_history.get(entity, [])
+        if not history:
+            return ""
+        
+        contexts = [h["context"] for h in history[-3:]]  # Last 3 mentions
+        return f"{entity}: {'; '.join(contexts)}"
+```
+
+### Topic Segmentation
+
+```python
+class TopicSegmentedMemory(SummaryMemory):
+    """Memory that segments by topic."""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.topic_segments: List[Dict] = []
+        self.current_topic: Optional[str] = None
+    
+    def detect_topic_shift(self, message: str) -> bool:
+        """Detect if message shifts to new topic."""
+        if not self.current_topic:
+            return True
+        
+        prompt = f"""Is this message about a different topic than '{self.current_topic}'?
+
+Message: {message}
+
+Answer yes or no:"""
+        
+        response = self.llm.generate(prompt).lower().strip()
+        return "yes" in response
+    
+    def identify_topic(self, message: str) -> str:
+        """Identify the topic of a message."""
+        prompt = f"What is the main topic of this message? Be concise.\n\n{message}\n\nTopic:"
+        return self.llm.generate(prompt).strip()
+    
+    def add_message(self, role: str, content: str):
+        """Add message with topic tracking."""
+        # Check for topic shift
+        if self.detect_topic_shift(content):
+            # Save current topic segment
+            if self.current_topic and self.messages:
+                self.topic_segments.append({
+                    "topic": self.current_topic,
+                    "start_idx": self._get_topic_start(),
+                    "end_idx": len(self.messages)
+                })
+            
+            # Start new topic
+            self.current_topic = self.identify_topic(content)
+        
+        super().add_message(role, content)
+```
+
+## Best Practices
+
+1. **Trigger Frequency**: Summarize every 5-10 messages for balance
+2. **Summary Length**: Keep summaries under 500 tokens
+3. **Recent Buffer**: Keep 4-8 recent messages in full
+4. **Entity Tracking**: Maintain key entities across summaries
+5. **Compression Monitoring**: Track compression ratio to optimize
+
+## Evaluation
+
+### Metrics
+
+```python
+def evaluate_summary_quality(
+    memory: SummaryMemory,
+    test_conversations: List[List[Message]]
+) -> Dict:
+    """Evaluate summary quality."""
+    results = {
+        "compression_ratios": [],
+        "retrieval_accuracy": []
+    }
+    
+    for conversation in test_conversations:
+        # Build memory
+        for msg in conversation:
+            memory.add_message(msg.role, msg.content)
+        
+        # Check compression
+        stats = memory.get_stats()
+        results["compression_ratios"].append(stats["compression_ratio"])
+        
+        # Test information retrieval
+        # (Can we answer questions about the conversation?)
+        
+    return {
+        "avg_compression": sum(results["compression_ratios"]) / len(results["compression_ratios"]),
+        "token_savings": "Calculate based on compression"
+    }
+```
+
+## Resources
+
+- [LangChain ConversationSummaryMemory](https://python.langchain.com/docs/modules/memory/types/summary)
+- [Long Context Management](https://arxiv.org/abs/2304.11062)
+- [Summarization for Dialogue](https://arxiv.org/abs/2109.04609)

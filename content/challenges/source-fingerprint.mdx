@@ -1,44 +1,301 @@
 ﻿---
 title: "Source Fingerprinting (GDPR Deletion)"
-description: "Track chunk sources for targeted data deletion compliance."
+description: "Track chunk sources for targeted data deletion compliance with GDPR's Right to be Forgotten."
+prerequisites: ["audit-logger"]
+related: ["document-access-control", "multi-tenancy-rag"]
+next: ["document-access-control"]
 ---
 
-# Source Fingerprinting (GDPR Deletion)
+<Callout title="Goal" variant="info">
+  Master source fingerprinting — the data governance technique that enables GDPR-compliant targeted deletion without full re-indexing.
+</Callout>
 
-GDPR's "Right to be Forgotten" means that when a user requests deletion, **all** their data must be removed—including from your vector index.
+## The Problem
 
-### The Problem
+GDPR's "Right to be Forgotten" means that when a user requests deletion, **all** their data must be removed — including from your vector index.
 
-Without source tracking:
+### Without Source Tracking
 
-1. User requests deletion of "contract_123.pdf".
-2. You have 50,000 chunks in your index.
+1. User requests deletion of "contract_123.pdf"
+2. You have 50,000 chunks in your index
 3. Which chunks came from that contract? 🤷
 
-### The Solution: Source Fingerprinting
+**The only option**: Full re-index of all 50,000 chunks — hours of downtime and significant compute cost.
+
+### The Cost of Non-Compliance
+
+| Violation | Fine | Example |
+|-----------|------|---------|
+| GDPR Article 17 | Up to €20M or 4% revenue | Failure to delete user data |
+| CCPA | Up to $7,500 per violation | Unauthorized data retention |
+| HIPAA | Up to $1.5M per year | Failure to protect PHI |
+
+## The Solution: Source Fingerprinting
 
 Maintain a bidirectional mapping:
 
-- `source_id -> [chunk_ids]`
-- `chunk_id -> source_id`
-
-When a deletion request comes:
-
-```python
-chunks_to_delete = tracker.delete_source("contract_123")
-# Returns: ["chunk_001", "chunk_002", ..., "chunk_050"]
-# Now delete these from your vector DB.
+```
+source_id → [chunk_ids]  (forward mapping)
+chunk_id → source_id     (reverse mapping)
 ```
 
-### Your Task
+### Deletion Workflow
 
-Implement a `SourceTracker` class that:
+```python
+# User requests deletion
+chunks_to_delete = tracker.delete_source("contract_123")
+# Returns: ["chunk_001", "chunk_002", ..., "chunk_050"]
 
-- Registers chunks with their source.
-- Retrieves all chunks for a source.
-- Deletes a source and returns affected chunk IDs.
+# Delete from vector database
+vector_db.delete(ids=chunks_to_delete)
 
-### Compliance Reality
+# Verify deletion
+assert tracker.get_chunks_by_source("contract_123") == []
+```
 
-Without this, GDPR deletion requires a **full re-index** of your entire database. With fingerprinting, it's a targeted O(1) lookup.
+**Time complexity**: O(k) where k = chunks per source, not O(n) for full re-index.
 
+## Theoretical Foundation
+
+### Data Lineage
+
+Source fingerprinting is a form of **data lineage tracking**:
+
+```
+Original Document
+       ↓
+   [Parsing]
+       ↓
+   Chunks
+   ├── chunk_1 ← source: doc_123, page: 1
+   ├── chunk_2 ← source: doc_123, page: 1
+   └── chunk_3 ← source: doc_123, page: 2
+```
+
+### Metadata Schema
+
+```python
+class ChunkMetadata:
+    chunk_id: str           # Unique chunk identifier
+    source_id: str          # Document/source identifier
+    source_type: str        # "pdf", "webpage", "database", etc.
+    created_at: datetime    # When chunk was created
+    updated_at: datetime    # When source was last modified
+    version: str            # Source version (for updates)
+    
+    # Optional provenance
+    page_number: int        # For PDFs
+    url: str                # For web pages
+    row_id: str             # For database records
+    author: str             # Content creator
+```
+
+### Update Scenarios
+
+| Scenario | Action | Implementation |
+|----------|--------|----------------|
+| **Delete source** | Remove all chunks | `delete_source(source_id)` |
+| **Update source** | Replace chunks | `delete_source()` + re-index |
+| **Partial update** | Modify specific chunks | Version tracking |
+| **Source merge** | Combine sources | Update mappings |
+
+## Production Considerations
+
+### Storage Options
+
+| Storage | Pros | Cons | Best For |
+|---------|------|------|----------|
+| **In-Memory (dict)** | Fast | Lost on restart | Development |
+| **Redis** | Fast, persistent | Extra infra | Production caching |
+| **PostgreSQL** | ACID, queryable | Slower | Source of truth |
+| **Vector DB metadata** | Colocated | Limited size | Small metadata |
+
+### Distributed Systems
+
+In a distributed RAG system, source tracking must be consistent:
+
+```python
+class DistributedSourceTracker:
+    def __init__(self, redis_client: redis.Redis):
+        self.redis = redis_client
+    
+    def register_chunk(self, chunk_id: str, source_id: str):
+        """Atomic registration using Redis transaction."""
+        pipe = self.redis.pipeline()
+        pipe.sadd(f"source:{source_id}", chunk_id)
+        pipe.hset(f"chunk:{chunk_id}", "source_id", source_id)
+        pipe.execute()
+    
+    def delete_source(self, source_id: str) -> list[str]:
+        """Atomic deletion with chunk list return."""
+        pipe = self.redis.pipeline()
+        pipe.smembers(f"source:{source_id}")
+        pipe.delete(f"source:{source_id}")
+        chunk_ids = pipe.execute()[0]
+        
+        # Clean up reverse mappings
+        for chunk_id in chunk_ids:
+            self.redis.delete(f"chunk:{chunk_id}")
+        
+        return list(chunk_ids)
+```
+
+### Integration with Vector Databases
+
+```python
+# Pinecone with metadata filtering
+index.upsert(
+    vectors=[
+        {
+            "id": chunk_id,
+            "values": embedding,
+            "metadata": {
+                "source_id": source_id,
+                "text": text,
+            }
+        }
+    ]
+)
+
+# Delete by source
+index.delete(
+    filter={"source_id": {"$eq": source_id}}
+)
+```
+
+## Your Task
+
+Implement source tracking:
+
+```python
+from typing import Dict, List, Set, Optional
+
+class SourceTracker:
+    def __init__(self):
+        # Maps source_id -> set of chunk_ids
+        self.source_to_chunks: Dict[str, Set[str]] = {}
+        # Maps chunk_id -> source_id
+        self.chunk_to_source: Dict[str, str] = {}
+    
+    def register_chunk(self, chunk_id: str, source_id: str):
+        """
+        Register a chunk's source for later deletion tracking.
+        
+        Args:
+            chunk_id: Unique chunk identifier
+            source_id: Source document identifier
+            
+        Note:
+            If chunk_id already exists, update its source mapping
+        """
+        pass
+    
+    def get_chunks_by_source(self, source_id: str) -> List[str]:
+        """
+        Return all chunk_ids from a given source.
+        
+        Args:
+            source_id: Source to look up
+            
+        Returns:
+            List of chunk IDs belonging to source
+            Returns empty list if source doesn't exist
+        """
+        pass
+    
+    def get_source_by_chunk(self, chunk_id: str) -> Optional[str]:
+        """
+        Return the source_id for a given chunk.
+        
+        Args:
+            chunk_id: Chunk to look up
+            
+        Returns:
+            Source ID or None if chunk not found
+        """
+        pass
+    
+    def delete_source(self, source_id: str) -> List[str]:
+        """
+        Delete a source and return all chunk_ids that should be removed.
+        Also clean up internal mappings.
+        
+        Args:
+            source_id: Source to delete
+            
+        Returns:
+            List of chunk IDs that were associated with this source
+            Returns empty list if source doesn't exist
+        """
+        pass
+    
+    def delete_chunk(self, chunk_id: str) -> Optional[str]:
+        """
+        Remove a single chunk from tracking.
+        
+        Args:
+            chunk_id: Chunk to remove
+            
+        Returns:
+            Source ID that the chunk belonged to, or None
+        """
+        pass
+    
+    def get_all_sources(self) -> List[str]:
+        """
+        Return list of all tracked source IDs.
+        
+        Returns:
+            List of source IDs
+        """
+        pass
+    
+    def get_statistics(self) -> Dict[str, int]:
+        """
+        Return statistics about tracked data.
+        
+        Returns:
+            Dict with 'total_sources', 'total_chunks', 
+            'avg_chunks_per_source'
+        """
+        pass
+```
+
+### Validation Checklist
+
+- [ ] Registering chunk adds to both mappings
+- [ ] get_chunks_by_source returns correct chunks
+- [ ] delete_source returns all chunk IDs
+- [ ] After delete_source, source has no chunks
+- [ ] After delete_source, chunk mappings cleaned up
+- [ ] Statistics calculated correctly
+- [ ] Handles non-existent sources gracefully
+
+## Resources
+
+### Compliance Documentation
+- [GDPR Article 17](https://gdpr-info.eu/art-17-gdpr/) - Right to erasure
+- [CCPA Deletion Rights](https://oag.ca.gov/privacy/ccpa) - California Consumer Privacy Act
+- [HIPAA Right to Amend](https://www.hhs.gov/hipaa/for-individuals/amendment/index.html) - Health data
+
+### Technical Documentation
+- [Pinecone Metadata Filtering](https://docs.pinecone.io/docs/metadata-filtering) - Delete by metadata
+- [Weaviate Batch Delete](https://weaviate.io/developers/weaviate/manage-data/delete) - Bulk deletion
+- [Qdrant Delete API](https://qdrant.tech/documentation/concepts/points/#delete-points) - Point deletion
+
+### Tutorials
+- ["GDPR-Compliant Vector Search"](https://www.pinecone.io/learn/gdpr-vector-search/) - Pinecone
+- ["Data Lineage in ML Systems"](https://mlflow.org/docs/latest/tracking.html) - MLflow
+- ["Building Compliant AI"](https://www.vanta.com/resources/soc-2-ai) - Vanta
+
+### Tools
+- [OneTrust](https://www.onetrust.com/) - Privacy management platform
+- [BigID](https://bigid.com/) - Data discovery and classification
+- [Collibra](https://www.collibra.com/) - Data governance
+
+## Next Steps
+
+After mastering source fingerprinting:
+- **Document Access Control**: Row-level security for documents
+- **Multi-tenancy RAG**: Isolate data between customers
+- **RAG Audit Logging**: Comprehensive audit trails

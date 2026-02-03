@@ -1,7 +1,132 @@
-﻿<Callout title="Goal" variant="info">
-  Master multimodal RAG — retrieving and reasoning over images, tables, PDFs,
-  and mixed content.
-</Callout>
+﻿---
+title: "Multi-Modal RAG Guide"
+description: "Master multimodal RAG — retrieving and reasoning over images, tables, PDFs, and mixed content"
+difficulty: "hard"
+xpReward: 200
+estimatedMinutes: 60
+stage: "advanced-retrieval"
+track: "multimodal"
+tags: ["multimodal", "rag", "vision", "pdf", "images", "tables"]
+prerequisites: ["multimodal-retrieval", "ocr-rag-pipeline", "image-embedding-rag"]
+relatedChallenges: ["image-embedding-rag", "multimodal-retrieval", "ocr-rag-pipeline", "pdf-table-extraction"]
+nextChallenges: []
+theory:
+  overview: |
+    Multi-modal RAG extends traditional text-based retrieval to handle diverse 
+    content types including images, tables, audio, and PDFs. By combining vision 
+    models, OCR, and structured extraction, multi-modal RAG can answer questions 
+    that require understanding visual information, data tables, and mixed-format 
+    documents.
+  keyFormulas:
+    - name: "Multi-Modal Fusion"
+      formula: "E_fused = Σ w_i × E_i where Σ w_i = 1"
+    - name: "Cross-Modal Similarity"
+      formula: "sim(T, I) = cos(E_text(T), E_image(I))"
+    - name: "Late Interaction Score"
+      formula: "score(q,d) = Σ_i max_j (q_i · d_j) (ColBERT-style)"
+    - name: "Modality Weighting"
+      formula: "w_modality = P(modality | query_type)"
+  visualIntuition: |
+    Multi-Modal RAG Architecture:
+    
+    ```
+    Document
+        │
+        ├── Text ───────→ Text chunks ───→ Text embeddings
+        │
+        ├── Images ─────→ Captions ──────→ Text embeddings
+        │                 └─→ CLIP ──────→ Image embeddings
+        │
+        ├── Tables ─────→ Markdown ──────→ Text embeddings
+        │                 └─→ Structured ─→ SQL/JSON
+        │
+        └── PDF Pages ──→ ColPali ───────→ Visual embeddings
+    
+    Query
+        │
+        ├── Text query ─→ Search text index
+        ├── Image query ─→ Search image index
+        └── Hybrid ──────→ Merge results ─→ Rerank ─→ Generate
+    ```
+  whyItMatters: |
+    Multi-modal RAG enables:
+    1. **Visual understanding**: Answer questions about charts, diagrams, images
+    2. **Table reasoning**: Extract and query structured data
+    3. **PDF processing**: Handle complex documents with mixed content
+    4. **Comprehensive answers**: Combine evidence from all modalities
+  commonMistakes:
+    - "Treating all content as text (losing visual information)"
+    - "Not handling OCR errors in scanned documents"
+    - "Ignoring table structure when extracting"
+    - "Not weighting modalities based on query type"
+  interviewTips:
+    - "Compare image captioning vs CLIP embeddings"
+    - "Discuss when to use ColPali for PDFs"
+    - "Explain table extraction strategies"
+    - "Mention query routing by content type"
+realWorld:
+  description: |
+    Financial services use multi-modal RAG for earnings report analysis (charts 
+    + tables + text). Legal tech processes contracts with signatures and exhibits. 
+    Healthcare systems analyze medical imaging reports. E-commerce platforms 
+    combine product images, descriptions, and reviews.
+  companies: ["OpenAI", "Google", "Microsoft", "Amazon", "Bloomberg"]
+  useCases:
+    - "Financial report analysis with charts and tables"
+    - "Legal document processing with exhibits"
+    - "Medical imaging report Q&A"
+    - "Product catalog search (images + specs)"
+    - "Scientific paper understanding (figures + text)"
+complexity:
+  time: "O(n × m) where n = documents, m = modalities per document"
+  space: "O(n × Σ d_i) where d_i = embedding dims per modality"
+  latency: "200-1000ms depending on modalities used"
+resources:
+  papers:
+    - title: "ColPali: Efficient Document Retrieval with Vision Language Models"
+      url: "https://arxiv.org/abs/2407.01449"
+      authors: "Faysse et al."
+      year: 2024
+    - title: "Learning Transferable Visual Models From Natural Language Supervision (CLIP)"
+      url: "https://arxiv.org/abs/2103.00020"
+      authors: "Radford et al., OpenAI"
+      year: 2021
+    - title: "LLaVA: Large Language and Vision Assistant"
+      url: "https://arxiv.org/abs/2304.08485"
+      authors: "Liu et al."
+      year: 2023
+  documentation:
+    - title: "OpenAI Vision API"
+      url: "https://platform.openai.com/docs/guides/vision"
+    - title: "LlamaIndex Multi-Modal"
+      url: "https://docs.llamaindex.ai/en/stable/use_cases/multimodal/"
+    - title: "LangChain Multi-Modal"
+      url: "https://python.langchain.com/docs/how_to/multimodal/"
+  tutorials:
+    - title: "Building Multi-Modal RAG Systems"
+      url: "https://blog.langchain.dev/multi-modal-rag/"
+    - title: "ColPali Tutorial"
+      url: "https://huggingface.co/blog/manu/colpali"
+    - title: "Vision-Language RAG"
+      url: "https://www.pinecone.io/learn/multimodal-rag/"
+  tools:
+    - name: "ColPali"
+      description: "Vision-language model for document retrieval"
+      url: "https://github.com/illuin-tech/colpali"
+    - name: "LLaVA"
+      description: "Large language and vision assistant"
+      url: "https://llava-vl.github.io/"
+    - name: "Unstructured"
+      description: "Document processing for multimodal content"
+      url: "https://unstructured.io/"
+    - name: "LlamaParse"
+      description: "Document parsing API for complex PDFs"
+      url: "https://docs.cloud.llamaindex.ai/"
+---
+
+# Multi-Modal RAG Guide
+
+Master multimodal RAG — retrieving and reasoning over images, tables, PDFs, and mixed content.
 
 ## The Multimodal Challenge
 
@@ -13,26 +138,26 @@ Standard RAG works with text. Real-world documents contain:
 - **Code** (syntax, structure)
 - **Audio/Video** (transcripts, visual content)
 
-## Multimodal RAG Architecture
+## Multi-Modal RAG Architecture
 
 ```
 Document
-    |
+    │
     ├── Text Extraction ─────→ Text chunks ─→ Text embeddings
-    |
+    │
     ├── Image Extraction
-    |   ├── Vision model caption ─→ Text embeddings
-    |   └── CLIP/ColPali ─────────→ Image embeddings
-    |
+    │   ├── Vision model caption ─→ Text embeddings
+    │   └── CLIP/ColPali ─────────→ Image embeddings
+    │
     ├── Table Extraction
-    |   ├── Markdown conversion ──→ Text embeddings
-    |   └── Structured storage ───→ SQL/metadata
-    |
+    │   ├── Markdown conversion ──→ Text embeddings
+    │   └── Structured storage ───→ SQL/metadata
+    │
     └── Audio/Video
         └── Transcription ────────→ Text embeddings
 
 Query
-    |
+    │
     ├── Text query ─→ Search text index
     ├── Image query ─→ Search image index (CLIP)
     └── Hybrid ──────→ Merge results ─→ Rerank ─→ Generate
@@ -283,6 +408,70 @@ def multimodal_rag(query: str, indices: dict) -> str:
         return generate_text_only(query, context)
 ```
 
+## Your Task
+
+Implement a `MultimodalRAGPipeline` class:
+
+```python
+class MultimodalRAGPipeline:
+    def __init__(self):
+        """Initialize multi-modal RAG pipeline."""
+        pass
+    
+    def process_document(self, file_path: str) -> list[dict]:
+        """
+        Process document and extract all modalities.
+        
+        Args:
+            file_path: Path to document (PDF, image, etc.)
+            
+        Returns:
+            List of chunks with embeddings
+        """
+        pass
+    
+    def index_documents(self, documents: list[str]) -> None:
+        """
+        Index multiple documents with multi-modal extraction.
+        
+        Args:
+            documents: List of file paths
+        """
+        pass
+    
+    def retrieve(self, query: str, query_image=None, 
+                 k: int = 5) -> list[dict]:
+        """
+        Retrieve across all modalities.
+        
+        Args:
+            query: Text query
+            query_image: Optional image query
+            k: Number of results
+            
+        Returns:
+            Ranked results from all modalities
+        """
+        pass
+    
+    def generate(self, query: str, query_image=None) -> dict:
+        """
+        Generate answer with multi-modal context.
+        
+        Args:
+            query: User question
+            query_image: Optional query image
+            
+        Returns:
+            {
+                "answer": str,
+                "sources": list[dict],
+                "modalities_used": list[str]
+            }
+        """
+        pass
+```
+
 ## Benchmarks
 
 | Approach          | Text Recall | Image Recall | Table Recall | Cost   |
@@ -330,4 +519,3 @@ def multimodal_rag(query: str, indices: dict) -> str:
 - [OpenAI Vision Guide](https://platform.openai.com/docs/guides/vision)
 - [Unstructured.io](https://unstructured.io/) - Document processing library
 - [LlamaIndex Multimodal](https://docs.llamaindex.ai/en/stable/examples/multi_modal/)
-

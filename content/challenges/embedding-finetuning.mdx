@@ -1,38 +1,497 @@
 ﻿---
 title: "Embedding Model Fine-Tuning"
-description: "Implement the contrastive loss function for embedding fine-tuning."
+description: "Implement contrastive loss functions for domain-specific embedding fine-tuning"
+difficulty: "hard"
+xpReward: 150
+estimatedMinutes: 55
+stage: "advanced-retrieval"
+track: "fine-tuning"
+tags: ["fine-tuning", "embeddings", "contrastive-learning", "infonce", "triplet-loss"]
+prerequisites: ["cosine-similarity", "dot-product"]
+relatedChallenges: ["fine-tuning-embeddings-guide", "lora-adapter", "ranker-distillation"]
+nextChallenges: ["fine-tuning-embeddings-guide"]
+theory:
+  overview: |
+    Embedding model fine-tuning adapts pre-trained models to specific domains using 
+    contrastive learning. By training on (query, positive, negative) triplets, models 
+    learn to pull relevant documents closer to queries while pushing irrelevant ones 
+    away, significantly improving retrieval quality on domain-specific data.
+  keyFormulas:
+    - name: "InfoNCE Loss"
+      formula: "L = -log(exp(sim(q,p)/τ) / Σ_i exp(sim(q,n_i)/τ))"
+    - name: "Triplet Loss"
+      formula: "L = max(0, sim(q,n) - sim(q,p) + margin)"
+    - name: "Multiple Negatives Ranking Loss"
+      formula: "L = -log(exp(sim(q,p)/τ) / Σ_{d∈batch} exp(sim(q,d)/τ))"
+    - name: "Temperature Scaling"
+      formula: "P(positive) = exp(sim/τ) / Σ exp(sim_i/τ)"
+  visualIntuition: |
+    Contrastive Learning in Embedding Space:
+    
+    ```
+    Before Fine-tuning:
+    Query ●                    ● Positive
+         │\                  /
+         │ \                /
+         │  \              /
+         │   ● Negative   /
+         │              /
+    
+    After Fine-tuning:
+    Query ●──────● Positive
+         │
+         │      ● Negative (pushed away)
+         │
+         ● Another Negative
+    
+    Query and positive are closer;
+    Negatives are pushed farther away
+    ```
+  whyItMatters: |
+    Fine-tuned embeddings provide:
+    1. **Domain adaptation**: Understand specialized vocabulary
+    2. **Task alignment**: Optimize for specific retrieval patterns
+    3. **Quality improvement**: 20-50% better retrieval on domain data
+    4. **Cost efficiency**: Smaller models can match larger general models
+  commonMistakes:
+    - "Using too few training examples (<1000)"
+    - "Not mining hard negatives"
+    - "Setting temperature too high or too low"
+    - "Overfitting to small training set"
+  interviewTips:
+    - "Explain difference between InfoNCE and Triplet loss"
+    - "Discuss hard negative mining strategies"
+    - "Mention temperature scaling importance"
+    - "Compare in-batch vs external negatives"
+realWorld:
+  description: |
+    Fine-tuned embeddings power domain-specific search at Bloomberg (financial), 
+    PubMed (medical), and GitHub (code). E-commerce platforms fine-tune on product 
+    catalogs. Legal tech companies adapt embeddings to case law and contracts.
+  companies: ["Bloomberg", "PubMed", "GitHub", "Shopify", "LexisNexis"]
+  useCases:
+    - "Financial document retrieval"
+    - "Medical literature search"
+    - "Code search and documentation"
+    - "Product catalog search"
+    - "Legal case law retrieval"
+complexity:
+  time: "O(n × b × d) where n = epochs, b = batch size, d = embedding dim"
+  space: "O(m) where m = model parameters"
+  latency: "Training: hours to days; Inference: same as base model"
+resources:
+  papers:
+    - title: "Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks"
+      url: "https://arxiv.org/abs/1908.10084"
+      authors: "Reimers & Gurevych"
+      year: 2019
+    - title: "Learning Transferable Visual Models From Natural Language Supervision"
+      url: "https://arxiv.org/abs/2103.00020"
+      authors: "Radford et al., OpenAI"
+      year: 2021
+    - title: "Making Monolingual Sentence Embeddings Multilingual"
+      url: "https://arxiv.org/abs/2004.09813"
+      authors: "Reimers & Gurevych"
+      year: 2020
+  documentation:
+    - title: "Sentence Transformers Training"
+      url: "https://www.sbert.net/docs/training/overview.html"
+    - title: "Hugging Face Fine-tuning Guide"
+      url: "https://huggingface.co/docs/transformers/training"
+  tutorials:
+    - title: "Fine-tuning Embeddings for RAG"
+      url: "https://blog.langchain.dev/fine-tuning-embeddings/"
+    - title: "Domain Adaptation for Embeddings"
+      url: "https://www.pinecone.io/learn/fine-tune-embeddings/"
+  tools:
+    - name: "Sentence Transformers"
+      description: "Framework for training sentence embeddings"
+      url: "https://www.sbert.net/"
+    - name: "PEFT"
+      description: "Parameter-efficient fine-tuning library"
+      url: "https://github.com/huggingface/peft"
+    - name: "SetFit"
+      description: "Efficient few-shot learning with embeddings"
+      url: "https://github.com/huggingface/setfit"
 ---
 
-# Embedding Model Fine-Tuning (Contrastive Loss)
+# Embedding Model Fine-Tuning
 
-General-purpose embeddings (text-embedding-3-small) are good, but **domain-specific embeddings** are better.
+Implement contrastive loss functions for domain-specific embedding fine-tuning, enabling significant retrieval quality improvements on specialized data.
 
-### The Contrastive Learning Setup
+## The Problem
 
-- **Anchor**: The query.
-- **Positive**: A document that answers the query.
-- **Negatives**: Documents that don't answer the query.
+General-purpose embeddings (text-embedding-3-small) are good, but **domain-specific embeddings** are better:
+- Medical queries need to understand clinical terminology
+- Legal documents require case law comprehension
+- Code search needs programming language semantics
+
+## Your Task
+
+Implement core contrastive loss functions for embedding fine-tuning:
+
+```python
+import numpy as np
+import torch
+import torch.nn.functional as F
+
+class ContrastiveLosses:
+    """Collection of contrastive loss functions for embedding fine-tuning."""
+    
+    @staticmethod
+    def infonce_loss(query_emb: torch.Tensor,
+                    positive_emb: torch.Tensor,
+                    negative_embs: torch.Tensor,
+                    temperature: float = 0.07) -> torch.Tensor:
+        """
+        InfoNCE (Noise Contrastive Estimation) loss.
+        
+        Args:
+            query_emb: Query embedding [batch_size, dim]
+            positive_emb: Positive document embedding [batch_size, dim]
+            negative_embs: Negative document embeddings [batch_size, num_neg, dim]
+            temperature: Temperature scaling factor
+            
+        Returns:
+            Scalar loss value
+        """
+        pass
+    
+    @staticmethod
+    def triplet_loss(anchor_emb: torch.Tensor,
+                    positive_emb: torch.Tensor,
+                    negative_emb: torch.Tensor,
+                    margin: float = 0.5) -> torch.Tensor:
+        """
+        Triplet loss with margin.
+        
+        Args:
+            anchor_emb: Anchor/query embedding [batch_size, dim]
+            positive_emb: Positive embedding [batch_size, dim]
+            negative_emb: Negative embedding [batch_size, dim]
+            margin: Minimum distance between pos and neg
+            
+        Returns:
+            Scalar loss value
+        """
+        pass
+    
+    @staticmethod
+    def multiple_negatives_ranking_loss(query_emb: torch.Tensor,
+                                        doc_emb: torch.Tensor,
+                                        temperature: float = 0.07) -> torch.Tensor:
+        """
+        Multiple Negatives Ranking Loss (in-batch negatives).
+        Treats other documents in batch as negatives.
+        
+        Args:
+            query_emb: Query embeddings [batch_size, dim]
+            doc_emb: Document embeddings [batch_size, dim]
+            temperature: Temperature scaling factor
+            
+        Returns:
+            Scalar loss value
+        """
+        pass
+    
+    @staticmethod
+    def cosine_similarity(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        """
+        Compute cosine similarity between embeddings.
+        
+        Args:
+            a: Embeddings [batch_size, dim] or [dim]
+            b: Embeddings [batch_size, dim] or [num_neg, dim]
+            
+        Returns:
+            Similarity scores
+        """
+        pass
+```
+
+## Example
+
+```python
+# Initialize loss functions
+losses = ContrastiveLosses()
+
+# Example embeddings (batch_size=4, dim=128)
+query_emb = torch.randn(4, 128)
+positive_emb = torch.randn(4, 128)
+negative_embs = torch.randn(4, 5, 128)  # 5 negatives per query
+
+# InfoNCE loss
+infonce = losses.infonce_loss(query_emb, positive_emb, negative_embs, temperature=0.07)
+print(f"InfoNCE Loss: {infonce.item():.4f}")
+
+# Triplet loss
+negative_emb = negative_embs[:, 0, :]  # Use first negative
+triplet = losses.triplet_loss(query_emb, positive_emb, negative_emb, margin=0.5)
+print(f"Triplet Loss: {triplet.item():.4f}")
+
+# Multiple Negatives Ranking Loss (uses in-batch negatives)
+mnrl = losses.multiple_negatives_ranking_loss(query_emb, positive_emb)
+print(f"MNRL Loss: {mnrl.item():.4f}")
+
+# Training loop example
+def train_step(model, batch, loss_fn, optimizer):
+    """Single training step."""
+    queries, positives, negatives = batch
+    
+    # Forward pass
+    query_emb = model.encode(queries)
+    positive_emb = model.encode(positives)
+    negative_emb = model.encode(negatives) if negatives else None
+    
+    # Compute loss
+    if loss_fn == "infonce":
+        loss = losses.infonce_loss(query_emb, positive_emb, negative_emb)
+    elif loss_fn == "triplet":
+        loss = losses.triplet_loss(query_emb, positive_emb, negative_emb)
+    elif loss_fn == "mnrl":
+        loss = losses.multiple_negatives_ranking_loss(query_emb, positive_emb)
+    
+    # Backward pass
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+    
+    return loss.item()
+```
+
+## Algorithm Details
 
 ### InfoNCE Loss
 
-Pull anchor close to positive, push away from negatives:
-
+```python
+@staticmethod
+def infonce_loss(query_emb: torch.Tensor,
+                positive_emb: torch.Tensor,
+                negative_embs: torch.Tensor,
+                temperature: float = 0.07) -> torch.Tensor:
+    """
+    InfoNCE loss implementation.
+    
+    L = -log(exp(sim(q,p)/τ) / (exp(sim(q,p)/τ) + Σ exp(sim(q,n_i)/τ)))
+    """
+    # Normalize embeddings
+    query_emb = F.normalize(query_emb, p=2, dim=-1)
+    positive_emb = F.normalize(positive_emb, p=2, dim=-1)
+    negative_embs = F.normalize(negative_embs, p=2, dim=-1)
+    
+    # Compute similarity with positive
+    pos_sim = torch.sum(query_emb * positive_emb, dim=-1) / temperature
+    
+    # Compute similarities with negatives [batch_size, num_neg]
+    neg_sim = torch.bmm(
+        negative_embs,  # [batch, num_neg, dim]
+        query_emb.unsqueeze(-1)  # [batch, dim, 1]
+    ).squeeze(-1) / temperature
+    
+    # Concatenate positive and negative similarities
+    # pos_sim: [batch], neg_sim: [batch, num_neg]
+    logits = torch.cat([pos_sim.unsqueeze(1), neg_sim], dim=1)  # [batch, 1+num_neg]
+    
+    # Labels: positive is at index 0
+    labels = torch.zeros(query_emb.size(0), dtype=torch.long, device=query_emb.device)
+    
+    # Cross-entropy loss
+    loss = F.cross_entropy(logits, labels)
+    
+    return loss
 ```
-Loss = -log(exp(sim(A, P)/τ) / Σ exp(sim(A, Ni)/τ))
+
+### Triplet Loss
+
+```python
+@staticmethod
+def triplet_loss(anchor_emb: torch.Tensor,
+                positive_emb: torch.Tensor,
+                negative_emb: torch.Tensor,
+                margin: float = 0.5) -> torch.Tensor:
+    """
+    Triplet loss with margin.
+    
+    L = max(0, sim(a,n) - sim(a,p) + margin)
+    """
+    # Normalize embeddings
+    anchor_emb = F.normalize(anchor_emb, p=2, dim=-1)
+    positive_emb = F.normalize(positive_emb, p=2, dim=-1)
+    negative_emb = F.normalize(negative_emb, p=2, dim=-1)
+    
+    # Compute similarities
+    pos_sim = torch.sum(anchor_emb * positive_emb, dim=-1)
+    neg_sim = torch.sum(anchor_emb * negative_emb, dim=-1)
+    
+    # Triplet loss
+    loss = torch.clamp(neg_sim - pos_sim + margin, min=0.0)
+    
+    return loss.mean()
 ```
 
-Where τ (temperature) controls the sharpness of the distribution.
+### Multiple Negatives Ranking Loss
 
-### Your Task
+```python
+@staticmethod
+def multiple_negatives_ranking_loss(query_emb: torch.Tensor,
+                                    doc_emb: torch.Tensor,
+                                    temperature: float = 0.07) -> torch.Tensor:
+    """
+    Multiple Negatives Ranking Loss.
+    Uses other documents in the batch as negatives.
+    
+    For each query, the positive is at the same index in doc_emb.
+    All other documents in the batch are treated as negatives.
+    """
+    batch_size = query_emb.size(0)
+    
+    # Normalize
+    query_emb = F.normalize(query_emb, p=2, dim=-1)
+    doc_emb = F.normalize(doc_emb, p=2, dim=-1)
+    
+    # Compute similarity matrix [batch_size, batch_size]
+    # sim[i,j] = similarity between query i and document j
+    sim_matrix = torch.matmul(query_emb, doc_emb.t()) / temperature
+    
+    # Labels: diagonal elements are positives
+    labels = torch.arange(batch_size, device=query_emb.device)
+    
+    # Cross-entropy loss
+    loss = F.cross_entropy(sim_matrix, labels)
+    
+    return loss
+```
 
-Implement the contrastive loss function:
+### Cosine Similarity
 
-1. Compute dot products (assuming normalized vectors).
-2. Apply temperature scaling.
-3. Compute softmax-style probability.
-4. Return -log(positive probability).
+```python
+@staticmethod
+def cosine_similarity(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+    """Compute cosine similarity between embeddings."""
+    a_norm = F.normalize(a, p=2, dim=-1)
+    b_norm = F.normalize(b, p=2, dim=-1)
+    
+    # Handle different shapes
+    if a.dim() == 2 and b.dim() == 3:
+        # a: [batch, dim], b: [batch, num_neg, dim]
+        return torch.bmm(b_norm, a_norm.unsqueeze(-1)).squeeze(-1)
+    else:
+        return torch.sum(a_norm * b_norm, dim=-1)
+```
 
-### Why It Matters
+## Loss Function Comparison
 
-Fine-tuned embeddings can improve retrieval by 20-50% on domain-specific data.
+| Loss | Negatives | Memory | Quality | Use Case |
+|------|-----------|--------|---------|----------|
+| InfoNCE | External | High | Best | With pre-mined negatives |
+| Triplet | Single | Low | Good | Simple fine-tuning |
+| MNRL | In-batch | Medium | Very Good | Large batch training |
 
+## Hard Negative Mining
+
+```python
+def mine_hard_negatives(query: str, positive: str, corpus: list[str], 
+                       model, k: int = 10) -> list[str]:
+    """
+    Find documents similar to query but NOT the positive.
+    
+    Args:
+        query: Query text
+        positive: Positive document
+        corpus: All documents to search
+        model: Embedding model
+        k: Number of hard negatives to return
+        
+    Returns:
+        List of hard negative documents
+    """
+    # Encode query and corpus
+    query_emb = model.encode(query)
+    corpus_embs = model.encode(corpus)
+    
+    # Compute similarities
+    similarities = np.dot(corpus_embs, query_emb)
+    
+    # Get top-k most similar
+    top_k_idx = np.argsort(similarities)[-k:][::-1]
+    
+    # Filter out the positive
+    hard_negatives = [
+        corpus[i] for i in top_k_idx
+        if corpus[i] != positive
+    ]
+    
+    return hard_negatives[:k]
+```
+
+## Evaluation Criteria
+
+1. **Loss Computation**: Correct implementation of each loss
+2. **Numerical Stability**: Proper normalization and temperature scaling
+3. **Batch Handling**: Works with variable batch sizes
+4. **Gradient Flow**: Proper backpropagation support
+
+## Test Cases
+
+```python
+def test_infonce_loss():
+    """Test InfoNCE loss computation."""
+    losses = ContrastiveLosses()
+    
+    query = torch.randn(4, 128)
+    positive = torch.randn(4, 128)
+    negatives = torch.randn(4, 5, 128)
+    
+    loss = losses.infonce_loss(query, positive, negatives)
+    
+    assert loss.item() > 0
+    assert not torch.isnan(loss)
+
+def test_triplet_loss():
+    """Test triplet loss with margin."""
+    losses = ContrastiveLosses()
+    
+    anchor = torch.randn(4, 128)
+    positive = torch.randn(4, 128)
+    negative = torch.randn(4, 128)
+    
+    loss = losses.triplet_loss(anchor, positive, negative, margin=0.5)
+    
+    assert loss.item() >= 0
+    assert not torch.isnan(loss)
+
+def test_mnrl_loss():
+    """Test multiple negatives ranking loss."""
+    losses = ContrastiveLosses()
+    
+    query = torch.randn(8, 128)
+    doc = torch.randn(8, 128)
+    
+    loss = losses.multiple_negatives_ranking_loss(query, doc)
+    
+    assert loss.item() > 0
+    assert not torch.isnan(loss)
+```
+
+## Training Configuration
+
+```python
+# Recommended training config
+config = {
+    "model": "BAAI/bge-base-en-v1.5",
+    "batch_size": 32,
+    "learning_rate": 2e-5,
+    "temperature": 0.07,
+    "margin": 0.5,  # For triplet loss
+    "epochs": 3,
+    "warmup_steps": 100,
+    "num_negatives": 5,  # For InfoNCE
+    "loss_type": "mnrl",  # or "infonce", "triplet"
+}
+```
+
+## Further Reading
+
+- [Sentence-BERT Paper](https://arxiv.org/abs/1908.10084)
+- [CLIP Paper](https://arxiv.org/abs/2103.00020)
+- [Sentence Transformers Training](https://www.sbert.net/docs/training/overview.html)

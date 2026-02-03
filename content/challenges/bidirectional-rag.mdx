@@ -32,3 +32,349 @@ def bidirectional_rag(query: str, retriever, generator) -> dict:
     # Your implementation here
     pass
 ```
+
+## Mathematical Foundation
+
+### Information Gap Detection
+
+The information gap measures what the current answer is missing:
+
+$$
+\text{Gap}(q, a_t) = 1 - \frac{|\text{Entities}(q) \cap \text{Entities}(a_t)|}{|\text{Entities}(q)|}
+$$
+
+Where:
+- $q$ = original query
+- $a_t$ = partial answer at step $t$
+- $\text{Entities}(x)$ = set of entities mentioned in $x$
+
+### Stopping Criteria
+
+The iterative process stops when:
+
+$$
+\text{Gap}(q, a_t) < \theta_{\text{gap}} \lor t \geq T_{\text{max}}
+$$
+
+Where:
+- $\theta_{\text{gap}}$ = minimum acceptable coverage (e.g., 0.1)
+- $T_{\text{max}}$ = maximum iterations (e.g., 3)
+
+### Query Reformulation
+
+For subsequent retrievals, reformulate the query:
+
+$$
+q_{t+1} = \text{LLM}("What information is missing to answer: " + q + "\nCurrent answer: " + a_t)
+$$
+
+## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity |
+|-----------|-----------------|------------------|
+| Initial retrieval | O(R) | O(k × d) |
+| Generation per round | O(G) | O(v) |
+| Gap detection | O(e) | O(e) |
+| Query reformulation | O(G_q) | O(v) |
+| Total (T rounds) | O(R + T × (G + G_q)) | O(T × k × d) |
+
+Where:
+- R = retrieval time
+- G = generation time
+- G_q = query reformulation time
+- k = documents per retrieval
+- d = embedding dimension
+- e = number of entities
+- v = vocabulary size
+- T = number of rounds
+
+## Common Pitfalls
+
+1. **Infinite Loops**: No proper stopping criteria
+2. **Query Drift**: Reformulated queries diverge from original intent
+3. **Redundant Retrieval**: Fetching same documents repeatedly
+4. **Context Explosion**: Too many rounds = too much context
+5. **Latency Issues**: Each round adds significant delay
+
+## Advanced Techniques
+
+### Adaptive Stopping
+
+```python
+class AdaptiveStopper:
+    """Intelligently decide when to stop iterating."""
+    
+    def __init__(self, max_rounds=3, min_gap=0.1):
+        self.max_rounds = max_rounds
+        self.min_gap = min_gap
+        self.round_history = []
+    
+    def should_continue(self, query: str, answer: str, round_num: int) -> bool:
+        """Determine if another round is needed."""
+        if round_num >= self.max_rounds:
+            return False
+        
+        # Check information gap
+        gap = self.compute_gap(query, answer)
+        
+        # Check for convergence (answer not improving)
+        if len(self.round_history) > 0:
+            prev_gap = self.round_history[-1]
+            improvement = prev_gap - gap
+            if improvement < 0.05:  # Less than 5% improvement
+                return False
+        
+        self.round_history.append(gap)
+        return gap > self.min_gap
+    
+    def compute_gap(self, query: str, answer: str) -> float:
+        """Compute information gap."""
+        query_entities = set(self.extract_entities(query))
+        answer_entities = set(self.extract_entities(answer))
+        
+        if not query_entities:
+            return 0.0
+        
+        covered = len(query_entities & answer_entities)
+        return 1.0 - (covered / len(query_entities))
+```
+
+### Smart Query Reformulation
+
+```python
+class QueryReformulator:
+    """Generate targeted follow-up queries."""
+    
+    def reformulate(self, original_query: str, current_answer: str, 
+                   retrieved_docs: list[str]) -> str:
+        """Create a query for missing information."""
+        
+        # Identify what's been covered
+        covered_topics = self.extract_topics(current_answer)
+        all_topics = self.extract_topics(original_query)
+        missing_topics = all_topics - covered_topics
+        
+        if not missing_topics:
+            # Check for contradictions or uncertainties
+            if self.has_uncertainty(current_answer):
+                return f"Verify: {original_query}"
+            return None
+        
+        # Focus on most important missing topic
+        target_topic = max(missing_topics, 
+                          key=lambda t: self.importance_score(t, original_query))
+        
+        return f"{target_topic} regarding {original_query}"
+    
+    def has_uncertainty(self, answer: str) -> bool:
+        """Detect uncertainty markers in answer."""
+        uncertainty_phrases = [
+            "i don't know", "not sure", "unclear", "might be",
+            "possibly", "perhaps", "uncertain"
+        ]
+        return any(phrase in answer.lower() for phrase in uncertainty_phrases)
+```
+
+### Deduplication Across Rounds
+
+```python
+class CrossRoundDeduplicator:
+    """Prevent redundant retrievals across rounds."""
+    
+    def __init__(self):
+        self.seen_documents = set()
+        self.document_hashes = {}
+    
+    def filter_new_documents(self, documents: list[dict]) -> list[dict]:
+        """Return only documents not seen in previous rounds."""
+        new_docs = []
+        
+        for doc in documents:
+            doc_hash = self.hash_document(doc)
+            
+            if doc_hash not in self.seen_documents:
+                self.seen_documents.add(doc_hash)
+                new_docs.append(doc)
+        
+        return new_docs
+    
+    def hash_document(self, doc: dict) -> str:
+        """Create content-based hash for deduplication."""
+        content = doc.get("content", "")
+        # Normalize and hash
+        normalized = content.lower().strip()
+        return hashlib.md5(normalized.encode()).hexdigest()
+```
+
+## Visual Diagram: Bidirectional RAG Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    User Query                                │
+│  "What are the benefits and drawbacks of microservices?"     │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Round 1: Initial Retrieval                      │
+│  Retrieved: ["Microservices benefits: scalability..."]       │
+│             ["Microservices architecture overview..."]       │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Round 1: Partial Generation                     │
+│  Answer: "Microservices offer scalability and flexibility... │
+│          [Missing: drawbacks information]"                   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Gap Detection                                   │
+│  Query entities: {benefits, drawbacks, microservices}        │
+│  Answer entities: {benefits, microservices}                  │
+│  Gap: 33% (missing "drawbacks")                              │
+│  Decision: CONTINUE                                          │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Query Reformulation                             │
+│  New query: "What are the drawbacks of microservices?"       │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Round 2: Targeted Retrieval                     │
+│  Retrieved: ["Microservices challenges: complexity..."]      │
+│             ["Drawbacks of distributed systems..."]          │
+│  (Filtered: removed docs from Round 1)                       │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Round 2: Complete Generation                    │
+│  Answer: "Microservices offer scalability... However, they   │
+│          also introduce complexity and operational..."       │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Gap Detection                                   │
+│  Gap: 0% (all entities covered)                              │
+│  Decision: STOP                                              │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Final Answer                              │
+│  Complete answer with sources from both rounds               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Real-World Applications
+
+| Use Case | Bidirectional Benefit | Typical Rounds |
+|----------|----------------------|----------------|
+| **Complex Research** | Deep exploration of topic | 2-4 |
+| **Multi-hop QA** | Connect information across documents | 2-3 |
+| **Comparison Tasks** | Gather info on multiple entities | 2-3 |
+| **Verification** | Cross-check facts | 2 |
+| **Code Generation** | Retrieve relevant libraries/patterns | 1-2 |
+
+## Performance Benchmarks
+
+| Metric | Standard RAG | Bidirectional RAG | Improvement |
+|--------|--------------|-------------------|-------------|
+| Answer completeness | 72% | 89% | +17% |
+| Multi-hop accuracy | 45% | 78% | +33% |
+| Avg latency | 800ms | 2.1s | -162% |
+| Cost per query | $0.02 | $0.05 | -150% |
+| User satisfaction | 3.8/5 | 4.5/5 | +18% |
+
+*Trade-off: Better quality at higher latency and cost*
+
+## Interview Questions
+
+**Q1: When would you NOT use bidirectional RAG?**
+
+*Answer:*
+- Simple factual queries (single-hop)
+- Latency-sensitive applications
+- Cost-constrained environments
+- When answer quality is already sufficient
+- Real-time chat applications
+
+**Q2: How do you prevent query drift in reformulation?**
+
+*Answer:*
+- Constrain reformulation to sub-queries of original
+- Use similarity threshold between queries
+- Include original query in context
+- Limit reformulation to entity extraction
+- Human-in-the-loop for critical applications
+
+**Q3: Design a caching strategy for bidirectional RAG.**
+
+*Answer:*
+- Cache intermediate retrievals by query hash
+- Cache reformulated queries
+- Use semantic cache for similar queries
+- Cache final answers with source tracking
+- Invalidate on document updates
+
+## Resources
+
+### Papers
+- **"Iterative Retrieval and Generation for Knowledge-Intensive Tasks"** - ICLR 2023
+- **"Self-RAG: Learning to Retrieve, Generate, and Critique"** - NeurIPS 2023
+- **"Active Retrieval Augmented Generation"** - EMNLP 2023
+
+### Documentation
+- [LangChain Multi-Hop RAG](https://python.langchain.com/docs/use_cases/question_answering/how_to/multi_hop_rag)
+- [LlamaIndex Iterative Retrieval](https://docs.llamaindex.ai/en/latest/examples/query_engine/iterative_retriever.html)
+
+### Tools
+- **LangChain**: Multi-hop retrieval chains
+- **LlamaIndex**: Sub-question query engine
+- **DSPy**: Programmatic language model optimization
+
+### Tutorials
+- "Building Multi-Hop RAG Systems"
+- "Iterative Query Refinement Techniques"
+- "Cost-Quality Tradeoffs in RAG"
+
+## Testing Your Implementation
+
+```python
+def test_bidirectional_rag():
+    retriever = MockRetriever()
+    generator = MockGenerator()
+    
+    # Test 1: Multi-hop question
+    query = "What is the capital of the country where the Nile River originates?"
+    result = bidirectional_rag(query, retriever, generator)
+    
+    assert result["retrieval_rounds"] >= 2
+    assert "Burundi" in result["answer"] or "Rwanda" in result["answer"]
+    assert "Gitega" in result["answer"] or "Kigali" in result["answer"]
+    
+    # Test 2: Stopping criteria
+    simple_query = "What is 2+2?"
+    result = bidirectional_rag(simple_query, retriever, generator)
+    assert result["retrieval_rounds"] == 1  # Should not iterate
+    
+    # Test 3: Deduplication
+    assert len(result["all_sources"]) == len(set(result["all_sources"]))
+```
+
+## Related Challenges
+
+- [multi-hop-qa](multi-hop-qa) - Multi-hop question answering
+- [self-rag](self-rag) - Self-reflective RAG
+- [query-decomposition](query-decomposition) - Breaking complex queries
+- [react-implementation](react-implementation) - Reasoning and acting
+
+---
+
+*Bidirectional RAG trades latency for quality. Use it when accuracy matters more than speed.*

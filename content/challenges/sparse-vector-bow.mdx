@@ -1,23 +1,198 @@
 ﻿---
 title: "Sparse Vector (Bag of Words)"
 description: "Create a sparse Bag-of-Words representation for hybrid search."
+prerequisites: ["tokenizer-basics"]
+related: ["bm25-from-scratch", "hybrid-search-tuning"]
+next: ["batch-dot-product"]
 ---
 
-# Sparse Vector (Bag of Words)
+<Callout title="Goal" variant="info">
+  Build sparse Bag-of-Words representations — the foundation of keyword search and the "sparse" component in hybrid RAG systems.
+</Callout>
 
-While dense embeddings capture semantic meaning, **sparse vectors** represent text as a dictionary of word frequencies. This is the foundation of BM25 and hybrid search.
+## Dense vs. Sparse Vectors
 
-### Dense vs. Sparse
+Understanding the distinction is crucial for modern RAG:
 
-- **Dense**: `[0.12, -0.05, 0.88, ...]` (every dimension has a value)
-- **Sparse**: `{"apple": 2, "banana": 1}` (only present words have values)
+| Aspect | Dense Vectors | Sparse Vectors |
+|--------|---------------|----------------|
+| **Representation** | `[0.12, -0.05, 0.88, ...]` (all dimensions) | `{"apple": 2, "banana": 1}` (only present words) |
+| **Dimensions** | Fixed (768-4096) | Variable (vocabulary size) |
+| **Semantics** | Captures meaning | Captures exact matches |
+| **Storage** | Dense arrays | Dictionary/hash map |
+| **Use Case** | Semantic similarity | Exact keyword matching |
 
-### Why Sparse Matters
+### The Hybrid Search Insight
 
-A query for "Error 504" will semantically match "HTTP issues" in dense space, but might miss the exact document that says "Error 504". Sparse search guarantees exact keyword matches.
+A query for "Error 504" will:
+- **Dense search**: Match "HTTP issues" semantically
+- **Sparse search**: Match documents containing exactly "Error 504"
 
-### Your Task
+**Hybrid search combines both** for optimal retrieval.
 
-1. Implement `to_bow()`: Convert text to a token frequency dictionary.
-2. Implement `sparse_dot_product()`: Compute similarity between two BOW vectors.
+## Theoretical Foundation
 
+### Bag-of-Words Model
+
+The BoW model represents text as an unordered collection of words, disregarding grammar and word order:
+
+$$\text{BoW}(d) = \{w_1: f_1, w_2: f_2, ..., w_n: f_n\}$$
+
+Where $f_i$ is the frequency of word $w_i$ in document $d$.
+
+### Term Frequency Variants
+
+| Variant | Formula | Use Case |
+|---------|---------|----------|
+| **Raw Count** | $tf(t, d)$ | Simple frequency |
+| **Binary** | $1$ if $t \in d$ else $0$ | Presence/absence |
+| **Log Normalization** | $1 + \log(tf(t, d))$ | Diminish impact of frequent words |
+| **Augmented** | $0.5 + 0.5 \cdot \frac{tf(t, d)}{\max_{t' \in d} tf(t', d)}$ | Prevent document length bias |
+
+### Sparse Vector Operations
+
+#### Dot Product (Similarity)
+
+For sparse vectors $a$ and $b$:
+
+$$a \cdot b = \sum_{k \in \text{keys}(a) \cap \text{keys}(b)} a[k] \times b[k]$$
+
+**Key insight**: Only intersecting keys contribute to the score.
+
+#### Efficient Computation
+
+```python
+# O(n) for dense vectors
+dot_dense = sum(a[i] * b[i] for i in range(n))
+
+# O(|intersection|) for sparse vectors
+dot_sparse = sum(a[k] * b[k] for k in a.keys() & b.keys())
+```
+
+## Modern Sparse Representations
+
+### Classic TF-IDF
+
+$$\text{TF-IDF}(t, d, D) = tf(t, d) \times \log\frac{|D|}{|\{d' \in D : t \in d'\}|}$$
+
+### Learned Sparse Representations (SPLADE)
+
+Modern neural sparse retrieval:
+- **SPLADE**: Uses BERT to expand queries with relevant terms
+- **Lexical + Semantic**: Combines exact matching with learned term importance
+- **Efficiency**: Can be as fast as BM25 with better recall
+
+### BM25: The Industry Standard
+
+$$\text{BM25}(q, d) = \sum_{t \in q} \text{IDF}(t) \cdot \frac{tf(t, d) \cdot (k_1 + 1)}{tf(t, d) + k_1 \cdot (1 - b + b \cdot \frac{|d|}{\text{avgdl}})}$$
+
+Where:
+- $k_1$ = term frequency saturation (typically 1.2-2.0)
+- $b$ = length normalization (typically 0.75)
+
+## Production Considerations
+
+### When to Use Sparse Vectors
+
+| Scenario | Recommendation |
+|----------|----------------|
+| Exact phrase matching | Sparse + BM25 |
+| ID/code search | Sparse (error codes, SKUs) |
+| Short queries | Hybrid (sparse catches exact, dense catches semantic) |
+| Domain-specific jargon | Sparse (learned embeddings may miss rare terms) |
+| Multi-language | Depends on language (sparse works well for all) |
+
+### Storage & Performance
+
+| Aspect | Dense | Sparse |
+|--------|-------|--------|
+| **Memory** | Fixed (n_dims × 4 bytes) | Variable (non-zero terms × 8 bytes) |
+| **10K docs, 768-dim** | ~30 MB | ~5-50 MB (depends on vocabulary) |
+| **Query Speed** | Matrix multiplication | Inverted index lookup |
+| **Index Size** | Linear in docs | Depends on term distribution |
+
+### Inverted Index Structure
+
+```
+Term        → Document IDs with frequencies
+"python"    → [(doc_5, 3), (doc_12, 1), (doc_89, 5)]
+"retrieval" → [(doc_5, 2), (doc_34, 1)]
+"vector"    → [(doc_12, 4), (doc_89, 2)]
+```
+
+Query "python retrieval" → Intersection of doc_5 (3+2=5), check others
+
+## Your Task
+
+Implement sparse vector operations:
+
+```python
+def to_bow(text: str) -> Dict[str, int]:
+    """
+    Convert text to Bag-of-Words representation.
+    
+    Args:
+        text: Input text string
+        
+    Returns:
+        Dictionary mapping terms to frequencies
+        
+    Requirements:
+        - Lowercase all terms
+        - Remove punctuation
+        - Split on whitespace
+    """
+    pass
+
+def sparse_dot_product(a: Dict[str, int], b: Dict[str, int]) -> float:
+    """
+    Compute dot product between two sparse vectors.
+    
+    Args:
+        a, b: Sparse vectors as term → frequency dictionaries
+        
+    Returns:
+        Dot product score
+        
+    Optimization: Only iterate over common keys
+    """
+    pass
+```
+
+### Validation Checklist
+
+- [ ] Empty text returns empty dictionary
+- [ ] Case-insensitive ("Python" == "python")
+- [ ] Punctuation removed correctly
+- [ ] Dot product is 0 for disjoint vocabularies
+- [ ] Dot product is commutative (a·b == b·a)
+- [ ] Efficient intersection computation
+
+## Resources
+
+### Academic Papers
+- ["SPLADE: Sparse Lexical and Expansion Model for First Stage Ranking"](https://arxiv.org/abs/2107.05720) - Formal et al. (2021)
+- ["The Probabilistic Relevance Framework: BM25 and Beyond"](https://www.staff.city.ac.uk/~sb317/papers/foundations_bm25_review.pdf) - Robertson & Zaragoza
+- ["Learning Sparse Representations for Information Retrieval"](https://arxiv.org/abs/2005.00159) - Zamani et al.
+
+### Documentation
+- [Elasticsearch BM25](https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-similarity.html) - Production implementation
+- [Lucene Scoring](https://lucene.apache.org/core/9_0_0/core/org/apache/lucene/search/similarities/BM25Similarity.html) - Java reference
+- [Pyserini](https://github.com/castorini/pyserini) - Python BM25 toolkit
+
+### Tutorials
+- ["Hybrid Search Explained"](https://www.pinecone.io/learn/hybrid-search/) - Pinecone
+- ["Sparse Vectors in Vector Search"](https://weaviate.io/blog/sparse-vectors) - Weaviate
+- ["SPLADE for Beginners"](https://blog.vespa.ai/splade/) - Vespa Blog
+
+### Tools
+- [BM25 Implementation](https://github.com/dorianbrown/rank_bm25) - Python library
+- [Pyserini](https://github.com/castorini/pyserini) - Anserini bindings for Python
+- [SPLADE Repository](https://github.com/naver/splade) - Official implementation
+
+## Next Steps
+
+After mastering sparse vectors:
+- **BM25 from Scratch**: Implement the full ranking algorithm
+- **Hybrid Search Tuning**: Combine dense and sparse scores
+- **Batch Dot Product**: Efficient computation at scale

@@ -1,23 +1,288 @@
+---
+title: "Sparse Embedding Generator (TypeScript)"
+description: "Create sparse TF-IDF embeddings for hybrid search."
+language: "typescript"
+difficulty: "intermediate"
+category: "retrieval"
+prerequisites: ["ts-inverted-index", "ts-bm25-score"]
+related: ["sparse-vector-bow", "ts-rrf-fusion", "splade-learned-sparse"]
+tags: ["sparse-embeddings", "tf-idf", "hybrid-search", "lexical"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Create sparse TF-IDF embeddings for hybrid search.
+  Create sparse TF-IDF embeddings for hybrid search — the "S" in "semantic + lexical = hybrid search."
 </Callout>
 
-## Why this matters in production
+## Why Sparse Embeddings Matter in Production
 
-Sparse embeddings (TF-IDF, BM25 vectors) are the "S" in hybrid search. They excel at exact term matching where dense embeddings fail — like product codes or technical terms.
+Sparse embeddings (TF-IDF, BM25 vectors) are the "S" in hybrid search. They excel at exact term matching where dense embeddings fail — like product codes or technical terms. Sparse embeddings provide:
 
-## What you're implementing
+- **Exact term matching**: "API-123" matches exactly, not approximately
+- **Interpretability**: Non-zero dimensions correspond to actual terms
+- **Efficiency**: Sparse storage and computation
+- **Complementarity**: Different failure modes than dense embeddings
 
-- Tokenize text and count term frequencies.
-- Apply IDF weighting from corpus statistics.
-- Return sparse vector (indices + values).
+### Real-World Scenario
 
-## Common pitfalls
+Query: "USB-C cable 2m"
 
-- Not handling out-of-vocabulary terms.
-- Forgetting to normalize by document length.
+**Dense embedding**: Might match "HDMI cable" (similar concept) but miss exact specs
+**Sparse embedding (TF-IDF)**: 
+- "USB-C" → dimension 1234 = 0.8
+- "cable" → dimension 567 = 0.6  
+- "2m" → dimension 890 = 0.9
 
-## After you pass
+Matches documents containing these exact terms.
 
-Combine with dense embeddings for **Hybrid Search**.
+## The Mathematical Foundation
 
+### Sparse Vector Representation
+
+```
+Dense vector: [0.1, -0.3, 0.5, ...] (all dimensions have values)
+Sparse vector: {123: 0.8, 456: 0.6, 789: 0.9} (only non-zero dimensions stored)
+
+Storage:
+- Dense: O(d) for d dimensions
+- Sparse: O(k) for k non-zero values (k << d)
+```
+
+### TF-IDF Weighting
+
+$$\text{TF-IDF}(t, d) = \text{tf}(t, d) \times \text{idf}(t)$$
+
+Where:
+- $\text{tf}(t, d)$ = term frequency in document
+- $\text{idf}(t) = \log(\frac{N}{\text{df}(t)})$ = inverse document frequency
+
+### Sparse-Dense Interaction
+
+```
+Similarity(sparse, dense) = ?
+
+Problem: Different spaces, can't directly compare
+Solution: RRF fusion or separate retrieval + combination
+```
+
+## Theoretical Deep Dive
+
+### Vocabulary Construction
+
+```
+Approach 1: Fixed vocabulary (e.g., 50K most frequent terms)
+Approach 2: Hashing (unbounded vocabulary)
+Approach 3: Learned (neural sparse like SPLADE)
+```
+
+### Term Weighting Schemes
+
+| Scheme | Formula | Characteristics |
+|--------|---------|-----------------|
+| **Binary** | 1 if present, 0 otherwise | Simple, no frequency |
+| **Raw TF** | term count | Favors long documents |
+| **Log TF** | 1 + log(tf) | Diminishing returns |
+| **TF-IDF** | tf × idf | Balanced weighting |
+| **BM25** | complex | Length normalized |
+
+### Sparsity Patterns
+
+```
+Typical sparsity: 95-99% zeros
+- Vocabulary: 50,000 terms
+- Non-zero per document: 100-500 terms
+- Sparsity: 99%+
+```
+
+## Production Considerations
+
+### Storage Formats
+
+| Format | Pros | Cons |
+|--------|------|------|
+| **Dictionary** | Simple, flexible | Higher memory |
+| **CSR (Compressed Sparse Row)** | Efficient | Complex |
+| **COO (Coordinate)** | Easy construction | Slower access |
+
+### Similarity Computation
+
+```typescript
+function sparseCosineSimilarity(
+  a: SparseVector,
+  b: SparseVector
+): number {
+  // Only iterate over common keys
+  const commonKeys = intersection(a.keys, b.keys);
+  let dotProduct = 0;
+  for (const key of commonKeys) {
+    dotProduct += a.get(key) * b.get(key);
+  }
+  return dotProduct / (a.norm * b.norm);
+}
+// Complexity: O(min(|a|, |b|)) instead of O(d)
+```
+
+### Vocabulary Management
+
+Handle out-of-vocabulary terms:
+
+```typescript
+function getTermId(term: string): number {
+  if (vocabulary.has(term)) {
+    return vocabulary.get(term);
+  }
+  // Option 1: Ignore OOV
+  // Option 2: Hash to bucket
+  return hash(term) % numHashBuckets;
+}
+```
+
+## Your Task
+
+Implement a sparse embedding generator:
+
+```typescript
+interface SparseVector {
+  indices: number[];   // Non-zero dimension indices
+  values: number[];    // Corresponding values
+}
+
+interface TFIDFConfig {
+  vocabulary?: Map<string, number>;  // term → index
+  useSublinearTf?: boolean;          // Use 1 + log(tf)
+}
+
+interface CorpusStats {
+  documentCount: number;
+  documentFrequencies: Map<string, number>;  // term → df
+}
+
+class SparseEmbeddingGenerator {
+  private vocabulary: Map<string, number>;
+  private corpusStats: CorpusStats;
+
+  constructor(config?: TFIDFConfig) {
+    this.vocabulary = config?.vocabulary || new Map();
+    this.corpusStats = {
+      documentCount: 0,
+      documentFrequencies: new Map()
+    };
+  }
+
+  fit(documents: string[]): void {
+    /**
+     * Build vocabulary and document frequencies from corpus.
+     * 
+     * Process:
+     *   1. Tokenize all documents
+     *   2. Build vocabulary (term → index mapping)
+     *   3. Calculate document frequencies
+     *   4. Store corpus statistics
+     */
+  }
+
+  transform(text: string): SparseVector {
+    /**
+     * Convert text to sparse TF-IDF embedding.
+     * 
+     * Args:
+     *   text: Input text
+     * 
+     * Returns:
+     *   SparseVector with TF-IDF weights
+     * 
+     * Process:
+     *   1. Tokenize text
+     *   2. Count term frequencies
+     *   3. For each term:
+     *      a. Get term ID from vocabulary
+     *      b. Calculate TF (raw or sublinear)
+     *      c. Calculate IDF from corpus stats
+     *      d. TF-IDF = TF × IDF
+     *   4. Return sparse vector
+     * 
+     * Edge Cases:
+     *   - Unknown terms: skip or use hash bucket
+     *   - Empty text: return empty sparse vector
+     *   - Terms not in corpus: IDF = 0
+     */
+  }
+
+  fitTransform(documents: string[]): SparseVector[] {
+    /**
+     * Fit on documents and transform them.
+     */
+  }
+
+  private tokenize(text: string): string[] {
+    /**
+     * Tokenize text into terms.
+     * Lowercase, remove punctuation, split on whitespace.
+     */
+  }
+
+  private calculateTF(term: string, termCounts: Map<string, number>): number {
+    /**
+     * Calculate term frequency.
+     * Use sublinear scaling if configured.
+     */
+  }
+
+  private calculateIDF(term: string): number {
+    /**
+     * Calculate inverse document frequency.
+     * IDF = log(N / df) where N = total docs, df = docs containing term
+     */
+  }
+}
+
+// Utility functions
+function sparseDotProduct(a: SparseVector, b: SparseVector): number {
+  /**
+   * Compute dot product of two sparse vectors.
+   * Only iterate over common indices.
+   */
+}
+
+function sparseCosineSimilarity(a: SparseVector, b: SparseVector): number {
+  /**
+   * Compute cosine similarity between sparse vectors.
+   */
+}
+```
+
+### Validation Checklist
+
+- [ ] Vocabulary built correctly from corpus
+- [ ] Document frequencies calculated correctly
+- [ ] TF computed correctly (raw or sublinear)
+- [ ] IDF computed correctly (log(N/df))
+- [ ] Sparse vector contains only non-zero entries
+- [ ] Unknown terms handled (skip or hash)
+- [ ] Empty text returns empty vector
+- [ ] Dot product uses common indices only
+
+## Common Pitfalls
+
+- **Not handling out-of-vocabulary terms**: Decide on skip or hash strategy
+- **Forgetting to normalize by document length**: Raw TF favors long docs
+- **Not using sparse-aware operations**: Dense ops waste computation
+- **Vocabulary explosion**: Limit size or use hashing
+- **IDF calculation errors**: Check log base and smoothing
+
+## After You Pass
+
+Combine with dense embeddings for **Hybrid Search**, or explore learned sparse embeddings like SPLADE for better performance.
+
+## Resources
+
+### Academic Papers
+- ["SPLADE: Sparse Lexical and Expansion Model for First Stage Ranking"](https://arxiv.org/abs/2107.05720) - Formal et al.
+- ["Learning Sparse Representations for RAG"](https://arxiv.org/abs/2310.05818) - Recent advances
+
+### Documentation
+- [Scikit-learn TF-IDF](https://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.TfidfVectorizer.html) - Reference implementation
+- [Pyserini Sparse Retrieval](https://github.com/castorini/pyserini) - Research toolkit
+
+### Tutorials
+- ["TF-IDF Explained"](https://www.youtube.com/watch?v=OHZw3O7R7KI) - Video explanation
+- ["Sparse Vectors in RAG"](https://www.pinecone.io/learn/hybrid-search/) - Pinecone guide

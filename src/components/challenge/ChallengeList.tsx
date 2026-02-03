@@ -105,25 +105,25 @@ export function ChallengeList({ challenges }: { challenges: ChallengeMeta[] }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="space-y-4 sm:grid sm:gap-3 sm:grid-cols-2">
         <div>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">Search</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1.5 sm:mb-1">Search</p>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="BM25, HyDE, rerank, citations…"
-            className="mt-1 h-10 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:focus:ring-zinc-600"
+            className="h-12 sm:h-10 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-base sm:text-sm outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:focus:ring-zinc-600"
           />
         </div>
 
         <div>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">Filter by stage</p>
-          <div className="mt-2 flex flex-wrap gap-2">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1.5 sm:mb-1">Filter by stage</p>
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => setStage("all")}
               className={[
-                "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                "rounded-full border px-3 py-2 sm:py-1 text-sm sm:text-xs font-medium transition-colors touch-target",
                 stage === "all"
                   ? "border-zinc-950 bg-zinc-950 text-white dark:border-white/25 dark:bg-white/10"
                   : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]",
@@ -137,7 +137,7 @@ export function ChallengeList({ challenges }: { challenges: ChallengeMeta[] }) {
                 type="button"
                 onClick={() => setStage(s.id)}
                 className={[
-                  "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                  "rounded-full border px-3 py-2 sm:py-1 text-sm sm:text-xs font-medium transition-colors touch-target",
                   stage === s.id
                     ? "border-zinc-950 bg-zinc-950 text-white dark:border-white/25 dark:bg-white/10"
                     : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]",
@@ -176,7 +176,7 @@ export function ChallengeList({ challenges }: { challenges: ChallengeMeta[] }) {
                 {g.group}
               </a>
 
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
                 {g.items.map((c) => {
                   const progress = state.challenges[c.slug];
                   const status = progress?.status ?? "not_started";
@@ -186,26 +186,43 @@ export function ChallengeList({ challenges }: { challenges: ChallengeMeta[] }) {
                     <CardLink
                       key={c.slug}
                       href={`/challenges/${c.slug}`}
-                      className="p-5"
+                      className="p-4 sm:p-5 touch-manipulation active:scale-[0.99] transition-transform"
                     >
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-medium">
-                          {c.title}{" "}
-                          {done ? <Badge variant="accent">Completed</Badge> : null}
-                        </p>
-                        <Badge variant="muted">
-                          {c.difficulty} · {c.xpReward} XP
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {c.title}{" "}
+                            {done ? <Badge variant="accent">Completed</Badge> : null}
+                          </p>
+                          <p className="mt-1.5 text-sm text-zinc-600 dark:text-zinc-300 line-clamp-2">
+                            {c.description}
+                          </p>
+                        </div>
+                        <Badge variant="muted" className="flex-shrink-0">
+                          {c.xpReward} XP
                         </Badge>
                       </div>
-                      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
-                        {c.description}
-                      </p>
-                      <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
-                        Status: {status.replace("_", " ")}
-                        {typeof progress?.attempts === "number" && progress.attempts > 0
-                          ? ` · attempts: ${progress.attempts}`
-                          : ""}
-                      </p>
+                      <div className="mt-3 flex items-center justify-between">
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                          <span className={`inline-flex items-center gap-1 ${
+                            status === "completed" ? "text-emerald-600" : 
+                            status === "in_progress" ? "text-blue-600" : ""
+                          }`}>
+                            {status === "completed" && "✓ "}
+                            {status.replace("_", " ")}
+                          </span>
+                          {typeof progress?.attempts === "number" && progress.attempts > 0
+                            ? ` · ${progress.attempts} attempts`
+                            : ""}
+                        </p>
+                        <span className={`text-xs font-medium ${
+                          c.difficulty === "easy" ? "text-emerald-600" :
+                          c.difficulty === "medium" ? "text-amber-600" :
+                          "text-red-600"
+                        }`}>
+                          {c.difficulty}
+                        </span>
+                      </div>
                     </CardLink>
                   );
                 })}

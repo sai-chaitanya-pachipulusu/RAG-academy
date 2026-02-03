@@ -1,23 +1,212 @@
+---
+title: "Async Request Batcher (TypeScript)"
+description: "Build a request batcher for efficient API usage with size and time-based flushing."
+language: "typescript"
+difficulty: "advanced"
+category: "optimization"
+prerequisites: ["ts-rate-limiter"]
+related: ["ts-semantic-cache", "embedding-cache", "ts-lru-cache"]
+tags: ["batching", "performance", "api-optimization", "async"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Build a request batcher for efficient API usage.
+  Build a request batcher for efficient API usage — collect requests until batch is full or timeout triggers.
 </Callout>
 
-## Why this matters in production
+## Why Request Batching Matters in Production
 
-API batching is how production systems achieve high throughput. OpenAI's embedding API, for example, is optimized for batch requests — single requests waste resources.
+API batching is how production systems achieve high throughput. OpenAI's embedding API, for example, is optimized for batch requests — single requests waste resources. Batching provides:
 
-## What you're implementing
+- **Cost reduction**: Fewer API calls = lower costs (often 50%+ savings)
+- **Higher throughput**: Process more requests per second
+- **Better resource utilization**: Reduce connection overhead
+- **Improved latency amortization**: Fixed costs spread across many requests
 
-- Collect requests until batch is full or timeout.
-- Send batch to processor, map results back.
-- Handle both size-based and time-based flushing.
+### Real-World Scenario
 
-## Common pitfalls
+Imagine a RAG system processing 10,000 documents:
 
-- Memory leaks from unresolved promises.
-- Not handling processor failures gracefully.
+- **Without batching**: 10,000 API calls × 100ms = 16+ minutes
+- **With batching (100/batch)**: 100 API calls × 150ms = 15 seconds
 
-## After you pass
+That's a **60x speedup** with minimal code complexity.
 
-Apply this pattern to your embedding and LLM API calls.
+## The Mathematical Foundation
 
+### Batching Efficiency
+
+```
+Efficiency = (Batch Size × Single Request Time) / Batch Request Time
+
+Example:
+- Single request: 100ms
+- Batch of 100: 150ms
+- Efficiency = (100 × 100) / 150 = 66.7x
+```
+
+### Optimal Batch Size
+
+Balance three factors:
+
+| Factor | Small Batches | Large Batches |
+|--------|--------------|---------------|
+| **Latency** | Lower (faster flush) | Higher (wait for full) |
+| **Throughput** | Lower | Higher |
+| **Memory** | Lower | Higher |
+
+### Flush Triggers
+
+1. **Size-based**: Batch reaches `maxBatchSize`
+2. **Time-based**: `flushIntervalMs` elapsed since first request
+3. **Manual**: Explicit `flush()` call
+
+## Theoretical Deep Dive
+
+### The Batching Dilemma
+
+There's an inherent tension in batching:
+
+- **Wait longer** → Better batching efficiency but higher latency
+- **Flush sooner** → Lower latency but worse efficiency
+
+The optimal strategy depends on workload characteristics:
+
+| Workload Pattern | Best Strategy |
+|-----------------|---------------|
+| Bursty traffic | Time-based flush prevents starvation |
+| Steady stream | Size-based for predictable batches |
+| Mixed | Hybrid with adaptive sizing |
+
+### Queueing Theory
+
+Batching relates to M/M/1 queueing systems:
+
+- **Arrival rate (λ)**: Requests per second
+- **Service rate (μ)**: Batches per second
+- **Utilization (ρ)**: λ / (μ × batch_size)
+
+Keep ρ < 0.8 to prevent queue buildup.
+
+### Backpressure
+
+When downstream can't keep up:
+
+1. **Reject new requests**: Fast failure
+2. **Queue with limit**: Bounded memory
+3. **Shed load**: Drop lowest priority
+4. **Scale out**: Add processors
+
+## Production Considerations
+
+### Memory Management
+
+```typescript
+// Danger: Unbounded growth
+const pending: Request[] = []; // Can grow forever!
+
+// Safe: Bounded queue
+const pending = new BoundedQueue<Request>(maxQueueSize);
+```
+
+### Error Handling Strategies
+
+| Strategy | When to Use | Trade-off |
+|----------|-------------|-----------|
+| **All-or-nothing** | Atomic operations | Simpler, less resilient |
+| **Partial success** | Independent requests | Complex, more resilient |
+| **Retry with backoff** | Transient failures | Higher latency |
+
+### Observability
+
+Track batching metrics:
+- Average batch size
+- Flush frequency by trigger type
+- Queue depth over time
+- Error rate by batch position
+
+## Your Task
+
+Implement an async request batcher:
+
+```typescript
+interface BatchConfig {
+  maxBatchSize: number;      // Maximum requests per batch
+  flushIntervalMs: number;   // Max time to wait before flushing
+  maxQueueSize?: number;     // Maximum pending requests (backpressure)
+}
+
+interface BatchResult<T> {
+  results: T[];              // Results in same order as requests
+  errors: (Error | null)[];  // Per-request errors
+}
+
+type BatchProcessor<T, R> = (requests: T[]) => Promise<R[]>;
+
+class AsyncBatcher<T, R> {
+  constructor(
+    private processor: BatchProcessor<T, R>,
+    private config: BatchConfig
+  ) {}
+
+  async submit(request: T): Promise<R> {
+    /**
+     * Submit a request to be batched.
+     * Returns a promise that resolves when the batch is processed.
+     * 
+     * Edge Cases:
+     *   - Queue full: reject with error or wait (configurable)
+     *   - Processor fails: reject all pending promises
+     *   - Partial failure: resolve with error for failed items
+     */
+  }
+
+  async flush(): Promise<void> {
+    /**
+     * Force immediate flush of pending requests.
+     * Called automatically on size/time triggers or manually.
+     */
+  }
+
+  destroy(): void {
+    /**
+     * Clean up timers and reject pending requests.
+     * Call when shutting down.
+     */
+  }
+}
+```
+
+### Validation Checklist
+
+- [ ] Batches flush when maxBatchSize reached
+- [ ] Batches flush after flushIntervalMs
+- [ ] Results map correctly to request order
+- [ ] Memory doesn't grow unbounded
+- [ ] Errors in one request don't break others
+- [ ] Cleanup properly clears timers
+
+## Common Pitfalls
+
+- **Memory leaks from unresolved promises**: Always resolve/reject
+- **Not handling processor failures gracefully**: Distinguish transient vs permanent
+- **Order preservation**: Results must match request order
+- **Timer cleanup**: Clear intervals on destroy
+- **Race conditions**: Handle concurrent flush() calls
+
+## After You Pass
+
+Apply this pattern to your embedding and LLM API calls, or extend with priority queuing for heterogeneous request types.
+
+## Resources
+
+### Documentation
+- [OpenAI Batching API](https://platform.openai.com/docs/guides/batch) - Official batching guide
+- [AWS Lambda Batching](https://docs.aws.amazon.com/lambda/latest/dg/invocation-eventsourcemapping.html) - Event source mapping
+
+### Tutorials
+- ["Batching Best Practices"](https://netflixtechblog.com/batching-best-practices-9f8e5f3e2b9c) - Netflix Tech Blog
+- ["High-Throughput API Design"](https://www.uber.com/blog/high-throughput-api/) - Uber Engineering
+
+### Libraries
+- [p-queue](https://github.com/sindresorhus/p-queue) - Promise-based queueing
+- [bottleneck](https://github.com/SGrondin/bottleneck) - Rate limiting and batching

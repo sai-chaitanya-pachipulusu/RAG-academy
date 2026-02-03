@@ -1,0 +1,473 @@
+---
+title: "Ranker Distillation"
+description: "Distill knowledge from large cross-encoder rankers to efficient bi-encoders for production reranking"
+difficulty: "hard"
+xpReward: 150
+estimatedMinutes: 60
+stage: "advanced-retrieval"
+track: "fine-tuning"
+tags: ["fine-tuning", "distillation", "ranking", "cross-encoder", "bi-encoder", "knowledge-distillation"]
+prerequisites: ["llm-reranker", "embedding-finetuning", "lora-adapter"]
+relatedChallenges: ["llm-reranker", "embedding-finetuning", "lora-adapter"]
+nextChallenges: []
+theory:
+  overview: |
+    Ranker distillation transfers knowledge from powerful but slow cross-encoder 
+    rankers to fast bi-encoder models. By training the bi-encoder to mimic the 
+    cross-encoder's ranking scores, we achieve 90%+ of the quality with 100x 
+    faster inference, making high-quality reranking practical for production.
+  keyFormulas:
+    - name: "Knowledge Distillation Loss"
+      formula: "L_KD = -Σ p_teacher × log(p_student)"
+    - name: "Ranking Distillation"
+      formula: "L_rank = Σ max(0, s_student(n) - s_student(p) + margin)"
+    - name: "Temperature Scaling"
+      formula: "p_i = exp(z_i/T) / Σ exp(z_j/T)"
+    - name: "Combined Loss"
+      formula: "L = α × L_KD + (1-α) × L_rank"
+  visualIntuition: |
+    Ranker Distillation Architecture:
+    
+    ```
+    Teacher (Cross-Encoder) - Slow but Accurate:
+    Query + Doc ─→ [BERT] ─→ [CLS] ─→ Score
+    
+    Student (Bi-Encoder) - Fast for Production:
+    Query ─→ [BERT] ─→ Embedding ─┐
+                                  ├─→ Cosine ─→ Score
+    Doc ─→ [BERT] ─→ Embedding ───┘
+    
+    Training:
+    1. Teacher scores (Q, D+) > (Q, D-)
+    2. Student learns to mimic teacher scores
+    3. Student maintains fast inference
+    
+    Result: 90% teacher quality, 100x faster
+    ```
+  whyItMatters: |
+    Ranker distillation enables:
+    1. **Production speed**: Bi-encoder latency with cross-encoder quality
+    2. **Cost reduction**: 100x fewer FLOPs at inference
+    3. **Scalable reranking**: Rerank thousands of documents
+    4. **Offline teacher**: Use expensive LLM once, deploy cheap model
+  commonMistakes:
+    - "Temperature too low (hard targets) or too high (uniform)"
+    - "Not using enough teacher samples"
+    - "Ignoring ranking order (only using scores)"
+    - "Not validating on true relevance labels"
+  interviewTips:
+    - "Compare cross-encoder vs bi-encoder tradeoffs"
+    - "Explain temperature scaling in distillation"
+    - "Discuss hard negative mining from teacher"
+    - "Mention progressive distillation techniques"
+realWorld:
+  description: |
+    Search engines use distillation to deploy efficient rankers. Bing and Google 
+    use teacher-student training for production ranking. E-commerce platforms 
+    distill large rerankers for product search. Recommendation systems use 
+    similar techniques for candidate ranking.
+  companies: ["Google", "Microsoft", "Amazon", "Alibaba", "Meta"]
+  useCases:
+    - "Search result reranking at scale"
+    - "Product search ranking"
+    - "Document relevance scoring"
+    - "Recommendation candidate ranking"
+    - "Question-answer matching"
+complexity:
+  time: "O(n × t) where n = samples, t = teacher inference time"
+  space: "O(s) where s = student parameters"
+  latency: "Inference: ~10ms (bi-encoder) vs ~100ms (cross-encoder)"
+resources:
+  papers:
+    - title: "Distilling Task-Specific Knowledge from BERT into Simple Neural Networks"
+      url: "https://arxiv.org/abs/1903.12136"
+      authors: "Tang et al."
+      year: 2019
+    - title: "ColBERT: Efficient and Effective Passage Search"
+      url: "https://arxiv.org/abs/2004.12832"
+      authors: "Khattab & Zaharia"
+      year: 2020
+    - title: "MiniLM: Deep Self-Attention Distillation"
+      url: "https://arxiv.org/abs/2002.10957"
+      authors: "Wang et al., Microsoft"
+      year: 2020
+  documentation:
+    - title: "Sentence Transformers Distillation"
+      url: "https://www.sbert.net/examples/training/distillation/README.html"
+    - title: "Hugging Face Knowledge Distillation"
+      url: "https://huggingface.co/docs/transformers/main_classes/distillation"
+  tutorials:
+    - title: "Distilling BERT for Ranking"
+      url: "https://blog.reachsumit.com/posts/2021/06/distilling-bert-for-ranking/"
+    - title: "Efficient Neural Ranking"
+      url: "https://github.com/terrier-org/ecir2021tutorial"
+  tools:
+    - name: "Sentence Transformers"
+      description: "Framework for training and distilling bi-encoders"
+      url: "https://www.sbert.net/"
+    - name: "ColBERT"
+      description: "Late interaction retrieval with distillation"
+      url: "https://github.com/stanford-futuredata/ColBERT"
+    - name: "TinyBERT"
+      description: "Distillation for BERT compression"
+      url: "https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/TinyBERT"
+---
+
+# Ranker Distillation
+
+Distill knowledge from large cross-encoder rankers to efficient bi-encoders, achieving 90%+ quality with 100x faster inference.
+
+## The Problem
+
+Cross-encoder rankers are accurate but slow:
+- Concatenate query + document → BERT → score
+- 100ms+ per document pair
+- Can't scale to thousands of candidates
+
+**Bi-encoders** are fast but less accurate:
+- Encode query and document separately
+- 1ms per document after caching
+- Quality gap vs cross-encoders
+
+**Solution**: Distill cross-encoder knowledge into bi-encoder.
+
+## Your Task
+
+Implement ranker distillation:
+
+```python
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from typing import List, Tuple
+
+class RankerDistillation:
+    """Distill cross-encoder ranker to bi-encoder."""
+    
+    def __init__(self,
+                 teacher_model,  # Cross-encoder
+                 student_model,  # Bi-encoder
+                 temperature: float = 2.0,
+                 alpha: float = 0.5):
+        """
+        Initialize distillation trainer.
+        
+        Args:
+            teacher_model: Cross-encoder teacher (frozen)
+            student_model: Bi-encoder student (trainable)
+            temperature: Softmax temperature for distillation
+            alpha: Weight for distillation loss (1-alpha for ranking loss)
+        """
+        self.teacher = teacher_model
+        self.student = student_model
+        self.temperature = temperature
+        self.alpha = alpha
+        
+        # Freeze teacher
+        for param in self.teacher.parameters():
+            param.requires_grad = False
+        self.teacher.eval()
+    
+    def get_teacher_scores(self, 
+                          queries: List[str], 
+                          documents: List[str]) -> torch.Tensor:
+        """
+        Get ranking scores from teacher cross-encoder.
+        
+        Args:
+            queries: List of query strings
+            documents: List of document strings
+            
+        Returns:
+            Teacher scores [batch_size]
+        """
+        pass
+    
+    def get_student_scores(self,
+                          queries: List[str],
+                          documents: List[str]) -> torch.Tensor:
+        """
+        Get ranking scores from student bi-encoder.
+        
+        Args:
+            queries: List of query strings
+            documents: List of document strings
+            
+        Returns:
+            Student scores [batch_size]
+        """
+        pass
+    
+    def distillation_loss(self,
+                         teacher_scores: torch.Tensor,
+                         student_scores: torch.Tensor) -> torch.Tensor:
+        """
+        Compute knowledge distillation loss.
+        
+        L_KD = -Σ p_teacher × log(p_student)
+        where p = softmax(score / temperature)
+        
+        Args:
+            teacher_scores: Scores from teacher [batch_size]
+            student_scores: Scores from student [batch_size]
+            
+        Returns:
+            Distillation loss
+        """
+        pass
+    
+    def ranking_loss(self,
+                    student_scores: torch.Tensor,
+                    labels: torch.Tensor) -> torch.Tensor:
+        """
+        Compute ranking loss on true labels.
+        
+        Args:
+            student_scores: Student scores [batch_size]
+            labels: Relevance labels [batch_size]
+            
+        Returns:
+            Ranking loss
+        """
+        pass
+    
+    def train_step(self,
+                  queries: List[str],
+                  documents: List[str],
+                  labels: torch.Tensor,
+                  optimizer: torch.optim.Optimizer) -> dict:
+        """
+        Single training step with distillation.
+        
+        Args:
+            queries: Query strings
+            documents: Document strings
+            labels: True relevance labels
+            optimizer: Optimizer
+            
+        Returns:
+            Loss metrics
+        """
+        pass
+```
+
+## Example
+
+```python
+# Initialize models
+teacher = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+student = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+
+distillation = RankerDistillation(
+    teacher_model=teacher,
+    student_model=student,
+    temperature=2.0,
+    alpha=0.7  # 70% distillation, 30% ranking loss
+)
+
+# Training data: (query, document, relevance) triples
+train_data = [
+    ("What is Python?", "Python is a programming language...", 1.0),
+    ("What is Python?", "Java is a programming language...", 0.0),
+    # ... more examples
+]
+
+optimizer = torch.optim.AdamW(student.parameters(), lr=2e-5)
+
+# Training loop
+for epoch in range(3):
+    for queries, docs, labels in train_dataloader:
+        metrics = distillation.train_step(
+            queries, docs, labels, optimizer
+        )
+        
+        print(f"Loss: {metrics['total_loss']:.4f}, "
+              f"KD: {metrics['kd_loss']:.4f}, "
+              f"Rank: {metrics['rank_loss']:.4f}")
+
+# Save distilled model
+student.save("distilled-ranker")
+
+# Inference (fast!)
+query_emb = student.encode("What is Python?")
+doc_embs = student.encode(documents)
+scores = cosine_similarity([query_emb], doc_embs)[0]
+```
+
+## Algorithm Details
+
+### Teacher Score Generation
+
+```python
+def get_teacher_scores(self, 
+                      queries: List[str], 
+                      documents: List[str]) -> torch.Tensor:
+    """Get scores from cross-encoder teacher."""
+    with torch.no_grad():
+        # Cross-encoder: concat query and doc
+        pairs = [[q, d] for q, d in zip(queries, documents)]
+        scores = self.teacher.predict(pairs, show_progress_bar=False)
+        
+    return torch.tensor(scores, dtype=torch.float32)
+```
+
+### Student Score Generation
+
+```python
+def get_student_scores(self,
+                      queries: List[str],
+                      documents: List[str]) -> torch.Tensor:
+    """Get scores from bi-encoder student."""
+    # Encode separately
+    query_embeddings = self.student.encode(
+        queries, 
+        convert_to_tensor=True,
+        show_progress_bar=False
+    )
+    doc_embeddings = self.student.encode(
+        documents,
+        convert_to_tensor=True,
+        show_progress_bar=False
+    )
+    
+    # Cosine similarity
+    scores = torch.nn.functional.cosine_similarity(
+        query_embeddings, 
+        doc_embeddings
+    )
+    
+    return scores
+```
+
+### Distillation Loss
+
+```python
+def distillation_loss(self,
+                     teacher_scores: torch.Tensor,
+                     student_scores: torch.Tensor) -> torch.Tensor:
+    """
+    Compute KL divergence between teacher and student distributions.
+    """
+    # Apply temperature scaling
+    teacher_probs = F.softmax(teacher_scores / self.temperature, dim=0)
+    student_log_probs = F.log_softmax(
+        student_scores / self.temperature, 
+        dim=0
+    )
+    
+    # KL divergence
+    kd_loss = F.kl_div(
+        student_log_probs, 
+        teacher_probs, 
+        reduction='batchmean'
+    ) * (self.temperature ** 2)
+    
+    return kd_loss
+```
+
+### Training Step
+
+```python
+def train_step(self,
+              queries: List[str],
+              documents: List[str],
+              labels: torch.Tensor,
+              optimizer: torch.optim.Optimizer) -> dict:
+    """Single training step."""
+    self.student.train()
+    
+    # Get teacher scores (no grad)
+    teacher_scores = self.get_teacher_scores(queries, documents)
+    
+    # Get student scores
+    student_scores = self.get_student_scores(queries, documents)
+    
+    # Compute losses
+    kd_loss = self.distillation_loss(teacher_scores, student_scores)
+    rank_loss = self.ranking_loss(student_scores, labels)
+    
+    # Combined loss
+    total_loss = self.alpha * kd_loss + (1 - self.alpha) * rank_loss
+    
+    # Backward
+    optimizer.zero_grad()
+    total_loss.backward()
+    optimizer.step()
+    
+    return {
+        "total_loss": total_loss.item(),
+        "kd_loss": kd_loss.item(),
+        "rank_loss": rank_loss.item()
+    }
+```
+
+## Temperature Scaling
+
+Temperature controls the "softness" of target distributions:
+
+| Temperature | Effect | Use Case |
+|-------------|--------|----------|
+| T < 1 | Harder targets | Confident teacher |
+| T = 1 | Standard softmax | Balanced |
+| T > 1 | Softer targets | Uncertain teacher, more gradient signal |
+
+Typical values: T = 2-5 for ranking distillation.
+
+## Evaluation Criteria
+
+1. **Distillation Quality**: Student mimics teacher scores
+2. **Ranking Performance**: NDCG/MAP on test set
+3. **Speed**: 100x faster than teacher
+4. **Generalization**: Performance on unseen queries
+
+## Test Cases
+
+```python
+def test_distillation_loss():
+    """Test distillation loss computation."""
+    distillation = RankerDistillation(None, None, temperature=2.0)
+    
+    teacher_scores = torch.tensor([1.0, 0.5, 0.0])
+    student_scores = torch.tensor([0.8, 0.4, 0.1])
+    
+    loss = distillation.distillation_loss(teacher_scores, student_scores)
+    
+    assert loss.item() > 0
+    assert not torch.isnan(loss)
+
+def test_student_faster():
+    """Test student is faster than teacher."""
+    import time
+    
+    # Time teacher
+    start = time.time()
+    for _ in range(10):
+        teacher.predict([["query", "doc"]])
+    teacher_time = time.time() - start
+    
+    # Time student
+    start = time.time()
+    q_emb = student.encode("query")
+    d_emb = student.encode("doc")
+    for _ in range(10):
+        cosine_similarity([q_emb], [d_emb])
+    student_time = time.time() - start
+    
+    assert student_time < teacher_time / 10
+```
+
+## Comparison: Teacher vs Student
+
+| Metric | Cross-Encoder (Teacher) | Bi-Encoder (Student) |
+|--------|------------------------|---------------------|
+| Quality | 95% | 85-90% |
+| Latency | 100ms/query | 1ms/query |
+| Throughput | 10 QPS | 1000 QPS |
+| Memory | 500MB | 100MB |
+| Indexing | Not needed | Required |
+
+## Further Reading
+
+- [Distilling BERT Paper](https://arxiv.org/abs/1903.12136)
+- [ColBERT Paper](https://arxiv.org/abs/2004.12832)
+- [MiniLM Paper](https://arxiv.org/abs/2002.10957)

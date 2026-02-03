@@ -1,35 +1,732 @@
-﻿<Callout title="Goal" variant="warning">
-  Extract metadata filters **before retrieval** (tenant, doc_type, date range). This is correctness + safety.
-</Callout>
+﻿# Self-Query Filters
 
-## Why this matters in production
+**Difficulty**: Tier 3 - Post-Retrieval  
+**Prerequisites**: Metadata Filtering, Multi-tenancy Basics  
+**Time Estimate**: 3-4 hours
 
-Two big reasons:
+## Objective
 
-1. **Quality**: filtering first shrinks the search space (often 10–100×), improving relevance and latency.
-2. **Security**: multi-tenant RAG must never retrieve cross-tenant chunks. Filtering later is too late.
+Extract metadata filters from natural language queries before retrieval, enabling precise document filtering for quality, security, and multi-tenant isolation.
 
-This challenge simulates the “self‑query retriever” idea: convert parts of a natural query into structured filters.
+## Purpose
 
-## Offline vs online
+Filtering before retrieval shrinks the search space (10-100×), improves relevance, and is essential for security in multi-tenant systems. Self-query retrievers parse natural language to extract structured filters automatically.
 
-- **Offline (ingestion)**: attach metadata to every chunk (`tenant_id`, `doc_type`, `year`, `version`, …).
-- **Online (query time)**:
-  1. parse filters from the query
-  2. apply filters at retrieval boundary
-  3. only then score/rerank
+### Real-World Impact
+- **Multi-tenant SaaS**: Tenant isolation at the database level
+- **Enterprise search**: Filter by document type, date, department
+- **Compliance**: Only retrieve documents with proper classification
+- **Performance**: Reduce search space dramatically
 
-## What the tests enforce
+## The Problem
 
-- Recognize `tenant:` / `tenant_id=` and similar patterns.
-- Remove filter tokens from the query.
-- Return a normalized cleaned query + a filters dict.
+**Without Self-Query:**
+```
+User: "Show me security policies from 2023 for tenant:acme"
+→ Search entire corpus
+→ Post-filter results (too late for security!)
+→ Slow, potentially leaky
+```
 
-## Production extensions (optional)
+**With Self-Query:**
+```
+User: "Show me security policies from 2023 for tenant:acme"
+→ Parse: tenant="acme", type="policy", year=2023
+→ Query: "security policies"
+→ Search with filters applied
+→ Fast, secure, precise
+```
 
-- Support natural language dates (“after 2023”, “in Q1 2024”).
-- Extract multiple filters (tags, product, region).
-- Add validation/allowlists for filter values.
+### Security Critical
 
+Multi-tenant RAG **must** never retrieve cross-tenant chunks. Filtering later is too late—data has already been accessed.
 
+## Theory
 
+### The Self-Query Pattern
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Self-Query Pipeline                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  User Query: "Show me security policies from 2023            │
+│              for tenant:acme"                                │
+│          │                                                   │
+│          ▼                                                   │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │           Query Parser / Filter Extractor            │    │
+│  │                                                      │    │
+│  │  Input: "Show me security policies from 2023         │    │
+│  │          for tenant:acme"                            │    │
+│  │                                                      │    │
+│  │  Output:                                             │    │
+│  │    - Clean Query: "security policies"               │    │
+│  │    - Filters: {                                      │    │
+│  │        tenant_id: "acme",                           │    │
+│  │        doc_type: "policy",                          │    │
+│  │        year_from: 2023                              │    │
+│  │      }                                               │    │
+│  └────────────────────────┬─────────────────────────────┘    │
+│                           │                                  │
+│                           ▼                                  │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │           Vector Search with Filters                 │    │
+│  │                                                      │    │
+│  │  WHERE tenant_id = "acme"                           │    │
+│  │    AND doc_type = "policy"                          │    │
+│  │    AND year >= 2023                                 │    │
+│  │  ORDER BY similarity(query_embedding, doc_embedding) │    │
+│  │  LIMIT 10                                            │    │
+│  └────────────────────────┬─────────────────────────────┘    │
+│                           │                                  │
+│                           ▼                                  │
+│                    Filtered Results                          │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Filter Types
+
+| Filter Type | Example | Use Case |
+|-------------|---------|----------|
+| **Equality** | `tenant_id = "acme"` | Multi-tenancy |
+| **Range** | `year >= 2023` | Date filtering |
+| **In** | `department IN ["HR", "IT"]` | Multi-value |
+| **Exists** | `classification EXISTS` | Compliance |
+| **Text** | `title CONTAINS "security"` | Full-text |
+
+### Natural Language to Filters
+
+**Explicit Patterns:**
+```
+"tenant:acme" → tenant_id = "acme"
+"type=policy" → doc_type = "policy"
+"after 2023" → year >= 2023
+"before Jan 2024" → date < "2024-01-01"
+```
+
+**Implicit Patterns:**
+```
+"security policies" → doc_type = "policy" (inferred)
+"last quarter" → date range (calculated)
+"my documents" → owner = current_user
+```
+
+## Setup
+
+You have:
+- Natural language queries with embedded filters
+- Metadata schema: tenant_id, doc_type, date, classification
+- Vector database with metadata filtering support
+- 1000 test queries with expected filter extractions
+
+## Challenges
+
+### Challenge 1: Explicit Filter Extraction
+
+Parse explicit filter patterns from queries.
+
+**Acceptance Criteria:**
+- Recognize `key:value` and `key=value` patterns
+- Support quoted values with spaces
+- Handle multiple filters in one query
+- Remove filter tokens from clean query
+
+**Examples:**
+```
+Input:  "security policies tenant:acme type=policy"
+Output: 
+  - Clean: "security policies"
+  - Filters: {tenant_id: "acme", doc_type: "policy"}
+
+Input:  "reports after 2023-01-01"
+Output:
+  - Clean: "reports"
+  - Filters: {date_from: "2023-01-01"}
+```
+
+### Challenge 2: Natural Language Date Parsing
+
+Extract date ranges from natural language.
+
+**Acceptance Criteria:**
+- Parse "after 2023", "in 2024", "last quarter"
+- Handle relative dates ("last month", "this year")
+- Support date ranges ("between Jan and March")
+- Convert to ISO format
+
+**Examples:**
+```
+"documents from last year" → year = 2023 (if current is 2024)
+"reports after Q1 2024" → date >= "2024-04-01"
+"policies between 2020 and 2023" → year 2020-2023
+```
+
+### Challenge 3: LLM-Based Filter Extraction
+
+Use LLM for complex filter extraction.
+
+**Acceptance Criteria:**
+- Handle implicit filters ("my documents")
+- Infer document types from content
+- Extract multi-value filters
+- Validate extracted filters against schema
+
+**Prompt Template:**
+```python
+FILTER_EXTRACTION_PROMPT = """Extract structured filters from the query.
+
+Available filter fields:
+- tenant_id: string
+- doc_type: [policy, procedure, report, email]
+- date_from, date_to: ISO date
+- classification: [public, internal, confidential, restricted]
+- department: string
+
+Query: {query}
+
+Extract filters as JSON. Use null for unspecified fields.
+
+Response format:
+{{
+  "clean_query": "the query without filter terms",
+  "filters": {{
+    "tenant_id": "...",
+    "doc_type": "...",
+    ...
+  }}
+}}"""
+```
+
+## Evaluation Metrics
+
+| Metric | Target | Description |
+|--------|--------|-------------|
+| Filter accuracy | > 90% | Correctly extracted filters |
+| Clean query quality | > 85% | Semantic meaning preserved |
+| Latency | < 50ms | Extraction time |
+| False positive rate | < 5% | Incorrect filter extraction |
+
+## Starter Code
+
+```python
+from typing import List, Dict, Optional, Any
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+import re
+import json
+
+@dataclass
+class ExtractedFilters:
+    """Structured filter extraction result."""
+    clean_query: str
+    filters: Dict[str, Any]
+    confidence: float
+    extraction_method: str
+
+class SelfQueryFilterExtractor:
+    """
+    Extract metadata filters from natural language queries.
+    """
+    
+    def __init__(self, 
+                 schema: Dict[str, str],
+                 llm_client=None):
+        """
+        Args:
+            schema: Mapping of filter field names to types
+                   e.g., {'tenant_id': 'string', 'year': 'int'}
+            llm_client: Optional LLM for complex extraction
+        """
+        self.schema = schema
+        self.llm = llm_client
+        
+        # Compile regex patterns
+        self.patterns = {
+            'key_value': re.compile(r'(\w+)[=:]("[^"]+"|\S+)'),
+            'quoted_value': re.compile(r'"([^"]+)"'),
+            'date_range': re.compile(
+                r'(after|before|since|until|from|to)\s+(\d{4}-\d{2}-\d{2}|\d{4}|\w+)',
+                re.IGNORECASE
+            ),
+        }
+        
+    def extract(self, query: str, 
+                use_llm: bool = False) -> ExtractedFilters:
+        """
+        Extract filters from query.
+        
+        Args:
+            query: Natural language query
+            use_llm: Whether to use LLM for complex extraction
+            
+        Returns:
+            ExtractedFilters with clean query and structured filters
+        """
+        # Try rule-based first
+        result = self._rule_based_extract(query)
+        
+        # Fall back to LLM if needed and allowed
+        if use_llm and result.confidence < 0.7 and self.llm:
+            llm_result = self._llm_based_extract(query)
+            if llm_result.confidence > result.confidence:
+                result = llm_result
+                
+        return result
+        
+    def _rule_based_extract(self, query: str) -> ExtractedFilters:
+        """
+        Extract filters using regex patterns.
+        """
+        filters = {}
+        clean_parts = []
+        
+        # Split query into tokens
+        tokens = query.split()
+        
+        for token in tokens:
+            # Check for key:value or key=value patterns
+            match = self.patterns['key_value'].match(token)
+            if match:
+                key, value = match.groups()
+                value = value.strip('"')
+                
+                # Normalize key
+                normalized_key = self._normalize_key(key)
+                
+                if normalized_key in self.schema:
+                    filters[normalized_key] = self._cast_value(
+                        normalized_key, value
+                    )
+                else:
+                    clean_parts.append(token)
+            else:
+                clean_parts.append(token)
+                
+        # Parse natural language dates
+        date_filters = self._parse_date_expressions(query)
+        filters.update(date_filters)
+        
+        clean_query = ' '.join(clean_parts)
+        
+        # Calculate confidence based on extraction quality
+        confidence = self._calculate_confidence(query, filters, clean_query)
+        
+        return ExtractedFilters(
+            clean_query=clean_query,
+            filters=filters,
+            confidence=confidence,
+            extraction_method='rule_based'
+        )
+        
+    def _llm_based_extract(self, query: str) -> ExtractedFilters:
+        """
+        Extract filters using LLM.
+        """
+        prompt = f"""Extract structured filters from the query.
+
+Available filter fields and types:
+{json.dumps(self.schema, indent=2)}
+
+Query: {query}
+
+Respond with JSON only:
+{{
+  "clean_query": "the query with filter terms removed",
+  "filters": {{...}}
+}}"""
+
+        try:
+            response = self.llm.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.0
+            )
+            
+            result = json.loads(response.choices[0].message.content)
+            
+            return ExtractedFilters(
+                clean_query=result['clean_query'],
+                filters=result['filters'],
+                confidence=0.9,
+                extraction_method='llm_based'
+            )
+        except Exception as e:
+            # Fall back to empty extraction
+            return ExtractedFilters(
+                clean_query=query,
+                filters={},
+                confidence=0.0,
+                extraction_method='llm_failed'
+            )
+            
+    def _normalize_key(self, key: str) -> str:
+        """Normalize filter key names."""
+        key_mapping = {
+            'tenant': 'tenant_id',
+            'type': 'doc_type',
+            'category': 'doc_type',
+            'date': 'date_from',
+            'year': 'year',
+            'dept': 'department',
+        }
+        return key_mapping.get(key.lower(), key.lower())
+        
+    def _cast_value(self, key: str, value: str) -> Any:
+        """Cast value to appropriate type based on schema."""
+        field_type = self.schema.get(key, 'string')
+        
+        if field_type == 'int':
+            return int(value)
+        elif field_type == 'float':
+            return float(value)
+        elif field_type == 'bool':
+            return value.lower() in ('true', '1', 'yes')
+        elif field_type == 'date':
+            return self._parse_date(value)
+        else:
+            return value
+            
+    def _parse_date(self, value: str) -> Optional[str]:
+        """Parse various date formats to ISO."""
+        formats = [
+            '%Y-%m-%d',
+            '%Y',
+            '%b %Y',
+            '%B %Y',
+        ]
+        
+        for fmt in formats:
+            try:
+                dt = datetime.strptime(value, fmt)
+                return dt.strftime('%Y-%m-%d')
+            except ValueError:
+                continue
+                
+        return None
+        
+    def _parse_date_expressions(self, query: str) -> Dict[str, str]:
+        """Parse natural language date expressions."""
+        filters = {}
+        
+        # Relative dates
+        if 'last year' in query.lower():
+            year = datetime.now().year - 1
+            filters['year'] = year
+            
+        if 'this year' in query.lower():
+            filters['year'] = datetime.now().year
+            
+        if 'last quarter' in query.lower():
+            now = datetime.now()
+            quarter = (now.month - 1) // 3
+            if quarter == 0:
+                year = now.year - 1
+                quarter = 4
+            else:
+                year = now.year
+            start_month = (quarter - 1) * 3 + 1
+            filters['date_from'] = f"{year}-{start_month:02d}-01"
+            
+        # Absolute dates
+        for match in self.patterns['date_range'].finditer(query):
+            operator, date_str = match.groups()
+            parsed_date = self._parse_date(date_str)
+            
+            if parsed_date:
+                if operator.lower() in ('after', 'since', 'from'):
+                    filters['date_from'] = parsed_date
+                elif operator.lower() in ('before', 'until', 'to'):
+                    filters['date_to'] = parsed_date
+                    
+        return filters
+        
+    def _calculate_confidence(self, 
+                             original: str,
+                             filters: Dict,
+                             clean: str) -> float:
+        """
+        Calculate extraction confidence.
+        """
+        score = 0.5  # Base confidence
+        
+        # Boost for extracted filters
+        score += len(filters) * 0.1
+        
+        # Boost if clean query is reasonable length
+        if 5 < len(clean.split()) < 50:
+            score += 0.1
+            
+        # Penalty if clean query is empty
+        if not clean.strip():
+            score -= 0.3
+            
+        return min(max(score, 0.0), 1.0)
+        
+    def validate_filters(self, filters: Dict) -> List[str]:
+        """
+        Validate extracted filters against schema.
+        
+        Returns list of validation errors (empty if valid).
+        """
+        errors = []
+        
+        for key, value in filters.items():
+            if key not in self.schema:
+                errors.append(f"Unknown filter field: {key}")
+                continue
+                
+            field_type = self.schema[key]
+            
+            # Type validation
+            if field_type == 'int' and not isinstance(value, int):
+                errors.append(f"{key} should be int, got {type(value)}")
+            elif field_type == 'date':
+                try:
+                    datetime.strptime(value, '%Y-%m-%d')
+                except (ValueError, TypeError):
+                    errors.append(f"{key} has invalid date format: {value}")
+                    
+        return errors
+
+class FilteredRetriever:
+    """
+    Retriever that applies self-query filters before search.
+    """
+    
+    def __init__(self, 
+                 vector_store,
+                 filter_extractor: SelfQueryFilterExtractor):
+        self.vector_store = vector_store
+        self.extractor = filter_extractor
+        
+    def retrieve(self, query: str, k: int = 10) -> List[Dict]:
+        """
+        Retrieve documents with automatic filter extraction.
+        """
+        # Extract filters
+        extraction = self.extractor.extract(query, use_llm=True)
+        
+        # Validate
+        errors = self.extractor.validate_filters(extraction.filters)
+        if errors:
+            print(f"Filter validation warnings: {errors}")
+            
+        # Search with filters
+        results = self.vector_store.search(
+            query=extraction.clean_query,
+            filters=extraction.filters,
+            k=k
+        )
+        
+        return results
+```
+
+## Advanced Techniques
+
+### 1. Query Rewriting
+
+Rewrite query to improve retrieval after filter extraction:
+
+```python
+def rewrite_query(clean_query: str, filters: Dict) -> str:
+    """
+    Expand clean query with filter context.
+    
+    Example:
+    "security policies" + {doc_type: "policy"} 
+    → "security policies document type policy"
+    """
+    expansions = []
+    
+    if 'doc_type' in filters:
+        expansions.append(f"document type {filters['doc_type']}")
+        
+    if 'department' in filters:
+        expansions.append(f"department {filters['department']}")
+        
+    return f"{clean_query} {' '.join(expansions)}"
+```
+
+### 2. Multi-tenant Security
+
+Enforce tenant isolation:
+
+```python
+class SecureSelfQueryExtractor(SelfQueryFilterExtractor):
+    def __init__(self, user_tenant_id: str, **kwargs):
+        super().__init__(**kwargs)
+        self.user_tenant_id = user_tenant_id
+        
+    def extract(self, query: str, **kwargs) -> ExtractedFilters:
+        result = super().extract(query, **kwargs)
+        
+        # Override tenant_id for security
+        if 'tenant_id' in result.filters:
+            if result.filters['tenant_id'] != self.user_tenant_id:
+                # Log security violation attempt
+                log_security_event(
+                    f"User attempted to access tenant "
+                    f"{result.filters['tenant_id']}"
+                )
+                
+        # Always set to user's tenant
+        result.filters['tenant_id'] = self.user_tenant_id
+        
+        return result
+```
+
+### 3. Query Classification
+
+Route to different extraction strategies:
+
+```python
+def classify_query_type(query: str) -> str:
+    """
+    Classify query to determine extraction strategy.
+    """
+    # Simple heuristics
+    if re.search(r'\w+[=:]\w+', query):
+        return 'explicit_filters'
+        
+    if any(word in query.lower() for word in 
+           ['after', 'before', 'last', 'this', 'between']):
+        return 'date_range'
+        
+    if any(word in query.lower() for word in 
+           ['my', 'mine', 'assigned to me']):
+        return 'user_context'
+        
+    return 'semantic'
+```
+
+## Production Tips
+
+### 1. Filter Caching
+
+```python
+from functools import lru_cache
+
+def hash_query_for_cache(query: str) -> str:
+    """Normalize and hash query for caching."""
+    normalized = query.lower().strip()
+    return hashlib.md5(normalized.encode()).hexdigest()
+
+@lru_cache(maxsize=10000)
+def cached_extract(query_hash: str) -> ExtractedFilters:
+    """Cache extraction results."""
+    pass
+```
+
+### 2. Fallback Strategy
+
+```python
+def extract_with_fallback(query: str) -> ExtractedFilters:
+    """
+    Try multiple extraction methods with fallback.
+    """
+    # Try fast rule-based
+    result = rule_based_extract(query)
+    if result.confidence > 0.8:
+        return result
+        
+    # Try LLM-based
+    result = llm_based_extract(query)
+    if result.confidence > 0.7:
+        return result
+        
+    # Fallback: no filters, full search
+    return ExtractedFilters(
+        clean_query=query,
+        filters={},
+        confidence=0.5,
+        extraction_method='fallback'
+    )
+```
+
+### 3. Monitoring
+
+```python
+def log_extraction_metrics(query: str, result: ExtractedFilters):
+    """Track extraction quality."""
+    metrics.counter('self_query.extraction_attempt')
+    metrics.gauge('self_query.confidence', result.confidence)
+    metrics.counter(f'self_query.method.{result.extraction_method}')
+    
+    if result.filters:
+        metrics.counter('self_query.filters_extracted', 
+                       len(result.filters))
+```
+
+## Company Examples
+
+- **LangChain**: SelfQueryRetriever with multiple vector stores
+- **LlamaIndex**: VectorIndexAutoRetriever with metadata filtering
+- **Pinecone**: Metadata filtering in hybrid search
+- **Weaviate**: Where filters with GraphQL interface
+
+## Resources
+
+### Academic Papers
+- "Self-Querying Retrieval for Large Language Models" - Various industry papers
+- "Metadata Filtering in Vector Search" - Pinecone/Weaviate documentation
+- "Multi-tenant Vector Search" - Engineering blogs
+
+### Official Documentation
+- [LangChain Self-Query Retriever](https://python.langchain.com/docs/modules/data_connection/retrievers/self_query/)
+- [LlamaIndex VectorIndexAutoRetriever](https://docs.llamaindex.ai/en/stable/examples/retrievers/auto_retriever/)
+- [Pinecone Metadata Filtering](https://docs.pinecone.io/docs/metadata-filtering)
+- [Weaviate Where Filters](https://weaviate.io/developers/weaviate/search/filters)
+
+### Tools & Libraries
+- [LangChain](https://github.com/langchain-ai/langchain) - Self-query implementations
+- [LlamaIndex](https://github.com/run-llama/llama_index) - Auto-retrieval
+- [dateparser](https://github.com/scrapinghub/dateparser) - Natural language dates
+
+### GitHub Repositories
+- [langchain-ai/langchain](https://github.com/langchain-ai/langchain) - Self-query retriever
+- [run-llama/llama_index](https://github.com/run-llama/llama_index) - Auto-retrieval
+- [scrapinghub/dateparser](https://github.com/scrapinghub/dateparser) - Date parsing
+
+## Challenge Links
+
+### Prerequisites
+- [Metadata Filtering](/challenges/metadata-filtering) - Basic filtering
+- [Multi-tenancy RAG](/challenges/multi-tenancy-rag) - Tenant isolation
+- [BM25 Field Boosting](/challenges/bm25-field-boosting) - Field-based search
+
+### Related Challenges
+- [Query Routing](/challenges/query-routing) - Route queries to appropriate indices
+- [Query Expansion](/challenges/query-expansion) - Expand queries for better retrieval
+- [Intent Classification](/challenges/intent-classification) - Classify query types
+
+### Next Challenges
+- [Query Decomposition](/challenges/query-decomposition) - Break complex queries
+- [HyDE Search](/challenges/hyde-search) - Generate hypothetical answers
+
+## Implementation Checklist
+
+- [ ] Implement explicit filter pattern extraction
+- [ ] Add natural language date parsing
+- [ ] Implement LLM-based extraction
+- [ ] Add filter validation
+- [ ] Implement query rewriting
+- [ ] Add multi-tenant security
+- [ ] Create fallback strategies
+- [ ] Add caching layer
+- [ ] Implement monitoring
+- [ ] Document security best practices
+
+## Summary
+
+Self-query filtering is essential for production RAG—improving quality, performance, and security.
+
+**Key Takeaways:**
+1. **Filter first**: Apply filters before retrieval, not after
+2. **Security critical**: Tenant isolation happens at filter level
+3. **Multiple methods**: Rule-based for speed, LLM for complexity
+4. **Validate always**: Check extracted filters against schema
+5. **Monitor quality**: Track extraction confidence and accuracy
+
+Filter early, filter securely, retrieve precisely!

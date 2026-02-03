@@ -1,24 +1,308 @@
+---
+title: "ReAct Loop (TypeScript)"
+description: "Implement the ReAct loop — Think → Act → Observe → Repeat."
+language: "typescript"
+difficulty: "advanced"
+category: "agents"
+prerequisites: ["ts-tool-router", "ts-prompt-builder"]
+related: ["react-implementation", "agentic-rag-workflows", "agent-long-term-memory"]
+tags: ["react", "agents", "tool-use", "reasoning", "llm"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Implement the ReAct loop — Think → Act → Observe → Repeat.
+  Implement the ReAct (Reasoning + Acting) loop — the foundational pattern for LLM agents.
 </Callout>
 
-## Why this matters in production
+## Why ReAct Matters in Production
 
-ReAct (Reasoning + Acting) is the foundational pattern for LLM agents. It's used in LangChain agents, AutoGPT, and Claude's tool use.
+ReAct (Reasoning + Acting) is the foundational pattern for LLM agents. It's used in LangChain agents, AutoGPT, and Claude's tool use. ReAct enables LLMs to:
 
-## What you're implementing
+- **Reason through problems**: Step-by-step thinking
+- **Use tools**: Call APIs, search, calculate
+- **Iterate**: Refine approach based on observations
+- **Solve complex tasks**: Beyond single-turn responses
 
-- Think: generate thought and decide on action.
-- Act: execute the action and get observation.
-- Loop: repeat until action is null or max steps reached.
-- Return: final answer and execution trace.
+### Real-World Scenario
 
-## Common pitfalls
+Query: "What is the weather in the capital of the country where the 2024 Olympics were held?"
 
-- Infinite loops without max steps limit.
-- Not preserving action history for context.
+**Without ReAct:**
+- LLM might hallucinate or give outdated information
 
-## After you pass
+**With ReAct:**
+```
+Thought: I need to find where the 2024 Olympics were held.
+Action: search("2024 Olympics location")
+Observation: The 2024 Summer Olympics were held in Paris, France.
 
-Add **Agent Memory** for multi-turn conversations.
+Thought: Now I need to find the capital of France.
+Action: search("capital of France")
+Observation: Paris is the capital of France.
 
+Thought: Now I need to find the weather in Paris.
+Action: weather_api("Paris")
+Observation: Current weather in Paris is 22°C and sunny.
+
+Thought: I have all the information needed.
+Action: finish("The weather in Paris (capital of France, where the 2024 Olympics were held) is 22°C and sunny.")
+```
+
+## The Mathematical Foundation
+
+### ReAct Loop
+
+```
+┌─────────────────────────────────────────┐
+│  1. THINK: Reason about current state   │
+│     → Generate thought                  │
+├─────────────────────────────────────────┤
+│  2. ACT: Decide on action               │
+│     → Choose tool and parameters        │
+├─────────────────────────────────────────┤
+│  3. EXECUTE: Run the action             │
+│     → Call tool/API                     │
+├─────────────────────────────────────────┤
+│  4. OBSERVE: Process result             │
+│     → Add to context                    │
+├─────────────────────────────────────────┤
+│  5. REPEAT or FINISH                    │
+│     → Continue or return answer         │
+└─────────────────────────────────────────┘
+```
+
+### Action Space
+
+| Action Type | Description | Example |
+|-------------|-------------|---------|
+| **Search** | Retrieve information | `search("query")` |
+| **Calculate** | Mathematical operation | `calc("2 + 2")` |
+| **API Call** | External service | `weather("NYC")` |
+| **Finish** | Return final answer | `finish("answer")` |
+
+### Termination Conditions
+
+```
+Loop until:
+- Action is "finish"
+- Max iterations reached
+- Error occurs
+- Timeout exceeded
+```
+
+## Theoretical Deep Dive
+
+### ReAct vs Chain-of-Thought
+
+| Aspect | Chain-of-Thought | ReAct |
+|--------|-----------------|-------|
+| **Reasoning** | Internal only | Interleaved with action |
+| **External data** | None | Tools provide observations |
+| **Verification** | Self-check only | External validation |
+| **Use case** | Pure reasoning | Interactive tasks |
+
+### Tool Selection as Classification
+
+```
+Given: Context + Available Tools
+Predict: Tool name + Arguments
+
+This is a multi-class classification over the action space.
+```
+
+### Observation as State Update
+
+```
+State_t+1 = State_t + Observation_t
+
+The observation becomes part of the context for next iteration.
+```
+
+## Production Considerations
+
+### Max Iterations
+
+Prevent infinite loops:
+
+```typescript
+const MAX_ITERATIONS = 10;
+
+for (let i = 0; i < MAX_ITERATIONS; i++) {
+  const action = await llm.generate(prompt);
+  if (action.type === 'finish') break;
+  // ...
+}
+```
+
+### Error Handling
+
+```typescript
+try {
+  const result = await executeAction(action);
+  observation = result;
+} catch (error) {
+  observation = `Error: ${error.message}`;
+  // LLM may retry with different approach
+}
+```
+
+### Cost Control
+
+Each iteration costs tokens:
+
+```
+Total cost = Σ(cost(thought) + cost(action) + cost(observation))
+
+Mitigations:
+- Limit max iterations
+- Use cheaper model for simple steps
+- Cache frequent observations
+```
+
+## Your Task
+
+Implement a ReAct loop:
+
+```typescript
+interface Tool {
+  name: string;
+  description: string;
+  execute: (args: any) => Promise<any>;
+}
+
+interface Thought {
+  content: string;
+  step: number;
+}
+
+interface Action {
+  type: string;
+  tool?: string;
+  args?: any;
+  answer?: string;  // For 'finish' action
+}
+
+interface Observation {
+  result: any;
+  step: number;
+}
+
+interface ReActStep {
+  step: number;
+  thought: Thought;
+  action: Action;
+  observation: Observation;
+}
+
+interface ReActResult {
+  success: boolean;
+  answer?: string;
+  steps: ReActStep[];
+  iterations: number;
+}
+
+interface ReActConfig {
+  maxIterations: number;
+  tools: Tool[];
+  llm: {
+    generate: (prompt: string) => Promise<string>;
+  };
+}
+
+class ReActAgent {
+  constructor(private config: ReActConfig) {}
+
+  async run(query: string): Promise<ReActResult> {
+    /**
+     * Execute ReAct loop for a query.
+     * 
+     * Args:
+     *   query: User question or task
+     * 
+     * Returns:
+     *   ReActResult with answer and execution trace
+     * 
+     * Algorithm:
+     *   1. Initialize context with query
+     *   2. For maxIterations:
+     *      a. Generate thought (reasoning)
+     *      b. Generate action (tool selection)
+     *      c. If action is 'finish', return answer
+     *      d. Execute tool
+     *      e. Add observation to context
+     *   3. If max iterations reached, return partial result
+     * 
+     * Prompt structure:
+     *   - System: You are a helpful assistant with access to tools
+     *   - Tools: Description of available tools
+     *   - History: Previous thoughts, actions, observations
+     *   - Current: What to do next
+     * 
+     * Edge Cases:
+     *   - Tool not found: return error observation
+     *   - Tool execution fails: include error in observation
+     *   - Max iterations: return best effort answer
+     */
+  }
+
+  private buildPrompt(context: string, history: ReActStep[]): string {
+    /**
+     * Build prompt for LLM with context and history.
+     */
+  }
+
+  private parseAction(response: string): Action {
+    /**
+     * Parse LLM response into structured action.
+     * 
+     * Expected format:
+     *   Thought: <reasoning>
+     *   Action: <tool_name>(<args>)
+     *   or
+     *   Action: finish(<answer>)
+     */
+  }
+
+  private async executeAction(action: Action): Promise<any> {
+    /**
+     * Execute the selected tool.
+     */
+  }
+}
+```
+
+### Validation Checklist
+
+- [ ] Thought generated before each action
+- [ ] Action parsed correctly from LLM response
+- [ ] Tool executed and observation captured
+- [ ] Finish action terminates loop
+- [ ] Max iterations prevents infinite loops
+- [ ] History maintained across steps
+- [ ] Error handling for tool failures
+- [ ] Final answer extracted correctly
+
+## Common Pitfalls
+
+- **Infinite loops without max steps limit**: Always set a bound
+- **Not preserving action history**: Context must include all steps
+- **Poor tool descriptions**: LLM can't select correct tool
+- **Not handling tool errors**: Errors should be observations
+- **Prompt too long**: History may exceed context window
+
+## After You Pass
+
+Add **Agent Memory** for multi-turn conversations, or extend with **Multi-Agent** coordination for complex tasks.
+
+## Resources
+
+### Academic Papers
+- ["ReAct: Synergizing Reasoning and Acting in Language Models"](https://arxiv.org/abs/2210.03629) - Yao et al. (Original ReAct)
+- ["Toolformer: Language Models Can Teach Themselves to Use Tools"](https://arxiv.org/abs/2302.04761) - Schick et al.
+
+### Documentation
+- [LangChain Agents](https://js.langchain.com/docs/modules/agents/) - Agent implementations
+- [OpenAI Function Calling](https://platform.openai.com/docs/guides/function-calling) - Tool use
+
+### Tutorials
+- ["Building ReAct Agents"](https://blog.langchain.dev/react-agents/) - LangChain blog
+- ["LLM Agents Explained"](https://www.youtube.com/watch?v=biS8G8x8DdA) - Video explanation

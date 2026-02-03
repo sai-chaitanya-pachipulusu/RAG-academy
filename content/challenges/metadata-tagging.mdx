@@ -8,11 +8,11 @@ Metadata is how you:
 
 - cite sources (`doc_id`, `chunk_id`, page/section)
 - filter (`tenant_id`, `doc_type`, time windows)
-- debug failures (“why did this chunk show up?”)
+- debug failures ("why did this chunk show up?")
 
 RAG systems without metadata are not production systems — they are demos.
 
-## What you’re implementing
+## What you're implementing
 
 Transform `["chunk0","chunk1",...]` into:
 
@@ -20,14 +20,46 @@ Transform `["chunk0","chunk1",...]` into:
 
 This tiny primitive shows up everywhere in indexing pipelines.
 
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand why metadata is essential for production RAG
+- Be able to implement source tracking and citations
+- Know how to structure chunk metadata for filtering and debugging
+
+## Real-World Applications
+
+Metadata enables critical production features:
+
+| Feature | Metadata Required |
+|---------|-------------------|
+| **Citations** | `doc_id`, `chunk_id`, `page_number` |
+| **Multi-tenancy** | `tenant_id`, `user_id` |
+| **Access control** | `classification`, `allowed_roles` |
+| **Time-based filtering** | `created_at`, `updated_at` |
+| **Content type routing** | `doc_type`, `content_type` |
+
+## The Citation Chain
+
+```
+User Query → Retrieved Chunks → LLM Answer with Citations → User Seources Sources
+                                    ↓
+                              [1] doc.pdf, page 5
+                              [2] doc.pdf, page 12
+```
+
+Without metadata, you can't build trust through citations.
+
 ## Common pitfalls
 
 - Forgetting stable indices.
 - Mutating chunk text (breaks dedup and stable IDs later).
+- Not including source information (makes debugging impossible).
 
 ## After you pass
 
-Do **Stable Chunk IDs**, then implement **metadata filtering** at retrieval time.
+Do **Stable Chunk IDs** to ensure traceability across re-indexing, then implement **metadata filtering** at retrieval time.
 
+---
 
-
+**🔒 Security Note:** Metadata is your first line of defense for multi-tenant RAG. Always include `tenant_id` and validate it at retrieval time.

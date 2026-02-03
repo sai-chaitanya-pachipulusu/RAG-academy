@@ -1,4 +1,14 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "RAG Pipeline: The Generator"
+description: "Complete the Saga by synthesizing an answer using the retrieved context"
+difficulty: "beginner"
+estimatedMinutes: 25
+xpReward: 45
+prerequisites: ["rag-pipeline-retriever"]
+related: ["prompt-template", "citation-range-validator", "hallucination-detection"]
+---
+
+<Callout title="Goal" variant="info">
   Complete the Saga by synthesizing an answer using the retrieved context.
 </Callout>
 
@@ -6,10 +16,248 @@
 
 The final step of the RAG (Retrieval-Augmented Generation) loop is the **Generation**. This is where you feed the retrieved chunks and the user query into an LLM to get a human-readable answer.
 
-## Task
+## Why This Matters in Production
+
+Generation is where RAG delivers value to users. Poor generation can ruin even perfect retrieval:
+
+| Problem | Impact |
+|---------|--------|
+| **Hallucination** | Model makes up facts not in context |
+| **Poor Citation** | Can't verify answer sources |
+| **Context Ignoring** | Model uses internal knowledge instead of retrieved context |
+| **Tone Mismatch** | Answer style doesn't fit use case |
+
+## What You're Implementing
 
 Implement the `generate` and the final `run` methods. The `run` method should coordinate the entire flow:
-`Input Text -> Chunk -> Embed -> (Query) -> Retrieve -> Context -> Generate`.
 
-You have now built a complete, end-to-end RAG system from scratch!
+```
+Input Text → Chunk → Embed → (Query) → Retrieve → Context → Generate
+```
+
+## The Complete RAG Pipeline
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         RAG PIPELINE                             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐                   │
+│  │  Input   │───▶│  Chunk   │───▶│  Embed   │                   │
+│  │  Text    │    │          │    │          │                   │
+│  └──────────┘    └──────────┘    └──────────┘                   │
+│                                       │                         │
+│                                       ▼                         │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐                   │
+│  │  Output  │◀───│ Generate │◀───│ Retrieve │                   │
+│  │  Answer  │    │          │    │          │                   │
+│  └──────────┘    └──────────┘    └──────────┘                   │
+│                                       ▲                         │
+│                                       │                         │
+│                                  User Query                     │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## The Generation Prompt Template
+
+```
+You are a helpful assistant. Answer the question using ONLY the provided context.
+If the context doesn't contain the answer, say "I don't have enough information."
+Always cite your sources using [1], [2], etc.
+
+Context:
+{retrieved_chunks}
+
+Question: {user_query}
+
+Answer:
+```
+
+## Implementation Example
+
+```python
+from typing import List, Tuple
+import numpy as np
+
+class Pipeline:
+    def __init__(self, embedding_model, llm_client, chunk_size=500):
+        self.embedding_model = embedding_model
+        self.llm_client = llm_client
+        self.chunk_size = chunk_size
+        self.chunks = []
+        self.chunk_embeddings = []
+    
+    def chunk(self, text: str) -> List[str]:
+        """Split text into chunks."""
+        chunks = []
+        for i in range(0, len(text), self.chunk_size):
+            chunks.append(text[i:i + self.chunk_size])
+        return chunks
+    
+    def embed(self, chunks: List[str]) -> List[np.ndarray]:
+        """Generate embeddings for chunks."""
+        return [self.embedding_model.encode(c) for c in chunks]
+    
+    def retrieve(self, query: str, k: int = 3) -> List[Tuple[int, float]]:
+        """Find most similar chunks."""
+        query_vec = self.embedding_model.encode(query)
+        query_vec = query_vec / np.linalg.norm(query_vec)
+        
+        scores = []
+        for i, chunk_vec in enumerate(self.chunk_embeddings):
+            chunk_vec = chunk_vec / np.linalg.norm(chunk_vec)
+            similarity = np.dot(query_vec, chunk_vec)
+            scores.append((i, similarity))
+        
+        scores.sort(key=lambda x: x[1], reverse=True)
+        return scores[:k]
+    
+    def generate(self, query: str, retrieved_indices: List[int]) -> str:
+        """
+        Generate answer using retrieved context.
+        
+        Time Complexity: O(L) where L = response length
+        Space Complexity: O(L) for context + prompt
+        
+        Args:
+            query: User question
+            retrieved_indices: Indices of retrieved chunks
+            
+        Returns:
+            Generated answer with citations
+        """
+        # Build context from retrieved chunks
+        context_parts = []
+        for i, idx in enumerate(retrieved_indices, 1):
+            context_parts.append(f"[{i}] {self.chunks[idx]}")
+        context = "\n\n".join(context_parts)
+        
+        # Build prompt
+        prompt = f"""You are a helpful assistant. Answer the question using ONLY the provided context.
+If the context doesn't contain the answer, say "I don't have enough information."
+Always cite your sources using [1], [2], etc.
+
+Context:
+{context}
+
+Question: {query}
+
+Answer:"""
+        
+        # Generate response
+        response = self.llm_client.generate(prompt)
+        return response
+    
+    def run(self, text: str, query: str, k: int = 3) -> dict:
+        """
+        Run the complete RAG pipeline.
+        
+        Args:
+            text: Source document text
+            query: User question
+            k: Number of chunks to retrieve
+            
+        Returns:
+            Dictionary with answer and metadata
+        """
+        # Stage 1: Chunk
+        self.chunks = self.chunk(text)
+        
+        # Stage 2: Embed
+        self.chunk_embeddings = self.embed(self.chunks)
+        
+        # Stage 3: Retrieve
+        retrieved = self.retrieve(query, k=k)
+        retrieved_indices = [idx for idx, _ in retrieved]
+        
+        # Stage 4: Generate
+        answer = self.generate(query, retrieved_indices)
+        
+        return {
+            "answer": answer,
+            "retrieved_chunks": [self.chunks[i] for i in retrieved_indices],
+            "retrieval_scores": [score for _, score in retrieved],
+            "chunks_processed": len(self.chunks)
+        }
+```
+
+## Complexity Analysis
+
+| Stage | Complexity | Notes |
+|-------|------------|-------|
+| Chunk | O(N) | N = text length |
+| Embed | O(N × L) | L = avg chunk length |
+| Retrieve | O(C × d) | C = chunks, d = dimension |
+| Generate | O(T) | T = tokens generated |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand how to orchestrate a complete RAG pipeline
+- Be able to implement citation-aware generation
+- Know how to structure prompts for grounded answers
+
+## Real-World Applications
+
+| Company | RAG Generation Use Case |
+|---------|------------------------|
+| **OpenAI** | GPT-4 with retrieval for ChatGPT |
+| **Anthropic** | Claude with document grounding |
+| **Microsoft** | Copilot with enterprise data |
+| **Google** | Gemini with Workspace integration |
+
+## Common Pitfalls
+
+- **Context Window Overflow**: Too many chunks exceed LLM's limit
+- **Missing Citations**: Users can't verify answers
+- **Hallucination**: Model ignores context, uses internal knowledge
+- **Poor Prompt Design**: Vague instructions lead to bad outputs
+
+## Production Extensions (Optional)
+
+- **Streaming Generation**: Stream tokens for better UX
+- **Citation Validation**: Verify model citations match retrieved chunks
+- **Answer Confidence**: Score how well answer is supported by context
+- **Multi-turn Conversation**: Maintain context across queries
+
+## Resources
+
+### Documentation
+- [OpenAI Completion API](https://platform.openai.com/docs/guides/completions)
+- [Anthropic Claude API](https://docs.anthropic.com/claude/reference/getting-started-with-the-api)
+- [LangChain RAG Tutorial](https://python.langchain.com/docs/use_cases/question_answering/)
+
+### Tools
+- **LangChain**: RAG orchestration framework
+- **LlamaIndex**: Data framework for LLM applications
+- **Haystack**: End-to-end NLP framework
+
+### Papers
+- "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks" (Lewis et al., 2020)
+- "Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection" (Asai et al., 2023)
+
+## Interview Questions
+
+1. **How do you prevent hallucination in RAG?**
+   - Strong prompt instructions, citation requirements, and answer validation
+
+2. **What should you do if retrieved context doesn't answer the query?**
+   - Train the model to refuse and say "I don't have enough information"
+
+3. **How do you handle long documents that exceed context window?**
+   - Retrieve only relevant chunks, use compression, or hierarchical summarization
+
+## After You Pass
+
+🎉 **Congratulations!** You've built a complete RAG pipeline from scratch!
+
+Next steps to enhance your system:
+- [prompt-template](prompt-template) - Optimize your generation prompts
+- [citation-range-validator](citation-range-validator) - Validate model citations
+- [hallucination-detection](hallucination-detection) - Detect unsupported claims
+
+---
+
+**🏆 Saga Complete:** You now have a working RAG system! Time to add advanced features like hybrid search, reranking, and evaluation.
 

@@ -1,5 +1,16 @@
-﻿<Callout title="Goal" variant="info">
-  Implement Euclidean distance — useful for building intuition about “closeness”
+﻿---
+title: "Euclidean Distance"
+description: "Implement Euclidean distance — useful for building intuition about 'closeness' in vector space"
+difficulty: "beginner"
+estimatedMinutes: 15
+xpReward: 20
+prerequisites: ["dot-product"]
+related: ["cosine-similarity", "basic-retrieval", "embed-and-search"]
+next: "basic-retrieval"
+---
+
+<Callout title="Goal" variant="info">
+  Implement Euclidean distance — useful for building intuition about "closeness"
   in vector space.
 </Callout>
 
@@ -12,10 +23,10 @@ Most embedding retrieval uses cosine similarity, but Euclidean distance is the c
 
 Some vector DBs can operate in Euclidean/L2 space, and many ANN indexes support it directly.
 
-## What you’re implementing
+## What you're implementing
 
 ```
-L2(a,b) = sqrt(sum((a_i - b_i)^2))
+L2(a,b) = sqrt(Σ(a_i - b_i)²)
 ```
 
 Rules:
@@ -23,11 +34,101 @@ Rules:
 - mismatched lengths → `ValueError`
 - `distance([], []) == 0.0`
 
+## The Algorithm
+
+```python
+import math
+
+def euclidean_distance(a: list[float], b: list[float]) -> float:
+    """
+    Compute Euclidean (L2) distance between two vectors.
+    
+    Time Complexity: O(N) where N = vector dimension
+    Space Complexity: O(1) additional
+    
+    Args:
+        a: First vector
+        b: Second vector
+        
+    Returns:
+        Euclidean distance (>= 0)
+        
+    Raises:
+        ValueError: If vectors have different lengths
+    """
+    if len(a) != len(b):
+        raise ValueError(f"Vector length mismatch: {len(a)} vs {len(b)}")
+    
+    return math.sqrt(sum((x - y) ** 2 for x, y in zip(a, b)))
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Time | O(N) | Single pass with subtraction and squaring |
+| Space | O(1) | No additional storage |
+| Range | [0, ∞) | 0 = identical, larger = more different |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand when absolute distance matters more than directional similarity
+- Know how to choose the right similarity metric for your use case
+- Be prepared for geospatial and clustering applications
+
+## Real-World Applications
+
+| Use Case | Why Euclidean? |
+|----------|----------------|
+| **Geospatial search** (Uber, Google Maps) | Physical distance matters |
+| **K-Means clustering** | Minimizes within-cluster variance |
+| **Anomaly detection** | Outliers have large distances from centroids |
+| **Image similarity** | Pixel-level differences matter |
+
+## When to Use Which Metric
+
+| Scenario | Recommended Metric |
+|----------|-------------------|
+| Semantic text similarity | Cosine similarity |
+| Geospatial/physical distance | Euclidean distance |
+| Normalized embeddings | Dot product (fastest) |
+| Clustering | Euclidean or Cosine |
+| Recommendation systems | Cosine or Pearson correlation |
+
+## Relationship to Cosine Similarity
+
+For **normalized vectors** (unit length):
+
+```
+||a - b||² = 2 - 2 × cos(θ)
+```
+
+This means:
+- Euclidean distance and cosine are monotonically related for normalized vectors
+- Minimizing Euclidean distance = Maximizing cosine similarity
+- Use dot product for speed when vectors are normalized
+
 ## Common pitfalls
 
 - Forgetting the final square root.
 - Using absolute differences instead of squared differences.
+- Not handling the empty vector case.
+
+## Resources
+
+### Documentation
+- [SciPy Distance Functions](https://docs.scipy.org/doc/scipy/reference/spatial.distance.html)
+- [NumPy Linalg Norm](https://numpy.org/doc/stable/reference/generated/numpy.linalg.norm.html)
+
+### Tutorials
+- [Distance Metrics in ML](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise_distances.html)
+- [Similarity vs Distance](https://www.pinecone.io/learn/vector-similarity/)
 
 ## After you pass
 
-Move on to **Tokenizers** and **Chunking**, then tie the primitives together in retrieval.
+Move on to **Top-K retrieval** with [basic-retrieval](basic-retrieval), then tie the primitives together in real retrieval systems.
+
+---
+
+**Module Progress:** 3 of 4 Foundations complete! Next: [basic-retrieval](basic-retrieval) to build your first retrieval system.

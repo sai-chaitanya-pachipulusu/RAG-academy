@@ -1,73 +1,75 @@
 ---
 title: "Adaptive RAG Router"
-description: |
-  Build a query router that dynamically selects the optimal RAG strategy based on query complexity.
-difficulty: intermediate
-estimatedMinutes: 35
-topics: ["adaptive-rag", "routing", "classification", "optimization"]
-language: python
-prerequisites:
-  - basic-retrieval
-  - hyde-search
-xp: 150
+description: "Build a query router that dynamically selects the optimal RAG strategy based on query complexity — not all queries need the same treatment."
+difficulty: "intermediate"
+estimatedMinutes: 45
+prerequisites: ["basic-retrieval", "hyde-search", "query-routing"]
+related: ["cost-aware-router", "route-by-difficulty", "query-complexity-classifier"]
+next: "cost-aware-router"
+xpReward: 150
 ---
 
-# Adaptive RAG Router
+<Callout title="Goal" variant="info">
+  Build a query router that dynamically selects the optimal RAG strategy based on query complexity.
+</Callout>
 
 Not all queries need the same treatment. A simple lookup like "What's the return policy?" doesn't need multi-step reasoning, while "Compare our Q1 and Q2 performance and explain the trends" requires iterative retrieval.
 
-**Your task**: Build a router that classifies queries and routes them to the appropriate RAG strategy.
+## Complexity Analysis
 
-## Dataset
+| Strategy | Time | Cost | Use Case |
+|----------|------|------|----------|
+| Direct LLM | ~500ms | Low | Factual questions |
+| Simple RAG | ~1-2s | Medium | Document lookup |
+| Complex RAG | ~5-10s | High | Multi-hop reasoning |
+| Rewrite RAG | ~2-4s | Medium | Ambiguous queries |
 
-```python
-from dataclasses import dataclass
-from typing import List
+## Real-World Context
 
-@dataclass
-class Document:
-    id: str
-    content: str
-    metadata: dict
+| Company | Application |
+|---------|-------------|
+| **OpenAI** | GPT-4 with retrieval routing |
+| **Anthropic** | Claude with tool selection |
+| **Microsoft** | Copilot query routing |
+| **Google** | Gemini adaptive retrieval |
 
-# Sample knowledge base
-DOCUMENTS = [
-    Document("policy-1", "Our return policy allows returns within 30 days of purchase with original receipt.", {"type": "policy"}),
-    Document("policy-2", "Refunds are processed within 5-7 business days to the original payment method.", {"type": "policy"}),
-    Document("q1-report", "Q1 2024 revenue was $1.2M, up 15% YoY. Key driver: new product launch.", {"type": "financial", "quarter": "Q1"}),
-    Document("q2-report", "Q2 2024 revenue was $1.4M, up 25% YoY. Key driver: expansion into APAC.", {"type": "financial", "quarter": "Q2"}),
-    Document("product-1", "ProductX features include: AI-powered search, real-time sync, and 99.9% uptime.", {"type": "product"}),
-    Document("faq-1", "To reset your password, click 'Forgot Password' on the login page.", {"type": "faq"}),
-]
+## Resources
 
-# Test queries with expected complexity
-TEST_QUERIES = [
-    ("What is 2 + 2?", "no_retrieval"),
-    ("What's the return policy?", "simple"),
-    ("How do I reset my password?", "simple"),
-    ("Compare Q1 and Q2 revenue and explain the differences", "complex"),
-    ("thing", "ambiguous"),
-    ("Analyze the trends across all quarters and predict Q3", "complex"),
-    ("Hello!", "no_retrieval"),
-    ("it", "ambiguous"),
-]
-```
+### Papers
+- **"Adaptive-RAG: Learning to Adapt Retrieval-Augmented Models"** - Saha et al. (2024)
+- **"Query Routing for RAG"** - Efficient retrieval strategies
 
-## Your Task
+### Tools
+- **LangChain**: Router chains
+- **LlamaIndex**: Query engine routing
+- **DSPy**: Adaptive modules
 
-Implement the `AdaptiveRAGRouter` class:
+## Implementation
 
 ```python
 from enum import Enum
-from typing import Callable
+from typing import Callable, Dict, List, Optional
+import re
 
 class QueryComplexity(Enum):
+    """Query complexity levels for routing decisions."""
     NO_RETRIEVAL = "no_retrieval"  # LLM can answer directly
     SIMPLE = "simple"               # Single retrieval pass
     COMPLEX = "complex"             # Multi-step reasoning
     AMBIGUOUS = "ambiguous"         # Needs clarification
 
+
 class AdaptiveRAGRouter:
+    """
+    Router that classifies queries and routes to appropriate RAG strategy.
+    
+    Strategies:
+    - Direct LLM: For factual/math questions
+    - Simple RAG: Single retrieval for document lookup
+    - Complex RAG: Multi-step for analysis/comparison
+    - Rewrite RAG: For ambiguous/unclear queries
+    """
+    
     def __init__(
         self,
         simple_rag: Callable[[str], str],
@@ -88,75 +90,186 @@ class AdaptiveRAGRouter:
         self.complex_rag = complex_rag
         self.direct_llm = direct_llm
         self.rewrite_rag = rewrite_rag
+        
+        # Pattern definitions
+        self.math_pattern = re.compile(r'\d+\s*[+\-*/]\s*\d+')
+        self.greeting_pattern = re.compile(r'^(hi|hello|hey|greetings)\b', re.I)
+        self.comparison_pattern = re.compile(r'\b(compare|vs|versus|difference|similarities)\b', re.I)
+        self.analysis_pattern = re.compile(r'\b(analyze|explain|why|how does|trend)\b', re.I)
     
     def classify_query(self, query: str) -> QueryComplexity:
         """
-        Classify query complexity using rules and/or LLM.
+        Classify query complexity using rules and heuristics.
         
         Returns:
             QueryComplexity enum value
         """
-        # YOUR CODE HERE
-        pass
+        query_lower = query.lower().strip()
+        
+        # Rule 1: Math problems → Direct LLM
+        if self.math_pattern.search(query):
+            return QueryComplexity.NO_RETRIEVAL
+        
+        # Rule 2: Greetings → Direct LLM
+        if self.greeting_pattern.match(query):
+            return QueryComplexity.NO_RETRIEVAL
+        
+        # Rule 3: Very short queries → Ambiguous
+        if len(query_lower.split()) <= 2:
+            return QueryComplexity.AMBIGUOUS
+        
+        # Rule 4: Comparisons or analysis → Complex
+        if self.comparison_pattern.search(query) or self.analysis_pattern.search(query):
+            return QueryComplexity.COMPLEX
+        
+        # Rule 5: Simple lookups → Simple
+        lookup_patterns = [
+            r'\b(what is|what are|who is|when|where|how do i|how to)\b',
+            r'\b(return policy|password|login|contact|price|cost)\b'
+        ]
+        for pattern in lookup_patterns:
+            if re.search(pattern, query_lower):
+                return QueryComplexity.SIMPLE
+        
+        # Default: Simple RAG
+        return QueryComplexity.SIMPLE
     
     def route(self, query: str) -> str:
         """
         Route query to appropriate RAG strategy and return answer.
         
+        Args:
+            query: User query
+        
         Returns:
             Generated answer from selected strategy
         """
-        # YOUR CODE HERE
+        complexity = self.classify_query(query)
+        
+        if complexity == QueryComplexity.NO_RETRIEVAL:
+            return self.direct_llm(query)
+        elif complexity == QueryComplexity.SIMPLE:
+            return self.simple_rag(query)
+        elif complexity == QueryComplexity.COMPLEX:
+            return self.complex_rag(query)
+        elif complexity == QueryComplexity.AMBIGUOUS:
+            return self.rewrite_rag(query)
+        
+        # Fallback
+        return self.simple_rag(query)
+    
+    def route_with_metrics(self, query: str) -> Dict:
+        """
+        Route query and return answer with metrics.
+        
+        Returns:
+            Dict with answer, complexity, and timing
+        """
+        import time
+        
+        start = time.time()
+        complexity = self.classify_query(query)
+        
+        if complexity == QueryComplexity.NO_RETRIEVAL:
+            answer = self.direct_llm(query)
+            retrieval_calls = 0
+        elif complexity == QueryComplexity.SIMPLE:
+            answer = self.simple_rag(query)
+            retrieval_calls = 1
+        elif complexity == QueryComplexity.COMPLEX:
+            answer = self.complex_rag(query)
+            retrieval_calls = 3  # Estimated
+        elif complexity == QueryComplexity.AMBIGUOUS:
+            answer = self.rewrite_rag(query)
+            retrieval_calls = 2
+        else:
+            answer = self.simple_rag(query)
+            retrieval_calls = 1
+        
+        latency_ms = (time.time() - start) * 1000
+        
+        return {
+            "answer": answer,
+            "complexity": complexity.value,
+            "latency_ms": latency_ms,
+            "retrieval_calls": retrieval_calls
+        }
+```
+
+## Challenge: Implement Adaptive RAG Router
+
+### Requirements
+
+1. Implement `QueryComplexity` enum
+2. Implement `classify_query()` with rule-based patterns
+3. Implement `route()` to select appropriate strategy
+4. Implement `route_with_metrics()` for monitoring
+
+### Starter Code
+
+```python
+from enum import Enum
+from typing import Callable, Dict
+import re
+
+class QueryComplexity(Enum):
+    NO_RETRIEVAL = "no_retrieval"
+    SIMPLE = "simple"
+    COMPLEX = "complex"
+    AMBIGUOUS = "ambiguous"
+
+
+class AdaptiveRAGRouter:
+    """Router that classifies queries and routes to appropriate RAG strategy."""
+    
+    def __init__(
+        self,
+        simple_rag: Callable[[str], str],
+        complex_rag: Callable[[str], str],
+        direct_llm: Callable[[str], str],
+        rewrite_rag: Callable[[str], str]
+    ):
+        self.simple_rag = simple_rag
+        self.complex_rag = complex_rag
+        self.direct_llm = direct_llm
+        self.rewrite_rag = rewrite_rag
+    
+    def classify_query(self, query: str) -> QueryComplexity:
+        """Classify query complexity."""
+        # TODO: Implement classification
         pass
-```
-
-## Requirements
-
-1. **Classification accuracy**: At least 75% correct on test queries
-2. **Efficiency**: Simple queries should use fast path
-3. **Robustness**: Handle edge cases gracefully
-
-## Hints
-
-<details>
-<summary>Hint 1: Rule-based patterns</summary>
-
-Common patterns for each complexity:
-- **NO_RETRIEVAL**: Math (`\d+ [+\-*/] \d+`), greetings (`^(hi|hello)`)
-- **COMPLEX**: Comparisons (`compare.*and`), analysis (`explain.*trend`)
-- **AMBIGUOUS**: Very short queries, pronouns without context
-
-</details>
-
-<details>
-<summary>Hint 2: Hybrid approach</summary>
-
-Use rules for high-confidence cases, LLM for uncertain ones:
-
-```python
-def classify_query(self, query: str) -> QueryComplexity:
-    # Try rules first (fast)
-    rule_result = self._rule_based_classify(query)
-    if rule_result is not None:
-        return rule_result
     
-    # Fall back to LLM (slower but accurate)
-    return self._llm_classify(query)
-```
+    def route(self, query: str) -> str:
+        """Route query to appropriate strategy."""
+        # TODO: Implement routing
+        pass
 
-</details>
 
-## Test Your Solution
+# Mock RAG functions
+def mock_simple_rag(q): return f"[SIMPLE] Answer for: {q}"
+def mock_complex_rag(q): return f"[COMPLEX] Answer for: {q}"
+def mock_direct_llm(q): return f"[DIRECT] Answer for: {q}"
+def mock_rewrite_rag(q): return f"[REWRITE] Answer for: {q}"
 
-```python
+
+# Test queries
+TEST_QUERIES = [
+    ("What is 2 + 2?", "no_retrieval"),
+    ("What's the return policy?", "simple"),
+    ("How do I reset my password?", "simple"),
+    ("Compare Q1 and Q2 revenue and explain differences", "complex"),
+    ("it", "ambiguous"),
+    ("Hello!", "no_retrieval"),
+]
+
+
 def test_router():
-    # Mock RAG functions for testing
-    def simple_rag(q): return f"[SIMPLE] Answer for: {q}"
-    def complex_rag(q): return f"[COMPLEX] Answer for: {q}"
-    def direct_llm(q): return f"[DIRECT] Answer for: {q}"
-    def rewrite_rag(q): return f"[REWRITE] Answer for: {q}"
-    
-    router = AdaptiveRAGRouter(simple_rag, complex_rag, direct_llm, rewrite_rag)
+    router = AdaptiveRAGRouter(
+        mock_simple_rag,
+        mock_complex_rag,
+        mock_direct_llm,
+        mock_rewrite_rag
+    )
     
     correct = 0
     for query, expected in TEST_QUERIES:
@@ -175,25 +288,96 @@ def test_router():
 test_router()
 ```
 
-## Bonus Challenge
+### Solution
 
-Implement latency tracking to verify that simple queries are actually faster:
+<details>
+<summary>Click to reveal solution</summary>
 
 ```python
-def route_with_metrics(self, query: str) -> tuple[str, dict]:
-    """
-    Route query and return (answer, metrics).
+from enum import Enum
+from typing import Callable, Dict
+import re
+
+class QueryComplexity(Enum):
+    NO_RETRIEVAL = "no_retrieval"
+    SIMPLE = "simple"
+    COMPLEX = "complex"
+    AMBIGUOUS = "ambiguous"
+
+
+class AdaptiveRAGRouter:
+    """Router that classifies queries and routes to appropriate RAG strategy."""
     
-    metrics = {
-        "complexity": "simple",
-        "latency_ms": 150,
-        "retrieval_calls": 1
-    }
-    """
-    pass
+    def __init__(
+        self,
+        simple_rag: Callable[[str], str],
+        complex_rag: Callable[[str], str],
+        direct_llm: Callable[[str], str],
+        rewrite_rag: Callable[[str], str]
+    ):
+        self.simple_rag = simple_rag
+        self.complex_rag = complex_rag
+        self.direct_llm = direct_llm
+        self.rewrite_rag = rewrite_rag
+        
+        self.math_pattern = re.compile(r'\d+\s*[+\-*/]\s*\d+')
+        self.greeting_pattern = re.compile(r'^(hi|hello|hey)\b', re.I)
+        self.comparison_pattern = re.compile(r'\b(compare|vs|difference)\b', re.I)
+        self.analysis_pattern = re.compile(r'\b(analyze|explain|trend)\b', re.I)
+    
+    def classify_query(self, query: str) -> QueryComplexity:
+        """Classify query complexity."""
+        query_lower = query.lower().strip()
+        
+        # Math → Direct
+        if self.math_pattern.search(query):
+            return QueryComplexity.NO_RETRIEVAL
+        
+        # Greetings → Direct
+        if self.greeting_pattern.match(query):
+            return QueryComplexity.NO_RETRIEVAL
+        
+        # Short → Ambiguous
+        if len(query_lower.split()) <= 2:
+            return QueryComplexity.AMBIGUOUS
+        
+        # Comparison/Analysis → Complex
+        if self.comparison_pattern.search(query) or self.analysis_pattern.search(query):
+            return QueryComplexity.COMPLEX
+        
+        # Simple lookups
+        if re.search(r'\b(what is|how do i|return policy|password)\b', query_lower):
+            return QueryComplexity.SIMPLE
+        
+        return QueryComplexity.SIMPLE
+    
+    def route(self, query: str) -> str:
+        """Route query to appropriate strategy."""
+        complexity = self.classify_query(query)
+        
+        if complexity == QueryComplexity.NO_RETRIEVAL:
+            return self.direct_llm(query)
+        elif complexity == QueryComplexity.SIMPLE:
+            return self.simple_rag(query)
+        elif complexity == QueryComplexity.COMPLEX:
+            return self.complex_rag(query)
+        else:
+            return self.rewrite_rag(query)
 ```
 
-## Resources
+</details>
 
-- [Adaptive-RAG Paper](https://arxiv.org/abs/2403.14403)
-- [Query Classification Patterns](https://www.pinecone.io/learn/query-classification/)
+## Best Practices
+
+1. **Hybrid approach**: Use rules for high-confidence, LLM for edge cases
+2. **Monitor accuracy**: Track classification correctness
+3. **Fallback gracefully**: Default to simple RAG when uncertain
+4. **Latency awareness**: Track timing for each path
+5. **Cost tracking**: Monitor spend per complexity level
+
+## Production Tips
+
+- Start with rule-based classification
+- Add LLM fallback for uncertain cases
+- A/B test different routing strategies
+- Monitor per-path metrics (latency, cost, quality)

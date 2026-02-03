@@ -1,10 +1,12 @@
 ﻿---
 title: "Chunking Router: Document-Aware Strategy Selection"
 description: "Automatically route documents to optimal chunking strategies based on content type"
-difficulty: "hard"
-timeEstimate: "50-60 min"
+difficulty: "advanced"
+estimatedMinutes: 60
 xpReward: 150
 prerequisites: ["recursive-chunking", "code-aware-chunking"]
+related: ["document-parsing-guide", "metadata-aware-chunking", "agentic-chunking"]
+next: "agentic-chunking"
 ---
 
 # Chunking Router: Document-Aware Strategy Selection
@@ -26,10 +28,23 @@ Using ONE strategy for all is suboptimal!
 
 ```python
 def chunking_router(document, doc_type=None):
+    """
+    Route documents to optimal chunking strategies.
+    
+    Time Complexity: O(D) where D = document length for detection
+    Space Complexity: O(1) additional
+    
+    Args:
+        document: Input document text
+        doc_type: Optional explicit type hint
+        
+    Returns:
+        Chunks using the optimal strategy
+    """
     # Auto-detect if not provided
     if doc_type is None:
         doc_type = detect_document_type(document)
-
+    
     # Route to appropriate strategy
     strategies = {
         'code': code_aware_chunk,
@@ -37,7 +52,7 @@ def chunking_router(document, doc_type=None):
         'table': table_aware_chunk,
         'prose': recursive_chunk
     }
-
+    
     return strategies[doc_type](document)
 ```
 
@@ -47,18 +62,23 @@ def chunking_router(document, doc_type=None):
 
 ```python
 def detect_document_type(doc):
+    """
+    Detect document type using heuristics.
+    
+    Time Complexity: O(N) where N = document length
+    """
     # Check for code
     if re.search(r'^(def |class |function |import )', doc, re.MULTILINE):
         return 'code'
-
+    
     # Check for tables
     if '|' in doc and re.search(r'^\|.+\|$', doc, re.MULTILINE):
         return 'table'
-
+    
     # Check for markdown
     if re.search(r'^#{1,6} ', doc, re.MULTILINE):
         return 'markdown'
-
+    
     # Default to prose
     return 'prose'
 ```
@@ -113,6 +133,10 @@ def detect_document_type(doc):
 
 ```python
 class ChunkingPipeline:
+    """
+    Production chunking pipeline with routing.
+    """
+    
     def __init__(self):
         self.detectors = [
             (is_code, code_chunker),
@@ -120,8 +144,13 @@ class ChunkingPipeline:
             (is_markdown, markdown_chunker),
             (lambda x: True, recursive_chunker)  # Default
         ]
-
+    
     def process(self, document):
+        """
+        Process document through routing pipeline.
+        
+        Time Complexity: O(N) for detection + O(chunking)
+        """
         for detector, chunker in self.detectors:
             if detector(document):
                 return chunker(document)
@@ -143,6 +172,19 @@ class ChunkingPipeline:
 
 ---
 
+## Resources
+
+### Documentation
+- [Unstructured.io Partitioning](https://docs.unstructured.io/open-source/core-functionality/partitioning)
+- [LlamaParse](https://docs.cloud.llamaindex.ai/llamaparse/getting_started/quick_start)
+
+### Tools
+- **Unstructured.io**: Multi-format document parsing
+- **LlamaParse**: Advanced document parsing
+- **LangChain**: Document loaders with type detection
+
+---
+
 ## Key Insight
 
 The chunking router teaches us:
@@ -153,8 +195,8 @@ The chunking router teaches us:
 
 ## Related Challenges
 
-- `code-aware-chunking` - Strategy for code
-- `table-aware-chunking` - Strategy for tables
-- `section-based-chunking` - Strategy for markdown
-- `recursive-chunking` - The fallback strategy
-
+- [code-aware-chunking](code-aware-chunking) - Strategy for code
+- [table-aware-chunking](pdf-table-extraction) - Strategy for tables
+- [section-based-chunking](section-based-chunking) - Strategy for markdown
+- [recursive-chunking](recursive-chunking) - The fallback strategy
+- [agentic-chunking](agentic-chunking) - AI-powered chunking decisions

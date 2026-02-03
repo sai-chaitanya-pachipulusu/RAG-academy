@@ -1,10 +1,12 @@
 ﻿---
 title: "Overlapping Chunking: Preserving Context"
 description: "Learn how overlap prevents losing context at chunk boundaries"
-difficulty: "easy"
-timeEstimate: "15-20 min"
+difficulty: "beginner"
+estimatedMinutes: 20
 xpReward: 35
 prerequisites: ["fixed-size-chunking-fundamentals"]
+related: ["sentence-based-chunking", "sliding-window-chunking", "recursive-chunking"]
+next: "sentence-based-chunking"
 ---
 
 # Overlapping Chunking: Preserving Context
@@ -34,6 +36,26 @@ By **overlapping** content between chunks, the same information appears in multi
 
 ```python
 def overlap_chunk(text: str, chunk_size: int, overlap: int) -> List[str]:
+    """
+    Create overlapping chunks to preserve context at boundaries.
+    
+    Time Complexity: O(N) where N = len(text)
+    Space Complexity: O(N) for output
+    
+    Args:
+        text: Input text to chunk
+        chunk_size: Size of each chunk
+        overlap: Number of characters to overlap
+        
+    Returns:
+        List of overlapping chunks
+        
+    Raises:
+        ValueError: If overlap >= chunk_size
+    """
+    if overlap >= chunk_size:
+        raise ValueError("overlap must be less than chunk_size")
+    
     step = chunk_size - overlap
     chunks = []
     i = 0
@@ -114,9 +136,21 @@ You'll see this pattern throughout RAG optimization.
 
 ---
 
+## Resources
+
+### Documentation
+- [LangChain RecursiveCharacterTextSplitter](https://python.langchain.com/docs/how_to/recursive_text_splitter/)
+- [Pinecone Chunking Guide](https://www.pinecone.io/learn/chunking-strategies/)
+
+### Papers
+- **"Text Chunking for RAG"** - Analysis of overlap strategies
+
+### Tools
+- **LangChain**: `RecursiveCharacterTextSplitter`
+- **LlamaIndex**: `SentenceSplitter`
+
 ## Related Challenges
 
-- `fixed-size-chunking-fundamentals` - The baseline
-- `sentence-based-chunking` - Better than overlap for linguistic content
-- `sliding-window-chunking` - Maximum overlap for critical documents
-
+- [fixed-size-chunking-fundamentals](fixed-size-chunking-fundamentals) - The baseline
+- [sentence-based-chunking](sentence-based-chunking) - Better than overlap for linguistic content
+- [sliding-window-chunking](sliding-window-chunking) - Maximum overlap for critical documents

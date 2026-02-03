@@ -1,34 +1,647 @@
-﻿<Callout title="Goal" variant="info">
-  Implement the production reranking pattern: **retrieve a shortlist → rerank with an expensive model → keep the final top‑k**.
-</Callout>
+﻿# Re-ranker Cascade
 
-## Why this matters in production
+**Difficulty**: Tier 3 - Advanced Retrieval  
+**Prerequisites**: Re-ranker Selection, Re-ranker Score Function  
+**Time Estimate**: 4-5 hours
 
-Dense/BM25 retrieval is optimized for **speed and recall**, not perfect ranking.
+## Objective
 
-Cross-encoders (or hosted rerank APIs) are optimized for **precision**, but they’re expensive:
+Build multi-stage reranking cascades that progressively filter and refine results, optimizing the accuracy/latency/cost trade-off for production systems.
 
-- they score **query + doc together**
-- cost scales with number of candidates
+## Purpose
 
-So production does this:
+Single-pass reranking leaves performance on the table. Cascades apply increasingly expensive models to progressively smaller candidate sets, achieving 90% of the benefit of the slowest model at 30% of the cost.
 
-1. retrieve top‑N fast (often 20–50)
-2. rerank top‑N with cross‑encoder
-3. keep top‑k (often 5–10) for context
+### Real-World Impact
+- **Web search**: Google uses 500+ signals across multiple cascade stages
+- **E-commerce**: Amazon's product ranking uses 3-5 cascade stages
+- **Enterprise search**: Balances fast retrieval with precise ranking
+- **Recommendation systems**: YouTube's cascade filters millions to hundreds
 
-## What this challenge enforces
+## The Problem
 
-The tests track how many times the “expensive” `cross_encoder_score()` runs.
+**The Cost-Accuracy Trade-off:**
 
-If you rerank every document, you fail the spirit (and the test).
+| Stage | Model | Latency | Accuracy | Candidates |
+|-------|-------|---------|----------|------------|
+| 1 | BM25 | 10ms | 60% | 10,000 |
+| 2 | Bi-encoder | 50ms | 75% | 1,000 |
+| 3 | Cross-encoder (small) | 100ms | 85% | 100 |
+| 4 | Cross-encoder (large) | 500ms | 92% | 10 |
+| 5 | LLM judge | 2000ms | 98% | 3 |
 
-## How this maps to real systems
+A cascade applies each stage only to the best candidates from the previous stage.
 
-- `cheap_score` ≈ dense/BM25 retrieval
-- `cross_encoder_score` ≈ Cohere Rerank / bge-reranker / LLM reranker
-- `k_initial` ≈ candidate pool size
-- `k_final` ≈ context size
+**Design Decisions:**
+- How many stages?
+- How many candidates per stage?
+- Which models at each stage?
+- When to stop early?
 
+## Theory
 
+### Cascade Architecture
 
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Re-ranker Cascade                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌────────────────────────────────────────────────────────┐     │
+│  │                   Initial Corpus                        │     │
+│  │                   (1M - 10M docs)                       │     │
+│  └────────────────────────┬───────────────────────────────┘     │
+│                           │                                      │
+│                           ▼                                      │
+│  ┌────────────────────────────────────────────────────────┐     │
+│  │  Stage 1: First-Stage Retrieval                         │     │
+│  │  - BM25, HNSW, or Hybrid                               │     │
+│  │  - 10-50ms latency                                     │     │
+│  │  - Top 1000 candidates                                 │     │
+│  └────────────────────────┬───────────────────────────────┘     │
+│                           │                                      │
+│                           ▼                                      │
+│  ┌────────────────────────────────────────────────────────┐     │
+│  │  Stage 2: Fast Re-ranker                                │     │
+│  │  - Bi-encoder or MiniLM (22M)                          │     │
+│  │  - 20-50ms latency                                     │     │
+│  │  - Top 100 → 30                                        │     │
+│  └────────────────────────┬───────────────────────────────┘     │
+│                           │                                      │
+│                           ▼                                      │
+│  ┌────────────────────────────────────────────────────────┐     │
+│  │  Stage 3: Precise Re-ranker                             │     │
+│  │  - Cross-encoder or BGE (560M)                         │     │
+│  │  - 50-100ms latency                                    │     │
+│  │  - Top 30 → 10                                         │     │
+│  └────────────────────────┬───────────────────────────────┘     │
+│                           │                                      │
+│                           ▼                                      │
+│  ┌────────────────────────────────────────────────────────┐     │
+│  │  Stage 4: Final Selection                               │     │
+│  │  - LLM judge or ColBERT                                │     │
+│  │  - 100-200ms latency                                   │     │
+│  │  - Top 10 → 5                                          │     │
+│  └────────────────────────┬───────────────────────────────┘     │
+│                           │                                      │
+│                           ▼                                      │
+│                   Final Results (Top 5)                          │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Stage Design Principles
+
+**1. Funnel Ratio**
+Each stage should reduce candidates by 3-5x:
+- 1000 → 300 → 60 → 12 → 5 (aggressive)
+- 1000 → 200 → 50 → 10 (conservative)
+
+**2. Latency Budget**
+Total latency = sum of all stages. Typical budget: 200-500ms.
+
+**3. Accuracy Gain**
+Each stage should provide measurable improvement:
+- Stage 1 → 2: +10-15% nDCG
+- Stage 2 → 3: +5-10% nDCG
+- Stage 3 → 4: +2-5% nDCG
+
+### Early Stopping
+
+Stop cascade early if confidence is high enough:
+
+```python
+def should_stop_early(current_scores: List[float], 
+                     stage: int,
+                     confidence_threshold: float = 0.9) -> bool:
+    """
+    Stop if top result has very high confidence.
+    """
+    if not current_scores:
+        return False
+        
+    # Normalize scores to [0, 1]
+    max_score = max(current_scores)
+    min_score = min(current_scores)
+    if max_score == min_score:
+        return False
+        
+    normalized = (max_score - min_score) / (max_score - min_score + 1e-6)
+    
+    # Stop if confident and past minimum stages
+    return normalized > confidence_threshold and stage >= 2
+```
+
+## Setup
+
+You have:
+- 1000 candidate documents per query
+- 4 reranker models with different speed/accuracy profiles
+- Latency budget: 300ms p99
+- Target nDCG@10: > 0.75
+
+## Challenges
+
+### Challenge 1: Two-Stage Cascade
+
+Implement a basic 2-stage cascade.
+
+**Acceptance Criteria:**
+- Stage 1: Fast model (MiniLM) on all 1000 docs → Top 100
+- Stage 2: Precise model (BGE) on top 100 → Top 10
+- Total latency < 150ms
+- nDCG@10 > 0.70
+
+### Challenge 2: Three-Stage Cascade with Early Stopping
+
+Add a third stage and early stopping logic.
+
+**Acceptance Criteria:**
+- Stage 3: LLM judge on top 20 → Top 5
+- Implement early stopping after stage 2 if confidence > 0.85
+- Achieve 90% of full 3-stage accuracy with early stopping on 50% of queries
+- Document when early stopping triggers
+
+### Challenge 3: Dynamic Cascade Selection
+
+Select cascade depth based on query complexity.
+
+**Acceptance Criteria:**
+- Simple queries: 2-stage cascade
+- Complex queries: 3-stage cascade
+- Classify query complexity with > 80% accuracy
+- Overall latency reduction of 30% vs fixed 3-stage
+
+**Query Complexity Features:**
+```python
+def compute_query_complexity(query: str) -> float:
+    """
+    Higher = more complex, needs more cascade stages.
+    """
+    features = {
+        'length': len(query.split()),
+        'num_entities': len(extract_entities(query)),
+        'question_words': sum(1 for w in ['what', 'how', 'why', 'compare'] 
+                             if w in query.lower()),
+        'ambiguity': semantic_ambiguity_score(query)
+    }
+    
+    # Weighted combination
+    complexity = (0.3 * features['length'] + 
+                 0.3 * features['num_entities'] +
+                 0.2 * features['question_words'] +
+                 0.2 * features['ambiguity'])
+                 
+    return min(complexity / 10, 1.0)  # Normalize to [0, 1]
+```
+
+## Evaluation Metrics
+
+| Metric | Target | Description |
+|--------|--------|-------------|
+| nDCG@10 | > 0.75 | Final ranking quality |
+| Latency p99 | < 300ms | Total query time |
+| Cost/query | <$0.05 | API/model inference cost |
+| Early stop rate | > 30% | Queries that skip final stage |
+
+## Starter Code
+
+```python
+from typing import List, Tuple, Callable, Optional
+from dataclasses import dataclass
+import time
+import numpy as np
+
+@dataclass
+class RerankerModel:
+    """A reranking model with performance characteristics."""
+    name: str
+    score_fn: Callable[[str, str], float]
+    latency_ms: float
+    cost_per_doc: float
+    
+@dataclass
+class CascadeStage:
+    """A stage in the reranking cascade."""
+    model: RerankerModel
+    k_in: int      # Number of candidates to consider
+    k_out: int     # Number of candidates to pass to next stage
+    
+class RerankerCascade:
+    """
+    Multi-stage reranking cascade.
+    
+    Each stage applies a more expensive model to fewer candidates,
+    progressively improving ranking quality.
+    """
+    
+    def __init__(self, stages: List[CascadeStage],
+                 early_stop_threshold: Optional[float] = None):
+        self.stages = stages
+        self.early_stop_threshold = early_stop_threshold
+        
+    def rerank(self, query: str, 
+               documents: List[str]) -> Tuple[List[Tuple[str, float]], Dict]:
+        """
+        Execute cascade on documents.
+        
+        Returns:
+            - List of (document, score) sorted by score
+            - Metadata dict with timing and stage info
+        """
+        metadata = {
+            'stages_executed': 0,
+            'total_latency_ms': 0,
+            'docs_scored_per_stage': [],
+            'early_stopped': False
+        }
+        
+        current_candidates = documents
+        
+        for i, stage in enumerate(self.stages):
+            start_time = time.time()
+            
+            # Get top k_in candidates for this stage
+            stage_docs = current_candidates[:stage.k_in]
+            
+            # Score with stage's model
+            scores = []
+            for doc in stage_docs:
+                score = stage.model.score_fn(query, doc)
+                scores.append((doc, score))
+                
+            # Sort by score descending
+            scores.sort(key=lambda x: x[1], reverse=True)
+            
+            # Keep top k_out for next stage
+            current_candidates = [doc for doc, _ in scores[:stage.k_out]]
+            
+            # Update metadata
+            metadata['stages_executed'] += 1
+            metadata['docs_scored_per_stage'].append(len(stage_docs))
+            stage_latency = (time.time() - start_time) * 1000
+            metadata['total_latency_ms'] += stage_latency
+            
+            # Check early stopping
+            if (self.early_stop_threshold and 
+                i < len(self.stages) - 1 and
+                self._should_stop_early(scores, i)):
+                metadata['early_stopped'] = True
+                break
+                
+        return scores[:stage.k_out], metadata
+        
+    def _should_stop_early(self, scores: List[Tuple[str, float]], 
+                          stage_idx: int) -> bool:
+        """
+        Determine if we can stop cascade early.
+        
+        Heuristics:
+        - Top score is much higher than second
+        - Score distribution shows clear winner
+        """
+        if len(scores) < 2:
+            return True
+            
+        top_score = scores[0][1]
+        second_score = scores[1][1]
+        
+        # Gap ratio
+        if second_score > 0:
+            gap_ratio = (top_score - second_score) / second_score
+            return gap_ratio > self.early_stop_threshold
+            
+        return False
+        
+    def evaluate(self, queries: List[str],
+                doc_lists: List[List[str]],
+                ground_truth: List[List[str]]) -> Dict:
+        """
+        Evaluate cascade on test set.
+        """
+        results = []
+        latencies = []
+        early_stops = 0
+        
+        for query, docs in zip(queries, doc_lists):
+            ranked, meta = self.rerank(query, docs)
+            results.append([doc for doc, _ in ranked])
+            latencies.append(meta['total_latency_ms'])
+            if meta['early_stopped']:
+                early_stops += 1
+                
+        return {
+            'ndcg@10': compute_ndcg(results, ground_truth),
+            'latency_p50': np.percentile(latencies, 50),
+            'latency_p99': np.percentile(latencies, 99),
+            'early_stop_rate': early_stops / len(queries)
+        }
+
+class DynamicCascade:
+    """Cascade with query-dependent depth selection."""
+    
+    def __init__(self, 
+                 simple_cascade: RerankerCascade,
+                 complex_cascade: RerankerCascade,
+                 complexity_fn: Callable[[str], float],
+                 threshold: float = 0.5):
+        self.simple_cascade = simple_cascade
+        self.complex_cascade = complex_cascade
+        self.complexity_fn = complexity_fn
+        self.threshold = threshold
+        
+    def rerank(self, query: str, documents: List[str]):
+        """Select cascade based on query complexity."""
+        complexity = self.complexity_fn(query)
+        
+        if complexity < self.threshold:
+            return self.simple_cascade.rerank(query, documents)
+        else:
+            return self.complex_cascade.rerank(query, documents)
+```
+
+## Advanced Techniques
+
+### 1. Parallel Stage Execution
+
+Run independent stages in parallel:
+
+```python
+import asyncio
+
+async def parallel_stage_execution(query: str, 
+                                  candidates: List[str],
+                                  models: List[RerankerModel]) -> List[float]:
+    """
+    Score candidates with multiple models in parallel.
+    Combine scores for ensemble effect.
+    """
+    async def score_with_model(model, query, doc):
+        return model.score_fn(query, doc)
+        
+    # Create tasks for all model-doc pairs
+    tasks = []
+    for model in models:
+        for doc in candidates:
+            tasks.append(score_with_model(model, query, doc))
+            
+    # Execute in parallel
+    scores = await asyncio.gather(*tasks)
+    
+    # Average scores across models
+    n_models = len(models)
+    n_docs = len(candidates)
+    ensemble_scores = []
+    
+    for i in range(n_docs):
+        model_scores = [scores[i + j * n_docs] for j in range(n_models)]
+        ensemble_scores.append(np.mean(model_scores))
+        
+    return ensemble_scores
+```
+
+### 2. Confidence-Based Routing
+
+Route candidates to different models based on uncertainty:
+
+```python
+def confidence_based_routing(query: str, 
+                            candidates: List[str],
+                            fast_model: RerankerModel,
+                            slow_model: RerankerModel) -> List[Tuple[str, float]]:
+    """
+    Use fast model for all, slow model only for uncertain candidates.
+    """
+    # Score all with fast model
+    fast_scores = [(doc, fast_model.score_fn(query, doc)) 
+                   for doc in candidates]
+    
+    # Identify uncertain candidates (scores near decision boundary)
+    scores_only = [s for _, s in fast_scores]
+    median_score = np.median(scores_only)
+    mad = np.median([abs(s - median_score) for s in scores_only])  # Median abs dev
+    
+    uncertain = []
+    certain = []
+    
+    for doc, score in fast_scores:
+        if abs(score - median_score) < mad:
+            uncertain.append(doc)
+        else:
+            certain.append((doc, score))
+            
+    # Re-score uncertain with slow model
+    slow_scores = [(doc, slow_model.score_fn(query, doc)) 
+                   for doc in uncertain]
+    
+    # Combine and sort
+    all_scores = certain + slow_scores
+    all_scores.sort(key=lambda x: x[1], reverse=True)
+    
+    return all_scores
+```
+
+### 3. Cascade Optimization
+
+Learn optimal stage configuration:
+
+```python
+def optimize_cascade(val_queries: List[str],
+                    val_docs: List[List[str]],
+                    ground_truth: List[List[str]],
+                    available_models: List[RerankerModel],
+                    latency_budget: float) -> List[CascadeStage]:
+    """
+    Find optimal cascade configuration within latency budget.
+    
+    Uses greedy selection: add stages that maximize accuracy gain per ms.
+    """
+    best_config = []
+    remaining_budget = latency_budget
+    
+    # Start with retrieval only
+    current_ndcg = evaluate_retrieval_only(val_queries, val_docs, ground_truth)
+    
+    while remaining_budget > 0:
+        best_stage = None
+        best_efficiency = 0
+        
+        for model in available_models:
+            for k_in in [100, 200, 500, 1000]:
+                for k_out in [10, 20, 50, 100]:
+                    if k_out >= k_in:
+                        continue
+                    if model.latency_ms * k_in > remaining_budget:
+                        continue
+                        
+                    # Try this configuration
+                    test_cascade = RerankerCascade(best_config + [
+                        CascadeStage(model, k_in, k_out)
+                    ])
+                    
+                    metrics = test_cascade.evaluate(val_queries, val_docs, ground_truth)
+                    ndcg_gain = metrics['ndcg@10'] - current_ndcg
+                    latency_cost = model.latency_ms * k_in
+                    
+                    if latency_cost > 0:
+                        efficiency = ndcg_gain / latency_cost
+                        if efficiency > best_efficiency:
+                            best_efficiency = efficiency
+                            best_stage = CascadeStage(model, k_in, k_out)
+                            
+        if best_stage is None:
+            break
+            
+        best_config.append(best_stage)
+        remaining_budget -= best_stage.model.latency_ms * best_stage.k_in
+        
+    return best_config
+```
+
+## Production Tips
+
+### 1. Latency Monitoring
+
+```python
+def monitor_cascade_latency(cascade: RerankerCascade):
+    """Track per-stage latency for optimization."""
+    class MonitoredCascade(RerankerCascade):
+        def rerank(self, query, documents):
+            result, meta = super().rerank(query, documents)
+            
+            # Log to monitoring system
+            metrics.histogram('cascade.total_latency', meta['total_latency_ms'])
+            for i, docs_scored in enumerate(meta['docs_scored_per_stage']):
+                metrics.histogram(f'cascade.stage_{i}.docs_scored', docs_scored)
+                
+            return result, meta
+```
+
+### 2. Fallback Strategy
+
+```python
+def rerank_with_fallback(query: str, documents: List[str],
+                        cascade: RerankerCascade,
+                        fallback_model: RerankerModel,
+                        timeout_ms: float = 300):
+    """
+    Use fallback if cascade times out.
+    """
+    import signal
+    
+    def timeout_handler(signum, frame):
+        raise TimeoutError("Cascade exceeded timeout")
+        
+    signal.signal(signal.SIGALRM, timeout_handler)
+    signal.setitimer(signal.ITIMER_REAL, timeout_ms / 1000)
+    
+    try:
+        result, meta = cascade.rerank(query, documents)
+        signal.alarm(0)
+        return result, meta
+    except TimeoutError:
+        # Fallback: use simple model on fewer docs
+        scores = [(doc, fallback_model.score_fn(query, doc)) 
+                 for doc in documents[:100]]
+        scores.sort(key=lambda x: x[1], reverse=True)
+        return scores[:10], {'fallback': True}
+```
+
+### 3. A/B Testing Cascades
+
+```python
+class CascadeABTest:
+    def __init__(self, variant_a: RerankerCascade,
+                 variant_b: RerankerCascade):
+        self.variants = {'A': variant_a, 'B': variant_b}
+        
+    def route(self, query_hash: str) -> str:
+        """Consistent routing based on query hash."""
+        return 'A' if hash(query_hash) % 2 == 0 else 'B'
+        
+    def log_outcome(self, variant: str, query: str,
+                   ndcg: float, latency: float):
+        """Log for comparison."""
+        metrics.gauge(f'cascade_{variant}.ndcg', ndcg)
+        metrics.gauge(f'cascade_{variant}.latency', latency)
+```
+
+## Company Examples
+
+- **Google Search**: 500+ signals across multiple cascade stages
+- **Amazon**: Product ranking with 3-5 stage cascades
+- **YouTube**: Video recommendation cascade from millions to hundreds
+- **LinkedIn**: Feed ranking with multi-objective cascades
+
+## Cost Analysis
+
+| Approach | Latency | nDCG@10 | Cost/1K queries |
+|----------|---------|---------|-----------------|
+| Single-stage (BGE on 1000) | 800ms | 0.78 | $20 |
+| Two-stage (MiniLM→BGE) | 200ms | 0.76 | $5 |
+| Three-stage (+LLM) | 400ms | 0.82 | $15 |
+| Three-stage w/ early stop | 280ms | 0.81 | $10 |
+| Dynamic cascade | 250ms | 0.80 | $8 |
+
+## Resources
+
+### Academic Papers
+- "Cascade Ranking for Operational E-commerce Search" - Wang et al. (KDD 2020)
+- "Learning to Rank in the Cascade Model" - Chuklin et al. (CIKM 2015)
+- "Optimizing Cascade Ranking for Search Advertising" - Geyik et al. (KDD 2018)
+- "Efficient Neural Architecture Search via Cascade Ranking" - Chen et al. (NeurIPS 2021)
+
+### Official Documentation
+- [TensorFlow Ranking: Multi-Stage Systems](https://github.com/tensorflow/ranking/blob/master/tensorflow_ranking/examples/tf_ranking_cascade.ipynb)
+- [Vespa: Phased Ranking](https://docs.vespa.ai/en/phased-ranking.html)
+- [Elasticsearch: Rescoring](https://www.elastic.co/guide/en/elasticsearch/reference/current/filter-search-results.html#rescore)
+
+### Tools & Libraries
+- [TensorFlow Ranking](https://github.com/tensorflow/ranking) - Cascade training
+- [Vespa](https://vespa.ai/) - Production cascade ranking
+- [LightGBM](https://lightgbm.readthedocs.io/) - LambdaMART for cascades
+
+### GitHub Repositories
+- [tensorflow/ranking](https://github.com/tensorflow/ranking) - Neural ranking
+- [vespa-engine/vespa](https://github.com/vespa-engine/vespa) - Production search
+- [microsoft/LightGBM](https://github.com/microsoft/LightGBM) - Gradient boosting
+
+## Challenge Links
+
+### Prerequisites
+- [Re-ranker Selection](/challenges/reranker-selection) - Choosing models
+- [Re-ranker Score Function](/challenges/reranker-score-function) - Score design
+
+### Related Challenges
+- [Hybrid Search Tuning](/challenges/hybrid-search-tuning) - First-stage retrieval
+- [RRF Fusion](/challenges/rrf-fusion) - Combining retrievers
+
+### Next Challenges
+- [MMR Diversity](/challenges/mmr-diversity) - Diverse selection after reranking
+- [Lost in the Middle Ordering](/challenges/lost-in-the-middle-ordering) - Context ordering
+
+## Implementation Checklist
+
+- [ ] Implement 2-stage basic cascade
+- [ ] Add 3-stage cascade with LLM judge
+- [ ] Implement early stopping logic
+- [ ] Add dynamic cascade selection
+- [ ] Implement parallel stage execution
+- [ ] Add latency monitoring
+- [ ] Create fallback strategy
+- [ ] Optimize cascade configuration
+- [ ] A/B test cascade variants
+- [ ] Document cost/accuracy trade-offs
+
+## Summary
+
+Cascade design is the art of composing multiple models to achieve production-grade accuracy within latency constraints.
+
+**Key Takeaways:**
+1. **Funnel ratio**: 3-5x reduction per stage
+2. **Latency budget**: Plan total time, not per-stage
+3. **Early stopping**: Skip expensive stages when confident
+4. **Dynamic selection**: Match cascade depth to query complexity
+5. **Monitor continuously**: Track per-stage latency and accuracy
+
+Well-designed cascades give you 90% of the best model's accuracy at 30% of the cost!

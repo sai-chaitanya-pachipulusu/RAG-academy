@@ -1,4 +1,15 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "Late Chunking"
+description: "Implement Late Chunking to preserve long-range semantic dependencies using global document context."
+difficulty: "hard"
+estimatedMinutes: 50
+prerequisites: ["semantic-chunking", "fixed-size-chunking-fundamentals"]
+related: ["semantic-chunking", "contextual-retrieval", "contextual-chunk-headers"]
+next: "contextual-retrieval"
+xpReward: 125
+---
+
+<Callout title="Goal" variant="info">
   Implement "Late Chunking" to preserve long-range semantic dependencies using
   global document context.
 </Callout>
@@ -23,7 +34,260 @@ Late Chunking (introduced by Jina AI) changes the order of operations:
 
 Because every token was "aware" of the surrounding document during the initial embedding pass, the "It" in the second chunk now contains information about "Tesla Model 3".
 
+## Complexity Analysis
+
+| Operation | Traditional | Late Chunking |
+|-----------|-------------|---------------|
+| Embedding | O(C × L²) | O(D × L²) |
+| Chunking | O(D) | O(D) |
+| Pooling | N/A | O(C × L) |
+| Total | O(C × L²) | O(D × L²) |
+
+Where D = document length, C = chunks, L = average length
+
+## Real-World Context
+
+| Company | Implementation |
+|---------|----------------|
+| **Jina AI** | Original late chunking research |
+| **Hugging Face** | Integration with transformers |
+| **LlamaIndex** | Late chunking node parser |
+
+## Resources
+
+### Papers
+- **"Late Chunking: Contextual Chunk Embeddings"** - Jina AI (2024)
+- **"Long-Context Embeddings"** - Contextual representation research
+
+### Tools
+- **Jina Embeddings**: Native late chunking support
+- **LlamaIndex**: Late chunking implementation
+- **Hugging Face**: Transformers with pooling
+
 ## Implementation
 
-In this simulation, you will implement a heuristic that weights local chunk vectors based on global document frequencies.
+```python
+from typing import List, Dict
+import numpy as np
 
+class LateChunker:
+    """
+    Implements Late Chunking: embed full document first,
+    then chunk and pool token embeddings.
+    """
+    
+    def __init__(self, embed_fn, chunk_size: int = 100, overlap: int = 20):
+        """
+        Args:
+            embed_fn: Function that returns token-level embeddings
+            chunk_size: Target chunk size in tokens
+            overlap: Overlap between chunks
+        """
+        self.embed_fn = embed_fn
+        self.chunk_size = chunk_size
+        self.overlap = overlap
+    
+    def chunk(self, text: str) -> List[Dict]:
+        """
+        Late chunking implementation.
+        
+        1. Get token-level embeddings for full document
+        2. Chunk by token positions
+        3. Pool embeddings within each chunk
+        """
+        # Step 1: Embed full document (token-level)
+        tokens, token_embeddings = self.embed_fn(text, return_tokens=True)
+        
+        # Step 2: Create chunks by token positions
+        chunks = []
+        start = 0
+        
+        while start < len(tokens):
+            end = min(start + self.chunk_size, len(tokens))
+            
+            # Get token embeddings for this chunk
+            chunk_embeddings = token_embeddings[start:end]
+            
+            # Step 3: Pool (mean pooling)
+            chunk_vector = np.mean(chunk_embeddings, axis=0)
+            
+            # Get text for this chunk
+            chunk_text = ' '.join(tokens[start:end])
+            
+            chunks.append({
+                'text': chunk_text,
+                'vector': chunk_vector,
+                'token_range': (start, end),
+                'token_count': end - start
+            })
+            
+            # Move with overlap
+            start += self.chunk_size - self.overlap
+        
+        return chunks
+    
+    def chunk_batch(self, texts: List[str]) -> List[List[Dict]]:
+        """Process multiple documents."""
+        return [self.chunk(text) for text in texts]
+
+
+# Example embedding function (mock)
+def mock_embed_with_tokens(text: str, return_tokens: bool = False):
+    """Mock embedding function that returns token-level embeddings."""
+    tokens = text.split()
+    # Simulate contextual embeddings (each token embedding depends on context)
+    embeddings = []
+    for i, token in enumerate(tokens):
+        # In reality, this would be BERT's hidden states
+        # Here we simulate with position-aware random vectors
+        np.random.seed(hash(token) % 10000 + i)
+        emb = np.random.randn(768)
+        embeddings.append(emb)
+    
+    if return_tokens:
+        return tokens, np.array(embeddings)
+    return np.array(embeddings)
+```
+
+## Challenge: Implement Late Chunking
+
+### Requirements
+
+1. Implement `LateChunker` class
+2. Embed full document before chunking
+3. Pool token embeddings within each chunk
+4. Handle overlap between chunks
+
+### Starter Code
+
+```python
+from typing import List, Dict
+import numpy as np
+
+class LateChunker:
+    """Late chunking: embed full document, then chunk and pool."""
+    
+    def __init__(self, embed_fn, chunk_size: int = 100, overlap: int = 20):
+        self.embed_fn = embed_fn
+        self.chunk_size = chunk_size
+        self.overlap = overlap
+    
+    def chunk(self, text: str) -> List[Dict]:
+        """Late chunking implementation."""
+        # TODO: Implement late chunking
+        pass
+
+
+# Mock embedding function
+def mock_embed_with_tokens(text: str, return_tokens: bool = False):
+    """Mock embedding function."""
+    tokens = text.split()
+    np.random.seed(42)
+    embeddings = [np.random.randn(768) for _ in tokens]
+    
+    if return_tokens:
+        return tokens, np.array(embeddings)
+    return np.array(embeddings)
+
+
+# Test your implementation
+def test_late_chunking():
+    chunker = LateChunker(mock_embed_with_tokens, chunk_size=5, overlap=2)
+    
+    text = "The Tesla Model 3 is an electric car. It has a range of 300 miles."
+    
+    chunks = chunker.chunk(text)
+    
+    # Should create multiple chunks
+    assert len(chunks) > 0
+    
+    # Each chunk should have text and vector
+    for chunk in chunks:
+        assert 'text' in chunk
+        assert 'vector' in chunk
+        assert len(chunk['vector']) == 768
+    
+    print(f"Created {len(chunks)} chunks")
+    for i, chunk in enumerate(chunks):
+        print(f"Chunk {i}: {chunk['text'][:50]}...")
+    
+    print("All tests passed!")
+
+test_late_chunking()
+```
+
+### Solution
+
+<details>
+<summary>Click to reveal solution</summary>
+
+```python
+from typing import List, Dict
+import numpy as np
+
+class LateChunker:
+    """Late chunking: embed full document, then chunk and pool."""
+    
+    def __init__(self, embed_fn, chunk_size: int = 100, overlap: int = 20):
+        self.embed_fn = embed_fn
+        self.chunk_size = chunk_size
+        self.overlap = overlap
+    
+    def chunk(self, text: str) -> List[Dict]:
+        """Late chunking implementation."""
+        # Step 1: Embed full document (token-level)
+        tokens, token_embeddings = self.embed_fn(text, return_tokens=True)
+        
+        # Step 2: Create chunks by token positions
+        chunks = []
+        start = 0
+        
+        while start < len(tokens):
+            end = min(start + self.chunk_size, len(tokens))
+            
+            # Get token embeddings for this chunk
+            chunk_embeddings = token_embeddings[start:end]
+            
+            # Step 3: Pool (mean pooling)
+            chunk_vector = np.mean(chunk_embeddings, axis=0)
+            
+            # Get text for this chunk
+            chunk_text = ' '.join(tokens[start:end])
+            
+            chunks.append({
+                'text': chunk_text,
+                'vector': chunk_vector,
+                'token_range': (start, end),
+                'token_count': end - start
+            })
+            
+            # Move with overlap
+            start += self.chunk_size - self.overlap
+        
+        return chunks
+```
+
+</details>
+
+## Benefits vs Traditional Chunking
+
+| Aspect | Traditional | Late Chunking |
+|--------|-------------|---------------|
+| Context awareness | None (isolated) | Full document |
+| Pronoun resolution | Poor | Better |
+| Cross-chunk references | Lost | Preserved |
+| Computational cost | Lower | Higher |
+| Use case | General | Complex documents |
+
+## When to Use
+
+**Use Late Chunking when:**
+- Documents have long-range dependencies
+- Pronouns and references are common
+- Context is critical for understanding
+- You can afford the extra computation
+
+**Stick with traditional when:**
+- Documents are short and self-contained
+- Latency is critical
+- Simple semantic matching is sufficient

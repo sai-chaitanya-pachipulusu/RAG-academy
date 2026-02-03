@@ -1,13 +1,39 @@
 ﻿---
 title: "JSON/API Response Parser"
-description: "Parse nested JSON responses into searchable chunks."
+description: "Parse nested JSON responses into searchable chunks for RAG indexing"
+difficulty: "medium"
+xpReward: 100
+topics: ["json", "structured-data", "api-integration", "data-transformation"]
+prerequisites: ["document-parsing-guide"]
 ---
 
 # JSON/API Response Parser
 
-Enterprise RAG often needs to index structured data from databases, CRMs, and APIs. But JSON doesn't embed well as-is.
+## Overview
 
-### The Problem
+Enterprise RAG often needs to index structured data from databases, CRMs, and APIs. But JSON doesn't embed well as-is—embedding a raw JSON string loses the semantic structure, making it hard to retrieve specific fields.
+
+## Why This Matters
+
+- **API Integration**: Index data from REST APIs
+- **Database Export**: Query JSON dumps
+- **CRM Data**: Search customer records
+- **Configuration Files**: Index settings and schemas
+
+## Key Concepts
+
+- **Flattening**: Convert nested JSON to key-value pairs
+- **Semantic chunking**: Group related fields
+- **Path preservation**: Maintain original structure info
+- **Type handling**: Different strategies per data type
+
+## Real-World Applications
+
+Salesforce API integration, database exports, configuration management, and IoT sensor data indexing all require JSON parsing for RAG.
+
+## The Problem
+
+Raw JSON embedding:
 
 ```json
 {
@@ -18,22 +44,423 @@ Enterprise RAG often needs to index structured data from databases, CRMs, and AP
 }
 ```
 
-Embedding this as a raw string loses the structure. A query for "Engineering department" won't match well.
+Embedding this as a string loses structure. A query for "Engineering department" won't match well because "Engineering" is buried in nested JSON.
 
-### The Solution
+## The Challenge
 
-Flatten to key-value pairs:
+### Part 1: JSON Flattener
 
+```python
+from typing import List, Dict, Any, Union
+from dataclasses import dataclass
+import json
+
+@dataclass
+class FlattenedField:
+    """A flattened field with path and value."""
+    path: str  # dot-notation path: user.department.name
+    value: Any
+    field_type: str  # string, number, boolean, array, object
+    parent_path: str = None
+
+class JSONFlattener:
+    """Flatten nested JSON into searchable fields."""
+    
+    def __init__(
+        self,
+        max_depth: int = 10,
+        separator: str = ".",
+        include_arrays: bool = True
+    ):
+        self.max_depth = max_depth
+        self.separator = separator
+        self.include_arrays = include_arrays
+    
+    def flatten(
+        self,
+        data: Union[Dict, List],
+        prefix: str = ""
+    ) -> List[FlattenedField]:
+        """Flatten JSON object to list of fields."""
+        fields = []
+        self._flatten_recursive(data, prefix, fields, 0)
+        return fields
+    
+    def _flatten_recursive(
+        self,
+        data: Any,
+        path: str,
+        fields: List[FlattenedField],
+        depth: int
+    ):
+        """Recursively flatten data structure."""
+        if depth > self.max_depth:
+            return
+        
+        if isinstance(data, dict):
+            for key, value in data.items():
+                new_path = f"{path}{self.separator}{key}" if path else key
+                
+                if isinstance(value, (dict, list)):
+                    # Store reference to nested object
+                    fields.append(FlattenedField(
+                        path=new_path,
+                        value=self._summarize_complex(value),
+                        field_type="object" if isinstance(value, dict) else "array",
+                        parent_path=path if path else None
+                    ))
+                    # Recurse into nested structure
+                    self._flatten_recursive(value, new_path, fields, depth + 1)
+                else:
+                    # Leaf node
+                    fields.append(FlattenedField(
+                        path=new_path,
+                        value=value,
+                        field_type=type(value).__name__,
+                        parent_path=path if path else None
+                    ))
+        
+        elif isinstance(data, list) and self.include_arrays:
+            for i, item in enumerate(data):
+                new_path = f"{path}[{i}]"
+                self._flatten_recursive(item, new_path, fields, depth + 1)
+    
+    def _summarize_complex(self, data: Any) -> str:
+        """Create summary of complex object for embedding."""
+        if isinstance(data, dict):
+            keys = list(data.keys())[:5]  # First 5 keys
+            return f"Object with keys: {', '.join(keys)}"
+        elif isinstance(data, list):
+            return f"Array with {len(data)} items"
+        return str(data)
 ```
-user.name: Alice
-user.department.id: 123
-user.department.name: Engineering
+
+### Part 2: Semantic Chunking
+
+```python
+@dataclass
+class JSONChunk:
+    """A chunk of JSON data ready for embedding."""
+    content: str
+    path: str
+    field_count: int
+    metadata: Dict[str, Any]
+
+class JSONChunker:
+    """Create semantic chunks from flattened JSON."""
+    
+    def __init__(
+        self,
+        max_chunk_size: int = 500,
+        group_by_parent: bool = True
+    ):
+        self.max_chunk_size = max_chunk_size
+        self.group_by_parent = group_by_parent
+    
+    def chunk(
+        self,
+        fields: List[FlattenedField],
+        source_id: str
+    ) -> List[JSONChunk]:
+        """Create chunks from flattened fields."""
+        if self.group_by_parent:
+            return self._chunk_by_parent(fields, source_id)
+        else:
+            return self._chunk_linear(fields, source_id)
+    
+    def _chunk_by_parent(
+        self,
+        fields: List[FlattenedField],
+        source_id: str
+    ) -> List[JSONChunk]:
+        """Group fields by parent path."""
+        # Group fields by parent
+        groups: Dict[str, List[FlattenedField]] = defaultdict(list)
+        for field in fields:
+            parent = field.parent_path or "root"
+            groups[parent].append(field)
+        
+        chunks = []
+        for parent_path, group_fields in groups.items():
+            # Create human-readable content
+            content_lines = []
+            for field in group_fields:
+                line = self._format_field(field)
+                content_lines.append(line)
+            
+            content = "\n".join(content_lines)
+            
+            # Split if too large
+            if len(content) > self.max_chunk_size:
+                sub_chunks = self._split_large_chunk(
+                    content, parent_path, group_fields, source_id
+                )
+                chunks.extend(sub_chunks)
+            else:
+                chunks.append(JSONChunk(
+                    content=content,
+                    path=parent_path,
+                    field_count=len(group_fields),
+                    metadata={
+                        'source_id': source_id,
+                        'parent_path': parent_path,
+                        'fields': [f.path for f in group_fields]
+                    }
+                ))
+        
+        return chunks
+    
+    def _format_field(self, field: FlattenedField) -> str:
+        """Format a field for embedding."""
+        # Get just the field name (last part of path)
+        field_name = field.path.split(self.separator)[-1]
+        
+        # Format based on type
+        if field.field_type == "string":
+            return f"{field_name}: {field.value}"
+        elif field.field_type in ["int", "float", "number"]:
+            return f"{field_name} is {field.value}"
+        elif field.field_type == "bool":
+            return f"{field_name} is {'enabled' if field.value else 'disabled'}"
+        else:
+            return f"{field_name}: {field.value}"
+    
+    def _chunk_linear(
+        self,
+        fields: List[FlattenedField],
+        source_id: str
+    ) -> List[JSONChunk]:
+        """Create chunks sequentially without grouping."""
+        chunks = []
+        current_lines = []
+        current_size = 0
+        current_fields = []
+        
+        for field in fields:
+            line = self._format_field(field)
+            line_size = len(line)
+            
+            if current_size + line_size > self.max_chunk_size and current_lines:
+                # Save current chunk
+                chunks.append(JSONChunk(
+                    content="\n".join(current_lines),
+                    path=current_fields[0].path if current_fields else "",
+                    field_count=len(current_fields),
+                    metadata={
+                        'source_id': source_id,
+                        'fields': [f.path for f in current_fields]
+                    }
+                ))
+                
+                # Start new chunk
+                current_lines = [line]
+                current_size = line_size
+                current_fields = [field]
+            else:
+                current_lines.append(line)
+                current_size += line_size
+                current_fields.append(field)
+        
+        # Don't forget last chunk
+        if current_lines:
+            chunks.append(JSONChunk(
+                content="\n".join(current_lines),
+                path=current_fields[0].path if current_fields else "",
+                field_count=len(current_fields),
+                metadata={
+                    'source_id': source_id,
+                    'fields': [f.path for f in current_fields]
+                }
+            ))
+        
+        return chunks
 ```
 
-Now each fact is individually searchable and embeddable.
+### Part 3: Schema-Aware Parsing
 
-### Your Task
+```python
+class SchemaAwareParser:
+    """Parse JSON using schema information."""
+    
+    def __init__(self, schema: Dict = None):
+        self.schema = schema or {}
+    
+    def parse_with_schema(
+        self,
+        data: Dict,
+        schema: Dict = None
+    ) -> List[JSONChunk]:
+        """Parse JSON using schema for better chunking."""
+        schema = schema or self.schema
+        chunks = []
+        
+        for key, value in data.items():
+            field_schema = schema.get(key, {})
+            field_type = field_schema.get('type', 'unknown')
+            
+            if field_type == 'array' and isinstance(value, list):
+                # Handle array of objects (common in APIs)
+                for i, item in enumerate(value):
+                    if isinstance(item, dict):
+                        chunk_content = self._object_to_text(item)
+                        chunks.append(JSONChunk(
+                            content=chunk_content,
+                            path=f"{key}[{i}]",
+                            field_count=len(item),
+                            metadata={
+                                'schema_type': field_type,
+                                'array_index': i,
+                                'item_id': item.get('id', f"{key}_{i}")
+                            }
+                        ))
+            
+            elif field_type == 'object' and isinstance(value, dict):
+                # Handle nested object
+                chunk_content = self._object_to_text(value)
+                chunks.append(JSONChunk(
+                    content=chunk_content,
+                    path=key,
+                    field_count=len(value),
+                    metadata={
+                        'schema_type': field_type,
+                        'is_nested_object': True
+                    }
+                ))
+            
+            else:
+                # Simple field
+                chunks.append(JSONChunk(
+                    content=f"{key}: {value}",
+                    path=key,
+                    field_count=1,
+                    metadata={'schema_type': field_type}
+                ))
+        
+        return chunks
+    
+    def _object_to_text(self, obj: Dict) -> str:
+        """Convert object to human-readable text."""
+        lines = []
+        for key, value in obj.items():
+            if isinstance(value, (dict, list)):
+                lines.append(f"{key}: [complex value]")
+            else:
+                lines.append(f"{key}: {value}")
+        return "\n".join(lines)
+```
 
-1. Flatten nested JSON recursively.
-2. Group flattened items into chunks under a size limit.
+### Part 4: Complete Pipeline
 
+```python
+class JSONRAGPipeline:
+    """Complete pipeline for indexing JSON in RAG."""
+    
+    def __init__(
+        self,
+        flattener: JSONFlattener = None,
+        chunker: JSONChunker = None,
+        vector_store = None
+    ):
+        self.flattener = flattener or JSONFlattener()
+        self.chunker = chunker or JSONChunker()
+        self.store = vector_store
+    
+    def index_json(
+        self,
+        data: Union[Dict, List, str],
+        source_id: str,
+        metadata: Dict = None
+    ) -> List[str]:
+        """Index JSON data for RAG."""
+        # Parse if string
+        if isinstance(data, str):
+            data = json.loads(data)
+        
+        # Flatten
+        fields = self.flattener.flatten(data)
+        
+        # Chunk
+        chunks = self.chunker.chunk(fields, source_id)
+        
+        # Index each chunk
+        doc_ids = []
+        for chunk in chunks:
+            chunk_metadata = {
+                **chunk.metadata,
+                **(metadata or {}),
+                'chunk_path': chunk.path,
+                'field_count': chunk.field_count
+            }
+            
+            doc_id = self.store.add_document(
+                content=chunk.content,
+                metadata=chunk_metadata
+            )
+            doc_ids.append(doc_id)
+        
+        return doc_ids
+    
+    def query(
+        self,
+        query: str,
+        filters: Dict = None
+    ) -> List[Dict]:
+        """Query the indexed JSON data."""
+        results = self.store.search(
+            query,
+            filters=filters
+        )
+        
+        # Enrich results with path info
+        enriched = []
+        for result in results:
+            enriched.append({
+                'content': result.content,
+                'path': result.metadata.get('chunk_path'),
+                'source_id': result.metadata.get('source_id'),
+                'fields': result.metadata.get('fields', []),
+                'score': result.score
+            })
+        
+        return enriched
+```
+
+## Example Usage
+
+```python
+# Sample API response
+api_response = {
+    "user": {
+        "id": 12345,
+        "name": "Alice Johnson",
+        "email": "alice@example.com",
+        "department": {
+            "id": 10,
+            "name": "Engineering",
+            "location": "San Francisco"
+        },
+        "projects": [
+            {"name": "RAG System", "status": "active"},
+            {"name": "API Gateway", "status": "completed"}
+        ]
+    }
+}
+
+# Process
+pipeline = JSONRAGPipeline()
+doc_ids = pipeline.index_json(api_response, source_id="user_12345")
+
+# Query
+results = pipeline.query("What department is Alice in?")
+# Returns chunk with: "name: Engineering", "location: San Francisco"
+```
+
+## Evaluation Criteria
+
+Your solution will be evaluated on:
+
+1. **Flattening Quality**: All fields accessible
+2. **Chunk Coherence**: Related fields grouped
+3. **Searchability**: Queries find correct fields
+4. **Path Preservation**: Original structure recoverable
+5. **Type Handling**: Appropriate formatting per type

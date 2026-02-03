@@ -1,35 +1,541 @@
 ﻿---
 title: "Audio Transcript Chunking"
-description: "Chunk audio transcripts by speaker turns and timestamps."
+description: "Chunk audio transcripts by speaker turns and timestamps for conversational RAG"
+difficulty: "medium"
+xpReward: 100
+estimatedMinutes: 35
+stage: "advanced-retrieval"
+track: "multimodal"
+tags: ["multimodal", "audio", "transcript", "speaker-diarization", "chunking"]
+prerequisites: ["fixed-size-chunking-fundamentals", "markdown-header-chunking"]
+relatedChallenges: ["ocr-rag-pipeline", "multimodal-rag-guide"]
+nextChallenges: ["ocr-rag-pipeline"]
+theory:
+  overview: |
+    Audio transcript chunking structures spoken content for RAG by respecting 
+    natural conversation boundaries. Unlike fixed-size chunking, it groups 
+    utterances by speaker and topic, preserving conversational context and 
+    enabling speaker-aware retrieval.
+  keyFormulas:
+    - name: "Speaker Coherence Score"
+      formula: "coh = Σ(same_speaker(i, i+1)) / (n - 1)"
+    - name: "Temporal Gap"
+      formula: "gap = timestamp[i+1] - end_timestamp[i]"
+    - name: "Chunk Duration"
+      formula: "duration = end_time - start_time"
+    - name: "Speaker Ratio"
+      formula: "ratio = max_speaker_time / total_time"
+  visualIntuition: |
+    Smart vs Naive Transcript Chunking:
+    
+    ```
+    Raw Transcript:
+    [00:00:05] CEO: Welcome to the call.
+    [00:00:08] CEO: Revenue is up 20%.
+    [00:00:12] Analyst: What about margins?
+    [00:00:15] CEO: Margins improved by 5%.
+    [00:00:20] CFO: Cash flow is strong.
+    
+    Naive Chunking (every 10s):
+    ├─ [00:00:05-00:00:15] "Welcome...margins?" ❌ Mixed speakers
+    └─ [00:00:15-00:00:20] "Margins...strong." ❌ Split topic
+    
+    Smart Chunking (speaker-aware):
+    ├─ [00:00:05-00:00:12] CEO: "Welcome...up 20%." ✅ Same speaker
+    ├─ [00:00:12-00:00:15] Analyst→CEO: "What...5%." ✅ Complete exchange
+    └─ [00:00:20-00:00:20] CFO: "Cash flow..." ✅ New speaker
+    ```
+  whyItMatters: |
+    Speaker-aware chunking enables:
+    1. **Speaker queries**: "What did the CEO say about revenue?"
+    2. **Q&A extraction**: Match questions to answers
+    3. **Topic continuity**: Keep related utterances together
+    4. **Temporal reasoning**: "What was discussed after the earnings announcement?"
+  commonMistakes:
+    - "Splitting speaker turns mid-sentence"
+    - "Ignoring temporal gaps (pauses between topics)"
+    - "Not preserving speaker metadata"
+    - "Mixing multiple speakers in one chunk"
+  interviewTips:
+    - "Compare diarization-based vs fixed-duration chunking"
+    - "Discuss handling of overlapping speech"
+    - "Mention timestamp preservation for alignment"
+    - "Explain topic segmentation in long conversations"
+realWorld:
+  description: |
+    Earnings call platforms like Bloomberg and FactSet use speaker-aware chunking 
+    for executive statement retrieval. Meeting transcription tools (Otter.ai, 
+    Fireflies.ai) structure conversations for search. Podcast platforms index 
+    by speaker and topic for content discovery.
+  companies: ["Otter.ai", "Fireflies", "Bloomberg", "FactSet", "Rev.ai"]
+  useCases:
+    - "Earnings call analysis and Q&A extraction"
+    - "Meeting transcription and action item retrieval"
+    - "Podcast content discovery by speaker"
+    - "Legal deposition review"
+    - "Customer support call analysis"
+complexity:
+  time: "O(n) where n = number of utterances"
+  space: "O(n) for storing chunked segments"
+  latency: "<10ms for chunking (after transcription)"
+resources:
+  papers:
+    - title: "PyAnnote: Speaker Diarization Toolkit"
+      url: "https://arxiv.org/abs/1911.01255"
+      authors: "Bredin et al."
+      year: 2020
+    - title: "End-to-End Neural Speaker Diarization"
+      url: "https://arxiv.org/abs/2109.06483"
+      authors: "Fujita et al."
+      year: 2021
+  documentation:
+    - title: "PyAnnote Audio"
+      url: "https://github.com/pyannote/pyannote-audio"
+    - title: "Whisper Timestamped"
+      url: "https://github.com/linto-ai/whisper-timestamped"
+    - title: "OpenAI Whisper API"
+      url: "https://platform.openai.com/docs/guides/speech-recognition"
+  tutorials:
+    - title: "Speaker Diarization with PyAnnote"
+      url: "https://huggingface.co/pyannote/speaker-diarization"
+    - title: "Building a Meeting Transcription Pipeline"
+      url: "https://blog.paperspace.com/whisper-speaker-diarization/"
+  tools:
+    - name: "Whisper"
+      description: "OpenAI's speech recognition with timestamps"
+      url: "https://github.com/openai/whisper"
+    - name: "PyAnnote"
+      description: "Neural speaker diarization toolkit"
+      url: "https://github.com/pyannote/pyannote-audio"
+    - name: "Deepgram"
+      description: "Speech-to-text API with diarization"
+      url: "https://deepgram.com/"
+    - name: "AssemblyAI"
+      description: "Speech AI platform with speaker labels"
+      url: "https://www.assemblyai.com/"
 ---
 
 # Audio Transcript Chunking
 
-Earnings calls, meetings, and podcasts generate valuable content—but raw transcripts are a wall of text.
+Implement intelligent chunking of audio transcripts that respects speaker turns and conversation flow, enabling speaker-aware retrieval in conversational RAG.
 
-### The Challenge
+## The Problem
+
+Earnings calls, meetings, and podcasts generate valuable content—but raw transcripts are a wall of text:
 
 ```
-CEO: Welcome to the call.
-CEO: Revenue is up 20%.
-Analyst: What about margins?
-CEO: Margins improved by 5%.
+[00:00:05] CEO: Welcome to the Q3 earnings call.
+[00:00:08] CEO: Revenue is up 20% year over year.
+[00:00:12] Analyst: What about profit margins?
+[00:00:15] CEO: Margins improved by 5 percentage points.
+[00:00:20] CFO: Let me add that cash flow is exceptionally strong.
 ```
 
-Naive chunking might split the CEO's statements or mix speakers together.
+**Naive chunking** might:
+- Split the CEO's statements across chunks
+- Mix different speakers together
+- Separate questions from their answers
 
-### Smart Chunking
+## Your Task
 
-- Keep same-speaker segments together.
-- Respect time boundaries (e.g., max 60 seconds per chunk).
-- Include metadata: speaker, start_time, end_time.
+Implement a `TranscriptChunker` class:
 
-### Your Task
+```python
+class TranscriptChunker:
+    def __init__(self, 
+                 max_chunk_duration: float = 60.0,
+                 max_chunk_words: int = 200,
+                 speaker_change_penalty: float = 0.5):
+        """
+        Initialize transcript chunker.
+        
+        Args:
+            max_chunk_duration: Maximum seconds per chunk
+            max_chunk_words: Maximum words per chunk
+            speaker_change_penalty: Cost for switching speakers
+        """
+        pass
+    
+    def parse_transcript(self, transcript: str) -> list[dict]:
+        """
+        Parse raw transcript into utterances.
+        
+        Args:
+            transcript: Raw transcript with timestamps
+            
+        Returns:
+            List of utterances:
+            [
+                {
+                    "timestamp": float,
+                    "end_timestamp": float,
+                    "speaker": str,
+                    "text": str,
+                    "word_count": int
+                }
+            ]
+        """
+        pass
+    
+    def chunk_by_speaker(self, utterances: list[dict]) -> list[dict]:
+        """
+        Group consecutive utterances by same speaker.
+        
+        Args:
+            utterances: Parsed utterances
+            
+        Returns:
+            Speaker-grouped chunks
+        """
+        pass
+    
+    def chunk_by_topic(self, utterances: list[dict], 
+                      gap_threshold: float = 2.0) -> list[dict]:
+        """
+        Detect topic boundaries by temporal gaps.
+        
+        Args:
+            utterances: Parsed utterances
+            gap_threshold: Seconds of silence to mark topic change
+            
+        Returns:
+            Topic-separated chunks
+        """
+        pass
+    
+    def create_qa_pairs(self, utterances: list[dict]) -> list[dict]:
+        """
+        Identify question-answer pairs in transcript.
+        
+        Args:
+            utterances: Parsed utterances
+            
+        Returns:
+            QA pairs with context
+        """
+        pass
+    
+    def chunk(self, transcript: str, strategy: str = "speaker") -> list[dict]:
+        """
+        Main chunking entry point.
+        
+        Args:
+            transcript: Raw transcript
+            strategy: "speaker", "topic", or "qa"
+            
+        Returns:
+            List of chunks with metadata
+        """
+        pass
+```
 
-Implement a chunker that groups consecutive same-speaker segments while respecting duration limits.
+## Example
 
-### Use Cases
+```python
+chunker = TranscriptChunker(
+    max_chunk_duration=60.0,
+    max_chunk_words=150
+)
 
-- "What did the CEO say about revenue?"
-- "Find the analyst questions from the Q3 call."
+transcript = """
+[00:00:05] CEO: Welcome to the Q3 earnings call.
+[00:00:08] CEO: Revenue is up 20% year over year.
+[00:00:12] Analyst Sarah: What about profit margins?
+[00:00:15] CEO: Margins improved by 5 percentage points.
+[00:00:20] CEO: This was driven by operational efficiency.
+[00:00:25] Analyst Mike: Can you discuss the new product launch?
+[00:00:30] CEO: Absolutely. The launch exceeded expectations.
+[00:00:35] CFO: Let me add some financial details on that.
+"""
 
+# Speaker-aware chunking
+chunks = chunker.chunk(transcript, strategy="speaker")
+
+for chunk in chunks:
+    print(f"[{chunk['start_time']:.1f}s - {chunk['end_time']:.1f}s] "
+          f"{chunk['speaker']}: {chunk['text'][:50]}...")
+
+# Output:
+# [5.0s - 12.0s] CEO: Welcome to the Q3 earnings call. Revenue is up...
+# [12.0s - 15.0s] Analyst Sarah: What about profit margins?
+# [15.0s - 25.0s] CEO: Margins improved by 5 percentage points...
+# [25.0s - 30.0s] Analyst Mike: Can you discuss the new product...
+# [30.0s - 35.0s] CEO: Absolutely. The launch exceeded expectations.
+# [35.0s - 35.0s] CFO: Let me add some financial details...
+
+# QA pair extraction
+qa_pairs = chunker.create_qa_pairs(chunker.parse_transcript(transcript))
+for qa in qa_pairs:
+    print(f"Q: {qa['question']}")
+    print(f"A: {qa['answer']}")
+    print()
+
+# Output:
+# Q: What about profit margins?
+# A: Margins improved by 5 percentage points. This was driven by...
+#
+# Q: Can you discuss the new product launch?
+# A: Absolutely. The launch exceeded expectations.
+```
+
+## Algorithm Details
+
+### Transcript Parsing
+
+```python
+def parse_transcript(self, transcript: str) -> list[dict]:
+    """Parse transcript with timestamps and speakers."""
+    import re
+    
+    utterances = []
+    
+    # Pattern: [HH:MM:SS] Speaker: Text
+    pattern = r'\[(\d{2}:\d{2}:\d{2})\]\s*(\w+):\s*(.+)'
+    
+    for match in re.finditer(pattern, transcript):
+        time_str, speaker, text = match.groups()
+        
+        # Parse timestamp
+        h, m, s = map(int, time_str.split(':'))
+        timestamp = h * 3600 + m * 60 + s
+        
+        utterances.append({
+            "timestamp": timestamp,
+            "speaker": speaker,
+            "text": text.strip(),
+            "word_count": len(text.split())
+        })
+    
+    # Calculate end timestamps
+    for i in range(len(utterances) - 1):
+        utterances[i]["end_timestamp"] = utterances[i + 1]["timestamp"]
+    if utterances:
+        utterances[-1]["end_timestamp"] = utterances[-1]["timestamp"] + 5
+    
+    return utterances
+```
+
+### Speaker-Aware Chunking
+
+```python
+def chunk_by_speaker(self, utterances: list[dict]) -> list[dict]:
+    """Group consecutive utterances by same speaker."""
+    if not utterances:
+        return []
+    
+    chunks = []
+    current_chunk = {
+        "speaker": utterances[0]["speaker"],
+        "texts": [utterances[0]["text"]],
+        "start_time": utterances[0]["timestamp"],
+        "end_time": utterances[0]["end_timestamp"],
+        "word_count": utterances[0]["word_count"]
+    }
+    
+    for utt in utterances[1:]:
+        duration = utt["end_timestamp"] - current_chunk["start_time"]
+        new_word_count = current_chunk["word_count"] + utt["word_count"]
+        
+        # Check if we should start new chunk
+        same_speaker = utt["speaker"] == current_chunk["speaker"]
+        within_duration = duration <= self.max_chunk_duration
+        within_words = new_word_count <= self.max_chunk_words
+        
+        if same_speaker and within_duration and within_words:
+            # Continue current chunk
+            current_chunk["texts"].append(utt["text"])
+            current_chunk["end_time"] = utt["end_timestamp"]
+            current_chunk["word_count"] = new_word_count
+        else:
+            # Save current chunk
+            chunks.append(self._finalize_chunk(current_chunk))
+            
+            # Start new chunk
+            current_chunk = {
+                "speaker": utt["speaker"],
+                "texts": [utt["text"]],
+                "start_time": utt["timestamp"],
+                "end_time": utt["end_timestamp"],
+                "word_count": utt["word_count"]
+            }
+    
+    # Don't forget last chunk
+    if current_chunk["texts"]:
+        chunks.append(self._finalize_chunk(current_chunk))
+    
+    return chunks
+
+def _finalize_chunk(self, chunk: dict) -> dict:
+    """Convert chunk dict to final format."""
+    return {
+        "speaker": chunk["speaker"],
+        "text": " ".join(chunk["texts"]),
+        "start_time": chunk["start_time"],
+        "end_time": chunk["end_time"],
+        "duration": chunk["end_time"] - chunk["start_time"],
+        "word_count": chunk["word_count"]
+    }
+```
+
+### QA Pair Extraction
+
+```python
+def create_qa_pairs(self, utterances: list[dict]) -> list[dict]:
+    """Extract question-answer pairs."""
+    qa_pairs = []
+    
+    for i, utt in enumerate(utterances):
+        text = utt["text"]
+        
+        # Simple heuristic: questions end with ?
+        is_question = text.strip().endswith("?")
+        
+        if is_question and i < len(utterances) - 1:
+            # Look for answer in next few utterances
+            answer_parts = []
+            j = i + 1
+            
+            while j < len(utterances):
+                answer_utt = utterances[j]
+                
+                # Stop if another question found
+                if answer_utt["text"].strip().endswith("?"):
+                    break
+                
+                answer_parts.append(answer_utt["text"])
+                
+                # Stop if speaker changes back to questioner
+                if answer_utt["speaker"] == utt["speaker"]:
+                    break
+                
+                j += 1
+            
+            if answer_parts:
+                qa_pairs.append({
+                    "question": text,
+                    "question_speaker": utt["speaker"],
+                    "question_time": utt["timestamp"],
+                    "answer": " ".join(answer_parts),
+                    "answer_speaker": utterances[i + 1]["speaker"],
+                    "answer_time": utterances[i + 1]["timestamp"]
+                })
+    
+    return qa_pairs
+```
+
+## Chunk Metadata Structure
+
+```python
+{
+    "chunk_id": "chunk_001",
+    "speaker": "CEO",
+    "text": "Revenue is up 20% year over year...",
+    "start_time": 5.0,
+    "end_time": 25.0,
+    "duration": 20.0,
+    "word_count": 45,
+    "speaker_turns": 1,
+    "prev_speaker": None,
+    "next_speaker": "Analyst",
+    "source": "Q3_Earnings_Call_2024"
+}
+```
+
+## Evaluation Criteria
+
+1. **Speaker Integrity**: Same speaker utterances grouped correctly
+2. **Boundary Respect**: No mid-sentence splits
+3. **QA Accuracy**: Questions matched to correct answers
+4. **Metadata Completeness**: All timestamps and speakers preserved
+
+## Test Cases
+
+```python
+def test_speaker_grouping():
+    """Test same-speaker utterances are grouped."""
+    chunker = TranscriptChunker(max_chunk_duration=60)
+    
+    transcript = """
+    [00:00:05] CEO: First point.
+    [00:00:10] CEO: Second point.
+    [00:00:15] Analyst: Question?
+    """
+    
+    chunks = chunker.chunk(transcript, strategy="speaker")
+    
+    # CEO's two utterances should be one chunk
+    ceo_chunks = [c for c in chunks if c["speaker"] == "CEO"]
+    assert len(ceo_chunks) == 1
+    assert "First point" in ceo_chunks[0]["text"]
+    assert "Second point" in ceo_chunks[0]["text"]
+
+def test_qa_extraction():
+    """Test QA pair identification."""
+    chunker = TranscriptChunker()
+    
+    transcript = """
+    [00:00:05] Analyst: What is revenue?
+    [00:00:10] CEO: Revenue is $10M.
+    """
+    
+    utterances = chunker.parse_transcript(transcript)
+    qa_pairs = chunker.create_qa_pairs(utterances)
+    
+    assert len(qa_pairs) == 1
+    assert "revenue" in qa_pairs[0]["question"].lower()
+    assert "$10M" in qa_pairs[0]["answer"]
+
+def test_duration_limit():
+    """Test chunks respect duration limits."""
+    chunker = TranscriptChunker(max_chunk_duration=5)
+    
+    transcript = """
+    [00:00:00] CEO: Point one.
+    [00:00:10] CEO: Point two (6 seconds later).
+    """
+    
+    chunks = chunker.chunk(transcript, strategy="speaker")
+    
+    # Should split due to duration limit
+    assert len(chunks) == 2
+```
+
+## Integration with RAG
+
+```python
+class AudioRAG:
+    def __init__(self):
+        self.chunker = TranscriptChunker()
+        self.embedder = TextEmbedder()
+        self.vector_store = VectorStore()
+    
+    def index_transcript(self, transcript: str, metadata: dict):
+        """Index transcript for speaker-aware retrieval."""
+        chunks = self.chunker.chunk(transcript, strategy="speaker")
+        
+        for chunk in chunks:
+            embedding = self.embedder.embed(chunk["text"])
+            
+            self.vector_store.add(embedding, {
+                "text": chunk["text"],
+                "speaker": chunk["speaker"],
+                "start_time": chunk["start_time"],
+                "end_time": chunk["end_time"],
+                **metadata
+            })
+    
+    def query_by_speaker(self, query: str, speaker: str = None) -> list[dict]:
+        """Query with optional speaker filter."""
+        embedding = self.embedder.embed(query)
+        
+        filter_dict = {"speaker": speaker} if speaker else None
+        results = self.vector_store.search(embedding, k=5, filter=filter_dict)
+        
+        return results
+```
+
+## Further Reading
+
+- [PyAnnote Speaker Diarization](https://github.com/pyannote/pyannote-audio)
+- [Whisper Timestamped](https://github.com/linto-ai/whisper-timestamped)
+- [End-to-End Neural Diarization](https://arxiv.org/abs/2109.06483)

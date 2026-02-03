@@ -1,23 +1,244 @@
+---
+title: "Mean Reciprocal Rank (TypeScript)"
+description: "Implement Mean Reciprocal Rank — measure how high the first relevant result ranks."
+language: "typescript"
+difficulty: "beginner"
+category: "evaluation"
+prerequisites: ["ts-recall-at-k"]
+related: ["evaluator-mrr", "ts-ndcg", "ts-recall-at-k"]
+tags: ["mrr", "evaluation", "metrics", "ranking"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Implement Mean Reciprocal Rank — measure how high the first relevant result ranks.
+  Implement Mean Reciprocal Rank (MRR) — the metric that measures how high the first relevant result ranks.
 </Callout>
 
-## Why this matters in production
+## Why MRR Matters in Production
 
-MRR is critical when users only look at the first result. For single-answer retrieval (like RAG Q&A), it measures whether you put the right answer at the top.
+MRR is critical when users only look at the first result. For single-answer retrieval (like RAG Q&A), it measures whether you put the right answer at the top. MRR is:
 
-## What you're implementing
+- **Intuitive**: Easy to understand and explain
+- **Single-result focused**: Perfect for Q&A systems
+- **Position-sensitive**: Higher ranks matter more
+- **Standard benchmark**: Used in BEIR, MTEB, and academic papers
 
-- For each query, find rank of first relevant document.
-- Reciprocal rank = 1/rank (or 0 if not found).
-- Average across all queries.
+### Real-World Scenario
 
-## Common pitfalls
+Evaluating a RAG system on 3 queries:
 
-- Using 0-based index instead of 1-based rank.
-- Not handling queries with no relevant results.
+| Query | Relevant at Rank | Reciprocal Rank |
+|-------|-----------------|-----------------|
+| "What is RAG?" | 1 | 1/1 = 1.0 |
+| "How does BM25 work?" | 3 | 1/3 ≈ 0.33 |
+| "Explain embeddings" | Not found | 0 |
 
-## After you pass
+**MRR = (1.0 + 0.33 + 0) / 3 ≈ 0.44**
 
-Complete the evaluation trio with **nDCG (TypeScript)**.
+Interpretation: On average, the first relevant result appears at rank ~2.3
 
+## The Mathematical Foundation
+
+### Reciprocal Rank
+
+For a single query:
+
+$$\text{RR} = \frac{1}{\text{rank of first relevant result}}$$
+
+If no relevant result:
+
+$$\text{RR} = 0$$
+
+### Mean Reciprocal Rank
+
+Across multiple queries:
+
+$$\text{MRR} = \frac{1}{|Q|} \sum_{i=1}^{|Q|} \frac{1}{\text{rank}_i}$$
+
+Where:
+- $|Q|$ = number of queries
+- $\text{rank}_i$ = rank of first relevant result for query $i$
+
+### Example Calculation
+
+```
+Query 1: Relevant at rank 2 → RR = 1/2 = 0.5
+Query 2: Relevant at rank 1 → RR = 1/1 = 1.0
+Query 3: No relevant → RR = 0
+Query 4: Relevant at rank 4 → RR = 1/4 = 0.25
+
+MRR = (0.5 + 1.0 + 0 + 0.25) / 4 = 0.4375
+```
+
+## Theoretical Deep Dive
+
+### MRR vs Other Metrics
+
+| Metric | Focus | Best For |
+|--------|-------|----------|
+| **MRR** | First relevant result | Q&A, single-answer retrieval |
+| **Recall@K** | Any relevant in top-K | Multiple relevant documents |
+| **nDCG** | Graded relevance | Search with relevance levels |
+| **Precision@K** | Proportion relevant | Balanced precision/recall |
+
+### Sensitivity Analysis
+
+MRR is highly sensitive to the first result:
+
+| Rank | Reciprocal Rank | Change from Previous |
+|------|-----------------|---------------------|
+| 1 | 1.0 | - |
+| 2 | 0.5 | -50% |
+| 3 | 0.33 | -33% |
+| 4 | 0.25 | -25% |
+| 5 | 0.20 | -20% |
+| 10 | 0.10 | -50% (from rank 5) |
+
+Moving from rank 2 to rank 1 doubles your contribution to MRR!
+
+### Statistical Properties
+
+- **Range**: [0, 1] where 1 = perfect, 0 = no relevant results
+- **Interpretation**: Expected reciprocal rank of first relevant
+- **Confidence intervals**: Bootstrap for statistical significance
+
+## Production Considerations
+
+### When to Use MRR
+
+Use MRR when:
+- Users primarily care about the first result
+- Single correct answer expected
+- Top-1 accuracy is critical
+
+Don't use MRR when:
+- Multiple relevant results are valuable
+- Users browse many results
+- You need graded relevance
+
+### MRR@K
+
+Limit consideration to top K results:
+
+```
+MRR@10 = Only consider first 10 results
+If no relevant in top 10: RR = 0
+```
+
+Useful when very low ranks don't matter.
+
+### Confidence Intervals
+
+```typescript
+function bootstrapMRR(scores: number[], iterations: number = 1000): {
+  mean: number;
+  ci95: [number, number];
+} {
+  const samples = [];
+  for (let i = 0; i < iterations; i++) {
+    const sample = resample(scores);
+    samples.push(mean(sample));
+  }
+  return {
+    mean: mean(scores),
+    ci95: [percentile(samples, 0.025), percentile(samples, 0.975)]
+  };
+}
+```
+
+## Your Task
+
+Implement MRR calculation:
+
+```typescript
+interface QueryResult {
+  queryId: string;
+  rankedDocIds: string[];
+  relevantDocIds: Set<string>;
+}
+
+interface MRRResult {
+  mrr: number;
+  reciprocalRanks: number[];
+  queryCount: number;
+  queriesWithNoRelevant: number;
+}
+
+function calculateMRR(results: QueryResult[]): MRRResult {
+  /**
+   * Calculate Mean Reciprocal Rank for a set of queries.
+   * 
+   * Args:
+   *   results: Array of query results with rankings and relevance
+   * 
+   * Returns:
+   *   MRRResult with overall MRR and per-query details
+   * 
+   * Algorithm:
+   *   For each query:
+   *     1. Find first rank where rankedDocIds intersects relevantDocIds
+   *     2. Reciprocal rank = 1 / rank (or 0 if not found)
+   *   MRR = mean of all reciprocal ranks
+   * 
+   * Edge Cases:
+   *   - Empty results array: return MRR = 0
+   *   - No relevant documents for query: RR = 0
+   *   - Multiple relevant at same rank: use that rank
+   *   - Empty ranking: RR = 0
+   * 
+   * Note: Ranks are 1-indexed (first position = rank 1)
+   */
+}
+
+function calculateMRRAtK(results: QueryResult[], k: number): number {
+  /**
+   * Calculate MRR@K — only consider top K results.
+   * If no relevant in top K, RR = 0.
+   */
+}
+
+function findFirstRelevantRank(
+  rankedDocIds: string[],
+  relevantDocIds: Set<string>
+): number | null {
+  /**
+   * Find the rank (1-indexed) of first relevant document.
+   * Returns null if no relevant document found.
+   */
+}
+```
+
+### Validation Checklist
+
+- [ ] Rank 1 → RR = 1.0
+- [ ] Rank 2 → RR = 0.5
+- [ ] Rank 5 → RR = 0.2
+- [ ] No relevant → RR = 0
+- [ ] Uses 1-indexed ranks (not 0-indexed)
+- [ ] Empty results → MRR = 0
+- [ ] MRR@K limits to top K results
+- [ ] Multiple queries averaged correctly
+
+## Common Pitfalls
+
+- **Using 0-based index instead of 1-based rank**: Rank 1 should give RR=1.0, not 0.5
+- **Not handling queries with no relevant results**: These contribute 0 to the mean
+- **Confusing MRR with mean rank**: MRR uses reciprocal, not direct rank
+- **Integer division**: Ensure floating-point division
+
+## After You Pass
+
+Complete the evaluation trio with **nDCG (TypeScript)** and **Recall@K**, or use these metrics to evaluate your retrieval pipelines before deploying.
+
+## Resources
+
+### Academic Papers
+- ["A Review of Evaluation Measures"](https://link.springer.com/article/10.1007/s10791-017-9322-x) - Turpin & Scholer
+- ["BEIR: A Heterogeneous Benchmark"](https://arxiv.org/abs/2104.08663) - Thakur et al. (Uses MRR)
+
+### Documentation
+- [IR Metrics Guide](https://ir-measur.es/en/latest/) - Information retrieval metrics
+- [MTEB Leaderboard](https://huggingface.co/spaces/mteb/leaderboard) - Benchmark using MRR
+
+### Tutorials
+- ["Evaluation Metrics for IR"](https://www.youtube.com/watch?v=BhTOEe70H5U) - Stanford CS224N
+- ["Understanding MRR"](https://medium.com/swlh/rank-aware-recsys-evaluation-metrics-5191bba16832) - Medium article

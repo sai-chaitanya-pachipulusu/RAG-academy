@@ -1,17 +1,130 @@
-﻿<Callout title="Goal" variant="info">
-  Implement semantic caching — avoid redundant LLM calls by matching
-  semantically similar queries.
-</Callout>
+﻿---
+title: "Semantic Caching"
+description: "Implement semantic caching to avoid redundant LLM calls by matching semantically similar queries"
+difficulty: "hard"
+xpReward: 150
+estimatedMinutes: 45
+stage: "production"
+track: "production-ops"
+tags: ["caching", "semantic", "llm", "optimization", "similarity-search"]
+prerequisites: ["embedding-cache", "cosine-similarity"]
+relatedChallenges: ["embedding-cache", "kv-cache-optimization", "rag-cost-tracker"]
+nextChallenges: ["kv-cache-optimization"]
+theory:
+  overview: |
+    Semantic caching stores LLM responses keyed by query embeddings, enabling 
+    cache hits for semantically equivalent but textually different queries. 
+    Unlike exact-match caching, it recognizes that "What is the capital of France?" 
+    and "What's France's capital?" are the same question, avoiding redundant 
+    expensive LLM calls.
+  keyFormulas:
+    - name: "Semantic Similarity Threshold"
+      formula: "cache_hit if sim(query, cached_query) > θ"
+    - name: "Cache Hit Rate"
+      formula: "HR = semantic_hits / total_queries"
+    - name: "Cost Savings"
+      formula: "savings = HR × avg_llm_cost × query_volume"
+    - name: "Similarity Score"
+      formula: "sim(q1, q2) = cos(embed(q1), embed(q2))"
+  visualIntuition: |
+    Semantic vs Exact Match Caching:
+    
+    ```
+    Exact Match Cache:
+    "What is the capital of France?" → "Paris"
+    "What's the capital of France?" → MISS! (different string)
+    
+    Semantic Cache:
+    Query: "What's the capital of France?"
+           ↓
+    [Embed Query]
+           ↓
+    Search Cache by Similarity:
+    ┌─────────────────────────────────────┐
+    │ "What is the capital of France?"    │ sim=0.97 ✓
+    │ "How big is France?"                │ sim=0.45 ✗
+    │ "Tell me about Paris"               │ sim=0.62 ✗
+    └─────────────────────────────────────┘
+           ↓
+    HIT! Return "Paris"
+    ```
+  whyItMatters: |
+    Semantic caching provides:
+    1. **Cost reduction**: Avoid redundant LLM calls ($0.01-0.10 each)
+    2. **Latency improvement**: <10ms cache hit vs 500ms-3s LLM call
+    3. **Better UX**: Instant responses for common questions
+    4. **Load reduction**: Decreases LLM API quota consumption
+  commonMistakes:
+    - "Threshold too low (false positives) or too high (missed hits)"
+    - "Not handling context-dependent queries"
+    - "Ignoring cache invalidation for time-sensitive data"
+    - "Not considering privacy for multi-tenant caches"
+  interviewTips:
+    - "Compare semantic vs exact-match caching tradeoffs"
+    - "Discuss optimal similarity threshold selection"
+    - "Mention hybrid approaches (exact + semantic)"
+    - "Explain cache invalidation strategies"
+realWorld:
+  description: |
+    Semantic caching is used by customer support chatbots, documentation Q&A 
+    systems, and internal knowledge bases. GPTCache provides open-source 
+    semantic caching. Enterprise RAG platforms implement it for cost control. 
+    Multi-turn conversation systems use it to avoid re-generating similar responses.
+  companies: ["OpenAI", "Microsoft", "Zilliz", "Redis", "LangChain"]
+  useCases:
+    - "Customer support chatbots"
+    - "Documentation Q&A systems"
+    - "Internal knowledge bases"
+    - "FAQ handling"
+    - "Multi-turn conversation caching"
+complexity:
+  time: "O(log n) with vector index, O(n) with linear search"
+  space: "O(n × d) for n cached queries with d-dimensional embeddings"
+  latency: "<10ms for cache hit, 500ms-3s for miss"
+resources:
+  papers:
+    - title: "GPTCache: A Semantic Cache for LLM Applications"
+      url: "https://arxiv.org/abs/2404.08716"
+      authors: "Zhang et al."
+      year: 2024
+    - title: "CacheBlend: Fast Large Language Model Serving"
+      url: "https://arxiv.org/abs/2405.16444"
+      authors: "Liu et al."
+      year: 2024
+  documentation:
+    - title: "GPTCache Documentation"
+      url: "https://gptcache.readthedocs.io/"
+    - title: "Vector Database Caching"
+      url: "https://zilliz.com/blog/semantic-caching"
+  tutorials:
+    - title: "Building Semantic Cache for LLMs"
+      url: "https://blog.langchain.dev/semantic-caching/"
+    - title: "Cost Optimization with Caching"
+      url: "https://www.pinecone.io/learn/caching-llm-applications/"
+  tools:
+    - name: "GPTCache"
+      description: "Library for LLM semantic caching"
+      url: "https://github.com/zilliztech/GPTCache"
+    - name: "Redis Vector Similarity"
+      description: "Vector search for semantic caching"
+      url: "https://redis.io/docs/stack/search/reference/vectors/"
+    - name: "Qdrant"
+      description: "Vector database for semantic search"
+      url: "https://qdrant.tech/"
+---
+
+# Semantic Caching
+
+Implement semantic caching to avoid redundant LLM calls by matching semantically similar queries, achieving significant cost and latency savings.
 
 ## Why Semantic Caching?
 
 LLM calls are:
-
 - **Expensive**: $0.01-0.10 per query
 - **Slow**: 500ms-3s per call
 - **Redundant**: Many queries are semantically similar
 
-Semantic caching detects when a new query is similar to a cached one.
+Semantic caching detects when a new query is similar to a cached one and returns the cached response instantly.
 
 ## Exact Match vs Semantic Match
 
@@ -26,286 +139,417 @@ similar = find_similar(query_embedding, threshold=0.95)
 # HIT! "What is the capital of France?" is 0.97 similar
 ```
 
-## Basic Implementation
+## Your Task
+
+Implement a `SemanticCache` class:
 
 ```python
 import numpy as np
-from collections import OrderedDict
+from typing import Optional, List, Dict, Tuple
+from dataclasses import dataclass
+
+@dataclass
+class CacheEntry:
+    """Single cache entry."""
+    query: str
+    query_embedding: np.ndarray
+    response: str
+    timestamp: float
+    access_count: int = 0
 
 class SemanticCache:
-    def __init__(self, embedder, similarity_threshold: float = 0.95, max_size: int = 10000):
+    def __init__(self, 
+                 embedder,
+                 similarity_threshold: float = 0.95,
+                 max_size: int = 10000,
+                 ttl_seconds: Optional[int] = None):
+        """
+        Initialize semantic cache.
+        
+        Args:
+            embedder: Embedding model for queries
+            similarity_threshold: Minimum similarity for cache hit
+            max_size: Maximum cache entries
+            ttl_seconds: Time-to-live for entries (None = no expiry)
+        """
+        pass
+    
+    def get(self, query: str) -> Optional[str]:
+        """
+        Check if semantically similar query is cached.
+        
+        Args:
+            query: User query
+            
+        Returns:
+            Cached response or None
+        """
+        pass
+    
+    def set(self, query: str, response: str) -> None:
+        """
+        Cache query-response pair.
+        
+        Args:
+            query: Original query
+            response: LLM response
+        """
+        pass
+    
+    def find_similar(self, query_embedding: np.ndarray) -> Optional[CacheEntry]:
+        """
+        Find most similar cached query.
+        
+        Args:
+            query_embedding: Query embedding vector
+            
+        Returns:
+            Best matching cache entry or None
+        """
+        pass
+    
+    def invalidate_expired(self) -> int:
+        """
+        Remove expired entries.
+        
+        Returns:
+            Number of entries removed
+        """
+        pass
+    
+    def get_stats(self) -> dict:
+        """
+        Get cache statistics.
+        
+        Returns:
+            {
+                "size": int,
+                "max_size": int,
+                "hits": int,
+                "misses": int,
+                "hit_rate": float,
+                "threshold": float
+            }
+        """
+        pass
+
+class CachedLLM:
+    """LLM wrapper with semantic caching."""
+    
+    def __init__(self, llm_client, cache: SemanticCache):
+        """
+        Initialize cached LLM.
+        
+        Args:
+            llm_client: Base LLM client
+            cache: Semantic cache instance
+        """
+        pass
+    
+    def generate(self, query: str, **kwargs) -> dict:
+        """
+        Generate response with caching.
+        
+        Args:
+            query: User query
+            **kwargs: Additional LLM parameters
+            
+        Returns:
+            {
+                "response": str,
+                "cache_hit": bool,
+                "similarity": Optional[float]
+            }
+        """
+        pass
+```
+
+## Example
+
+```python
+from sentence_transformers import SentenceTransformer
+
+# Initialize
+embedder = SentenceTransformer('all-MiniLM-L6-v2')
+cache = SemanticCache(
+    embedder=embedder,
+    similarity_threshold=0.92,
+    max_size=1000,
+    ttl_seconds=3600  # 1 hour TTL
+)
+
+# Create cached LLM
+llm = CachedLLM(
+    llm_client=OpenAIClient(),
+    cache=cache
+)
+
+# First query - cache miss
+result = llm.generate("What is the capital of France?")
+print(result)
+# {
+#   "response": "The capital of France is Paris.",
+#   "cache_hit": False,
+#   "similarity": None
+# }
+
+# Similar query - cache hit!
+result = llm.generate("What's France's capital city?")
+print(result)
+# {
+#   "response": "The capital of France is Paris.",
+#   "cache_hit": True,
+#   "similarity": 0.96
+# }
+
+# Check stats
+print(cache.get_stats())
+# {"size": 1, "hits": 1, "misses": 1, "hit_rate": 0.5}
+```
+
+## Algorithm Details
+
+### Semantic Cache Implementation
+
+```python
+class SemanticCache:
+    def __init__(self, embedder, similarity_threshold=0.95, 
+                 max_size=10000, ttl_seconds=None):
         self.embedder = embedder
         self.threshold = similarity_threshold
         self.max_size = max_size
-
-        # Cache stores: query_text -> (embedding, response)
-        self.cache = OrderedDict()
-
-        # Matrix of cached embeddings for fast search
-        self.embeddings = []
-        self.keys = []
-
-    def get(self, query: str) -> str | None:
-        """Check if a semantically similar query is cached."""
+        self.ttl = ttl_seconds
+        
+        self.cache: Dict[str, CacheEntry] = {}
+        self.embeddings: List[np.ndarray] = []
+        self.keys: List[str] = []
+        self.stats = {"hits": 0, "misses": 0}
+    
+    def get(self, query: str) -> Optional[str]:
+        """Check cache for semantically similar query."""
+        # Clean expired entries periodically
+        if self.ttl and len(self.cache) % 100 == 0:
+            self.invalidate_expired()
+        
+        # Embed query
+        query_embedding = self.embedder.encode(query)
+        
+        # Find similar
+        similar = self.find_similar(query_embedding)
+        
+        if similar:
+            self.stats["hits"] += 1
+            similar.access_count += 1
+            return similar.response
+        
+        self.stats["misses"] += 1
+        return None
+    
+    def find_similar(self, query_embedding: np.ndarray) -> Optional[CacheEntry]:
+        """Find most similar cached query."""
         if not self.embeddings:
             return None
-
-        query_embedding = self.embedder.encode(query)
-
-        # Compute similarities with all cached queries
+        
+        # Compute similarities
         cached_matrix = np.array(self.embeddings)
-        similarities = query_embedding @ cached_matrix.T
-
+        similarities = np.dot(query_embedding, cached_matrix.T)
+        
+        # Find best match
         max_idx = np.argmax(similarities)
         max_sim = similarities[max_idx]
-
+        
         if max_sim >= self.threshold:
             cached_key = self.keys[max_idx]
-            # Move to end (LRU)
-            self.cache.move_to_end(cached_key)
-            return self.cache[cached_key][1]  # Return cached response
-
+            return self.cache[cached_key]
+        
         return None
-
-    def set(self, query: str, response: str):
-        """Cache a query-response pair."""
+    
+    def set(self, query: str, response: str) -> None:
+        """Add to cache."""
+        import time
+        
+        # Embed query
         embedding = self.embedder.encode(query)
-
-        # Add to cache
-        self.cache[query] = (embedding, response)
+        
+        # Create entry
+        entry = CacheEntry(
+            query=query,
+            query_embedding=embedding,
+            response=response,
+            timestamp=time.time()
+        )
+        
+        # Store
+        key = hash(query)  # Simple key
+        self.cache[key] = entry
         self.embeddings.append(embedding)
-        self.keys.append(query)
-
-        # Evict if over capacity
+        self.keys.append(key)
+        
+        # Evict if needed
         if len(self.cache) > self.max_size:
-            oldest_key = next(iter(self.cache))
-            del self.cache[oldest_key]
-            idx = self.keys.index(oldest_key)
-            del self.embeddings[idx]
-            del self.keys[idx]
+            self._evict_oldest()
+    
+    def _evict_oldest(self):
+        """Remove oldest entry."""
+        import time
+        
+        oldest_key = min(
+            self.cache.keys(),
+            key=lambda k: self.cache[k].timestamp
+        )
+        
+        idx = self.keys.index(oldest_key)
+        del self.cache[oldest_key]
+        del self.embeddings[idx]
+        del self.keys[idx]
 ```
+
+### Cached LLM
+
+```python
+class CachedLLM:
+    def __init__(self, llm_client, cache: SemanticCache):
+        self.llm = llm_client
+        self.cache = cache
+    
+    def generate(self, query: str, **kwargs) -> dict:
+        """Generate with caching."""
+        # Check cache
+        cached_response = self.cache.get(query)
+        
+        if cached_response:
+            # Find similarity for reporting
+            query_emb = self.cache.embedder.encode(query)
+            similar = self.cache.find_similar(query_emb)
+            
+            return {
+                "response": cached_response,
+                "cache_hit": True,
+                "similarity": float(np.dot(
+                    query_emb, 
+                    similar.query_embedding
+                )) if similar else None
+            }
+        
+        # Cache miss - call LLM
+        response = self.llm.generate(query, **kwargs)
+        
+        # Store in cache
+        self.cache.set(query, response)
+        
+        return {
+            "response": response,
+            "cache_hit": False,
+            "similarity": None
+        }
+```
+
+## Threshold Selection
+
+| Threshold | Behavior | Best For |
+|-----------|----------|----------|
+| 0.90 | More hits, some false positives | Tolerant applications |
+| 0.95 | Balanced | General use |
+| 0.98 | Fewer hits, high precision | Critical applications |
 
 ## Production Implementation with Vector DB
 
 ```python
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
-import uuid
 
 class VectorDBSemanticCache:
-    def __init__(self, embedder, threshold: float = 0.95, ttl_seconds: int = 3600):
+    """Production semantic cache using Qdrant."""
+    
+    def __init__(self, embedder, threshold=0.95, ttl_seconds=3600):
         self.embedder = embedder
         self.threshold = threshold
         self.ttl = ttl_seconds
-
-        self.client = QdrantClient(host="localhost", port=6333)
-        self.collection = "rag_cache"
-
-        # Create collection if not exists
-        self.client.recreate_collection(
-            collection_name=self.collection,
-            vectors_config=VectorParams(size=768, distance=Distance.COSINE)
+        
+        self.client = QdrantClient(":memory:")  # Or host:port
+        self.client.create_collection(
+            collection_name="semantic_cache",
+            vectors_config=VectorParams(
+                size=384,  # Embedding dimension
+                distance=Distance.COSINE
+            )
         )
-
-    def get(self, query: str) -> dict | None:
-        """Find semantically similar cached response."""
-        embedding = self.embedder.encode(query)
-
+    
+    def get(self, query: str) -> Optional[str]:
+        query_embedding = self.embedder.encode(query)
+        
+        # Search similar
         results = self.client.search(
-            collection_name=self.collection,
-            query_vector=embedding.tolist(),
+            collection_name="semantic_cache",
+            query_vector=query_embedding.tolist(),
             limit=1,
             score_threshold=self.threshold
         )
-
+        
         if results:
-            hit = results[0]
-            # Check TTL
-            if time.time() - hit.payload["timestamp"] < self.ttl:
-                return {
-                    "response": hit.payload["response"],
-                    "original_query": hit.payload["query"],
-                    "similarity": hit.score
-                }
-            else:
-                # Expired, delete
-                self.client.delete(
-                    collection_name=self.collection,
-                    points_selector=[hit.id]
-                )
-
+            return results[0].payload["response"]
         return None
-
-    def set(self, query: str, response: str, metadata: dict = None):
-        """Cache a query-response pair."""
+    
+    def set(self, query: str, response: str):
+        import uuid
+        
         embedding = self.embedder.encode(query)
-
-        point = PointStruct(
-            id=str(uuid.uuid4()),
-            vector=embedding.tolist(),
-            payload={
-                "query": query,
-                "response": response,
-                "timestamp": time.time(),
-                **(metadata or {})
-            }
-        )
-
+        
         self.client.upsert(
-            collection_name=self.collection,
-            points=[point]
+            collection_name="semantic_cache",
+            points=[PointStruct(
+                id=str(uuid.uuid4()),
+                vector=embedding.tolist(),
+                payload={
+                    "query": query,
+                    "response": response,
+                    "timestamp": time.time()
+                }
+            )]
         )
 ```
 
-## Integration with RAG Pipeline
+## Evaluation Criteria
+
+1. **Similarity Matching**: Correctly identifies semantically similar queries
+2. **Threshold Respect**: Only returns cache hits above threshold
+3. **Eviction**: Proper LRU/LFU eviction when full
+4. **TTL Support**: Expires old entries correctly
+
+## Test Cases
 
 ```python
-class CachedRAGPipeline:
-    def __init__(self, retriever, generator, cache: SemanticCache):
-        self.retriever = retriever
-        self.generator = generator
-        self.cache = cache
+def test_semantic_match():
+    """Test semantically similar queries match."""
+    cache = SemanticCache(embedder, threshold=0.90)
+    
+    cache.set("What is the capital of France?", "Paris")
+    result = cache.get("What's France's capital?")
+    
+    assert result == "Paris"
+    assert cache.get_stats()["hits"] == 1
 
-    def query(self, query: str) -> dict:
-        # Check cache first
-        cached = self.cache.get(query)
-        if cached:
-            return {
-                "response": cached["response"],
-                "cached": True,
-                "similarity": cached.get("similarity", 1.0)
-            }
+def test_threshold_respected():
+    """Test threshold prevents false positives."""
+    cache = SemanticCache(embedder, threshold=0.98)
+    
+    cache.set("What is Python?", "A programming language")
+    result = cache.get("What is JavaScript?")
+    
+    assert result is None  # Different concepts
 
-        # Cache miss - run full pipeline
-        docs = self.retriever.search(query)
-        response = self.generator.generate(query, docs)
-
-        # Store in cache
-        self.cache.set(query, response)
-
-        return {
-            "response": response,
-            "cached": False,
-            "docs": docs
-        }
+def test_exact_match():
+    """Test exact query strings match."""
+    cache = SemanticCache(embedder)
+    
+    cache.set("test query", "test response")
+    result = cache.get("test query")
+    
+    assert result == "test response"
 ```
 
-## Cache Key Strategies
+## Further Reading
 
-### 1. Query Only (Simple)
-
-```python
-cache_key = embed(query)
-```
-
-### 2. Query + Context (More Precise)
-
-```python
-# Include retrieval context in cache key
-docs = retriever.search(query)
-doc_ids = sorted([d.id for d in docs])
-cache_key = f"{query}|{','.join(doc_ids)}"
-```
-
-### 3. Query + Params (Multi-tenant)
-
-```python
-# Different cache per user/config
-cache_key = embed(f"{user_id}:{namespace}:{query}")
-```
-
-## Threshold Selection
-
-| Threshold | Behavior                            |
-| --------- | ----------------------------------- |
-| 0.99+     | Nearly exact match only             |
-| 0.95      | Conservative - similar phrasing     |
-| 0.90      | Moderate - catches paraphrases      |
-| 0.85      | Aggressive - may return wrong cache |
-
-**Recommendation**: Start at 0.95, tune based on miss/hit quality.
-
-## Cache Invalidation Strategies
-
-### 1. TTL-Based
-
-```python
-if time.time() - cached["timestamp"] > TTL:
-    delete(cached)
-```
-
-### 2. Document Update
-
-```python
-def on_document_update(doc_id: str):
-    # Invalidate cache entries that used this document
-    affected = cache.find_by_metadata({"doc_ids": doc_id})
-    cache.delete_many(affected)
-```
-
-### 3. Confidence-Based
-
-```python
-# Only cache high-confidence responses
-if response_confidence > 0.8:
-    cache.set(query, response)
-```
-
-## Metrics to Track
-
-| Metric                | Calculation                            | Target     |
-| --------------------- | -------------------------------------- | ---------- |
-| Hit rate              | hits / total_queries                   | >30%       |
-| Avg similarity at hit | mean(hit_similarities)                 | >0.95      |
-| Cache size            | num_entries                            | < max_size |
-| Latency saved         | (full_latency - cache_latency) \* hits | Maximize   |
-| Cost saved            | hit_rate \* cost_per_query             | Maximize   |
-
-```python
-class CacheMetrics:
-    def __init__(self):
-        self.hits = 0
-        self.misses = 0
-        self.total_latency_saved = 0
-
-    def record_hit(self, full_latency_ms: float, cache_latency_ms: float):
-        self.hits += 1
-        self.total_latency_saved += (full_latency_ms - cache_latency_ms)
-
-    def record_miss(self):
-        self.misses += 1
-
-    @property
-    def hit_rate(self) -> float:
-        total = self.hits + self.misses
-        return self.hits / total if total > 0 else 0
-```
-
-## Cost Savings Analysis
-
-| Monthly Queries | Hit Rate | Cost/Query | Savings     |
-| --------------- | -------- | ---------- | ----------- |
-| 100K            | 30%      | $0.02      | $600/mo     |
-| 1M              | 40%      | $0.02      | $8,000/mo   |
-| 10M             | 50%      | $0.02      | $100,000/mo |
-
-The embedding cost for cache lookup (~$0.0001) is negligible.
-
-## When NOT to Cache
-
-- Real-time data requirements
-- User-specific personalized responses
-- Low query repetition (unique queries)
-- Rapidly changing knowledge base
-- Privacy-sensitive queries
-
-## Production Checklist
-
-- [ ] Set appropriate similarity threshold
-- [ ] Implement TTL for cache expiration
-- [ ] Add cache invalidation on doc updates
-- [ ] Track hit rate and quality metrics
-- [ ] Monitor for stale responses
-- [ ] Implement per-tenant isolation if needed
-- [ ] Add circuit breaker for cache failures
-
+- [GPTCache Paper](https://arxiv.org/abs/2404.08716)
+- [Semantic Caching Best Practices](https://gptcache.readthedocs.io/)
+- [Vector Database Caching](https://zilliz.com/blog/semantic-caching)

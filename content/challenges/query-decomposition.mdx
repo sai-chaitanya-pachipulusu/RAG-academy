@@ -2,97 +2,436 @@
 title: "Query Decomposition"
 description: "Break complex queries into simpler sub-queries for comprehensive retrieval"
 difficulty: "hard"
-timeEstimate: "35-45 min"
-xpReward: 100
-prerequisites: ["query-expansion"]
+xpReward: 150
+topics: ["query-decomposition", "multi-hop", "complex-queries", "retrieval"]
+prerequisites: ["query-expansion", "multi-hop-qa"]
 ---
 
 # Multi-Step Query Decomposition
 
-## The Problem with Complex Queries
+## Overview
 
-**Query**: "Compare Python and JavaScript for web development"
+Complex queries like "Compare Python and JavaScript for web development" can't be answered with a single retrieval. A single retrieval might find documents about Python (missing JavaScript), JavaScript (missing Python), or web development (missing both languages). You need information about BOTH entities!
 
-A single retrieval might find documents about:
+## Why This Matters
 
-- Python (missing JavaScript)
-- JavaScript (missing Python)
-- Web development (missing both languages)
+- **Comprehensive Coverage**: All aspects of complex queries addressed
+- **Better Answers**: Synthesize from multiple sources
+- **Multi-Hop Reasoning**: Connect information across documents
+- **User Satisfaction**: Handle sophisticated questions
 
-You need information about **BOTH** entities!
+## Key Concepts
 
----
-
-## The Decomposition Insight
-
-Break the query into sub-queries:
-
-```python
-"Compare Python and JavaScript" →
-[
-    "What is Python?",
-    "What is JavaScript?",
-    "Python vs JavaScript comparison"
-]
-```
-
-Retrieve for EACH sub-query, then synthesize.
-
----
+- **Query types**: Comparison, pros/cons, causation, multi-entity
+- **Decomposition patterns**: Rules for breaking down queries
+- **Sub-query execution**: Retrieve for each component
+- **Result synthesis**: Combine sub-query results
 
 ## Decomposition Patterns
 
 ### Comparison Queries
-
 ```
 "Compare X and Y" → ["What is X?", "What is Y?", "X vs Y"]
 ```
 
 ### Pros/Cons Queries
-
 ```
 "Pros and cons of X" → ["Advantages of X", "Disadvantages of X"]
 ```
 
 ### Causation Queries
-
 ```
 "How does X affect Y?" → ["What is X?", "What is Y?", "X's effect on Y"]
 ```
 
----
+## The Challenge
 
-## Implementation Flow
+### Part 1: Query Decomposer
 
+```python
+from typing import List, Dict
+from dataclasses import dataclass
+from enum import Enum
+import re
+
+class QueryType(Enum):
+    """Types of complex queries."""
+    COMPARISON = "comparison"
+    PROS_CONS = "pros_cons"
+    CAUSATION = "causation"
+    MULTI_ENTITY = "multi_entity"
+    TEMPORAL = "temporal"
+    SIMPLE = "simple"
+
+@dataclass
+class SubQuery:
+    """A decomposed sub-query."""
+    text: str
+    type: str
+    priority: int  # Execution order
+    depends_on: List[int] = None  # Indices of dependencies
+
+class QueryDecomposer:
+    """Decompose complex queries into sub-queries."""
+    
+    def __init__(self):
+        self.patterns = self._compile_patterns()
+    
+    def _compile_patterns(self) -> Dict[QueryType, List[re.Pattern]]:
+        """Compile patterns for query type detection."""
+        return {
+            QueryType.COMPARISON: [
+                re.compile(r'compare\s+(.+?)\s+(?:and|with|to)\s+(.+)', re.I),
+                re.compile(r'(.+?)\s+(?:vs\.?|versus)\s+(.+)', re.I),
+                re.compile(r'difference between\s+(.+?)\s+and\s+(.+)', re.I),
+            ],
+            QueryType.PROS_CONS: [
+                re.compile(r'(?:pros?|cons?|advantages?|disadvantages?)\s+(?:of|and)\s+(.+)', re.I),
+                re.compile(r'(?:benefits?|drawbacks?)\s+(?:of)?\s+(.+)', re.I),
+            ],
+            QueryType.CAUSATION: [
+                re.compile(r'how does\s+(.+?)\s+(?:affect|impact|influence)\s+(.+)', re.I),
+                re.compile(r'(?:effect|impact)\s+of\s+(.+?)\s+on\s+(.+)', re.I),
+            ],
+            QueryType.TEMPORAL: [
+                re.compile(r'(?:history|evolution|timeline)\s+(?:of)?\s+(.+)', re.I),
+                re.compile(r'how has\s+(.+?)\s+changed', re.I),
+            ],
+        }
+    
+    def decompose(self, query: str) -> List[SubQuery]:
+        """Decompose query into sub-queries.
+        
+        Returns:
+            List of sub-queries to execute
+        """
+        query_type = self._detect_type(query)
+        
+        if query_type == QueryType.COMPARISON:
+            return self._decompose_comparison(query)
+        elif query_type == QueryType.PROS_CONS:
+            return self._decompose_pros_cons(query)
+        elif query_type == QueryType.CAUSATION:
+            return self._decompose_causation(query)
+        elif query_type == QueryType.TEMPORAL:
+            return self._decompose_temporal(query)
+        else:
+            # Simple query - no decomposition
+            return [SubQuery(
+                text=query,
+                type="simple",
+                priority=1
+            )]
+    
+    def _detect_type(self, query: str) -> QueryType:
+        """Detect the type of complex query."""
+        for qtype, patterns in self.patterns.items():
+            for pattern in patterns:
+                if pattern.search(query):
+                    return qtype
+        return QueryType.SIMPLE
+    
+    def _decompose_comparison(self, query: str) -> List[SubQuery]:
+        """Decompose comparison queries."""
+        # Extract entities being compared
+        entities = self._extract_comparison_entities(query)
+        
+        if len(entities) < 2:
+            return [SubQuery(text=query, type="simple", priority=1)]
+        
+        sub_queries = []
+        
+        # Query for each entity
+        for i, entity in enumerate(entities):
+            sub_queries.append(SubQuery(
+                text=f"What is {entity}?",
+                type="entity_definition",
+                priority=1
+            ))
+        
+        # Comparison query
+        sub_queries.append(SubQuery(
+            text=f"Compare {' and '.join(entities)}",
+            type="comparison",
+            priority=2,
+            depends_on=list(range(len(entities)))
+        ))
+        
+        return sub_queries
+    
+    def _decompose_pros_cons(self, query: str) -> List[SubQuery]:
+        """Decompose pros/cons queries."""
+        # Extract the subject
+        match = re.search(
+            r'(?:pros?|cons?|advantages?|disadvantages?)\s+(?:of|and)\s+(.+)',
+            query,
+            re.I
+        )
+        
+        if not match:
+            return [SubQuery(text=query, type="simple", priority=1)]
+        
+        subject = match.group(1).strip()
+        
+        return [
+            SubQuery(
+                text=f"What is {subject}?",
+                type="entity_definition",
+                priority=1
+            ),
+            SubQuery(
+                text=f"Advantages and benefits of {subject}",
+                type="pros",
+                priority=2,
+                depends_on=[0]
+            ),
+            SubQuery(
+                text=f"Disadvantages and drawbacks of {subject}",
+                type="cons",
+                priority=2,
+                depends_on=[0]
+            ),
+        ]
+    
+    def _decompose_causation(self, query: str) -> List[SubQuery]:
+        """Decompose causation queries."""
+        # Extract cause and effect
+        patterns = [
+            r'how does\s+(.+?)\s+(?:affect|impact|influence)\s+(.+)',
+            r'(?:effect|impact)\s+of\s+(.+?)\s+on\s+(.+)',
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, query, re.I)
+            if match:
+                cause, effect = match.groups()
+                
+                return [
+                    SubQuery(
+                        text=f"What is {cause}?",
+                        type="entity_definition",
+                        priority=1
+                    ),
+                    SubQuery(
+                        text=f"What is {effect}?",
+                        type="entity_definition",
+                        priority=1
+                    ),
+                    SubQuery(
+                        text=f"How does {cause} affect {effect}?",
+                        type="causation",
+                        priority=2,
+                        depends_on=[0, 1]
+                    ),
+                ]
+        
+        return [SubQuery(text=query, type="simple", priority=1)]
+    
+    def _decompose_temporal(self, query: str) -> List[SubQuery]:
+        """Decompose temporal/historical queries."""
+        # Extract subject
+        match = re.search(
+            r'(?:history|evolution|timeline)\s+(?:of)?\s+(.+)',
+            query,
+            re.I
+        )
+        
+        if not match:
+            match = re.search(r'how has\s+(.+?)\s+changed', query, re.I)
+        
+        if not match:
+            return [SubQuery(text=query, type="simple", priority=1)]
+        
+        subject = match.group(1).strip()
+        
+        return [
+            SubQuery(
+                text=f"What is {subject}?",
+                type="entity_definition",
+                priority=1
+            ),
+            SubQuery(
+                text=f"History and evolution of {subject}",
+                type="temporal",
+                priority=2,
+                depends_on=[0]
+            ),
+        ]
+    
+    def _extract_comparison_entities(self, query: str) -> List[str]:
+        """Extract entities being compared."""
+        patterns = [
+            r'compare\s+(.+?)\s+(?:and|with|to)\s+(.+)',
+            r'(.+?)\s+(?:vs\.?|versus)\s+(.+)',
+            r'difference between\s+(.+?)\s+and\s+(.+)',
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, query, re.I)
+            if match:
+                return [e.strip() for e in match.groups()]
+        
+        return []
 ```
-1. Detect query type (comparison, pros/cons, etc.)
-   ↓
-2. Parse entities (X, Y)
-   ↓
-3. Generate sub-queries
-   ↓
-4. Retrieve for each sub-query
-   ↓
-5. Merge and deduplicate results
-   ↓
-6. Generate comprehensive answer
+
+### Part 2: Sub-Query Executor
+
+```python
+class SubQueryExecutor:
+    """Execute sub-queries and aggregate results."""
+    
+    def __init__(self, retriever, generator):
+        self.retriever = retriever
+        self.generator = generator
+        self.results_cache: Dict[str, List[Dict]] = {}
+    
+    def execute(
+        self,
+        sub_queries: List[SubQuery],
+        top_k: int = 3
+    ) -> Dict[int, List[Dict]]:
+        """Execute sub-queries in dependency order.
+        
+        Returns:
+            Mapping of sub-query index to results
+        """
+        results = {}
+        
+        # Sort by priority
+        sorted_queries = sorted(
+            enumerate(sub_queries),
+            key=lambda x: x[1].priority
+        )
+        
+        for idx, sq in sorted_queries:
+            # Check if we have dependencies
+            if sq.depends_on:
+                # Could use dependency results for context
+                dep_results = [
+                    results.get(d, [])
+                    for d in sq.depends_on
+                ]
+            
+            # Execute retrieval
+            cache_key = sq.text
+            if cache_key in self.results_cache:
+                sq_results = self.results_cache[cache_key]
+            else:
+                sq_results = self.retriever.retrieve(sq.text, top_k=top_k)
+                self.results_cache[cache_key] = sq_results
+            
+            results[idx] = sq_results
+        
+        return results
 ```
 
----
+### Part 3: Result Synthesizer
 
-## Real-World Usage
+```python
+class ResultSynthesizer:
+    """Synthesize results from sub-queries into final answer."""
+    
+    def __init__(self, generator):
+        self.generator = generator
+    
+    def synthesize(
+        self,
+        original_query: str,
+        sub_queries: List[SubQuery],
+        sub_results: Dict[int, List[Dict]]
+    ) -> str:
+        """Synthesize sub-query results into final answer."""
+        # Build context from all sub-query results
+        context_parts = []
+        
+        for i, sq in enumerate(sub_queries):
+            results = sub_results.get(i, [])
+            
+            context_parts.append(f"\n--- {sq.text} ---")
+            for j, r in enumerate(results[:2], 1):
+                context_parts.append(f"[{j}] {r['content'][:300]}...")
+        
+        context = "\n".join(context_parts)
+        
+        # Generate synthesized answer
+        prompt = f"""Based on the following information, answer the original question.
 
-| Product       | Implementation            |
-| ------------- | ------------------------- |
-| LangChain     | `MultiQueryRetriever`     |
-| LlamaIndex    | `SubQuestionQueryEngine`  |
-| Google Search | Multiple internal queries |
+Original Question: {original_query}
 
----
+Retrieved Information:
+{context}
 
-## Related Challenges
+Provide a comprehensive answer that synthesizes all the information above."""
+        
+        return self.generator.generate(prompt)
+```
 
-- `query-expansion` - Simpler query enhancement
-- `hyde-implementation` - Generate hypothetical answers
-- `intent-classification` - Detect query patterns
+### Part 4: Decomposed RAG Pipeline
 
+```python
+class DecomposedRAG:
+    """RAG pipeline with query decomposition."""
+    
+    def __init__(
+        self,
+        decomposer: QueryDecomposer,
+        executor: SubQueryExecutor,
+        synthesizer: ResultSynthesizer
+    ):
+        self.decomposer = decomposer
+        self.executor = executor
+        self.synthesizer = synthesizer
+    
+    def query(self, query: str) -> Dict:
+        """Execute decomposed RAG query."""
+        # Step 1: Decompose
+        sub_queries = self.decomposer.decompose(query)
+        
+        # Step 2: Execute sub-queries
+        sub_results = self.executor.execute(sub_queries)
+        
+        # Step 3: Synthesize
+        answer = self.synthesizer.synthesize(
+            query,
+            sub_queries,
+            sub_results
+        )
+        
+        return {
+            'answer': answer,
+            'original_query': query,
+            'sub_queries': [
+                {'text': sq.text, 'type': sq.type}
+                for sq in sub_queries
+            ],
+            'num_sub_queries': len(sub_queries),
+            'decomposition_type': 'complex' if len(sub_queries) > 1 else 'simple'
+        }
+```
+
+## Example Usage
+
+```python
+# Setup
+decomposer = QueryDecomposer()
+executor = SubQueryExecutor(retriever, generator)
+synthesizer = ResultSynthesizer(generator)
+rag = DecomposedRAG(decomposer, executor, synthesizer)
+
+# Query
+result = rag.query("Compare Python and JavaScript for web development")
+
+print(f"Decomposed into {result['num_sub_queries']} sub-queries:")
+for sq in result['sub_queries']:
+    print(f"  - {sq['text']} ({sq['type']})")
+```
+
+## Evaluation Criteria
+
+Your solution will be evaluated on:
+
+1. **Decomposition Quality**: Sub-queries cover all aspects
+2. **Type Detection**: Correctly identifies query types
+3. **Execution Order**: Dependencies respected
+4. **Synthesis**: Coherent final answer
+5. **Coverage**: No important aspects missed

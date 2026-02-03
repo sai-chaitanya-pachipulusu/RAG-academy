@@ -1,23 +1,285 @@
+---
+title: "Token Bucket Rate Limiter (TypeScript)"
+description: "Implement a token bucket rate limiter for API cost control."
+language: "typescript"
+difficulty: "intermediate"
+category: "optimization"
+prerequisites: ["ts-lru-cache"]
+related: ["rate-limiter", "ts-async-batcher", "cost-aware-router"]
+tags: ["rate-limiting", "token-bucket", "api-management", "cost-control"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Implement a token bucket rate limiter for API cost control.
+  Implement a token bucket rate limiter for API cost control and fair usage.
 </Callout>
 
-## Why this matters in production
+## Why Rate Limiting Matters in Production
 
-Rate limiting is essential for cost control and fair usage. Without it, a single user can exhaust your API budget or degrade service for others.
+Rate limiting is essential for cost control and fair usage. Without it, a single user can exhaust your API budget or degrade service for others. Rate limiters provide:
 
-## What you're implementing
+- **Cost protection**: Prevent API bill surprises
+- **Fairness**: Ensure all users get service
+- **Stability**: Protect against traffic spikes
+- **Compliance**: Meet API provider rate limits
 
-- Token bucket: holds up to maxTokens, refills over time.
-- tryAcquire: check and deduct if available.
-- acquire: wait until tokens available.
+### Real-World Scenario
 
-## Common pitfalls
+A RAG API serving 1000 users:
 
-- Not refilling based on elapsed time.
-- Integer overflow on long-running systems.
+**Without rate limiting:**
+- User A submits 10,000 requests in 1 minute
+- API quota exhausted
+- Other 999 users get errors
+- Monthly bill: $5000 (unexpected)
 
-## After you pass
+**With rate limiting (100 req/min per user):**
+- User A limited to 100 requests/minute
+- Other users unaffected
+- Predictable costs
+- Graceful degradation
 
-Apply rate limiting to your RAG API endpoints.
+## The Mathematical Foundation
 
+### Token Bucket Algorithm
+
+```
+Bucket:
+- Capacity: maxTokens (maximum burst)
+- Current tokens: tokens (available now)
+- Refill rate: tokens per second
+
+On request:
+  1. Calculate tokens to add: (now - lastRequest) × refillRate
+  2. Add to bucket (capped at maxTokens)
+  3. If tokens >= 1: allow request, tokens--
+  4. Else: deny request
+```
+
+### Parameters
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| **maxTokens** | Maximum burst size | 100 |
+| **refillRate** | Tokens added per second | 10/sec |
+| **initialTokens** | Starting tokens | 100 |
+
+### Capacity vs Rate
+
+```
+Burst capacity = maxTokens
+Sustained rate = refillRate
+
+Example:
+- maxTokens = 100, refillRate = 10/sec
+- Can burst 100 requests instantly
+- Then limited to 10/sec sustained
+```
+
+## Theoretical Deep Dive
+
+### Comparison with Leaky Bucket
+
+| Aspect | Token Bucket | Leaky Bucket |
+|--------|--------------|--------------|
+| **Burst handling** | Allows bursts | Smooths traffic |
+| **Use case** | APIs, user limits | Network traffic |
+| **Implementation** | Add tokens | Process queue |
+
+### Distributed Rate Limiting
+
+For multi-server deployments:
+
+```
+Options:
+1. Redis: Centralized token storage
+2. Consistent hashing: Route user to specific server
+3. Approximate: Each server has local limit (total/n)
+```
+
+### Sliding Window vs Fixed Window
+
+| Window Type | Behavior | Precision |
+|-------------|----------|-----------|
+| **Fixed** | Reset at interval boundaries | Lower (bursts at reset) |
+| **Sliding** | Continuous window | Higher (more complex) |
+
+Token bucket is effectively a sliding window.
+
+## Production Considerations
+
+### Per-User vs Global Limits
+
+```typescript
+interface RateLimitConfig {
+  // Per-user limits
+  perUser: {
+    maxTokens: number;
+    refillRate: number;
+  };
+  // Global limits
+  global: {
+    maxTokens: number;
+    refillRate: number;
+  };
+}
+```
+
+### Response Headers
+
+Inform clients of their limit status:
+
+```
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 45
+X-RateLimit-Reset: 1640995200
+```
+
+### Graceful Degradation
+
+When rate limited:
+
+```typescript
+if (!acquired) {
+  // Options:
+  1. Return 429 Too Many Requests
+  2. Queue for later processing
+  3. Serve cached/stale response
+  4. Fallback to cheaper model
+}
+```
+
+## Your Task
+
+Implement a token bucket rate limiter:
+
+```typescript
+interface TokenBucketConfig {
+  maxTokens: number;      // Maximum burst size
+  refillRate: number;     // Tokens per second
+  initialTokens?: number; // Starting tokens (default: maxTokens)
+}
+
+interface RateLimitResult {
+  allowed: boolean;
+  tokensRemaining: number;
+  retryAfterMs?: number;  // Time until next token available
+}
+
+class TokenBucketRateLimiter {
+  private tokens: number;
+  private lastRefill: number;
+
+  constructor(private config: TokenBucketConfig) {
+    this.tokens = config.initialTokens ?? config.maxTokens;
+    this.lastRefill = Date.now();
+  }
+
+  tryAcquire(tokens: number = 1): RateLimitResult {
+    /**
+     * Try to acquire tokens from the bucket.
+     * 
+     * Args:
+     *   tokens: Number of tokens to acquire (default: 1)
+     * 
+     * Returns:
+     *   RateLimitResult with allowance status and remaining tokens
+     * 
+     * Algorithm:
+     *   1. Calculate time since last refill
+     *   2. Add tokens: elapsed × refillRate
+     *   3. Cap at maxTokens
+     *   4. If tokens >= requested: allow and deduct
+     *   5. Else: deny and calculate retryAfter
+     * 
+     * Edge Cases:
+     *   - tokens > maxTokens: clamp to maxTokens after refill
+     *   - Zero refillRate: pure bucket (no refill)
+     *   - Request more than max: always deny
+     */
+  }
+
+  async acquire(tokens: number = 1): Promise<void> {
+    /**
+     * Block until tokens are available.
+     * 
+     * Implementation:
+     *   while (!tryAcquire(tokens).allowed) {
+     *     await sleep(retryAfterMs);
+     *   }
+     */
+  }
+
+  getStatus(): {
+    tokens: number;
+    maxTokens: number;
+    refillRate: number;
+  } {
+    /**
+     * Return current bucket status.
+     */
+  }
+}
+
+// Per-user rate limiter manager
+class RateLimitManager {
+  private buckets: Map<string, TokenBucketRateLimiter>;
+
+  constructor(
+    private defaultConfig: TokenBucketConfig,
+    private cleanupIntervalMs: number = 60000
+  ) {
+    this.buckets = new Map();
+    this.startCleanup();
+  }
+
+  checkLimit(userId: string, tokens: number = 1): RateLimitResult {
+    /**
+     * Check rate limit for a specific user.
+     * Creates new bucket if user doesn't exist.
+     */
+  }
+
+  private startCleanup(): void {
+    /**
+     * Periodically remove inactive buckets to prevent memory leak.
+     */
+  }
+}
+```
+
+### Validation Checklist
+
+- [ ] Tokens refill based on elapsed time
+- [ ] Bucket capped at maxTokens
+- [ ] tryAcquire returns correct allowance status
+- [ ] retryAfter calculated correctly when denied
+- [ ] acquire blocks until tokens available
+- [ ] Per-user buckets isolated
+- [ ] Cleanup prevents memory leaks
+- [ ] Zero refillRate handled (no refill)
+
+## Common Pitfalls
+
+- **Not refilling based on elapsed time**: Clock must be checked each request
+- **Integer overflow on long-running systems**: Use floating-point for tokens
+- **Not capping at maxTokens**: Bucket grows unbounded
+- **Race conditions in multi-threaded environments**: Synchronize access
+- **Memory leaks from per-user buckets**: Clean up inactive users
+
+## After You Pass
+
+Apply rate limiting to your RAG API endpoints, or implement distributed rate limiting with Redis for multi-server deployments.
+
+## Resources
+
+### Documentation
+- [Stripe Rate Limiting](https://stripe.com/docs/rate-limits) - Production example
+- [GitHub API Rate Limiting](https://docs.github.com/en/rest/overview/rate-limits-for-the-rest-api) - Best practices
+
+### Tutorials
+- ["Rate Limiting Patterns"](https://medium.com/@sahilgulati007/rate-limiting-techniques-245c3a5c5d9c) - Implementation guide
+- ["Token Bucket Algorithm"](https://en.wikipedia.org/wiki/Token_bucket) - Wikipedia
+
+### Libraries
+- [rate-limiter-flexible](https://github.com/animir/node-rate-limiter-flexible) - Node.js rate limiting
+- [express-rate-limit](https://github.com/express-rate-limit/express-rate-limit) - Express middleware

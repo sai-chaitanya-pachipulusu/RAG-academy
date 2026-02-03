@@ -1,33 +1,269 @@
-﻿<Callout title="Goal" variant="info">
-  Build a grounded RAG prompt that forces citations and refuses when evidence is missing.
-</Callout>
+﻿---
+title: "RAG Prompt Template"
+description: "Build a grounded RAG prompt that forces citations and refuses when evidence is missing"
+difficulty: "beginner"
+xpReward: 50
+topics: ["prompt-engineering", "grounding", "citations", "hallucination-prevention"]
+prerequisites: []
+---
 
-## Why this matters in production
+# RAG Prompt Template
 
-Prompt templates are *not* “prompt engineering fluff” in RAG.
+## Overview
 
-They are:
+Prompt templates are not "prompt engineering fluff" in RAG. They are:
+- A **contract** for grounding ("only use provided context")
+- A **format** for traceability (citations like `[1]`)
+- The first line of defense against hallucination
 
-- a **contract** for grounding (“only use provided context”)
-- a **format** for traceability (citations like `[1]`)
-- the first line of defense against hallucination
+## Why This Matters
 
-## What you’re implementing
+Without proper prompting, LLMs will:
+- Hallucinate answers not in the context
+- Ignore the provided documents
+- Make up citations
+- Answer confidently when they shouldn't
 
-A plain string template that contains:
+## Key Concepts
 
-- the question
-- numbered context chunks `[1]`, `[2]`, …
-- explicit instruction to cite sources
+- **Grounding contract**: Explicit instruction to use only context
+- **Citation format**: Numbered references for traceability
+- **Refusal training**: Teach model to admit when it doesn't know
+- **Structure**: Clear separation of context and question
 
-## Common pitfalls
+## Real-World Applications
 
-- Forgetting to number chunks (no stable citation mapping).
-- Not explicitly instructing citation format.
+| Use Case | Prompt Template Benefit |
+|----------|------------------------|
+| **Legal research** | Citations for case references |
+| **Medical Q&A** | Grounding in clinical guidelines |
+| **Customer support** | Reference to knowledge base articles |
+| **Financial analysis** | Source attribution for data |
 
-## After you pass
+## The Challenge
 
-Next: add citation validation + refusal policy + prompt-injection sanitization.
+### Part 1: Basic RAG Prompt
 
+```python
+class RAGPromptTemplate:
+    """Template for grounded RAG prompts."""
+    
+    def __init__(
+        self,
+        system_message: str = None,
+        citation_format: str = "[n]",
+        require_citations: bool = True,
+        allow_refusal: bool = True
+    ):
+        self.system_message = system_message or self._default_system()
+        self.citation_format = citation_format
+        self.require_citations = require_citations
+        self.allow_refusal = allow_refusal
+    
+    def _default_system(self) -> str:
+        """Default system message for grounding."""
+        return """You are a helpful assistant that answers questions based ONLY on the provided context.
 
+Rules:
+1. Use ONLY the information in the provided context
+2. Cite your sources using [1], [2], etc.
+3. If the context doesn't contain the answer, say "I don't have enough information to answer this question."
+4. Do not make up information or use outside knowledge
+5. Be concise but complete"""
+    
+    def format(
+        self,
+        question: str,
+        contexts: List[str],
+        chat_history: List[Dict] = None
+    ) -> str:
+        """Format the complete prompt."""
+        parts = []
+        
+        # System message
+        parts.append(f"System: {self.system_message}")
+        parts.append("")
+        
+        # Chat history if provided
+        if chat_history:
+            for msg in chat_history:
+                role = msg.get('role', 'user')
+                content = msg.get('content', '')
+                parts.append(f"{role.capitalize()}: {content}")
+            parts.append("")
+        
+        # Context with citations
+        parts.append("Context:")
+        for i, ctx in enumerate(contexts, 1):
+            parts.append(f"[{i}] {ctx}")
+        parts.append("")
+        
+        # Question
+        parts.append(f"Question: {question}")
+        parts.append("")
+        
+        # Instructions
+        if self.require_citations:
+            parts.append("Provide your answer with citations [1], [2], etc.")
+        
+        if self.allow_refusal:
+            parts.append('If you cannot answer from the context, say "I don\'t have enough information."')
+        
+        parts.append("")
+        parts.append("Answer:")
+        
+        return "\n".join(parts)
+```
 
+### Part 2: Citation Extractor
+
+```python
+import re
+from typing import List, Tuple
+
+class CitationExtractor:
+    """Extract citations from model responses."""
+    
+    def __init__(self, citation_pattern: str = r'\[(\d+)\]'):
+        self.pattern = re.compile(citation_pattern)
+    
+    def extract(self, text: str) -> List[int]:
+        """Extract all citation numbers from text."""
+        matches = self.pattern.findall(text)
+        return [int(m) for m in matches]
+    
+    def validate_citations(
+        self,
+        text: str,
+        available_contexts: int
+    ) -> Tuple[bool, List[int], List[int]]:
+        """Validate citations against available contexts.
+        
+        Returns:
+            (is_valid, valid_citations, invalid_citations)
+        """
+        citations = self.extract(text)
+        
+        valid = [c for c in citations if 1 <= c <= available_contexts]
+        invalid = [c for c in citations if c not in valid]
+        
+        return len(invalid) == 0, valid, invalid
+    
+    def remove_citations(self, text: str) -> str:
+        """Remove citation markers from text."""
+        return self.pattern.sub('', text).strip()
+```
+
+### Part 3: Refusal Detection
+
+```python
+class RefusalDetector:
+    """Detect when model refuses to answer."""
+    
+    def __init__(self):
+        self.refusal_patterns = [
+            r"i don't have enough information",
+            r"i don't know",
+            r"not mentioned in the context",
+            r"cannot answer",
+            r"no information provided",
+            r"context does not contain",
+            r"i'm not sure",
+        ]
+    
+    def is_refusal(self, text: str) -> bool:
+        """Check if response is a refusal."""
+        text_lower = text.lower()
+        return any(
+            re.search(pattern, text_lower)
+            for pattern in self.refusal_patterns
+        )
+    
+    def get_refusal_confidence(self, text: str) -> float:
+        """Get confidence that response is a refusal (0-1)."""
+        text_lower = text.lower()
+        matches = sum(
+            1 for pattern in self.refusal_patterns
+            if re.search(pattern, text_lower)
+        )
+        return min(matches / 2, 1.0)  # Cap at 1.0
+```
+
+### Part 4: Complete Template Manager
+
+```python
+class PromptTemplateManager:
+    """Manage multiple prompt templates for different use cases."""
+    
+    def __init__(self):
+        self.templates = {
+            'default': RAGPromptTemplate(),
+            'detailed': RAGPromptTemplate(
+                system_message="""You are a thorough research assistant.
+Provide detailed answers with specific citations.
+Always explain your reasoning.""",
+                require_citations=True
+            ),
+            'concise': RAGPromptTemplate(
+                system_message="""You are a concise assistant.
+Give brief, direct answers.
+Cite sources minimally.""",
+                require_citations=True
+            ),
+            'strict': RAGPromptTemplate(
+                system_message="""You are a strict fact-checker.
+ONLY state facts found in the context.
+Never infer or assume.
+Always cite every claim.""",
+                require_citations=True,
+                allow_refusal=True
+            )
+        }
+    
+    def get_template(self, name: str) -> RAGPromptTemplate:
+        """Get a template by name."""
+        return self.templates.get(name, self.templates['default'])
+    
+    def add_template(self, name: str, template: RAGPromptTemplate):
+        """Add a custom template."""
+        self.templates[name] = template
+```
+
+## Example Usage
+
+```python
+# Create template
+template = RAGPromptTemplate()
+
+# Format prompt
+contexts = [
+    "The capital of France is Paris.",
+    "Paris has a population of 2.1 million."
+]
+prompt = template.format(
+    question="What is the capital of France?",
+    contexts=contexts
+)
+
+# Generate answer (using your LLM)
+answer = llm.generate(prompt)
+
+# Extract and validate citations
+extractor = CitationExtractor()
+is_valid, valid_cits, invalid_cits = extractor.validate_citations(
+    answer, len(contexts)
+)
+
+print(f"Valid citations: {valid_cits}")
+print(f"Invalid citations: {invalid_cits}")
+```
+
+## Evaluation Criteria
+
+Your solution will be evaluated on:
+
+1. **Grounding**: Prompt enforces context-only answers
+2. **Citation Format**: Clear, parseable citation markers
+3. **Refusal Handling**: Proper detection of "I don't know"
+4. **Flexibility**: Multiple templates for different use cases
+5. **Validation**: Can verify citations match contexts

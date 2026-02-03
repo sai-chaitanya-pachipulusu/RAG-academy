@@ -2,86 +2,411 @@
 title: "Query Expansion with Synonyms"
 description: "Expand queries with synonyms to improve retrieval recall"
 difficulty: "medium"
-timeEstimate: "25-30 min"
-xpReward: 75
+xpReward: 100
+topics: ["query-expansion", "synonyms", "retrieval", "recall"]
 prerequisites: []
 ---
 
 # Query Expansion with Synonyms
 
-## The Vocabulary Mismatch Problem
+## Overview
 
-**User asks**: "My laptop has an error"
-**Documents say**: "If your notebook displays an issue..."
+The vocabulary mismatch problem: User asks "My laptop has an error" but documents say "If your notebook displays an issue..." Same meaning, different words. The query won't match! Query expansion solves this by adding synonyms to broaden the search.
 
-Same meaning, different words. The query won't match!
+## Why This Matters
 
----
+- **Vocabulary Gap**: Users and documents use different words
+- **Recall Improvement**: Find relevant docs with different terminology
+- **Domain Adaptation**: Handle domain-specific synonyms
+- **User Experience**: Better results without user reformulation
 
-## The Solution: Synonym Expansion
+## Key Concepts
 
-```python
-Original: "laptop error"
-Expanded: [
-    "laptop error",           # Original
-    "notebook error",         # Synonym 1
-    "laptop bug",             # Synonym 2
-    "portable computer issue" # Synonym 3
-]
-```
+- **Synonym mapping**: Word → list of equivalents
+- **Expansion strategies**: Replace vs augment vs combine
+- **Scoring**: How to rank expanded query results
+- **Filtering**: Avoid over-expansion noise
 
-Search with ALL versions, union the results.
+## Real-World Applications
 
----
+| Domain | Example Expansion |
+|--------|-------------------|
+| **Tech Support** | "laptop" → "notebook", "computer" |
+| **Medical** | "heart attack" → "myocardial infarction" |
+| **Legal** | "contract" → "agreement", "deed" |
+| **E-commerce** | "phone" → "smartphone", "mobile", "cell" |
 
-## Implementation Approaches
+## The Challenge
 
-### 1. Dictionary-Based
-
-```python
-SYNONYMS = {
-    "laptop": ["notebook", "portable computer"],
-    "error": ["bug", "issue", "problem"]
-}
-```
-
-### 2. Word2Vec Similar Words
+### Part 1: Synonym Dictionary
 
 ```python
-similar_words = word2vec.most_similar("laptop", topn=3)
+from typing import List, Dict, Set
+from dataclasses import dataclass
+
+@dataclass
+class SynonymEntry:
+    """Synonym entry with metadata."""
+    term: str
+    synonyms: List[str]
+    domain: str = "general"
+    confidence: float = 1.0
+
+class SynonymDictionary:
+    """Dictionary of term synonyms."""
+    
+    def __init__(self):
+        self.synonyms: Dict[str, SynonymEntry] = {}
+        self._build_default_dictionary()
+    
+    def _build_default_dictionary(self):
+        """Build default synonym mappings."""
+        defaults = {
+            # Tech terms
+            "laptop": ["notebook", "portable computer", "machine"],
+            "computer": ["pc", "machine", "device", "workstation"],
+            "error": ["bug", "issue", "problem", "fault", "defect"],
+            "fix": ["repair", "resolve", "solve", "correct", "patch"],
+            "update": ["upgrade", "refresh", "sync", "install"],
+            
+            # Common business terms
+            "buy": ["purchase", "acquire", "obtain", "get"],
+            "sell": ["sale", "dispose", "transfer", "market"],
+            "help": ["assist", "support", "aid", "guide"],
+            "start": ["begin", "initiate", "launch", "commence"],
+            "end": ["finish", "complete", "terminate", "conclude"],
+            
+            # RAG-specific
+            "retrieval": ["fetch", "get", "obtain", "search"],
+            "embedding": ["vector", "representation", "encoding"],
+            "chunk": ["segment", "piece", "part", "fragment"],
+        }
+        
+        for term, syns in defaults.items():
+            self.add_synonyms(term, syns)
+    
+    def add_synonyms(
+        self,
+        term: str,
+        synonyms: List[str],
+        domain: str = "general",
+        confidence: float = 1.0
+    ):
+        """Add synonyms for a term."""
+        term = term.lower()
+        self.synonyms[term] = SynonymEntry(
+            term=term,
+            synonyms=[s.lower() for s in synonyms],
+            domain=domain,
+            confidence=confidence
+        )
+    
+    def get_synonyms(
+        self,
+        term: str,
+        max_synonyms: int = None
+    ) -> List[str]:
+        """Get synonyms for a term."""
+        term = term.lower()
+        entry = self.synonyms.get(term)
+        
+        if not entry:
+            return []
+        
+        syns = entry.synonyms
+        if max_synonyms:
+            syns = syns[:max_synonyms]
+        
+        return syns
+    
+    def has_synonyms(self, term: str) -> bool:
+        """Check if term has synonyms."""
+        return term.lower() in self.synonyms
 ```
 
-### 3. LLM-Generated
+### Part 2: Query Expander
 
 ```python
-synonyms = llm.generate(f"List synonyms for: {term}")
+from typing import List
+from enum import Enum
+
+class ExpansionStrategy(Enum):
+    """Strategy for query expansion."""
+    REPLACE = "replace"      # Replace terms with synonyms
+    APPEND = "append"        # Add synonyms to query
+    COMBINE = "combine"      # Create separate queries for each synonym
+
+class QueryExpander:
+    """Expand queries with synonyms."""
+    
+    def __init__(
+        self,
+        dictionary: SynonymDictionary = None,
+        strategy: ExpansionStrategy = ExpansionStrategy.COMBINE,
+        max_expansions: int = 3,
+        min_term_length: int = 3
+    ):
+        self.dictionary = dictionary or SynonymDictionary()
+        self.strategy = strategy
+        self.max_expansions = max_expansions
+        self.min_term_length = min_term_length
+    
+    def expand(self, query: str) -> List[str]:
+        """Expand query with synonyms."""
+        tokens = query.lower().split()
+        
+        if self.strategy == ExpansionStrategy.REPLACE:
+            return self._expand_replace(tokens)
+        elif self.strategy == ExpansionStrategy.APPEND:
+            return self._expand_append(tokens)
+        else:  # COMBINE
+            return self._expand_combine(tokens)
+    
+    def _expand_replace(self, tokens: List[str]) -> List[str]:
+        """Replace terms with synonyms."""
+        expanded = []
+        
+        for i, token in enumerate(tokens):
+            if len(token) < self.min_term_length:
+                continue
+            
+            synonyms = self.dictionary.get_synonyms(token)
+            if synonyms:
+                # Create new query with synonym replacement
+                for syn in synonyms[:self.max_expansions]:
+                    new_tokens = tokens.copy()
+                    new_tokens[i] = syn
+                    expanded.append(' '.join(new_tokens))
+        
+        return expanded if expanded else [' '.join(tokens)]
+    
+    def _expand_append(self, tokens: List[str]) -> List[str]:
+        """Append synonyms to query."""
+        expanded_terms = []
+        
+        for token in tokens:
+            if len(token) >= self.min_term_length:
+                synonyms = self.dictionary.get_synonyms(
+                    token,
+                    max_synonyms=self.max_expansions
+                )
+                if synonyms:
+                    expanded_terms.extend(synonyms)
+        
+        # Combine original with expanded terms
+        expanded_query = ' '.join(tokens + expanded_terms)
+        return [expanded_query]
+    
+    def _expand_combine(self, tokens: List[str]) -> List[str]:
+        """Create separate queries for each synonym combination."""
+        queries = [' '.join(tokens)]  # Original query
+        
+        for i, token in enumerate(tokens):
+            if len(token) < self.min_term_length:
+                continue
+            
+            synonyms = self.dictionary.get_synonyms(
+                token,
+                max_synonyms=self.max_expansions
+            )
+            
+            for syn in synonyms:
+                new_tokens = tokens.copy()
+                new_tokens[i] = syn
+                queries.append(' '.join(new_tokens))
+        
+        return queries
 ```
 
----
+### Part 3: Expanded Query Retriever
 
-## Impact on Retrieval
+```python
+class ExpandedQueryRetriever:
+    """Retriever that uses query expansion."""
+    
+    def __init__(
+        self,
+        expander: QueryExpander,
+        vector_store,
+        embedding_model,
+        fusion_strategy: str = "rrf"  # rrf or sum
+    ):
+        self.expander = expander
+        self.store = vector_store
+        self.embedder = embedding_model
+        self.fusion_strategy = fusion_strategy
+    
+    def retrieve(
+        self,
+        query: str,
+        top_k: int = 5
+    ) -> List[Dict]:
+        """Retrieve using expanded queries."""
+        # Expand query
+        expanded_queries = self.expander.expand(query)
+        
+        # Retrieve for each query
+        all_results = []
+        for eq in expanded_queries:
+            embedding = self.embedder.embed(eq)
+            results = self.store.search(embedding, k=top_k)
+            
+            for r in results:
+                r['source_query'] = eq
+                r['is_expanded'] = (eq != query)
+            
+            all_results.extend(results)
+        
+        # Fuse results
+        if self.fusion_strategy == "rrf":
+            return self._fuse_rrf(all_results, top_k)
+        else:
+            return self._fuse_sum(all_results, top_k)
+    
+    def _fuse_rrf(
+        self,
+        results: List[Dict],
+        top_k: int,
+        k_constant: int = 60
+    ) -> List[Dict]:
+        """Fuse results using Reciprocal Rank Fusion."""
+        # Group by document
+        doc_scores = {}
+        
+        # Track ranks per query
+        query_results = {}
+        for r in results:
+            sq = r['source_query']
+            if sq not in query_results:
+                query_results[sq] = []
+            query_results[sq].append(r)
+        
+        # Calculate RRF scores
+        for sq, qr in query_results.items():
+            for rank, r in enumerate(qr, 1):
+                doc_id = r['id']
+                if doc_id not in doc_scores:
+                    doc_scores[doc_id] = {
+                        'score': 0,
+                        'doc': r
+                    }
+                
+                # RRF formula: 1 / (k + rank)
+                doc_scores[doc_id]['score'] += 1 / (k_constant + rank)
+        
+        # Sort by fused score
+        sorted_docs = sorted(
+            doc_scores.values(),
+            key=lambda x: x['score'],
+            reverse=True
+        )
+        
+        # Return top-k
+        return [d['doc'] for d in sorted_docs[:top_k]]
+    
+    def _fuse_sum(
+        self,
+        results: List[Dict],
+        top_k: int
+    ) -> List[Dict]:
+        """Fuse results by summing scores."""
+        # Group by document and sum scores
+        doc_scores = {}
+        
+        for r in results:
+            doc_id = r['id']
+            if doc_id not in doc_scores:
+                doc_scores[doc_id] = {
+                    'score': 0,
+                    'doc': r
+                }
+            
+            doc_scores[doc_id]['score'] += r.get('score', 0)
+        
+        # Sort and return
+        sorted_docs = sorted(
+            doc_scores.values(),
+            key=lambda x: x['score'],
+            reverse=True
+        )
+        
+        return [d['doc'] for d in sorted_docs[:top_k]]
+```
 
-| Metric    | Without Expansion | With Expansion |
-| --------- | ----------------- | -------------- |
-| Recall    | 75%               | 92%            |
-| Precision | 85%               | 78%            |
-| F1        | 80%               | 85%            |
+### Part 4: Expansion Evaluator
 
-Expansion improves recall at slight precision cost.
+```python
+class ExpansionEvaluator:
+    """Evaluate query expansion effectiveness."""
+    
+    def __init__(self, retriever: ExpandedQueryRetriever):
+        self.retriever = retriever
+    
+    def evaluate(
+        self,
+        test_queries: List[str],
+        ground_truth: List[List[str]],
+        top_k: int = 5
+    ) -> Dict[str, float]:
+        """Evaluate expansion vs baseline."""
+        baseline_metrics = []
+        expansion_metrics = []
+        
+        for query, relevant in zip(test_queries, ground_truth):
+            relevant_set = set(relevant)
+            
+            # Baseline (no expansion)
+            baseline_emb = self.retriever.embedder.embed(query)
+            baseline_results = self.retriever.store.search(baseline_emb, k=top_k)
+            baseline_ids = {r['id'] for r in baseline_results}
+            
+            baseline_recall = len(baseline_ids & relevant_set) / len(relevant_set)
+            baseline_metrics.append(baseline_recall)
+            
+            # With expansion
+            expansion_results = self.retriever.retrieve(query, top_k=top_k)
+            expansion_ids = {r['id'] for r in expansion_results}
+            
+            expansion_recall = len(expansion_ids & relevant_set) / len(relevant_set)
+            expansion_metrics.append(expansion_recall)
+        
+        return {
+            'baseline_avg_recall': sum(baseline_metrics) / len(test_queries),
+            'expansion_avg_recall': sum(expansion_metrics) / len(test_queries),
+            'improvement': (
+                sum(expansion_metrics) - sum(baseline_metrics)
+            ) / len(test_queries),
+            'queries_improved': sum(
+                1 for b, e in zip(baseline_metrics, expansion_metrics) if e > b
+            )
+        }
+```
 
----
+## Example Usage
 
-## Industry Usage
+```python
+# Create components
+dictionary = SynonymDictionary()
+expander = QueryExpander(dictionary, strategy=ExpansionStrategy.COMBINE)
 
-- **Elasticsearch**: Built-in synonym filters
-- **Algolia**: Automatic synonyms feature
-- **Google**: Query understanding pipeline
+# Expand query
+query = "laptop error"
+expanded = expander.expand(query)
+print(f"Original: {query}")
+print(f"Expanded: {expanded}")
+# Output: ['laptop error', 'notebook error', 'portable computer error', ...]
 
----
+# Retrieve with expansion
+retriever = ExpandedQueryRetriever(expander, store, embedder)
+results = retriever.retrieve("laptop error", top_k=5)
+```
 
-## Related Challenges
+## Evaluation Criteria
 
-- `hyde-implementation` - Generate hypothetical answers
-- `query-decomposition` - Break complex queries
-- `intent-classification` - Understand query type
+Your solution will be evaluated on:
 
+1. **Expansion Coverage**: Relevant synonyms included
+2. **Precision**: Not too many irrelevant expansions
+3. **Recall Improvement**: Better retrieval than baseline
+4. **Fusion Quality**: Good combined ranking
+5. **Efficiency**: Reasonable number of expanded queries

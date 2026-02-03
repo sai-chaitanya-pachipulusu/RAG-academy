@@ -1,4 +1,14 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "Table Parsing for RAG"
+description: "Transform noisy, unformatted tables into clean Markdown to improve LLM comprehension"
+difficulty: "medium"
+estimatedMinutes: 30
+xpReward: 55
+prerequisites: []
+related: ["pdf-table-extraction", "markdown-header-chunking", "json-schema-parser"]
+---
+
+<Callout title="Goal" variant="info">
   Transform noisy, unformatted tables into clean Markdown to improve LLM
   comprehension.
 </Callout>
@@ -12,7 +22,285 @@ This is ambiguous. By transforming it into Markdown:
 `| Apple | $10B | $12B |`
 The model can clearly see the alignment between "Apple" and "$12B".
 
-## Task
+## Why This Matters in Production
+
+Tables contain critical structured data that plain text destroys:
+
+| Problem | Impact |
+|---------|--------|
+| **Lost structure** | Rows/columns become jumbled text |
+| **Misaligned data** | LLM can't associate values with headers |
+| **Missing context** | Header information lost |
+| **Poor retrieval** | Tabular data doesn't match queries |
+
+## What You're Implementing
 
 Implement a heuristic-based parser that detects column boundaries based on whitespace gaps and wraps the content in Markdown table syntax.
+
+## The Table Parsing Pipeline
+
+```
+Raw PDF Text → Detect Columns → Extract Rows → Markdown Table
+      ↓              ↓               ↓              ↓
+"Rev  Q1  Q2    | Revenue | Q1 | Q2 |  | Revenue | Q1 | Q2 |
+ $10M $5M"      | $10M    | $5M |    |  | $10M    | $5M |
+```
+
+## Mathematical Foundations
+
+### Column Detection
+
+```
+Whitespace gaps → Histogram → Threshold → Column boundaries
+
+Gap frequency analysis:
+- Large consistent gaps = column separators
+- Small variable gaps = intra-column spacing
+```
+
+### Alignment Scoring
+
+```
+Alignment Score = Σ(match_position / total_positions)
+
+Where high scores indicate consistent column alignment.
+```
+
+## Implementation Example
+
+```python
+import re
+from typing import List, Tuple, Optional
+from dataclasses import dataclass
+
+@dataclass
+class Table:
+    """Represents a parsed table with headers and rows."""
+    headers: List[str]
+    rows: List[List[str]]
+    
+    def to_markdown(self) -> str:
+        """Convert to Markdown table format."""
+        if not self.headers and not self.rows:
+            return ""
+        
+        lines = []
+        
+        # Header row
+        if self.headers:
+            lines.append("| " + " | ".join(self.headers) + " |")
+            lines.append("|" + "|".join([" --- " for _ in self.headers]) + "|")
+        
+        # Data rows
+        for row in self.rows:
+            lines.append("| " + " | ".join(row) + " |")
+        
+        return "\n".join(lines)
+
+class TableParser:
+    """Parse unstructured table text into structured Markdown."""
+    
+    def __init__(self, min_column_gap: int = 3):
+        """
+        Initialize parser.
+        
+        Args:
+            min_column_gap: Minimum spaces to consider as column separator
+        """
+        self.min_column_gap = min_column_gap
+    
+    def parse(self, text: str) -> Optional[Table]:
+        """
+        Parse table text into structured format.
+        
+        Time Complexity: O(R × C) where R = rows, C = columns
+        Space Complexity: O(R × C) for storing parsed table
+        
+        Args:
+            text: Raw table text with whitespace-separated values
+            
+        Returns:
+            Parsed Table object or None if parsing fails
+            
+        Example:
+            >>> parser = TableParser()
+            >>> text = '''Revenue    Q1      Q2
+            ...           $10M       $5M     $7M'''
+            >>> table = parser.parse(text)
+            >>> print(table.to_markdown())
+            | Revenue | Q1 | Q2 |
+            | --- | --- | --- |
+            | $10M | $5M | $7M |
+        """
+        lines = [line.strip() for line in text.strip().split('\n') if line.strip()]
+        
+        if not lines:
+            return None
+        
+        # Detect column positions from whitespace
+        column_positions = self._detect_columns(lines)
+        
+        # Extract cells
+        headers = self._extract_row(lines[0], column_positions)
+        rows = [self._extract_row(line, column_positions) for line in lines[1:]]
+        
+        return Table(headers=headers, rows=rows)
+    
+    def _detect_columns(self, lines: List[str]) -> List[int]:
+        """
+        Detect column boundaries by analyzing whitespace gaps.
+        
+        Uses a heuristic: consistent large gaps indicate column separators.
+        """
+        if not lines:
+            return []
+        
+        # Find all whitespace positions
+        max_len = max(len(line) for line in lines)
+        gap_scores = [0] * max_len
+        
+        for line in lines:
+            in_space = False
+            space_start = 0
+            
+            for i, char in enumerate(line):
+                if char.isspace():
+                    if not in_space:
+                        in_space = True
+                        space_start = i
+                else:
+                    if in_space:
+                        gap_size = i - space_start
+                        if gap_size >= self.min_column_gap:
+                            for pos in range(space_start, i):
+                                gap_scores[pos] += gap_size
+                        in_space = False
+        
+        # Find peaks in gap scores (column boundaries)
+        boundaries = [0]  # Start boundary
+        for i in range(1, len(gap_scores) - 1):
+            if gap_scores[i] > gap_scores[i-1] and gap_scores[i] > gap_scores[i+1]:
+                if gap_scores[i] > len(lines) * 2:  # Threshold
+                    boundaries.append(i)
+        
+        return boundaries
+    
+    def _extract_row(self, line: str, positions: List[int]) -> List[str]:
+        """Extract cells from a line based on column positions."""
+        cells = []
+        for i in range(len(positions)):
+            start = positions[i]
+            end = positions[i + 1] if i + 1 < len(positions) else len(line)
+            cell = line[start:end].strip()
+            cells.append(cell)
+        return cells
+    
+    def parse_csv_like(self, text: str, delimiter: str = ',') -> Table:
+        """Parse CSV-like text into table."""
+        lines = text.strip().split('\n')
+        rows = [line.split(delimiter) for line in lines]
+        
+        # Assume first row is headers
+        headers = [cell.strip() for cell in rows[0]]
+        data_rows = [[cell.strip() for cell in row] for row in rows[1:]]
+        
+        return Table(headers=headers, rows=data_rows)
+
+# Usage Example
+parser = TableParser()
+raw_text = """
+Product     Q1 Sales    Q2 Sales    Q3 Sales
+Widget      $10,000     $12,000     $15,000
+Gadget      $8,000      $9,000      $11,000
+"""
+
+table = parser.parse(raw_text)
+if table:
+    print(table.to_markdown())
+    # Output:
+    # | Product | Q1 Sales | Q2 Sales | Q3 Sales |
+    # | --- | --- | --- | --- |
+    # | Widget | $10,000 | $12,000 | $15,000 |
+    # | Gadget | $8,000 | $9,000 | $11,000 |
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Column Detection | O(R × L) | R rows, L = line length |
+| Row Extraction | O(R × C) | C columns |
+| Markdown Generation | O(R × C) | Formatting output |
+| Total | O(R × L) | Dominated by column detection |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand how to extract structure from unstructured text
+- Be able to implement heuristic-based parsers
+- Know how to format data for LLM consumption
+
+## Real-World Applications
+
+| Tool | Table Parsing Approach |
+|------|----------------------|
+| **LlamaParse** | ML-based table detection |
+| **Unstructured** | Rule-based + ML hybrid |
+| **Camelot** | PDF table extraction specialist |
+| **Tabula** | Open-source PDF table extractor |
+
+## Common Pitfalls
+
+- **Inconsistent spacing**: Variable-width fonts break gap detection
+- **Merged cells**: Row/column spans complicate parsing
+- **Multi-line cells**: Line breaks within cells
+- **Missing headers**: Tables without clear header rows
+- **Nested tables**: Tables within tables
+
+## Production Extensions (Optional)
+
+- **ML-based Detection**: Use layout models (LayoutLM, DETR)
+- **OCR Integration**: Handle scanned documents
+- **Table Classification**: Distinguish data tables from layout tables
+- **Cell Type Detection**: Numbers, dates, currencies
+- **Validation**: Check table consistency and completeness
+
+## Resources
+
+### Documentation
+- [Markdown Tables](https://www.markdownguide.org/extended-syntax/#tables)
+- [Camelot Documentation](https://camelot-py.readthedocs.io/)
+- [Tabula Documentation](https://tabula.technology/)
+
+### Tools
+- **Camelot**: PDF table extraction
+- **Tabula**: PDF table extraction
+- **Pandas**: Table manipulation
+- **BeautifulSoup**: HTML table parsing
+
+### Papers
+- "DeepDeSRT: Deep Learning for Detection and Structure Recognition of Tables in Document Images" (Schreiber et al., 2017)
+- "ICDAR 2019 Competition on Table Detection and Recognition" (
+
+## Interview Questions
+
+1. **Why convert tables to Markdown for LLMs?**
+   - Markdown preserves structure while being text-based and token-efficient
+
+2. **How do you handle tables with merged cells?**
+   - Duplicate values, use special tokens, or represent as hierarchical structure
+
+3. **What are the challenges in PDF table extraction?**
+   - No table markup, visual layout only, variable fonts, scanned images
+
+## After You Pass
+
+Handle more complex document structures:
+- [pdf-table-extraction](pdf-table-extraction) - PDF-specific extraction
+- [markdown-header-chunking](markdown-header-chunking) - Preserve document structure
+- [json-schema-parser](json-schema-parser) - Structured data parsing
+
+---
+
+**📊 Structure Matters:** Well-parsed tables transform from noise into valuable structured data!
 

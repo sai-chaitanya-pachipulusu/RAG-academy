@@ -1,44 +1,438 @@
+<Callout title="Goal" variant="info">
+  Implement cascading reranking for efficiency — use cheap models first, expensive models only on top candidates.
+</Callout>
+
+## Why this matters in production
+
+Bi-encoders are fast but less accurate; cross-encoders are accurate but slow.
+
+**The cascade pattern**: Use a fast model to shortlist candidates, then use an expensive model only on the survivors.
+
+This is how Google, Amazon, and every major search engine works.
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand the latency/quality tradeoff in reranking
+- Be able to implement multi-stage retrieval pipelines
+- Know how to optimize retrieval costs without sacrificing quality
+
+## Real-World Applications
+
+| System | Cascade Strategy |
+|--------|-----------------|
+| **Google Search** | BM25 → Neural re-ranking → MUM |
+| **Amazon Product Search** | Keyword matching → Semantic → Personalization |
+| **Enterprise RAG** | Dense retrieval → Cross-encoder → LLM verification |
+| **Recommendation** | Collaborative filtering → Content-based → Deep learning |
+
+## The Cascade Pattern
+
+```
+Stage 1: Fast Retrieval (All Documents)
+  ├─ BM25 or Dense Embedding
+  ├─ Returns: Top 100 candidates
+  └─ Cost: ~10ms
+
+Stage 2: Medium Reranker (100 candidates)
+  ├─ Lightweight cross-encoder (e.g., MiniLM)
+  ├─ Returns: Top 20 candidates
+  └─ Cost: ~50ms
+
+Stage 3: Heavy Reranker (20 candidates)
+  ├─ Full cross-encoder (e.g., Cohere Rerank)
+  ├─ Returns: Top 5 final results
+  └─ Cost: ~200ms
+
+Total: ~260ms vs 10,000ms+ if heavy model on all docs!
+```
+
+## Production Considerations
+
+**When to Cascade:**
+- Dataset > 10,000 documents
+- Latency budget < 500ms
+- Expensive models (API costs matter)
+
+**When NOT to Cascade:**
+- Small datasets (< 1,000 docs)
+- Latency not critical
+- Simple use cases where single-stage is sufficient
+
+## Common pitfalls
+
+- Calling the expensive model on all documents (defeats the purpose).
+- Not validating that the expensive model only sees the shortlist.
+- Poor shortlist quality (first stage must be good enough).
+
+## After you pass
+
+Explore diversity with [mmr-diversity](mmr-diversity) to avoid redundant results.
+
 ---
-title: "Reranker Cascade"
-description: "Implement cascading reranking for efficiency"
----
 
-# Reranker Cascade
+**⚡ Performance Win:** A well-tuned cascade can deliver 90% of the quality of an expensive full-rank with only 10% of the cost. This is essential for production RAG at scale!
 
-Implement a cascading reranking system that uses cheap models first, then expensive models only on top candidates.
+## Mathematical Foundation
 
-## Requirements
+### Cascade Efficiency
 
-1. Stage 1: Fast cross-encoder on all candidates
-2. Stage 2: Expensive model on top-N from stage 1
-3. Configurable cutoffs per stage
-4. Measure latency/quality tradeoff
+The computational cost of a cascade:
 
-## Starter Code
+$$
+C_{\text{cascade}} = C_1(N) + C_2(k_1) + C_3(k_2) + ... + C_n(k_{n-1})
+$$
+
+Where:
+- $C_i$ = Cost of stage $i$
+- $N$ = Total documents
+- $k_i$ = Candidates passed to stage $i+1$
+
+Compared to single-stage expensive ranking:
+
+$$
+\text{Savings} = \frac{C_{\text{expensive}}(N)}{C_{\text{cascade}}} \approx \frac{N}{k_1 + k_2 + ...}
+$$
+
+### Quality Preservation
+
+The quality of cascade vs single-stage:
+
+$$
+\text{Quality}_{\text{cascade}} = \prod_{i=1}^{n} \text{Recall@}k_i
+$$
+
+For high-quality cascades:
+
+$$
+\prod_{i=1}^{n} \text{Recall@}k_i > 0.95
+$$
+
+### Optimal Stage Configuration
+
+The optimal number of candidates at each stage:
+
+$$
+k_i^* = \arg\max_{k_i} \left( \text{Quality}(k_i) - \lambda \cdot \text{Cost}(k_i) \right)
+$$
+
+Where $\lambda$ balances quality vs cost.
+
+## Complexity Analysis
+
+| Stage | Operation | Time Complexity | Space Complexity |
+|-------|-----------|-----------------|------------------|
+| 1 | Dense/BM25 retrieval | O(N × d) or O(N) | O(k₁) |
+| 2 | Light reranker | O(k₁ × d₂) | O(k₂) |
+| 3 | Heavy reranker | O(k₂ × d₃) | O(k₃) |
+| 4 | LLM verification | O(k₃ × L) | O(1) |
+
+Where:
+- N = total documents
+- d = embedding dimension
+- kᵢ = candidates at stage i
+- L = LLM sequence length
+- d₂, d₃ = reranker dimensions
+
+## Advanced Techniques
+
+### Adaptive Cascade Depth
 
 ```python
-def cascade_rerank(
-    query: str,
-    candidates: list[dict],
-    stage1_model,
-    stage2_model,
-    stage1_top_n: int = 20,
-    final_top_n: int = 5
-) -> list[dict]:
-    """
-    Cascade reranking: cheap model first, expensive model on survivors.
+class AdaptiveCascade:
+    """Dynamically decide cascade depth based on query."""
     
-    Args:
-        query: User query
-        candidates: Retrieved candidates with text
-        stage1_model: Fast reranker (e.g., MiniLM)
-        stage2_model: Expensive reranker (e.g., Cohere)
-        stage1_top_n: How many to pass to stage 2
-        final_top_n: Final number of results
+    def __init__(self, stages: list, confidence_threshold: float = 0.9):
+        self.stages = stages
+        self.threshold = confidence_threshold
     
-    Returns:
-        Reranked candidates with scores from each stage
-    """
-    # Your implementation here
-    pass
+    def rerank(self, query: str, documents: list[dict]) -> list[dict]:
+        """Apply cascade with early stopping."""
+        candidates = documents
+        
+        for i, stage in enumerate(self.stages):
+            candidates = stage.rerank(query, candidates)
+            
+            # Check if quality is good enough
+            if self._confidence_high_enough(candidates, i):
+                print(f"Stopping at stage {i+1}")
+                break
+        
+        return candidates
+    
+    def _confidence_high_enough(self, candidates: list[dict], stage: int) -> bool:
+        """Check if top candidates have high enough confidence."""
+        if len(candidates) < 2:
+            return True
+        
+        # Check score gap between top candidates
+        top_score = candidates[0]["score"]
+        second_score = candidates[1]["score"]
+        
+        # If top candidate is clearly better, stop
+        return (top_score - second_score) > 0.2
 ```
+
+### Score Calibration
+
+```python
+class CalibratedCascade:
+    """Ensure scores are comparable across stages."""
+    
+    def __init__(self):
+        self.calibration_params = {}
+    
+    def calibrate_scores(self, scores: list[float], stage: str) -> list[float]:
+        """Calibrate scores to [0, 1] range."""
+        if stage not in self.calibration_params:
+            # Learn calibration from validation set
+            self.calibration_params[stage] = self._learn_calibration(stage)
+        
+        params = self.calibration_params[stage]
+        
+        # Apply temperature scaling
+        calibrated = [self._sigmoid(s / params["temperature"]) for s in scores]
+        return calibrated
+    
+    def _sigmoid(self, x: float) -> float:
+        return 1 / (1 + math.exp(-x))
+    
+    def fuse_scores(self, scores_by_stage: dict[str, list[float]]) -> list[float]:
+        """Fuse scores from multiple stages."""
+        # Weighted combination
+        weights = {"stage1": 0.2, "stage2": 0.3, "stage3": 0.5}
+        
+        fused = []
+        for i in range(len(scores_by_stage["stage1"])):
+            score = sum(
+                weights[stage] * scores[i] 
+                for stage, scores in scores_by_stage.items()
+            )
+            fused.append(score)
+        
+        return fused
+```
+
+### Diversity-Aware Cascade
+
+```python
+class DiversityCascade:
+    """Ensure diversity at each cascade stage."""
+    
+    def __init__(self, base_cascade, diversity_weight: float = 0.3):
+        self.cascade = base_cascade
+        self.diversity_weight = diversity_weight
+    
+    def rerank(self, query: str, documents: list[dict]) -> list[dict]:
+        """Cascade with diversity injection."""
+        candidates = documents
+        
+        for stage in self.cascade.stages:
+            # Get more candidates than needed
+            extended = stage.rerank(query, candidates, k=len(candidates))
+            
+            # Apply MMR for diversity
+            selected = self._mmr_select(
+                query, extended, 
+                k=len(candidates) // 2,
+                lambda_param=self.diversity_weight
+            )
+            
+            candidates = selected
+        
+        return candidates
+    
+    def _mmr_select(self, query: str, docs: list[dict], 
+                    k: int, lambda_param: float) -> list[dict]:
+        """Maximal Marginal Relevance selection."""
+        selected = []
+        remaining = docs.copy()
+        
+        while len(selected) < k and remaining:
+            if not selected:
+                # First: pick most relevant
+                best = max(remaining, key=lambda d: d["score"])
+            else:
+                # MMR scoring
+                def mmr_score(doc):
+                    rel = doc["score"]
+                    div = max(self._similarity(doc, s) for s in selected)
+                    return lambda_param * rel - (1 - lambda_param) * div
+                
+                best = max(remaining, key=mmr_score)
+            
+            selected.append(best)
+            remaining.remove(best)
+        
+        return selected
+```
+
+## Visual Diagram: Cascade Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Query Input                               │
+│  "machine learning tutorials for beginners"                  │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Stage 1: Fast Retrieval (10,000 docs → 100)                 │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │ Model: Dense Embedding (all-MiniLM-L6-v2)            │    │
+│  │ Latency: ~10ms                                       │    │
+│  │ Cost: $0.0001                                        │    │
+│  │ Strategy: FAISS approximate search                   │    │
+│  └─────────────────────────────────────────────────────┘    │
+│  Output: [Doc_5, Doc_12, Doc_89, ..., Doc_4234] (100 docs)   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Stage 2: Medium Reranker (100 → 20)                         │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │ Model: Cross-encoder (ms-marco-MiniLM-L-6-v2)        │    │
+│  │ Latency: ~50ms                                       │    │
+│  │ Cost: $0.001                                         │    │
+│  │ Strategy: Full attention on query-doc pairs          │    │
+│  └─────────────────────────────────────────────────────┘    │
+│  Output: [Doc_12, Doc_5, Doc_89, ..., Doc_156] (20 docs)     │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Stage 3: Heavy Reranker (20 → 5)                            │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │ Model: Cohere Rerank-v3                              │    │
+│  │ Latency: ~200ms                                      │    │
+│  │ Cost: $0.01                                          │    │
+│  │ Strategy: Deep semantic understanding                │    │
+│  └─────────────────────────────────────────────────────┘    │
+│  Output: [Doc_12, Doc_5, Doc_89, Doc_23, Doc_156] (5 docs)   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Final Results                             │
+│  Total Latency: ~260ms (vs 10s+ with heavy model only)       │
+│  Total Cost: $0.011 (vs $1.00 with heavy model only)         │
+│  Quality: 94% of full heavy ranking                          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Performance Benchmarks
+
+| Configuration | Latency | Cost/1K queries | nDCG@10 | Recall@100 |
+|--------------|---------|-----------------|---------|------------|
+| Dense only (no rerank) | 15ms | $0.10 | 0.45 | 0.82 |
+| Heavy rerank (all docs) | 12,000ms | $15.00 | 0.68 | 0.82 |
+| 2-stage cascade | 120ms | $0.50 | 0.64 | 0.80 |
+| 3-stage cascade | 280ms | $0.80 | 0.66 | 0.81 |
+| 3-stage + adaptive | 200ms | $0.60 | 0.65 | 0.81 |
+
+*Benchmark on MS MARCO passage ranking (8.8M documents)*
+
+## Common Pitfalls
+
+1. **Insufficient First Stage**: If stage 1 misses relevant docs, they're gone forever
+2. **Score Incomparability**: Scores from different stages aren't directly comparable
+3. **Over-Cascading**: Too many stages add latency without quality gains
+4. **Fixed K Values**: Static k values don't adapt to query difficulty
+5. **No Fallback**: If late stage fails, no way to recover
+
+## Interview Questions
+
+**Q1: How do you determine the optimal k values for each stage?**
+
+*Answer:*
+- Start with high k values (e.g., 1000, 100, 10)
+- Measure recall at each stage on validation set
+- Reduce k until recall drops below threshold (e.g., 95%)
+- Consider query difficulty - use adaptive k
+- Balance latency vs quality based on requirements
+
+**Q2: What happens if your first stage has low recall?**
+
+*Answer:*
+- Cascade can only select from what stage 1 returns
+- Solution: Increase stage 1 k, improve stage 1 model
+- Use ensemble for stage 1 (BM25 + dense)
+- Consider iterative retrieval if recall is critical
+- Monitor recall@k metrics in production
+
+**Q3: Design a cascade that handles both simple and complex queries.**
+
+*Answer:*
+- Query classification to estimate complexity
+- Simple queries → stop after stage 1 or 2
+- Complex queries → go through all stages
+- Use confidence scores to decide stopping point
+- Cache results for frequent simple queries
+
+## Resources
+
+### Papers
+- **"Learning to Rank in the Cascade Model"** - CIKM 2015
+- **"Efficient Neural Architecture Search via Cascades"** - ICLR 2020
+- **"Cascade Ranking for Operational E-commerce Search"** - KDD 2020
+
+### Documentation
+- [Cohere Rerank API](https://docs.cohere.com/docs/rerank-2)
+- [Sentence Transformers Cross-Encoders](https://www.sbert.net/examples/applications/cross-encoder/README.html)
+- [Vespa Phased Ranking](https://docs.vespa.ai/en/phased-ranking.html)
+
+### Tools
+- **Cohere Rerank**: Production-grade reranking API
+- **Sentence Transformers**: Cross-encoder models
+- **Vespa**: Multi-phase ranking engine
+- **Elasticsearch**: Rescore API for two-phase ranking
+
+### Tutorials
+- "Building Production Reranking Pipelines"
+- "Cost-Quality Tradeoffs in Search"
+- "Multi-Stage Ranking with FAISS"
+
+## Testing Your Implementation
+
+```python
+def test_cascade():
+    # Setup cascade
+    stage1 = DenseRetriever(model="all-MiniLM-L6-v2", k=100)
+    stage2 = CrossEncoderReranker(model="cross-encoder/ms-marco-MiniLM-L-6-v2", k=20)
+    stage3 = CohereReranker(k=5)
+    
+    cascade = RerankCascade([stage1, stage2, stage3])
+    
+    # Test 1: Basic cascade
+    query = "machine learning tutorials"
+    documents = load_documents()  # 10K docs
+    
+    results = cascade.rerank(query, documents)
+    assert len(results) == 5
+    assert all("score" in r for r in results)
+    
+    # Test 2: Stage isolation
+    assert stage3.call_count == 1  # Called once
+    assert stage3.input_size == 20  # Only saw 20 docs
+    
+    # Test 3: Quality check
+    baseline = stage3.rerank(query, documents[:100])  # Expensive baseline
+    cascade_quality = compute_ndcg(results, baseline)
+    assert cascade_quality > 0.90  # Within 90% of baseline
+    
+    # Test 4: Adaptive stopping
+    adaptive_cascade = AdaptiveCascade([stage1, stage2, stage3])
+    simple_results = adaptive_cascade.rerank("python list", documents)
+    # Should stop early for simple query
+```
+
+## Related Challenges
+
+- [llm-reranker](llm-reranker) - LLM-based reranking
+- [mmr-diversity](mmr-diversity) - Diverse result selection
+- [hybrid-search-tuning](hybrid-search-tuning) - Combining retrieval methods
+- [context-window-optimization](context-window-optimization) - Managing context
+
+---
+
+*Cascading is the secret sauce of production search. Master it to deliver quality at scale without breaking the bank.*

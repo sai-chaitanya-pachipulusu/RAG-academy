@@ -1,27 +1,219 @@
 ﻿---
 title: "Batched Dot Product"
 description: "Compute dot products for multiple documents efficiently."
+prerequisites: ["dot-product"]
+related: ["naive-flat-index", "dense-vector-class"]
+next: ["basic-retrieval"]
 ---
 
-# Batched Dot Product (Matrix Multiply)
+<Callout title="Goal" variant="info">
+  Master batched vector operations — the computational foundation of scalable vector search and the precursor to ANN indexes.
+</Callout>
 
-In production, you don't compare one vector at a time—you compare one query against **thousands of documents** simultaneously.
+## The Performance Problem
 
-### The Performance Problem
+In production RAG, you don't compare one query against one document — you compare **one query against thousands or millions** of documents simultaneously.
 
-A naive Python loop is ~100x slower than a vectorized operation. This challenge teaches the mental model before you move to NumPy/FAISS.
+### Performance Comparison
 
-### Your Task
+| Approach | Time for 1M vectors | Relative Speed |
+|----------|---------------------|----------------|
+| Naive Python loop | ~10 seconds | 1x (baseline) |
+| Vectorized NumPy | ~50 milliseconds | 200x faster |
+| FAISS (CPU) | ~5 milliseconds | 2000x faster |
+| FAISS (GPU) | ~0.5 milliseconds | 20000x faster |
 
-Given a query vector and a list of document vectors, return a list of dot product scores.
+**Key insight**: The mental model you build here translates directly to understanding FAISS, HNSW, and other ANN libraries.
+
+## Theoretical Foundation
+
+### Matrix-Vector Multiplication
+
+Given:
+- Query vector **q** ∈ ℝᵈ (1 × d)
+- Document matrix **D** ∈ ℝⁿˣᵈ (n documents, d dimensions)
+
+The scores are computed as:
+
+$$\text{scores} = D \cdot q^T$$
+
+Result: Vector of n similarity scores.
+
+### Computational Complexity
+
+| Operation | Time Complexity | Space Complexity |
+|-----------|-----------------|------------------|
+| Single dot product | O(d) | O(1) |
+| Batched (n vectors) | O(n × d) | O(n) for results |
+| With matrix multiply | O(n × d) | O(n) for results |
+
+**Note**: While asymptotic complexity is the same, constant factors differ dramatically due to:
+- CPU cache efficiency
+- SIMD instructions (AVX, SSE)
+- Memory bandwidth utilization
+- GPU parallelization
+
+### Memory Layout Matters
 
 ```python
-query = [1.0, 2.0]
-docs = [[1, 0], [0, 1], [1, 1]]
-# Expected: [1.0, 2.0, 3.0]
+# Row-major (C-style): Documents stored row-by-row
+# Better for iterating over documents
+docs = [[d1_dim1, d1_dim2, ...],
+        [d2_dim1, d2_dim2, ...],
+        ...]
+
+# Column-major (Fortran-style): Dimensions stored together  
+# Better for SIMD operations
+docs_T = [[d1_dim1, d2_dim1, ...],
+          [d1_dim2, d2_dim2, ...],
+          ...]
 ```
 
-### Production Scale
+Modern libraries (NumPy, PyTorch) handle this automatically, but understanding it helps debug performance issues.
 
-In real systems, this operation is done on GPUs using CUDA (NVIDIA) or Metal (Apple). FAISS and cuANN can compare a query against 1 billion vectors in milliseconds.
+## Production Implementations
 
+### NumPy Vectorization
+
+```python
+import numpy as np
+
+# Query: (d,) array
+# Docs: (n, d) matrix
+# Result: (n,) array of scores
+
+def batch_dot_numpy(query: np.ndarray, docs: np.ndarray) -> np.ndarray:
+    """
+    Vectorized batch dot product.
+    Uses BLAS under the hood for optimal performance.
+    """
+    return docs @ query  # Matrix-vector multiply
+```
+
+### PyTorch (GPU Acceleration)
+
+```python
+import torch
+
+def batch_dot_torch(query: torch.Tensor, docs: torch.Tensor) -> torch.Tensor:
+    """
+    GPU-accelerated batch dot product.
+    Moves computation to GPU if available.
+    """
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    query = query.to(device)
+    docs = docs.to(device)
+    return torch.matmul(docs, query)
+```
+
+### Pure Python (Educational)
+
+```python
+def batch_dot_python(query: list, docs: list[list]) -> list[float]:
+    """
+    Pure Python implementation.
+    ~100x slower than NumPy but illustrates the algorithm.
+    """
+    return [sum(q * d for q, d in zip(query, doc)) for doc in docs]
+```
+
+## Scaling to Millions: The ANN Transition
+
+### Exact Search Limitations
+
+| Dataset Size | Exact Search Time | Acceptable? |
+|--------------|-------------------|-------------|
+| 10K vectors | 1 ms | ✅ Yes |
+| 100K vectors | 10 ms | ✅ Yes |
+| 1M vectors | 100 ms | ⚠️ Marginal |
+| 10M vectors | 1 second | ❌ No |
+| 100M vectors | 10 seconds | ❌ No |
+
+### Approximate Nearest Neighbor (ANN)
+
+When exact search is too slow, ANN algorithms trade a small accuracy loss for massive speed gains:
+
+| Algorithm | Recall@10 | 1M vectors | 100M vectors |
+|-----------|-----------|------------|--------------|
+| Exact | 100% | 100 ms | 10 s |
+| HNSW | 95% | 1 ms | 5 ms |
+| IVF | 90% | 2 ms | 10 ms |
+| LSH | 85% | 5 ms | 50 ms |
+
+## Your Task
+
+Implement efficient batched dot product:
+
+```python
+def batch_dot_product(query: List[float], documents: List[List[float]]) -> List[float]:
+    """
+    Compute dot product between query and all documents.
+    
+    Args:
+        query: Query vector of length d
+        documents: List of n document vectors, each of length d
+        
+    Returns:
+        List of n similarity scores
+        
+    Requirements:
+        - Handle empty documents list (return [])
+        - Validate all documents have same length as query
+        - Return scores in same order as input documents
+    """
+    pass
+
+def top_k_indices(scores: List[float], k: int) -> List[int]:
+    """
+    Return indices of top k highest scores.
+    
+    Args:
+        scores: List of similarity scores
+        k: Number of top results to return
+        
+    Returns:
+        List of k indices (0-indexed) of highest scores
+        
+    Optimization: Use heapq.nlargest for O(n log k) instead of O(n log n)
+    """
+    pass
+```
+
+### Validation Checklist
+
+- [ ] Empty documents returns empty list
+- [ ] Length mismatch raises ValueError
+- [ ] Correct scores for simple cases
+- [ ] Top-k returns correct indices
+- [ ] k > len(scores) handled gracefully
+- [ ] Negative scores handled correctly
+
+## Resources
+
+### Academic Papers
+- ["Efficient and Robust Approximate Nearest Neighbor Search Using Hierarchical Navigable Small World Graphs"](https://arxiv.org/abs/1603.09320) - Malkov & Yashunin (2016)
+- ["Billion-scale similarity search with GPUs"](https://arxiv.org/abs/1702.08734) - Johnson et al. (2017)
+- ["Product Quantization for Nearest Neighbor Search"](https://hal.inria.fr/file/index/docid/514462/filename/paper.pdf) - Jégou et al. (2011)
+
+### Documentation
+- [NumPy Dot Product](https://numpy.org/doc/stable/reference/generated/numpy.dot.html) - Vectorized operations
+- [FAISS Wiki](https://github.com/facebookresearch/faiss/wiki) - Meta's ANN library
+- [PyTorch Matmul](https://pytorch.org/docs/stable/generated/torch.matmul.html) - GPU acceleration
+
+### Tutorials
+- ["Vector Search at Scale"](https://www.pinecone.io/learn/vector-search/) - Pinecone
+- ["FAISS: The Missing Manual"](https://www.pinecone.io/learn/faiss-tutorial/) - Comprehensive guide
+- ["ANN Benchmarks"](http://ann-benchmarks.com/) - Interactive comparison
+
+### Tools
+- [FAISS](https://github.com/facebookresearch/faiss) - Meta's ANN library
+- [Annoy](https://github.com/spotify/annoy) - Spotify's ANN (memory-mapped)
+- [Hnswlib](https://github.com/nmslib/hnswlib) - Fast HNSW implementation
+- [ScaNN](https://github.com/google-research/google-research/tree/master/scann) - Google's ANN
+
+## Next Steps
+
+After mastering batched operations:
+- **Naive Flat Index**: Build a simple vector index
+- **Dense Vector Class**: Object-oriented vector storage
+- **HNSW Index**: Approximate nearest neighbor search

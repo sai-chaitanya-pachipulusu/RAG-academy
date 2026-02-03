@@ -1,8 +1,18 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "Retrieval Cache Key"
+description: "Build a stable retrieval cache key for deterministic and safe caching"
+difficulty: "medium"
+estimatedMinutes: 25
+xpReward: 50
+prerequisites: ["query-normalization"]
+related: ["semantic-caching", "embedding-cache", "metadata-filtering"]
+---
+
+<Callout title="Goal" variant="info">
   Build a **stable retrieval cache key** so your caching is correct, deterministic, and safe across filter order changes.
 </Callout>
 
-## Why this matters
+## Why This Matters
 
 Retrieval results are a perfect cache target — but only if your key is correct.
 
@@ -10,13 +20,295 @@ In production you must include:
 
 - query (normalized)
 - filters (normalized, order-insensitive)
-- index version (so reindexing doesn’t serve stale results)
+- index version (so reindexing doesn't serve stale results)
 
-## Common pitfalls
+## Why This Matters in Production
 
-- Using raw JSON without stable key ordering → cache misses (or collisions).
-- Forgetting `index_version` → serving old retrieval results after ingestion updates.
-- Treating `None` and `{}` differently → pointless duplicate caches.
+| Problem | Impact |
+|---------|--------|
+| **Cache misses** | Same query, different key format |
+| **Stale results** | Index updated, cache not invalidated |
+| **Key collisions** | Different queries map to same key |
+| **Inconsistent hits** | Filter order affects key generation |
 
+## What You're Implementing
 
+A cache key generator that produces deterministic, collision-resistant keys for retrieval queries.
 
+## The Cache Key Pipeline
+
+```
+Query + Filters + Index Version → Normalize → Hash → Cache Key
+      ↓            ↓                ↓          ↓          ↓
+  "RAG?"    {tenant:abc}    Sort keys    SHA256    "a3f7b2..."
+```
+
+## Mathematical Foundations
+
+### Deterministic Hashing
+
+```
+CacheKey = Hash(Normalize(Query) + Normalize(Filters) + IndexVersion)
+
+Properties:
+- Deterministic: Same input → Same key
+- Uniform: Keys evenly distributed
+- Sensitive: Small input change → Different key
+```
+
+### Normalization Requirements
+
+```
+- Query: lowercase, trim whitespace
+- Filters: sort keys, normalize values
+- Version: semantic versioning or hash
+```
+
+## Implementation Example
+
+```python
+import hashlib
+import json
+from typing import Dict, Any, Optional
+from dataclasses import dataclass
+
+@dataclass
+class CacheKey:
+    """Represents a cache key for retrieval results."""
+    query: str
+    filters: Optional[Dict[str, Any]]
+    index_version: str
+    
+    def to_string(self) -> str:
+        """Convert to normalized string representation."""
+        # Normalize query
+        normalized_query = self.query.lower().strip()
+        
+        # Normalize filters (sort keys, handle None)
+        normalized_filters = None
+        if self.filters:
+            # Sort keys for order-insensitive hashing
+            normalized_filters = dict(sorted(self.filters.items()))
+        
+        # Build canonical representation
+        key_data = {
+            "query": normalized_query,
+            "filters": normalized_filters,
+            "index_version": self.index_version
+        }
+        
+        # Use JSON with sorted keys for consistency
+        return json.dumps(key_data, sort_keys=True, separators=(',', ':'))
+    
+    def to_hash(self) -> str:
+        """Generate hash-based cache key."""
+        key_string = self.to_string()
+        return hashlib.sha256(key_string.encode()).hexdigest()[:32]
+
+class RetrievalCacheKeyBuilder:
+    """Build stable cache keys for retrieval operations."""
+    
+    def __init__(self, index_version: str = "v1"):
+        """
+        Initialize cache key builder.
+        
+        Args:
+            index_version: Version identifier for the index
+        """
+        self.index_version = index_version
+    
+    def build_key(
+        self,
+        query: str,
+        filters: Optional[Dict[str, Any]] = None,
+        top_k: int = 10,
+        embedding_model: Optional[str] = None
+    ) -> str:
+        """
+        Build a stable cache key for retrieval.
+        
+        Time Complexity: O(F log F) where F = number of filter keys
+        Space Complexity: O(F) for normalized filters
+        
+        Args:
+            query: Search query string
+            filters: Optional metadata filters
+            top_k: Number of results requested
+            embedding_model: Model used for embeddings
+            
+        Returns:
+            Stable cache key string
+            
+        Example:
+            >>> builder = RetrievalCacheKeyBuilder(index_version="v2.1")
+            >>> builder.build_key(
+            ...     query="What is RAG?",
+            ...     filters={"tenant_id": "abc", "doc_type": "pdf"},
+            ...     top_k=5
+            ... )
+            'a3f7b2c8d9e1f4a5b6c7d8e9f0a1b2c3'
+        """
+        # Normalize query
+        normalized_query = self._normalize_query(query)
+        
+        # Normalize filters
+        normalized_filters = self._normalize_filters(filters)
+        
+        # Build key components
+        key_data = {
+            "query": normalized_query,
+            "filters": normalized_filters,
+            "top_k": top_k,
+            "index_version": self.index_version,
+            "embedding_model": embedding_model
+        }
+        
+        # Remove None values for consistency
+        key_data = {k: v for k, v in key_data.items() if v is not None}
+        
+        # Generate hash
+        key_string = json.dumps(key_data, sort_keys=True, separators=(',', ':'))
+        return hashlib.sha256(key_string.encode()).hexdigest()[:32]
+    
+    def _normalize_query(self, query: str) -> str:
+        """Normalize query string."""
+        # Lowercase and trim
+        normalized = query.lower().strip()
+        
+        # Remove extra whitespace
+        normalized = ' '.join(normalized.split())
+        
+        return normalized
+    
+    def _normalize_filters(self, filters: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """Normalize filter dictionary."""
+        if not filters:
+            return None
+        
+        # Sort keys for order-insensitive comparison
+        sorted_filters = dict(sorted(filters.items()))
+        
+        # Normalize values
+        normalized = {}
+        for key, value in sorted_filters.items():
+            if isinstance(value, str):
+                normalized[key] = value.lower().strip()
+            elif isinstance(value, list):
+                # Sort lists for consistency
+                normalized[key] = sorted(str(v).lower().strip() for v in value)
+            else:
+                normalized[key] = value
+        
+        return normalized
+    
+    def build_prefixed_key(
+        self,
+        prefix: str,
+        query: str,
+        filters: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """Build key with namespace prefix."""
+        base_key = self.build_key(query, filters)
+        return f"{prefix}:{base_key}"
+
+# Usage Example
+builder = RetrievalCacheKeyBuilder(index_version="v2.1")
+
+# Same query, different filter order → Same key
+key1 = builder.build_key(
+    query="What is RAG?",
+    filters={"tenant_id": "abc", "doc_type": "pdf"}
+)
+
+key2 = builder.build_key(
+    query="What is RAG?",
+    filters={"doc_type": "pdf", "tenant_id": "abc"}  # Different order
+)
+
+assert key1 == key2, "Keys should be identical despite filter order"
+
+# Different queries → Different keys
+key3 = builder.build_key(query="What is RAG?")
+key4 = builder.build_key(query="What is LLM?")
+
+assert key3 != key4, "Different queries should have different keys"
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Query Normalization | O(L) | L = query length |
+| Filter Sorting | O(F log F) | F = filter keys |
+| JSON Serialization | O(F) | Building string |
+| Hash Computation | O(S) | S = serialized size |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand cache key design principles
+- Be able to implement deterministic key generation
+- Know how to handle filter normalization
+
+## Real-World Applications
+
+| System | Cache Key Strategy |
+|--------|-------------------|
+| **Redis** | Key-value with TTL |
+| **Memcached** | Simple string keys |
+| **CDN** | URL-based with query normalization |
+| **Vector DBs** | Query hash with metadata |
+
+## Common Pitfalls
+
+- **Using raw JSON without stable key ordering**: Causes cache misses
+- **Forgetting index_version**: Serves stale results after reindexing
+- **Treating None and {} differently**: Creates duplicate caches
+- **Case sensitivity**: "RAG" vs "rag" produce different keys
+- **Whitespace differences**: Extra spaces break cache hits
+
+## Production Extensions (Optional)
+
+- **Hierarchical Keys**: Namespace:service:resource:key
+- **TTL Management**: Time-based cache expiration
+- **Cache Warming**: Pre-populate common queries
+- **Distributed Caching**: Redis/Memcached clusters
+- **Cache Invalidation**: Version-based or event-driven
+
+## Resources
+
+### Documentation
+- [Redis Key Design](https://redis.io/docs/manual/keyspace/)
+- [Cache-Aside Pattern](https://docs.microsoft.com/en-us/azure/architecture/patterns/cache-aside)
+- [Consistent Hashing](https://www.toptal.com/big-data/consistent-hashing)
+
+### Tools
+- **Redis**: In-memory cache
+- **Memcached**: Distributed caching
+- **Valkey**: Open-source Redis fork
+
+### Papers
+- "Consistent Hashing and Random Trees" (Karger et al., 1997)
+- "Web Caching and Zipf-like Distributions" (Breslau et al., 1999)
+
+## Interview Questions
+
+1. **Why sort filter keys when building cache keys?**
+   - Ensures order-insensitive matching: {a:1, b:2} and {b:2, a:1} produce same key
+
+2. **How do you handle cache invalidation when the index updates?**
+   - Include index_version in key, increment version on reindex
+
+3. **What's the trade-off between key length and collision resistance?**
+   - Shorter keys = less storage but higher collision risk; use cryptographic hashes
+
+## After You Pass
+
+Implement complete caching systems:
+- [semantic-caching](semantic-caching) - Cache by semantic similarity
+- [embedding-cache](embedding-cache) - Cache embedding results
+- [metadata-filtering](metadata-filtering) - Use filters in retrieval
+
+---
+
+**🔑 Key to Performance:** Stable cache keys unlock massive performance gains in RAG systems!

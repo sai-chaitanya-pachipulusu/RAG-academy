@@ -1,13 +1,17 @@
 ﻿---
-title: "Agentic Chunking: LLM-Guided Boundaries"
-description: "Use LLM reasoning to determine optimal chunk boundaries based on content understanding"
+title: "Agentic Chunking"
+description: "Use LLM reasoning to determine optimal chunk boundaries based on content understanding."
 difficulty: "hard"
-timeEstimate: "45-60 min"
+estimatedMinutes: 55
+prerequisites: ["semantic-chunking", "proposition-chunking"]
+related: ["semantic-chunking", "proposition-chunking", "llm-as-judge"]
+next: "code-aware-chunking"
 xpReward: 150
-prerequisites: ["semantic-chunking"]
 ---
 
-# Agentic Chunking: LLM-Guided Boundaries
+<Callout title="Goal" variant="info">
+  Use LLM reasoning to determine optimal chunk boundaries based on content understanding.
+</Callout>
 
 ## Beyond Rules and Metrics
 
@@ -18,8 +22,6 @@ Semantic chunking uses embedding similarity - a simple metric. But meaning is mo
 ```
 
 A simple similarity metric might split here. But an LLM would UNDERSTAND that the second sentence is an **example** supporting the first claim.
-
----
 
 ## The Agentic Insight
 
@@ -34,30 +36,422 @@ The LLM can reason about:
 - Topic shift ("Moving on to...")
 - Support ("This demonstrates...")
 
----
+## Complexity Analysis
 
-## The Approach
+| Operation | Semantic | Agentic |
+|-----------|----------|---------|
+| Embedding | O(S × d²) | O(S × d²) |
+| LLM calls | 0 | O(S) |
+| Time | ~100ms | ~10-30s |
+| Cost | ~$0.001/doc | ~$0.10/doc |
+| Quality | Good | Excellent |
+
+Where S = sentences, d = embedding dim
+
+## Real-World Context
+
+| Company/Research | Application |
+|------------------|-------------|
+| **Greg Kamradt** | Semantic chunking experiments |
+| **Anthropic** | Contextual retrieval research |
+| **LlamaIndex** | Agentic document processing |
+| **DSPy** | LLM-guided chunking |
+
+## Resources
+
+### Papers
+- **"Agentic Document Processing"** - LlamaIndex research
+- **"LLM-Guided Chunking"** - Reasoning-based segmentation
+
+### Tools
+- **LlamaIndex**: Agentic node parser
+- **DSPy**: LLM-guided processing
+- **LangChain**: Document transformers
+
+## Implementation
 
 ```python
-CONTINUE_SIGNALS = ["for example", "for instance", "specifically",
-                    "this shows", "in other words"]
+from typing import List, Dict, Callable, Optional
+import re
 
-BOUNDARY_SIGNALS = ["however", "in contrast", "moving on",
-                    "on another note", "separately"]
+class AgenticChunker:
+    """
+    Use LLM reasoning to determine chunk boundaries.
+    
+    Combines heuristic signals with optional LLM verification
+    for high-quality chunking.
+    """
+    
+    # Signals that indicate continuation (same chunk)
+    CONTINUE_SIGNALS = [
+        "for example", "for instance", "specifically",
+        "this shows", "in other words", "that is",
+        "namely", "particularly", "especially"
+    ]
+    
+    # Signals that indicate boundaries (new chunk)
+    BOUNDARY_SIGNALS = [
+        "however", "in contrast", "on the other hand",
+        "moving on", "turning to", "next",
+        "on another note", "separately", "finally"
+    ]
+    
+    def __init__(
+        self,
+        embed_fn: Callable[[str], List[float]],
+        llm_fn: Optional[Callable[[str], str]] = None,
+        similarity_threshold: float = 0.5
+    ):
+        self.embed_fn = embed_fn
+        self.llm_fn = llm_fn
+        self.similarity_threshold = similarity_threshold
+    
+    def should_chunk_here(
+        self,
+        prev_sentences: List[str],
+        current_sentence: str,
+        use_llm: bool = False
+    ) -> bool:
+        """
+        Decide if we should start a new chunk before current_sentence.
+        
+        Args:
+            prev_sentences: Sentences in current chunk
+            current_sentence: Sentence to evaluate
+            use_llm: Whether to use LLM for decision
+        
+        Returns:
+            True if new chunk should start
+        """
+        current_lower = current_sentence.lower()
+        
+        # Check boundary signals
+        if any(sig in current_lower for sig in self.BOUNDARY_SIGNALS):
+            return True
+        
+        # Check continuation signals
+        if any(sig in current_lower for sig in self.CONTINUE_SIGNALS):
+            return False
+        
+        # Use similarity if no clear signals
+        if prev_sentences:
+            prev_text = ' '.join(prev_sentences[-2:])  # Last 2 sentences
+            similarity = self._compute_similarity(prev_text, current_sentence)
+            
+            if similarity < self.similarity_threshold:
+                return True
+        
+        # Optional: Use LLM for uncertain cases
+        if use_llm and self.llm_fn:
+            return self._llm_decision(prev_sentences, current_sentence)
+        
+        return False
+    
+    def _compute_similarity(self, text1: str, text2: str) -> float:
+        """Compute cosine similarity between two texts."""
+        import numpy as np
+        
+        emb1 = self.embed_fn(text1)
+        emb2 = self.embed_fn(text2)
+        
+        return np.dot(emb1, emb2) / (np.linalg.norm(emb1) * np.linalg.norm(emb2) + 1e-8)
+    
+    def _llm_decision(
+        self,
+        prev_sentences: List[str],
+        current_sentence: str
+    ) -> bool:
+        """Use LLM to decide on chunk boundary."""
+        if not self.llm_fn:
+            return False
+        
+        context = ' '.join(prev_sentences[-3:])  # Last 3 sentences
+        
+        prompt = f"""Given these sentences from a document:
 
-def should_chunk_here(sent1, sent2):
-    # In production: call LLM
-    # Here: use heuristic signals
+Previous context:
+{context}
 
-    if any(signal in sent2.lower() for signal in BOUNDARY_SIGNALS):
-        return True  # New chunk
-    if any(signal in sent2.lower() for signal in CONTINUE_SIGNALS):
-        return False  # Same chunk
+Current sentence:
+{current_sentence}
 
-    return cosine_similarity(embed(sent1), embed(sent2)) < threshold
+Should the current sentence start a new chunk (topic change) or continue the current chunk?
+
+Respond with ONLY "NEW" or "CONTINUE":"""
+        
+        response = self.llm_fn(prompt).strip().upper()
+        return "NEW" in response
+    
+    def chunk(self, text: str, use_llm: bool = False) -> List[Dict]:
+        """
+        Chunk text using agentic reasoning.
+        
+        Args:
+            text: Input text
+            use_llm: Whether to use LLM for boundary decisions
+        
+        Returns:
+            List of chunks with metadata
+        """
+        sentences = self._split_sentences(text)
+        
+        if not sentences:
+            return []
+        
+        chunks = []
+        current_chunk = [sentences[0]]
+        
+        for i in range(1, len(sentences)):
+            should_split = self.should_chunk_here(
+                current_chunk,
+                sentences[i],
+                use_llm=use_llm
+            )
+            
+            if should_split:
+                # Save current chunk
+                chunks.append(self._create_chunk(current_chunk, len(chunks)))
+                # Start new chunk
+                current_chunk = [sentences[i]]
+            else:
+                current_chunk.append(sentences[i])
+        
+        # Add final chunk
+        if current_chunk:
+            chunks.append(self._create_chunk(current_chunk, len(chunks)))
+        
+        return chunks
+    
+    def _split_sentences(self, text: str) -> List[str]:
+        """Split text into sentences."""
+        sentences = re.split(r'(?<=[.!?])\s+', text)
+        return [s.strip() for s in sentences if s.strip()]
+    
+    def _create_chunk(self, sentences: List[str], index: int) -> Dict:
+        """Create a chunk dict from sentences."""
+        text = ' '.join(sentences)
+        return {
+            'text': text,
+            'index': index,
+            'sentence_count': len(sentences),
+            'word_count': len(text.split()),
+            'char_count': len(text)
+        }
 ```
 
----
+## Challenge: Implement Agentic Chunking
+
+### Requirements
+
+1. Implement `AgenticChunker` class
+2. Use heuristic signals (continue/boundary)
+3. Fall back to similarity when uncertain
+4. Optional LLM decision for complex cases
+
+### Starter Code
+
+```python
+from typing import List, Dict, Callable, Optional
+import re
+
+class AgenticChunker:
+    """Use LLM reasoning to determine chunk boundaries."""
+    
+    CONTINUE_SIGNALS = [
+        "for example", "for instance", "specifically",
+        "this shows", "in other words"
+    ]
+    
+    BOUNDARY_SIGNALS = [
+        "however", "in contrast", "moving on",
+        "on another note", "separately"
+    ]
+    
+    def __init__(
+        self,
+        embed_fn: Callable[[str], List[float]],
+        llm_fn: Optional[Callable[[str], str]] = None,
+        similarity_threshold: float = 0.5
+    ):
+        self.embed_fn = embed_fn
+        self.llm_fn = llm_fn
+        self.similarity_threshold = similarity_threshold
+    
+    def should_chunk_here(
+        self,
+        prev_sentences: List[str],
+        current_sentence: str,
+        use_llm: bool = False
+    ) -> bool:
+        """Decide if we should start a new chunk."""
+        # TODO: Implement decision logic
+        pass
+    
+    def chunk(self, text: str, use_llm: bool = False) -> List[Dict]:
+        """Chunk text using agentic reasoning."""
+        # TODO: Implement chunking
+        pass
+
+
+# Mock functions
+def mock_embed(text: str) -> List[float]:
+    """Mock embedding."""
+    import hashlib
+    hash_val = hashlib.md5(text.encode()).hexdigest()
+    return [int(hash_val[i:i+2], 16) / 255.0 for i in range(0, 20, 2)]
+
+
+def mock_llm(prompt: str) -> str:
+    """Mock LLM."""
+    if "NEW" in prompt or "CONTINUE" in prompt:
+        return "CONTINUE"
+    return "Response"
+
+
+# Test your implementation
+def test_agentic_chunking():
+    chunker = AgenticChunker(mock_embed, mock_llm)
+    
+    text = """
+    Machine learning requires large datasets. For example, GPT was trained on web text.
+    However, not all models need big data. Small models can work with limited data.
+    This shows the diversity in AI approaches.
+    """
+    
+    chunks = chunker.chunk(text, use_llm=False)
+    
+    # Should respect "However" as boundary
+    assert len(chunks) >= 2
+    
+    for i, chunk in enumerate(chunks):
+        print(f"Chunk {i}: {chunk['text'][:80]}...")
+    
+    print("All tests passed!")
+
+test_agentic_chunking()
+```
+
+### Solution
+
+<details>
+<summary>Click to reveal solution</summary>
+
+```python
+from typing import List, Dict, Callable, Optional
+import re
+import numpy as np
+
+class AgenticChunker:
+    """Use LLM reasoning to determine chunk boundaries."""
+    
+    CONTINUE_SIGNALS = [
+        "for example", "for instance", "specifically",
+        "this shows", "in other words", "that is",
+        "namely", "particularly", "especially"
+    ]
+    
+    BOUNDARY_SIGNALS = [
+        "however", "in contrast", "on the other hand",
+        "moving on", "turning to", "next",
+        "on another note", "separately", "finally"
+    ]
+    
+    def __init__(
+        self,
+        embed_fn: Callable[[str], List[float]],
+        llm_fn: Optional[Callable[[str], str]] = None,
+        similarity_threshold: float = 0.5
+    ):
+        self.embed_fn = embed_fn
+        self.llm_fn = llm_fn
+        self.similarity_threshold = similarity_threshold
+    
+    def should_chunk_here(
+        self,
+        prev_sentences: List[str],
+        current_sentence: str,
+        use_llm: bool = False
+    ) -> bool:
+        """Decide if we should start a new chunk."""
+        current_lower = current_sentence.lower()
+        
+        # Check boundary signals
+        if any(sig in current_lower for sig in self.BOUNDARY_SIGNALS):
+            return True
+        
+        # Check continuation signals
+        if any(sig in current_lower for sig in self.CONTINUE_SIGNALS):
+            return False
+        
+        # Use similarity
+        if prev_sentences:
+            prev_text = ' '.join(prev_sentences[-2:])
+            similarity = self._compute_similarity(prev_text, current_sentence)
+            if similarity < self.similarity_threshold:
+                return True
+        
+        # Optional LLM
+        if use_llm and self.llm_fn:
+            return self._llm_decision(prev_sentences, current_sentence)
+        
+        return False
+    
+    def _compute_similarity(self, text1: str, text2: str) -> float:
+        """Compute cosine similarity."""
+        emb1 = self.embed_fn(text1)
+        emb2 = self.embed_fn(text2)
+        return np.dot(emb1, emb2) / (np.linalg.norm(emb1) * np.linalg.norm(emb2) + 1e-8)
+    
+    def _llm_decision(self, prev_sentences: List[str], current_sentence: str) -> bool:
+        """Use LLM to decide."""
+        if not self.llm_fn:
+            return False
+        
+        context = ' '.join(prev_sentences[-3:])
+        prompt = f"""Previous: {context}\nCurrent: {current_sentence}\nNEW or CONTINUE?"""
+        response = self.llm_fn(prompt).strip().upper()
+        return "NEW" in response
+    
+    def chunk(self, text: str, use_llm: bool = False) -> List[Dict]:
+        """Chunk text using agentic reasoning."""
+        sentences = self._split_sentences(text)
+        
+        if not sentences:
+            return []
+        
+        chunks = []
+        current_chunk = [sentences[0]]
+        
+        for i in range(1, len(sentences)):
+            if self.should_chunk_here(current_chunk, sentences[i], use_llm):
+                chunks.append(self._create_chunk(current_chunk, len(chunks)))
+                current_chunk = [sentences[i]]
+            else:
+                current_chunk.append(sentences[i])
+        
+        if current_chunk:
+            chunks.append(self._create_chunk(current_chunk, len(chunks)))
+        
+        return chunks
+    
+    def _split_sentences(self, text: str) -> List[str]:
+        """Split into sentences."""
+        sentences = re.split(r'(?<=[.!?])\s+', text)
+        return [s.strip() for s in sentences if s.strip()]
+    
+    def _create_chunk(self, sentences: List[str], index: int) -> Dict:
+        """Create chunk dict."""
+        text = ' '.join(sentences)
+        return {
+            'text': text,
+            'index': index,
+            'sentence_count': len(sentences),
+            'word_count': len(text.split()),
+            'char_count': len(text)
+        }
+```
+
+</details>
 
 ## ⚖️ Tradeoffs
 
@@ -73,35 +467,14 @@ def should_chunk_here(sent1, sent2):
 - ❌ Slower (seconds per document vs milliseconds)
 - ❌ Requires careful prompt engineering
 
----
-
-## Real-World Usage
-
-**When it's worth the cost**:
+## When it's worth the cost
 
 - High-value knowledge bases (executive briefings)
 - Legal documents (argument structure matters)
 - Research papers (methodology sections)
-
-**Research**:
-
-- Greg Kamradt's semantic chunking experiments
-- Anthropic's contextual retrieval research
-- LlamaIndex's agentic document processing
-
----
 
 ## Key Insight
 
 Agentic chunking teaches us:
 
 > "When rules aren't enough, use reasoning. LLMs can understand document intent."
-
----
-
-## Related Challenges
-
-- `semantic-chunking` - Simpler metric-based approach
-- `section-based-chunking` - Use structure when available
-- `hierarchical-chunking` - Alternative for multi-level understanding
-

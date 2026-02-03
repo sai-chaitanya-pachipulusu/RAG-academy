@@ -1,4 +1,15 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "HNSW Index"
+description: "Implement Hierarchical Navigable Small World (HNSW) graph search"
+difficulty: "advanced"
+estimatedMinutes: 90
+xpReward: 200
+prerequisites: ["naive-flat-index"]
+related: ["ivf-flat-index", "ivf-pq-index", "product-quantization"]
+next: "ivf-flat-index"
+---
+
+<Callout title="Goal" variant="info">
   Implement Hierarchical Navigable Small World (HNSW) graph search.
 </Callout>
 
@@ -22,11 +33,168 @@ HNSW is the **dominant algorithm** for approximate nearest neighbor (ANN) search
 2. **Greedy descent**: Start at top layer, greedily walk toward query, then drop down
 3. **Bottom layer search**: Detailed search in the densest layer (all nodes)
 
-## What you're implementing
+## The Algorithm
 
-1. Build the hierarchical graph with random level assignment
-2. Implement the greedy search on upper layers to find a good entry point
-3. Implement the detailed search on the bottom layer with backtracking
+```python
+import random
+import heapq
+from typing import List, Tuple
+
+class HNSWIndex:
+    """
+    Hierarchical Navigable Small World index.
+    
+    Time Complexity:
+    - Indexing: O(N × log N × M × efConstruction)
+    - Search: O(log N × efSearch)
+    
+    Space Complexity: O(N × M) for graph storage
+    """
+    
+    def __init__(self, dim: int, M: int = 16, ef_construction: int = 200):
+        self.dim = dim
+        self.M = M  # Max connections per node
+        self.ef_construction = ef_construction
+        self.ef_search = 50  # Default, can be adjusted
+        
+        # Graph structure: node_id -> {layer -> [neighbor_ids]}
+        self.graph = {}
+        self.vectors = {}
+        self.entry_point = None
+        self.max_layer = 0
+        
+        # Level assignment probability
+        self.mL = 1.0 / math.log(M)
+    
+    def _random_level(self) -> int:
+        """Assign random level using exponential distribution."""
+        level = 0
+        while random.random() < self.mL and level < 16:
+            level += 1
+        return level
+    
+    def _distance(self, a: List[float], b: List[float]) -> float:
+        """Compute Euclidean distance."""
+        return sum((x - y) ** 2 for x, y in zip(a, b)) ** 0.5
+    
+    def _search_layer(
+        self, 
+        query: List[float], 
+        entry: int, 
+        layer: int, 
+        ef: int
+    ) -> List[Tuple[float, int]]:
+        """
+        Search a single layer using greedy beam search.
+        
+        Returns list of (distance, node_id) tuples.
+        """
+        visited = {entry}
+        candidates = [(self._distance(query, self.vectors[entry]), entry)]
+        results = [(self._distance(query, self.vectors[entry]), entry)]
+        
+        while candidates:
+            dist, curr = heapq.heappop(candidates)
+            
+            # Check if we can improve results
+            if dist > results[-1][0] and len(results) >= ef:
+                break
+            
+            # Explore neighbors
+            for neighbor in self.graph[curr].get(layer, []):
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    ndist = self._distance(query, self.vectors[neighbor])
+                    
+                    if ndist < results[-1][0] or len(results) < ef:
+                        heapq.heappush(candidates, (ndist, neighbor))
+                        heapq.heappush(results, (ndist, neighbor))
+                        if len(results) > ef:
+                            heapq.heappop(results)
+        
+        return sorted(results)
+    
+    def add(self, vector: List[float], node_id: int = None):
+        """Add a vector to the index."""
+        if node_id is None:
+            node_id = len(self.vectors)
+        
+        level = self._random_level()
+        self.vectors[node_id] = vector
+        self.graph[node_id] = {}
+        
+        if self.entry_point is None:
+            self.entry_point = node_id
+            self.max_layer = level
+            return
+        
+        # Find entry point for insertion
+        curr = self.entry_point
+        curr_dist = self._distance(vector, self.vectors[curr])
+        
+        # Search from top layer down to layer 0
+        for l in range(self.max_layer, -1, -1):
+            changed = True
+            while changed:
+                changed = False
+                for neighbor in self.graph[curr].get(l, []):
+                    ndist = self._distance(vector, self.vectors[neighbor])
+                    if ndist < curr_dist:
+                        curr = neighbor
+                        curr_dist = ndist
+                        changed = True
+        
+        # Connect to nearest neighbors at each level
+        for l in range(min(level, self.max_layer) + 1):
+            neighbors = self._search_layer(vector, curr, l, self.ef_construction)
+            # Keep only M closest
+            self.graph[node_id][l] = [n[1] for n in neighbors[:self.M]]
+        
+        # Update entry point if needed
+        if level > self.max_layer:
+            self.max_layer = level
+            self.entry_point = node_id
+    
+    def search(self, query: List[float], k: int = 10) -> List[Tuple[int, float]]:
+        """
+        Search for k nearest neighbors.
+        
+        Time Complexity: O(log N × efSearch)
+        """
+        if self.entry_point is None:
+            return []
+        
+        # Find entry point
+        curr = self.entry_point
+        curr_dist = self._distance(query, self.vectors[curr])
+        
+        # Descend through layers
+        for l in range(self.max_layer, 0, -1):
+            changed = True
+            while changed:
+                changed = False
+                for neighbor in self.graph[curr].get(l, []):
+                    ndist = self._distance(query, self.vectors[neighbor])
+                    if ndist < curr_dist:
+                        curr = neighbor
+                        curr_dist = ndist
+                        changed = True
+        
+        # Search bottom layer
+        results = self._search_layer(query, curr, 0, max(k, self.ef_search))
+        
+        # Return k best
+        return [(node_id, -dist) for dist, node_id in results[:k]]
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Indexing | O(N × log N × M × efConstruction) | Graph construction |
+| Search | O(log N × efSearch) | Sublinear! |
+| Space | O(N × M) | Graph storage |
+| Recall | 95-99% | With proper tuning |
 
 ## Common pitfalls
 
@@ -40,3 +208,19 @@ HNSW is the **dominant algorithm** for approximate nearest neighbor (ANN) search
 - **Quantization**: Combine with SQ/PQ to reduce memory 4-8x
 - **Streaming inserts**: Handle updates without full rebuild
 
+## Resources
+
+### Papers
+- **"Efficient and Robust Approximate Nearest Neighbor Search"** - Malkov & Yashunin (HNSW paper)
+- **"Approximate Nearest Neighbor Search in High Dimensions"** - Survey
+
+### Tools
+- **FAISS**: `IndexHNSWFlat`, `IndexHNSWSQ`
+- **hnswlib**: Standalone HNSW implementation
+- **Pinecone/Weaviate/Qdrant**: Managed HNSW
+
+## Related Challenges
+
+- [ivf-flat-index](ivf-flat-index) - Alternative ANN approach
+- [ivf-pq-index](ivf-pq-index) - Memory-efficient indexing
+- [product-quantization](product-quantization) - Vector compression

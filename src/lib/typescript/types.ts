@@ -12,7 +12,7 @@ export type TSResponse = {
   id: string;
   ok: boolean;
   stdout: string;
-  stderr?: string;
+  stderr: string;
   error?: string;
   durationMs?: number;
   score?: number | null;

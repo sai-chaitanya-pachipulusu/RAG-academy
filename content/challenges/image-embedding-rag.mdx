@@ -1,30 +1,441 @@
 ﻿---
 title: "Image Embedding for RAG"
-description: "Implement image-to-embedding conversion for multimodal RAG"
+description: "Implement image-to-embedding conversion for multimodal RAG using CLIP and vision encoders"
 difficulty: "hard"
 xpReward: 150
+estimatedMinutes: 50
+stage: "advanced-retrieval"
+track: "multimodal"
+tags: ["multimodal", "image-embedding", "clip", "vision", "cross-modal"]
+prerequisites: ["cosine-similarity", "embed-and-search"]
+relatedChallenges: ["multimodal-retrieval", "multimodal-rag-guide", "ocr-rag-pipeline"]
+nextChallenges: ["multimodal-retrieval"]
+theory:
+  overview: |
+    Image embedding for RAG converts visual content into dense vector representations 
+    that can be stored and searched alongside text embeddings. Using models like CLIP, 
+    images and text are projected into a shared semantic space, enabling cross-modal 
+    retrieval where text queries can retrieve relevant images and vice versa.
+  keyFormulas:
+    - name: "CLIP Contrastive Loss"
+      formula: "L = -log(exp(sim(I_i, T_i)/τ) / Σ_j exp(sim(I_i, T_j)/τ))"
+    - name: "Image-Text Similarity"
+      formula: "sim(I, T) = (E_I · E_T) / (||E_I|| × ||E_T||)"
+    - name: "Multi-Modal Fusion"
+      formula: "E_fused = α × E_text + (1-α) × E_image"
+    - name: "Embedding Dimension"
+      formula: "d_CLIP-ViT-B/32 = 512, d_CLIP-ViT-L/14 = 768"
+  visualIntuition: |
+    Shared Embedding Space:
+    
+    ```
+    Vector Space (512-D):
+    
+         "dog" ●────────────● 🐕 (image)
+              /│\          /
+             / │ \        /
+            /  │  \      /
+    "puppy"●   │   ●🦮  /
+              │  /      /
+    "golden" ●─┼─●🐶   /
+              │/      /
+    "retriever"●─────●🦮
+    
+    Text and images with similar semantics cluster together!
+    ```
+  whyItMatters: |
+    Image embeddings enable:
+    1. **Visual search**: Find images using text descriptions
+    2. **Cross-modal RAG**: Combine text and image retrieval
+    3. **Document understanding**: Index diagrams, charts, figures
+    4. **E-commerce**: Product discovery via visual similarity
+  commonMistakes:
+    - "Not normalizing embeddings before comparison"
+    - "Using incompatible text and image encoders"
+    - "Ignoring aspect ratio when preprocessing images"
+    - "Not handling batching for large image collections"
+  interviewTips:
+    - "Explain CLIP's contrastive learning objective"
+    - "Compare CLIP vs SigLIP vs OpenCLIP"
+    - "Discuss handling of multiple images per document"
+    - "Mention fine-tuning on domain-specific images"
+realWorld:
+  description: |
+    Pinterest uses multimodal embeddings for visual search. Google Lens enables 
+    image-based queries. E-commerce platforms like Amazon use visual similarity 
+    for product recommendations. Scientific literature platforms index figures 
+    and diagrams for research discovery.
+  companies: ["OpenAI", "Google", "Pinterest", "Amazon", "Meta"]
+  useCases:
+    - "Visual product search in e-commerce"
+    - "Scientific figure and diagram retrieval"
+    - "Medical image analysis and search"
+    - "Digital asset management"
+    - "Social media content discovery"
+complexity:
+  time: "O(n × d) for embedding n images of dimension d"
+  space: "O(n × d) for storing embeddings"
+  latency: "10-100ms per image embedding (GPU)"
+resources:
+  papers:
+    - title: "Learning Transferable Visual Models From Natural Language Supervision (CLIP)"
+      url: "https://arxiv.org/abs/2103.00020"
+      authors: "Radford et al., OpenAI"
+      year: 2021
+    - title: "Sigmoid Loss for Language Image Pre-Training (SigLIP)"
+      url: "https://arxiv.org/abs/2303.15343"
+      authors: "Zhai et al., Google"
+      year: 2023
+    - title: "OpenCLIP: Reproducible Scaling for CLIP"
+      url: "https://arxiv.org/abs/2210.07116"
+      authors: "Ilharco et al."
+      year: 2022
+  documentation:
+    - title: "OpenAI CLIP"
+      url: "https://github.com/openai/CLIP"
+    - title: "Hugging Face Transformers CLIP"
+      url: "https://huggingface.co/docs/transformers/model_doc/clip"
+    - title: "Sentence Transformers Multi-Modal"
+      url: "https://www.sbert.net/examples/applications/image-search/README.html"
+  tutorials:
+    - title: "Building a Multimodal Search Engine"
+      url: "https://blog.roboflow.com/multimodal-search-clip/"
+    - title: "CLIP Image Search Tutorial"
+      url: "https://github.com/openai/CLIP#usage"
+  tools:
+    - name: "CLIP"
+      description: "OpenAI's contrastive language-image pre-training model"
+      url: "https://github.com/openai/CLIP"
+    - name: "OpenCLIP"
+      description: "Open-source reproduction of CLIP with more models"
+      url: "https://github.com/mlfoundations/open_clip"
+    - name: "Sentence Transformers"
+      description: "Easy-to-use CLIP implementation for image search"
+      url: "https://www.sbert.net/"
+    - name: "Pinecone Vision"
+      description: "Vector DB with native image embedding support"
+      url: "https://www.pinecone.io/"
 ---
 
 # Image Embedding for RAG
 
-## Overview
+Implement image-to-embedding conversion for multimodal RAG, enabling cross-modal search where text queries retrieve relevant images and vice versa.
 
-Modern RAG needs to handle images, not just text. This challenge teaches you to embed images and text into a shared vector space.
+## The Problem
 
-## Why This Matters
-
-- **Multimodal Search**: Find documents by image similarity
-- **Scientific Papers**: Diagrams are essential content
+Modern RAG needs to handle images, not just text:
+- **Scientific papers**: Diagrams contain essential information
 - **E-commerce**: Product images drive discovery
+- **Medical imaging**: Visual symptoms complement text records
+- **Technical docs**: Screenshots and architecture diagrams
 
-## Key Concepts
+## Your Task
 
-- CLIP/SigLIP-style embeddings
-- Shared embedding space for text and images
-- Combined document embeddings
-- Cross-modal retrieval
+Implement an `ImageEmbedder` class for multimodal RAG:
 
-## Real-World Applications
+```python
+class ImageEmbedder:
+    def __init__(self, model_name: str = "clip-ViT-B-32"):
+        """
+        Initialize image embedder.
+        
+        Args:
+            model_name: CLIP model variant to use
+        """
+        pass
+    
+    def embed_image(self, image: Union[str, Image.Image, np.ndarray]) -> np.ndarray:
+        """
+        Convert image to embedding vector.
+        
+        Args:
+            image: Image path, PIL Image, or numpy array
+            
+        Returns:
+            Normalized embedding vector
+        """
+        pass
+    
+    def embed_text(self, text: str) -> np.ndarray:
+        """
+        Convert text to embedding vector (same space as images).
+        
+        Args:
+            text: Input text
+            
+        Returns:
+            Normalized embedding vector
+        """
+        pass
+    
+    def embed_batch(self, images: list, batch_size: int = 32) -> np.ndarray:
+        """
+        Embed multiple images efficiently.
+        
+        Args:
+            images: List of images
+            batch_size: Batch size for processing
+            
+        Returns:
+            Array of embedding vectors
+        """
+        pass
+    
+    def compute_similarity(self, embedding1: np.ndarray, 
+                          embedding2: np.ndarray) -> float:
+        """
+        Compute cosine similarity between embeddings.
+        
+        Args:
+            embedding1: First embedding
+            embedding2: Second embedding
+            
+        Returns:
+            Similarity score [-1, 1]
+        """
+        pass
+    
+    def find_matches(self, query: Union[str, Image.Image], 
+                    candidates: list, top_k: int = 5) -> list[dict]:
+        """
+        Find best matches for query (text or image).
+        
+        Args:
+            query: Text string or image
+            candidates: List of (image, metadata) tuples
+            top_k: Number of results
+            
+        Returns:
+            List of matches with scores
+        """
+        pass
+```
 
-Pinterest, Google Image Search, and e-commerce platforms use multimodal embeddings.
+## Example
 
+```python
+# Initialize embedder
+embedder = ImageEmbedder("clip-ViT-B-32")
+
+# Embed images
+image_paths = ["dog.jpg", "cat.jpg", "car.jpg", "tree.jpg"]
+embeddings = embedder.embed_batch(image_paths)
+
+# Text-to-image search
+query = "a fluffy animal with four legs"
+query_embedding = embedder.embed_text(query)
+
+# Find matches
+results = embedder.find_matches(query, 
+                                list(zip(image_paths, embeddings)), 
+                                top_k=3)
+
+print(results)
+# [
+#   {"image": "dog.jpg", "score": 0.89},
+#   {"image": "cat.jpg", "score": 0.82},
+#   {"image": "tree.jpg", "score": 0.31}
+# ]
+
+# Image-to-image search
+query_image = Image.open("puppy.jpg")
+similar_images = embedder.find_matches(query_image, 
+                                       list(zip(image_paths, embeddings)),
+                                       top_k=2)
+
+# Cross-modal document embedding
+def embed_document_with_images(text: str, images: list) -> np.ndarray:
+    """Create combined text + image embedding."""
+    text_emb = embedder.embed_text(text)
+    image_embs = [embedder.embed_image(img) for img in images]
+    
+    # Average pooling
+    all_embs = [text_emb] + image_embs
+    return np.mean(all_embs, axis=0)
+```
+
+## Algorithm Details
+
+### Image Preprocessing
+
+```python
+def preprocess_image(self, image: Image.Image) -> torch.Tensor:
+    """Preprocess image for CLIP."""
+    from torchvision import transforms
+    
+    preprocess = transforms.Compose([
+        transforms.Resize(224, interpolation=transforms.InterpolationMode.BICUBIC),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize(
+            mean=[0.48145466, 0.4578275, 0.40821073],
+            std=[0.26862954, 0.26130258, 0.27577711]
+        )
+    ])
+    
+    return preprocess(image).unsqueeze(0)
+```
+
+### CLIP Embedding
+
+```python
+def embed_image(self, image: Union[str, Image.Image]) -> np.ndarray:
+    """Generate CLIP embedding for image."""
+    import torch
+    from PIL import Image
+    
+    # Load image if path provided
+    if isinstance(image, str):
+        image = Image.open(image).convert("RGB")
+    elif isinstance(image, np.ndarray):
+        image = Image.fromarray(image).convert("RGB")
+    
+    # Preprocess
+    image_tensor = self.preprocess_image(image).to(self.device)
+    
+    # Generate embedding
+    with torch.no_grad():
+        image_features = self.model.encode_image(image_tensor)
+        image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+    
+    return image_features.cpu().numpy().flatten()
+```
+
+### Batch Processing
+
+```python
+def embed_batch(self, images: list, batch_size: int = 32) -> np.ndarray:
+    """Process images in batches for efficiency."""
+    all_embeddings = []
+    
+    for i in range(0, len(images), batch_size):
+        batch = images[i:i + batch_size]
+        
+        # Load and preprocess batch
+        batch_tensors = []
+        for img in batch:
+            if isinstance(img, str):
+                img = Image.open(img).convert("RGB")
+            batch_tensors.append(self.preprocess_image(img))
+        
+        batch_tensor = torch.cat(batch_tensors).to(self.device)
+        
+        # Embed batch
+        with torch.no_grad():
+            features = self.model.encode_image(batch_tensor)
+            features = features / features.norm(dim=-1, keepdim=True)
+        
+        all_embeddings.append(features.cpu().numpy())
+    
+    return np.vstack(all_embeddings)
+```
+
+## CLIP Model Variants
+
+| Model | Image Size | Embedding Dim | Speed | Accuracy |
+|-------|-----------|---------------|-------|----------|
+| RN50 | 224 | 1024 | Fast | Good |
+| ViT-B/32 | 224 | 512 | Fast | Good |
+| ViT-B/16 | 224 | 512 | Medium | Better |
+| ViT-L/14 | 224 | 768 | Slow | Best |
+| ViT-L/14@336 | 336 | 768 | Slowest | Best |
+
+## Evaluation Criteria
+
+1. **Embedding Quality**: Correct similarity rankings
+2. **Efficiency**: Batch processing works correctly
+3. **Robustness**: Handles various image formats
+4. **Normalization**: Embeddings are properly normalized
+
+## Test Cases
+
+```python
+def test_text_to_image_search():
+    """Test text query retrieves relevant images."""
+    embedder = ImageEmbedder()
+    
+    # Dog image should match "dog" text better than "car"
+    dog_emb = embedder.embed_image("dog.jpg")
+    car_emb = embedder.embed_image("car.jpg")
+    
+    dog_text_emb = embedder.embed_text("a dog")
+    
+    dog_sim = embedder.compute_similarity(dog_emb, dog_text_emb)
+    car_sim = embedder.compute_similarity(car_emb, dog_text_emb)
+    
+    assert dog_sim > car_sim
+
+def test_batch_processing():
+    """Test batch embedding produces consistent results."""
+    embedder = ImageEmbedder()
+    
+    images = ["img1.jpg", "img2.jpg", "img3.jpg"]
+    
+    # Individual embeddings
+    individual = [embedder.embed_image(img) for img in images]
+    
+    # Batch embeddings
+    batch = embedder.embed_batch(images)
+    
+    # Should be approximately equal
+    for i, ind_emb in enumerate(individual):
+        assert np.allclose(ind_emb, batch[i], rtol=1e-5)
+
+def test_normalization():
+    """Test embeddings are unit vectors."""
+    embedder = ImageEmbedder()
+    
+    emb = embedder.embed_image("test.jpg")
+    norm = np.linalg.norm(emb)
+    
+    assert abs(norm - 1.0) < 1e-6
+```
+
+## Integration with RAG Pipeline
+
+```python
+class MultimodalRAG:
+    def __init__(self):
+        self.text_embedder = TextEmbedder()
+        self.image_embedder = ImageEmbedder()
+        self.vector_store = VectorStore()
+    
+    def index_document(self, doc: dict):
+        """Index document with text and images."""
+        # Index text chunks
+        for chunk in doc["text_chunks"]:
+            emb = self.text_embedder.embed(chunk)
+            self.vector_store.add(emb, {
+                "type": "text",
+                "content": chunk
+            })
+        
+        # Index images
+        for img in doc["images"]:
+            emb = self.image_embedder.embed_image(img)
+            caption = self.generate_caption(img)
+            self.vector_store.add(emb, {
+                "type": "image",
+                "path": img,
+                "caption": caption
+            })
+    
+    def retrieve(self, query: str, k: int = 5) -> list[dict]:
+        """Retrieve both text and image results."""
+        # Embed query as text
+        text_emb = self.text_embedder.embed(query)
+        text_results = self.vector_store.search(text_emb, k=k, filter={"type": "text"})
+        
+        # Also search as image query (for cross-modal)
+        image_emb = self.image_embedder.embed_text(query)
+        image_results = self.vector_store.search(image_emb, k=k, filter={"type": "image"})
+        
+        # Merge and rerank
+        return self.merge_results(text_results, image_results, k=k)
+```
+
+## Further Reading
+
+- [CLIP Paper](https://arxiv.org/abs/2103.00020)
+- [OpenCLIP Repository](https://github.com/mlfoundations/open_clip)
+- [Multimodal RAG Guide](multimodal-rag-guide)

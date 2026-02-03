@@ -15,7 +15,7 @@ const LESSONS_DIR = path.join(process.cwd(), "content", "lessons");
 const LessonSourceSchema: z.ZodType<LessonSource> = z.object({
   title: z.string().min(1),
   url: z.string().url(),
-  type: z.enum(["paper", "docs", "blog", "video", "repo", "thread", "podcast"]),
+  type: z.enum(["paper", "docs", "blog", "video", "repo", "thread", "podcast", "code", "course"]),
   authors: z.string().optional(),
   year: z.number().int().optional(),
   note: z.string().optional(),

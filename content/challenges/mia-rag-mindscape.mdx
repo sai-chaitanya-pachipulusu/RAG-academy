@@ -1,33 +1,397 @@
 ---
 title: "MIA-RAG Mindscape"
-description: "Implement multi-hop inference with knowledge graph augmentation"
+description: "Implement multi-hop inference with knowledge graph augmentation for complex reasoning across documents"
+difficulty: "expert"
+xpReward: 200
+topics: ["multi-hop-reasoning", "knowledge-graphs", "inference", "complex-qa"]
+prerequisites: ["multi-hop-qa", "knowledge-graph-extraction", "graph-traversal-rag"]
 ---
 
 # MIA-RAG Mindscape
 
-Implement a multi-hop inference RAG system that uses knowledge graph traversal to answer complex questions requiring reasoning across multiple documents.
+## Overview
 
-## Requirements
+Many questions cannot be answered from a single document. "What drug discovered by the inventor of PCR is used to treat the disease that killed patient X?" requires connecting inventor → invention → drug → disease → patient across multiple sources. MIA-RAG implements multi-hop inference augmented with knowledge graphs.
 
-1. Build a knowledge graph from document entities
-2. Implement multi-hop graph traversal
-3. Aggregate evidence from multiple hops
-4. Generate answers that cite the reasoning path
+## Why This Matters
 
-## Starter Code
+- **Complex Questions**: Real-world questions often require synthesis
+- **Hidden Connections**: Discover implicit relationships
+- **Explainability**: Show reasoning chains
+- **Scientific Discovery**: Find novel connections
+
+## Key Concepts
+
+- **Multi-hop reasoning**: Chain multiple retrieval steps
+- **Knowledge graph traversal**: Navigate entity relationships
+- **Evidence aggregation**: Combine information from multiple sources
+- **Path explanation**: Show how answer was derived
+
+## Real-World Applications
+
+Biomedical research (drug discovery), legal analysis (case precedent chains), and investigative journalism all require multi-hop reasoning.
+
+## The Challenge
+
+### Part 1: Knowledge Graph Construction
 
 ```python
-def mia_rag_query(query: str, knowledge_graph, documents: list[str]) -> dict:
-    """
-    Multi-hop inference-augmented RAG.
+from typing import List, Dict, Set, Tuple, Optional
+from dataclasses import dataclass
+from collections import defaultdict, deque
+
+@dataclass
+class Entity:
+    """An entity in the knowledge graph."""
+    id: str
+    name: str
+    type: str
+    source_doc: str
+    metadata: Dict = None
+
+@dataclass
+class Relation:
+    """A relation between two entities."""
+    source: str  # entity id
+    target: str  # entity id
+    type: str
+    confidence: float
+    evidence: str
+
+class KnowledgeGraph:
+    """Graph for multi-hop reasoning."""
     
-    Returns:
-        {
-            "answer": str,
-            "reasoning_path": list[str],  # entities/relations traversed
-            "sources": list[str]
-        }
-    """
-    # Your implementation here
-    pass
+    def __init__(self):
+        self.entities: Dict[str, Entity] = {}
+        self.relations: List[Relation] = []
+        # Adjacency list: entity_id -> list of (target, relation)
+        self.adjacency: Dict[str, List[Tuple[str, Relation]]] = defaultdict(list)
+    
+    def add_entity(self, entity: Entity) -> str:
+        """Add an entity to the graph."""
+        self.entities[entity.id] = entity
+        return entity.id
+    
+    def add_relation(self, relation: Relation) -> None:
+        """Add a relation between entities."""
+        self.relations.append(relation)
+        self.adjacency[relation.source].append((relation.target, relation))
+        # For undirected relations, add reverse
+        if relation.type in ['collaborates_with', 'related_to']:
+            self.adjacency[relation.target].append((relation.source, relation))
+    
+    def get_neighbors(
+        self,
+        entity_id: str,
+        relation_type: Optional[str] = None
+    ) -> List[Tuple[Entity, Relation]]:
+        """Get neighboring entities."""
+        neighbors = []
+        for target_id, relation in self.adjacency.get(entity_id, []):
+            if relation_type is None or relation.type == relation_type:
+                neighbors.append((self.entities[target_id], relation))
+        return neighbors
+    
+    def find_paths(
+        self,
+        start: str,
+        end: str,
+        max_hops: int = 3
+    ) -> List[List[Relation]]:
+        """Find all paths between two entities within max hops."""
+        paths = []
+        queue = deque([(start, [])])
+        visited = {start}
+        
+        while queue:
+            current, path = queue.popleft()
+            
+            if len(path) >= max_hops:
+                continue
+            
+            for neighbor_id, relation in self.adjacency.get(current, []):
+                new_path = path + [relation]
+                
+                if neighbor_id == end:
+                    paths.append(new_path)
+                elif neighbor_id not in visited and len(new_path) < max_hops:
+                    visited.add(neighbor_id)
+                    queue.append((neighbor_id, new_path))
+        
+        return paths
 ```
+
+### Part 2: Multi-Hop Retriever
+
+```python
+@dataclass
+class HopResult:
+    """Result of a single hop."""
+    hop_number: int
+    query: str
+    retrieved_entities: List[Entity]
+    relations: List[Relation]
+    confidence: float
+
+class MultiHopRetriever:
+    """Retrieve information through multiple hops."""
+    
+    def __init__(
+        self,
+        knowledge_graph: KnowledgeGraph,
+        vector_store: VectorStore,
+        entity_linker: EntityLinker
+    ):
+        self.kg = knowledge_graph
+        self.store = vector_store
+        self.linker = entity_linker
+    
+    def retrieve(
+        self,
+        query: str,
+        max_hops: int = 3,
+        min_confidence: float = 0.5
+    ) -> List[HopResult]:
+        """Multi-hop retrieval starting from query."""
+        hops = []
+        current_query = query
+        visited_entities = set()
+        
+        for hop_num in range(max_hops):
+            # Link query to entities
+            entities = self.linker.link(current_query)
+            
+            # Filter already visited
+            new_entities = [
+                e for e in entities
+                if e.id not in visited_entities
+            ]
+            
+            if not new_entities:
+                break
+            
+            # Get relations for these entities
+            relations = []
+            for entity in new_entities:
+                neighbors = self.kg.get_neighbors(entity.id)
+                for neighbor, relation in neighbors:
+                    if relation.confidence >= min_confidence:
+                        relations.append(relation)
+                        visited_entities.add(neighbor.id)
+            
+            hop_result = HopResult(
+                hop_number=hop_num + 1,
+                query=current_query,
+                retrieved_entities=new_entities,
+                relations=relations,
+                confidence=self._calculate_hop_confidence(
+                    new_entities, relations
+                )
+            )
+            hops.append(hop_result)
+            
+            # Construct next query from discovered information
+            current_query = self._construct_next_query(
+                new_entities, relations
+            )
+        
+        return hops
+    
+    def _calculate_hop_confidence(
+        self,
+        entities: List[Entity],
+        relations: List[Relation]
+    ) -> float:
+        """Calculate confidence for this hop."""
+        if not relations:
+            return 0.0
+        
+        avg_relation_conf = sum(
+            r.confidence for r in relations
+        ) / len(relations)
+        
+        # Penalize if few entities found
+        entity_factor = min(len(entities) / 3, 1.0)
+        
+        return avg_relation_conf * entity_factor
+    
+    def _construct_next_query(
+        self,
+        entities: List[Entity],
+        relations: List[Relation]
+    ) -> str:
+        """Construct query for next hop based on findings."""
+        # Use most confident relation types as next query focus
+        relation_types = defaultdict(float)
+        for r in relations:
+            relation_types[r.type] += r.confidence
+        
+        top_relation = max(relation_types, key=relation_types.get)
+        
+        # Include entity names
+        entity_names = [e.name for e in entities[:3]]
+        
+        return f"{', '.join(entity_names)} {top_relation}"
+```
+
+### Part 3: Evidence Aggregation
+
+```python
+@dataclass
+class ReasoningPath:
+    """A complete reasoning path from query to answer."""
+    hops: List[HopResult]
+    final_entities: List[Entity]
+    aggregated_confidence: float
+    supporting_documents: Set[str]
+
+class EvidenceAggregator:
+    """Aggregate evidence from multiple hops."""
+    
+    def aggregate(
+        self,
+        hops: List[HopResult],
+        original_query: str
+    ) -> ReasoningPath:
+        """Aggregate multi-hop evidence."""
+        # Collect all entities from final hop
+        final_entities = hops[-1].retrieved_entities if hops else []
+        
+        # Collect supporting documents
+        supporting_docs = set()
+        for hop in hops:
+            for entity in hop.retrieved_entities:
+                supporting_docs.add(entity.source_doc)
+            for relation in hop.relations:
+                # Extract doc from evidence
+                supporting_docs.add(relation.evidence)
+        
+        # Calculate aggregated confidence
+        if hops:
+            # Geometric mean of hop confidences
+            confidences = [h.confidence for h in hops]
+            agg_confidence = (
+                sum(confidences) / len(confidences)
+            ) * (0.9 ** len(hops))  # Penalty for longer paths
+        else:
+            agg_confidence = 0.0
+        
+        return ReasoningPath(
+            hops=hops,
+            final_entities=final_entities,
+            aggregated_confidence=agg_confidence,
+            supporting_documents=supporting_docs
+        )
+    
+    def rank_paths(
+        self,
+        paths: List[ReasoningPath],
+        query: str
+    ) -> List[ReasoningPath]:
+        """Rank reasoning paths by relevance to query."""
+        # Score each path
+        scored_paths = []
+        for path in paths:
+            score = path.aggregated_confidence
+            
+            # Bonus for shorter paths
+            score *= (1.0 / (1 + len(path.hops) * 0.1))
+            
+            # Bonus for more supporting documents
+            score *= min(len(path.supporting_documents) / 3, 1.5)
+            
+            scored_paths.append((score, path))
+        
+        # Sort by score
+        scored_paths.sort(key=lambda x: x[0], reverse=True)
+        return [p for _, p in scored_paths]
+```
+
+### Part 4: Answer Generation with Reasoning
+
+```python
+class MIA_RAG:
+    """Multi-hop Inference-Augmented RAG."""
+    
+    def __init__(
+        self,
+        retriever: MultiHopRetriever,
+        aggregator: EvidenceAggregator,
+        llm: LLM
+    ):
+        self.retriever = retriever
+        self.aggregator = aggregator
+        self.llm = llm
+    
+    def query(
+        self,
+        query: str,
+        max_hops: int = 3
+    ) -> Dict[str, Any]:
+        """Answer query with multi-hop reasoning."""
+        # Multi-hop retrieval
+        hops = self.retriever.retrieve(query, max_hops=max_hops)
+        
+        # Aggregate evidence
+        reasoning_path = self.aggregator.aggregate(hops, query)
+        
+        # Generate answer with reasoning
+        answer = self._generate_answer(query, reasoning_path)
+        
+        return {
+            "answer": answer["text"],
+            "reasoning_path": self._format_reasoning(reasoning_path),
+            "confidence": reasoning_path.aggregated_confidence,
+            "sources": list(reasoning_path.supporting_documents),
+            "hops": len(reasoning_path.hops)
+        }
+    
+    def _generate_answer(
+        self,
+        query: str,
+        path: ReasoningPath
+    ) -> Dict[str, str]:
+        """Generate answer with reasoning explanation."""
+        # Build context from reasoning path
+        context_parts = []
+        for hop in path.hops:
+            entities = [e.name for e in hop.retrieved_entities]
+            relations = [r.type for r in hop.relations]
+            context_parts.append(
+                f"Hop {hop.hop_number}: Found {', '.join(entities)} "
+                f"via relations: {', '.join(relations)}"
+            )
+        
+        context = "\n".join(context_parts)
+        
+        prompt = f"""Based on the following multi-hop reasoning chain, answer the question.
+
+Reasoning Chain:
+{context}
+
+Question: {query}
+
+Provide a clear answer and explain the reasoning path."""
+        
+        response = self.llm.generate(prompt)
+        
+        return {"text": response}
+    
+    def _format_reasoning(self, path: ReasoningPath) -> List[str]:
+        """Format reasoning path for display."""
+        steps = []
+        for hop in path.hops:
+            entities = " → ".join(e.name for e in hop.retrieved_entities[:3])
+            steps.append(f"Hop {hop.hop_number}: {entities}")
+        return steps
+```
+
+## Evaluation Criteria
+
+Your solution will be evaluated on:
+
+1. **Reasoning Quality**: Correct multi-hop chains
+2. **Answer Accuracy**: Correct final answers
+3. **Explainability**: Clear reasoning paths
+4. **Efficiency**: Reasonable number of hops
+5. **Coverage**: Handle various question types

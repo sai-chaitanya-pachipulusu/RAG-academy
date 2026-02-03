@@ -1,10 +1,21 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "Retrieval Metrics Suite"
+description: "Implement retrieval metrics (Recall@K, MRR, nDCG) so you can measure improvements instead of guessing."
+difficulty: "beginner"
+estimatedMinutes: 30
+prerequisites: ["evaluator-recall-at-k", "evaluator-precision-at-k"]
+related: ["evaluator-f1-score", "evaluator-map", "evaluator-mrr", "evaluator-ndcg"]
+next: "beir-evaluation-setup"
+xpReward: 75
+---
+
+<Callout title="Goal" variant="info">
   Implement retrieval metrics (Recall@K, MRR, nDCG) so you can *measure* improvements instead of guessing.
 </Callout>
 
 ## Why this matters in production
 
-“It feels better” is not engineering.
+"It feels better" is not engineering.
 
 These metrics let you:
 
@@ -13,11 +24,68 @@ These metrics let you:
 - tune ANN params, top‑k, reranking budgets
 - catch regressions in CI
 
-## Metrics you’re implementing
+## Learning Outcomes
 
-- **Recall@K**: “did we retrieve any relevant evidence in the top‑K?”
-- **MRR@K**: “how early is the first relevant hit?”
-- **nDCG@K**: “is the ranking quality good, including graded relevance?”
+After completing this challenge, you will:
+- Master the standard metrics for evaluating retrieval quality
+- Be able to A/B test different retrieval strategies
+- Know how to set up evaluation pipelines for RAG systems
+
+## Real-World Applications
+
+| Company | Metric Use |
+|---------|-----------|
+| **Google** | nDCG for search ranking improvements |
+| **Amazon** | MRR for product recommendations |
+| **Netflix** | Recall@K for content discovery |
+| **Enterprise RAG** | All three for system tuning |
+
+## Metrics you're implementing
+
+### Recall@K
+"Did we retrieve any relevant evidence in the top‑K?"
+
+```
+Recall@K = |{Relevant docs} ∩ {Top K retrieved}| / |{Relevant docs}|
+```
+
+**Use when:** You need to know if the right documents are in the result set at all.
+
+**Complexity:** O(K) time, O(1) space
+
+### MRR@K (Mean Reciprocal Rank)
+"How early is the first relevant hit?"
+
+```
+MRR@K = 1 / rank_of_first_relevant
+```
+
+**Use when:** The position of the first good result matters most.
+
+**Complexity:** O(N) time per query, O(1) space
+
+### nDCG@K (Normalized Discounted Cumulative Gain)
+"Is the ranking quality good, including graded relevance?"
+
+```
+DCG@K = Σ (2^rel_i - 1) / log2(i + 1)
+nDCG@K = DCG@K / IDCG@K
+```
+
+**Use when:** You have graded relevance (not just binary) and ranking order matters.
+
+**Complexity:** O(K log K) time, O(K) space
+
+## Metric Comparison Matrix
+
+| Metric | Binary Relevance | Graded Relevance | Position Aware | Best For |
+|--------|-----------------|------------------|----------------|----------|
+| Recall@K | ✅ | ❌ | ❌ | Finding evidence |
+| Precision@K | ✅ | ❌ | ❌ | Context quality |
+| F1@K | ✅ | ❌ | ❌ | Balanced evaluation |
+| MRR | ✅ | ❌ | ✅ | First result rank |
+| MAP | ✅ | ❌ | ✅ | Multi-doc ranking |
+| nDCG | ✅ | ✅ | ✅ | Graded ranking |
 
 ## Offline vs online
 
@@ -28,6 +96,277 @@ These metrics let you:
 
 - Dividing by 0 when there are no relevant docs (define a convention; tests may expect 0.0).
 - Implementing DCG incorrectly (watch the log base and the +1 offset).
+- Not using the same evaluation set when comparing systems.
+
+## Resources
+
+### Papers
+- **"BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of Information Retrieval Models"** - Thakur et al.
+- **"MTEB: Massive Text Embedding Benchmark"** - Muennighoff et al.
+
+### Documentation
+- [RAGAS Metrics](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/)
+- [Information Retrieval Evaluation](https://nlp.stanford.edu/IR-book/html/htmledition/evaluation-of-ranked-retrieval-results-1.html)
+
+### Tools
+- **RAGAS**: Comprehensive RAG evaluation framework
+- **BEIR**: Standard IR benchmarking
+- **MTEB**: Multi-task embedding evaluation
+- **ir-measures**: Python library for IR metrics
+
+## Implementation: Complete Metrics Suite
+
+```python
+from typing import List, Set, Dict
+import math
+
+class RetrievalMetrics:
+    """Complete suite of retrieval evaluation metrics."""
+    
+    @staticmethod
+    def recall_at_k(retrieved: List[str], relevant: Set[str], k: int) -> float:
+        """Recall@K: Fraction of relevant docs found in top-K."""
+        if not relevant:
+            return 1.0
+        if k <= 0 or not retrieved:
+            return 0.0
+        
+        top_k = set(retrieved[:k])
+        return len(top_k & relevant) / len(relevant)
+    
+    @staticmethod
+    def precision_at_k(retrieved: List[str], relevant: Set[str], k: int) -> float:
+        """Precision@K: Fraction of top-K that are relevant."""
+        if k <= 0 or not retrieved:
+            return 0.0
+        
+        top_k = retrieved[:k]
+        relevant_count = sum(1 for doc in top_k if doc in relevant)
+        return relevant_count / len(top_k)
+    
+    @staticmethod
+    def f1_at_k(retrieved: List[str], relevant: Set[str], k: int) -> float:
+        """F1@K: Harmonic mean of precision and recall."""
+        precision = RetrievalMetrics.precision_at_k(retrieved, relevant, k)
+        recall = RetrievalMetrics.recall_at_k(retrieved, relevant, k)
+        
+        if precision + recall == 0:
+            return 0.0
+        return 2 * precision * recall / (precision + recall)
+    
+    @staticmethod
+    def mrr(retrieved: List[str], relevant: Set[str]) -> float:
+        """MRR: Reciprocal rank of first relevant document."""
+        for i, doc in enumerate(retrieved, start=1):
+            if doc in relevant:
+                return 1.0 / i
+        return 0.0
+    
+    @staticmethod
+    def dcg_at_k(relevances: List[float], k: int) -> float:
+        """DCG@K: Discounted cumulative gain."""
+        dcg = 0.0
+        for i, rel in enumerate(relevances[:k], start=1):
+            dcg += rel / math.log2(i + 1)
+        return dcg
+    
+    @staticmethod
+    def ndcg_at_k(retrieved: List[str], relevance: Dict[str, float], k: int) -> float:
+        """nDCG@K: Normalized discounted cumulative gain."""
+        if k <= 0:
+            return 0.0
+        
+        retrieved_relevances = [relevance.get(doc, 0.0) for doc in retrieved[:k]]
+        actual_dcg = RetrievalMetrics.dcg_at_k(retrieved_relevances, k)
+        
+        ideal_relevances = sorted(relevance.values(), reverse=True)[:k]
+        ideal_dcg = RetrievalMetrics.dcg_at_k(ideal_relevances, k)
+        
+        return actual_dcg / ideal_dcg if ideal_dcg > 0 else 0.0
+    
+    @staticmethod
+    def evaluate_all(
+        retrieved: List[str],
+        relevant: Set[str],
+        relevance_scores: Dict[str, float] = None,
+        k: int = 10
+    ) -> Dict[str, float]:
+        """Compute all metrics at once."""
+        results = {
+            f"recall@{k}": RetrievalMetrics.recall_at_k(retrieved, relevant, k),
+            f"precision@{k}": RetrievalMetrics.precision_at_k(retrieved, relevant, k),
+            f"f1@{k}": RetrievalMetrics.f1_at_k(retrieved, relevant, k),
+            "mrr": RetrievalMetrics.mrr(retrieved, relevant),
+        }
+        
+        if relevance_scores:
+            results[f"ndcg@{k}"] = RetrievalMetrics.ndcg_at_k(
+                retrieved, relevance_scores, k
+            )
+        
+        return results
+```
+
+## Challenge: Implement Complete Metrics Suite
+
+### Requirements
+
+1. Implement all core metrics: Recall@K, Precision@K, F1@K, MRR, nDCG@K
+2. Create a `RetrievalMetrics` class with static methods
+3. Add an `evaluate_all()` method for comprehensive evaluation
+4. Handle all edge cases properly
+
+### Starter Code
+
+```python
+from typing import List, Set, Dict
+import math
+
+class RetrievalMetrics:
+    """Complete suite of retrieval evaluation metrics."""
+    
+    @staticmethod
+    def recall_at_k(retrieved: List[str], relevant: Set[str], k: int) -> float:
+        """Recall@K: Fraction of relevant docs found in top-K."""
+        # TODO: Implement Recall@K
+        pass
+    
+    @staticmethod
+    def precision_at_k(retrieved: List[str], relevant: Set[str], k: int) -> float:
+        """Precision@K: Fraction of top-K that are relevant."""
+        # TODO: Implement Precision@K
+        pass
+    
+    @staticmethod
+    def f1_at_k(retrieved: List[str], relevant: Set[str], k: int) -> float:
+        """F1@K: Harmonic mean of precision and recall."""
+        # TODO: Implement F1@K
+        pass
+    
+    @staticmethod
+    def mrr(retrieved: List[str], relevant: Set[str]) -> float:
+        """MRR: Reciprocal rank of first relevant document."""
+        # TODO: Implement MRR
+        pass
+    
+    @staticmethod
+    def ndcg_at_k(retrieved: List[str], relevance: Dict[str, float], k: int) -> float:
+        """nDCG@K: Normalized discounted cumulative gain."""
+        # TODO: Implement nDCG@K
+        pass
 
 
+# Test your implementation
+def test_retrieval_metrics():
+    metrics = RetrievalMetrics()
+    
+    # Test data
+    retrieved = ["doc1", "doc2", "doc3", "doc4", "doc5"]
+    relevant = {"doc1", "doc3", "doc5"}
+    relevance = {"doc1": 3.0, "doc2": 1.0, "doc3": 2.0, "doc4": 0.0, "doc5": 1.0}
+    
+    # Test Recall@5
+    assert metrics.recall_at_k(retrieved, relevant, 5) == 1.0
+    
+    # Test Precision@5
+    assert metrics.precision_at_k(retrieved, relevant, 5) == 0.6
+    
+    # Test F1@5
+    expected_f1 = 2 * 0.6 * 1.0 / (0.6 + 1.0)
+    assert abs(metrics.f1_at_k(retrieved, relevant, 5) - expected_f1) < 0.01
+    
+    # Test MRR
+    assert metrics.mrr(retrieved, relevant) == 1.0
+    
+    # Test nDCG@5
+    result = metrics.ndcg_at_k(retrieved, relevance, 5)
+    assert 0 < result <= 1.0
+    
+    print("All tests passed!")
 
+test_retrieval_metrics()
+```
+
+### Solution
+
+<details>
+<summary>Click to reveal solution</summary>
+
+```python
+from typing import List, Set, Dict
+import math
+
+class RetrievalMetrics:
+    """Complete suite of retrieval evaluation metrics."""
+    
+    @staticmethod
+    def recall_at_k(retrieved: List[str], relevant: Set[str], k: int) -> float:
+        """Recall@K: Fraction of relevant docs found in top-K."""
+        if not relevant:
+            return 1.0
+        if k <= 0 or not retrieved:
+            return 0.0
+        
+        top_k = set(retrieved[:k])
+        return len(top_k & relevant) / len(relevant)
+    
+    @staticmethod
+    def precision_at_k(retrieved: List[str], relevant: Set[str], k: int) -> float:
+        """Precision@K: Fraction of top-K that are relevant."""
+        if k <= 0 or not retrieved:
+            return 0.0
+        
+        top_k = retrieved[:k]
+        relevant_count = sum(1 for doc in top_k if doc in relevant)
+        return relevant_count / len(top_k)
+    
+    @staticmethod
+    def f1_at_k(retrieved: List[str], relevant: Set[str], k: int) -> float:
+        """F1@K: Harmonic mean of precision and recall."""
+        precision = RetrievalMetrics.precision_at_k(retrieved, relevant, k)
+        recall = RetrievalMetrics.recall_at_k(retrieved, relevant, k)
+        
+        if precision + recall == 0:
+            return 0.0
+        return 2 * precision * recall / (precision + recall)
+    
+    @staticmethod
+    def mrr(retrieved: List[str], relevant: Set[str]) -> float:
+        """MRR: Reciprocal rank of first relevant document."""
+        for i, doc in enumerate(retrieved, start=1):
+            if doc in relevant:
+                return 1.0 / i
+        return 0.0
+    
+    @staticmethod
+    def dcg_at_k(relevances: List[float], k: int) -> float:
+        """DCG@K: Discounted cumulative gain."""
+        dcg = 0.0
+        for i, rel in enumerate(relevances[:k], start=1):
+            dcg += rel / math.log2(i + 1)
+        return dcg
+    
+    @staticmethod
+    def ndcg_at_k(retrieved: List[str], relevance: Dict[str, float], k: int) -> float:
+        """nDCG@K: Normalized discounted cumulative gain."""
+        if k <= 0:
+            return 0.0
+        
+        retrieved_relevances = [relevance.get(doc, 0.0) for doc in retrieved[:k]]
+        actual_dcg = RetrievalMetrics.dcg_at_k(retrieved_relevances, k)
+        
+        ideal_relevances = sorted(relevance.values(), reverse=True)[:k]
+        ideal_dcg = RetrievalMetrics.dcg_at_k(ideal_relevances, k)
+        
+        return actual_dcg / ideal_dcg if ideal_dcg > 0 else 0.0
+```
+
+</details>
+
+## After you pass
+
+Set up [beir-evaluation-setup](beir-evaluation-setup) to evaluate on standardized benchmarks.
+
+---
+
+**📊 Measurement First:** These metrics are the foundation of data-driven RAG improvement. Even a 0.5% improvement in nDCG can translate to millions in revenue at scale!

@@ -1,34 +1,364 @@
 ---
 title: "HiFi-RAG Filtering"
-description: "Implement high-fidelity filtering for improved retrieval precision"
+description: "Implement high-fidelity filtering for improved retrieval precision and answer quality"
+difficulty: "hard"
+xpReward: 150
+topics: ["filtering", "reranking", "precision", "quality-control"]
+prerequisites: ["llm-reranker", "mmr-diversity", "answer-relevancy-score"]
 ---
 
 # HiFi-RAG Filtering
 
-Implement a high-fidelity filtering system that removes irrelevant or low-quality retrieved chunks before generation.
+## Overview
 
-## Requirements
+Not all retrieved chunks are equally relevant. HiFi-RAG implements high-fidelity filtering to remove irrelevant or low-quality chunks before generation, improving answer accuracy and reducing hallucinations.
 
-1. Score chunk relevance to query
-2. Filter chunks below threshold
-3. Diversify remaining chunks
-4. Validate filtering improves generation
+## Why This Matters
 
-## Starter Code
+- **Noise Reduction**: Filter out off-topic chunks
+- **Quality Control**: Remove low-quality or corrupted content
+- **Context Efficiency**: Keep only most relevant context
+- **Cost Savings**: Fewer tokens sent to LLM
+
+## Key Concepts
+
+- **Relevance scoring**: Fine-grained chunk-query matching
+- **Quality filtering**: Detect malformed or low-quality chunks
+- **Diversity enforcement**: Avoid redundant information
+- **Threshold optimization**: Balance precision vs recall
+
+## Real-World Applications
+
+Enterprise search, legal research, and medical Q&A all benefit from aggressive filtering to ensure only high-quality context reaches the generator.
+
+## The Challenge
+
+### Part 1: Relevance Scorer
 
 ```python
-def hifi_filter(query: str, chunks: list[dict], threshold: float = 0.5) -> list[dict]:
-    """
-    High-fidelity filtering for retrieved chunks.
+from typing import List, Dict
+from dataclasses import dataclass
+import numpy as np
+
+@dataclass
+class ChunkScore:
+    """Comprehensive chunk relevance score."""
+    chunk_id: str
+    semantic_score: float
+    lexical_score: float
+    quality_score: float
+    final_score: float
+    should_keep: bool
+
+class RelevanceScorer:
+    """Score chunk relevance to query."""
     
-    Args:
-        query: User query
-        chunks: Retrieved chunks with scores
-        threshold: Minimum relevance score
+    def __init__(
+        self,
+        embedder,
+        semantic_weight: float = 0.6,
+        lexical_weight: float = 0.3,
+        quality_weight: float = 0.1
+    ):
+        self.embedder = embedder
+        self.weights = {
+            'semantic': semantic_weight,
+            'lexical': lexical_weight,
+            'quality': quality_weight
+        }
     
-    Returns:
-        Filtered and diversified chunks
-    """
-    # Your implementation here
-    pass
+    def score_chunks(
+        self,
+        query: str,
+        chunks: List[Dict],
+        query_embedding: List[float] = None
+    ) -> List[ChunkScore]:
+        """Score all chunks for relevance."""
+        if query_embedding is None:
+            query_embedding = self.embedder.embed(query)
+        
+        scores = []
+        for chunk in chunks:
+            # Semantic similarity
+            semantic = self._semantic_score(query_embedding, chunk)
+            
+            # Lexical overlap
+            lexical = self._lexical_score(query, chunk['content'])
+            
+            # Quality assessment
+            quality = self._quality_score(chunk)
+            
+            # Weighted combination
+            final = (
+                self.weights['semantic'] * semantic +
+                self.weights['lexical'] * lexical +
+                self.weights['quality'] * quality
+            )
+            
+            scores.append(ChunkScore(
+                chunk_id=chunk['id'],
+                semantic_score=semantic,
+                lexical_score=lexical,
+                quality_score=quality,
+                final_score=final,
+                should_keep=True  # Will be filtered later
+            ))
+        
+        return scores
+    
+    def _semantic_score(
+        self,
+        query_emb: List[float],
+        chunk: Dict
+    ) -> float:
+        """Calculate semantic similarity."""
+        chunk_emb = chunk.get('embedding')
+        if chunk_emb is None:
+            chunk_emb = self.embedder.embed(chunk['content'])
+        
+        return cosine_similarity(query_emb, chunk_emb)
+    
+    def _lexical_score(self, query: str, content: str) -> float:
+        """Calculate lexical overlap."""
+        query_terms = set(query.lower().split())
+        content_terms = set(content.lower().split())
+        
+        if not query_terms:
+            return 0.0
+        
+        overlap = query_terms & content_terms
+        return len(overlap) / len(query_terms)
+    
+    def _quality_score(self, chunk: Dict) -> float:
+        """Assess chunk quality."""
+        content = chunk['content']
+        
+        # Length check
+        if len(content) < 20:
+            return 0.3
+        
+        # Check for common quality issues
+        issues = 0
+        
+        # Too many special characters
+        special_ratio = sum(1 for c in content if not c.isalnum()) / len(content)
+        if special_ratio > 0.3:
+            issues += 1
+        
+        # Repeated content
+        words = content.split()
+        if len(words) > 10:
+            unique_ratio = len(set(words)) / len(words)
+            if unique_ratio < 0.3:
+                issues += 1
+        
+        # Incomplete sentences
+        if not any(content.endswith(end) for end in ['.', '!', '?', '"', "'"]):
+            issues += 0.5
+        
+        return max(0.0, 1.0 - issues * 0.3)
 ```
+
+### Part 2: Diversity Filter
+
+```python
+class DiversityFilter:
+    """Ensure diversity in filtered chunks."""
+    
+    def __init__(
+        self,
+        embedder,
+        similarity_threshold: float = 0.85
+    ):
+        self.embedder = embedder
+        self.threshold = similarity_threshold
+    
+    def diversify(
+        self,
+        chunks: List[Dict],
+        max_chunks: int = 5
+    ) -> List[Dict]:
+        """Select diverse subset of chunks."""
+        if not chunks:
+            return []
+        
+        # Get embeddings
+        embeddings = [
+            chunk.get('embedding') or self.embedder.embed(chunk['content'])
+            for chunk in chunks
+        ]
+        
+        selected = [chunks[0]]
+        selected_embs = [embeddings[0]]
+        
+        for i in range(1, len(chunks)):
+            if len(selected) >= max_chunks:
+                break
+            
+            # Check similarity to all selected
+            max_sim = max(
+                cosine_similarity(embeddings[i], sel_emb)
+                for sel_emb in selected_embs
+            )
+            
+            # Only add if sufficiently different
+            if max_sim < self.threshold:
+                selected.append(chunks[i])
+                selected_embs.append(embeddings[i])
+        
+        return selected
+```
+
+### Part 3: High-Fidelity Filter
+
+```python
+class HiFiFilter:
+    """High-fidelity filtering pipeline."""
+    
+    def __init__(
+        self,
+        scorer: RelevanceScorer,
+        diversity_filter: DiversityFilter,
+        min_score_threshold: float = 0.5,
+        max_chunks: int = 5
+    ):
+        self.scorer = scorer
+        self.diversity = diversity_filter
+        self.threshold = min_score_threshold
+        self.max_chunks = max_chunks
+    
+    def filter(
+        self,
+        query: str,
+        chunks: List[Dict]
+    ) -> Dict[str, any]:
+        """Apply high-fidelity filtering."""
+        if not chunks:
+            return {
+                'filtered_chunks': [],
+                'removed_count': 0,
+                'filter_stats': {}
+            }
+        
+        # Score all chunks
+        scores = self.scorer.score_chunks(query, chunks)
+        
+        # Filter by threshold
+        passed = [
+            (chunk, score) for chunk, score in zip(chunks, scores)
+            if score.final_score >= self.threshold
+        ]
+        
+        removed_by_threshold = len(chunks) - len(passed)
+        
+        # Sort by score
+        passed.sort(key=lambda x: x[1].final_score, reverse=True)
+        
+        # Apply diversity filter
+        diverse_chunks = self.diversity.diversify(
+            [p[0] for p in passed],
+            max_chunks=self.max_chunks
+        )
+        
+        removed_by_diversity = len(passed) - len(diverse_chunks)
+        
+        return {
+            'filtered_chunks': diverse_chunks,
+            'removed_count': removed_by_threshold + removed_by_diversity,
+            'filter_stats': {
+                'total_input': len(chunks),
+                'passed_threshold': len(passed),
+                'after_diversity': len(diverse_chunks),
+                'avg_score': np.mean([s.final_score for s in scores]),
+                'min_kept_score': min(
+                    (s.final_score for c, s in passed[:len(diverse_chunks)]),
+                    default=0
+                )
+            }
+        }
+```
+
+### Part 4: Validation
+
+```python
+class FilterValidator:
+    """Validate that filtering improves results."""
+    
+    def __init__(self, llm_client):
+        self.llm = llm_client
+    
+    def validate_filtering(
+        self,
+        query: str,
+        unfiltered_chunks: List[Dict],
+        filtered_chunks: List[Dict]
+    ) -> Dict[str, any]:
+        """Compare answers with and without filtering."""
+        # Generate answer with all chunks
+        answer_unfiltered = self._generate_answer(query, unfiltered_chunks)
+        
+        # Generate answer with filtered chunks
+        answer_filtered = self._generate_answer(query, filtered_chunks)
+        
+        # Evaluate both answers
+        eval_unfiltered = self._evaluate_answer(query, answer_unfiltered)
+        eval_filtered = self._evaluate_answer(query, answer_filtered)
+        
+        return {
+            'unfiltered': {
+                'answer': answer_unfiltered,
+                'evaluation': eval_unfiltered,
+                'chunk_count': len(unfiltered_chunks)
+            },
+            'filtered': {
+                'answer': answer_filtered,
+                'evaluation': eval_filtered,
+                'chunk_count': len(filtered_chunks)
+            },
+            'improvement': {
+                'relevance_gain': eval_filtered['relevance'] - eval_unfiltered['relevance'],
+                'accuracy_gain': eval_filtered['accuracy'] - eval_unfiltered['accuracy'],
+                'token_savings': (
+                    sum(len(c['content']) for c in unfiltered_chunks) -
+                    sum(len(c['content']) for c in filtered_chunks)
+                )
+            }
+        }
+    
+    def _generate_answer(self, query: str, chunks: List[Dict]) -> str:
+        """Generate answer from chunks."""
+        context = "\n\n".join(c['content'] for c in chunks)
+        prompt = f"Context:\n{context}\n\nQuestion: {query}\n\nAnswer:"
+        return self.llm.generate(prompt)
+    
+    def _evaluate_answer(self, query: str, answer: str) -> Dict[str, float]:
+        """Evaluate answer quality."""
+        # Use LLM-as-judge for evaluation
+        eval_prompt = f"""Rate this answer (1-10) for:
+1. Relevance to query
+2. Accuracy of information
+
+Query: {query}
+Answer: {answer}
+
+Respond in JSON: {{"relevance": X, "accuracy": Y}}"""
+        
+        try:
+            result = json.loads(self.llm.generate(eval_prompt))
+            return {
+                'relevance': result.get('relevance', 5) / 10,
+                'accuracy': result.get('accuracy', 5) / 10
+            }
+        except:
+            return {'relevance': 0.5, 'accuracy': 0.5}
+```
+
+## Evaluation Criteria
+
+Your solution will be evaluated on:
+
+1. **Precision**: Filtered chunks are highly relevant
+2. **Recall**: Important information not lost
+3. **Diversity**: No redundant chunks
+4. **Quality**: High-quality content preserved
+5. **Efficiency**: Token savings without accuracy loss

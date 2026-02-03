@@ -1,34 +1,483 @@
 ﻿---
 title: "RAPTOR: Recursive Summarization Tree"
-description: "Build a hierarchical tree for multi-level retrieval."
+description: "Build a hierarchical tree for multi-level retrieval, enabling both specific and broad queries"
+difficulty: "hard"
+xpReward: 150
+estimatedMinutes: 55
+stage: "advanced-retrieval"
+track: "graph-rag"
+tags: ["raptor", "hierarchical", "tree-retrieval", "summarization", "clustering"]
+prerequisites: ["hierarchical-chunking", "contextual-compression-llm"]
+relatedChallenges: ["raptor-tree-retrieval", "recursive-retrieval", "parent-document-chunking"]
+nextChallenges: ["raptor-tree-retrieval"]
+theory:
+  overview: |
+    RAPTOR (Recursive Abstractive Processing for Tree-Organized Retrieval) builds 
+    a hierarchical tree structure where leaf nodes contain original text chunks, 
+    and parent nodes contain summaries of their children. This enables answering 
+    both specific detail queries and broad thematic questions from the same index.
+  keyFormulas:
+    - name: "Tree Depth"
+      formula: "d = ⌈log_c(n)⌉ where c = cluster size, n = leaf count"
+    - name: "Summary Compression Ratio"
+      formula: "r = |summary| / |source_chunks|"
+    - name: "Retrieval Level Selection"
+      formula: "level = argmax_l(sim(query, level_l_nodes))"
+    - name: "Tree Coverage"
+      formula: "coverage = Σ|retrieved_nodes| / |relevant_nodes|"
+  visualIntuition: |
+    RAPTOR Tree Structure:
+    
+    ```
+                    [Root Summary]
+                   /      |      \
+                  /       |       \
+            [Summary] [Summary] [Summary]  ← Level 2
+            /   |   \    /   \     |   \
+          [S]  [S]  [S] [S]  [S]  [S]  [S]  ← Level 1
+          /|\  /|\  /|\ /|\  /|\  /|\  /|\
+         [C][C][C] ... (Original Chunks - Leaves)
+    ```
+    
+    Specific query → Retrieve from leaves
+    Broad query → Retrieve from higher levels
+  whyItMatters: |
+    RAPTOR solves the granularity mismatch problem:
+    1. **Detail queries**: Find specific facts in leaf chunks
+    2. **Thematic queries**: Use pre-computed summaries
+    3. **Hierarchical context**: Navigate from summary to details
+    4. **Efficiency**: Pre-computed summaries reduce query-time LLM calls
+  commonMistakes:
+    - "Using too few clusters (summary explosion)"
+    - "Not maintaining parent-child mappings"
+    - "Summarizing unrelated chunks together"
+    - "Forgetting to index all tree levels"
+  interviewTips:
+    - "Compare RAPTOR to flat retrieval and parent-document"
+    - "Discuss optimal cluster size selection"
+    - "Mention tradeoffs between tree depth and latency"
+    - "Explain when RAPTOR beats other hierarchical methods"
+realWorld:
+  description: |
+    RAPTOR was developed at UC Berkeley for efficient document Q&A. 
+    It's used in enterprise knowledge bases for handling large document 
+    collections. Legal research platforms use similar hierarchical 
+    summarization for case law analysis.
+  companies: ["UC Berkeley", "Microsoft", "Google", "LegalTech firms"]
+  useCases:
+    - "Enterprise document Q&A systems"
+    - "Legal case law analysis"
+    - "Research paper synthesis"
+    - "Financial report analysis"
+    - "Medical literature review"
+complexity:
+  time: "O(n log n) for tree construction, O(log n) for retrieval"
+  space: "O(n × (1 + 1/c + 1/c² + ...)) = O(n × c/(c-1)) ≈ O(n)"
+  latency: "100-500ms depending on tree depth"
+resources:
+  papers:
+    - title: "RAPTOR: Recursive Abstractive Processing for Tree-Organized Retrieval"
+      url: "https://arxiv.org/abs/2401.18059"
+      authors: "Sarthi et al., UC Berkeley"
+      year: 2024
+    - name: "Hierarchical Neural Story Generation"
+      url: "https://arxiv.org/abs/1805.04833"
+      authors: "Fan et al."
+      year: 2018
+    - title: "SCROLLS: Standardized CompaRison Over Long Language Sequences"
+      url: "https://arxiv.org/abs/2201.03533"
+      authors: "Shaham et al."
+      year: 2022
+  documentation:
+    - title: "RAPTOR GitHub Repository"
+      url: "https://github.com/parthsarthi03/raptor"
+    - title: "Scikit-learn Clustering"
+      url: "https://scikit-learn.org/stable/modules/clustering.html"
+    - title: "LangChain Parent Document Retriever"
+      url: "https://python.langchain.com/docs/modules/data_connection/retrievers/parent_document_retriever/"
+  tutorials:
+    - title: "Building Hierarchical Retrieval Systems"
+      url: "https://blog.langchain.dev/retrieval-techniques-hierarchical/"
+    - title: "RAPTOR Implementation Guide"
+      url: "https://github.com/parthsarthi03/raptor/blob/main/README.md"
+  tools:
+    - name: "RAPTOR"
+      description: "Official RAPTOR implementation from UC Berkeley"
+      url: "https://github.com/parthsarthi03/raptor"
+    - name: "UMAP"
+      description: "Dimensionality reduction for clustering"
+      url: "https://umap-learn.readthedocs.io/"
+    - name: "HDBSCAN"
+      description: "Hierarchical density-based clustering"
+      url: "https://hdbscan.readthedocs.io/"
 ---
 
 # RAPTOR: Recursive Abstractive Processing for Tree-Organized Retrieval
 
-RAPTOR (from UC Berkeley) solves a fundamental problem: How do you answer both specific and broad queries from the same corpus?
+Build a hierarchical tree structure that enables both specific detail queries and broad thematic questions through multi-level summarization and retrieval.
 
-### The Insight
+## The Problem
 
-Build a tree:
+Standard RAG retrieves at one granularity:
 
-- **Leaves**: Original text chunks.
-- **Intermediate nodes**: Summaries of their children.
-- **Root**: Summary of the entire document.
+```
+Query: "What was Acme Corp's Q3 revenue?"
+→ Finds: Specific chunk with "Q3 revenue: $10M"
 
-### Search Strategy
+Query: "Summarize Acme Corp's financial performance"
+→ Problem: No single chunk contains the full summary
+```
 
-1. Start at the root.
-2. Score children against the query.
-3. Expand high-scoring branches.
-4. Return leaves from promising branches.
+**RAPTOR's Solution**: Build a tree of summaries at multiple levels.
 
-### Your Task
+## Your Task
 
-1. Build a RAPTOR tree from chunks using a summarization function.
-2. Implement top-down search with branch pruning.
+Implement a `RAPTORTree` class that builds and queries a hierarchical summary tree:
 
-### Why It Matters
+```python
+class RAPTORTree:
+    def __init__(self, embedder, llm, cluster_size: int = 5, max_levels: int = 3):
+        """
+        Initialize RAPTOR tree builder.
+        
+        Args:
+            embedder: Embedding model for clustering
+            llm: Language model for summarization
+            cluster_size: Target number of chunks per cluster
+            max_levels: Maximum tree depth
+        """
+        pass
+    
+    def build_tree(self, chunks: list[str]) -> dict:
+        """
+        Build RAPTOR tree from leaf chunks.
+        
+        Args:
+            chunks: Original text chunks (leaves)
+            
+        Returns:
+            Tree structure:
+            {
+                "levels": {
+                    "0": [leaf chunks],
+                    "1": [level-1 summaries],
+                    "2": [level-2 summaries],
+                    ...
+                },
+                "mappings": {
+                    "parent_to_children": dict,
+                    "child_to_parent": dict
+                },
+                "embeddings": {
+                    level: {node_id: embedding}
+                }
+            }
+        """
+        pass
+    
+    def cluster_chunks(self, chunks: list[str], embeddings: np.ndarray, 
+                       n_clusters: int) -> dict:
+        """
+        Cluster chunks using embeddings.
+        
+        Args:
+            chunks: Text chunks to cluster
+            embeddings: Vector embeddings
+            n_clusters: Number of clusters
+            
+        Returns:
+            {cluster_id: [chunk_indices]}
+        """
+        pass
+    
+    def summarize_cluster(self, chunks: list[str]) -> str:
+        """
+        Generate summary for a cluster of chunks.
+        
+        Args:
+            chunks: Chunks to summarize
+            
+        Returns:
+            Summary text
+        """
+        pass
+    
+    def retrieve(self, query: str, k: int = 5, 
+                 target_level: int = None) -> list[dict]:
+        """
+        Retrieve nodes from the tree.
+        
+        Args:
+            query: User query
+            k: Number of results
+            target_level: Specific level to search (None = auto-select)
+            
+        Returns:
+            List of retrieved nodes with metadata
+        """
+        pass
+```
 
-- Specific query: "What's the revenue in Q3?" → Finds the specific leaf.
-- Broad query: "Summarize the financial status" → Uses intermediate summaries.
+## Example
 
+```python
+# Initialize RAPTOR
+raptor = RAPTORTree(embedder=OpenAIEmbedder(), llm=OpenAI())
+
+# Build tree from documents
+documents = load_financial_reports()  # 1000+ chunks
+chunks = [chunk for doc in documents for chunk in chunk_document(doc)]
+
+tree = raptor.build_tree(chunks)
+
+print(f"Tree levels: {len(tree['levels'])}")
+print(f"Level 0 (leaves): {len(tree['levels']['0'])} chunks")
+print(f"Level 1: {len(tree['levels']['1'])} summaries")
+print(f"Level 2: {len(tree['levels']['2'])} summaries")
+
+# Specific query - retrieves from leaves
+query = "What was the Q3 revenue?"
+results = raptor.retrieve(query, k=3)
+# Returns: ["Q3 revenue was $10M...", "Q3 earnings increased...", ...]
+
+# Broad query - retrieves from higher level
+query = "Summarize the company's financial performance"
+results = raptor.retrieve(query, k=3)
+# Returns: ["The company showed strong growth in 2023...", ...]
+
+# Navigate tree: Get summary then drill down
+summary = raptor.retrieve("Overview of Q3", k=1, target_level=2)[0]
+children = raptor.get_children(summary["id"])
+# Returns detailed chunks that make up the summary
+```
+
+## Algorithm Details
+
+### Tree Construction
+
+```python
+def build_tree(self, chunks: list[str]) -> dict:
+    """Build hierarchical summary tree."""
+    tree = {
+        "levels": {"0": chunks},
+        "mappings": {"parent_to_children": {}, "child_to_parent": {}}
+    }
+    
+    current_level = 0
+    current_chunks = chunks
+    
+    while len(current_chunks) > self.cluster_size and current_level < self.max_levels:
+        # Get embeddings for current level
+        embeddings = self.embedder.encode(current_chunks)
+        
+        # Determine number of clusters
+        n_clusters = max(2, len(current_chunks) // self.cluster_size)
+        
+        # Cluster chunks
+        clusters = self.cluster_chunks(current_chunks, embeddings, n_clusters)
+        
+        # Summarize each cluster
+        summaries = []
+        for cluster_id, indices in clusters.items():
+            cluster_chunks = [current_chunks[i] for i in indices]
+            summary = self.summarize_cluster(cluster_chunks)
+            summaries.append(summary)
+            
+            # Store mappings
+            parent_id = f"L{current_level+1}_C{cluster_id}"
+            tree["mappings"]["parent_to_children"][parent_id] = [
+                f"L{current_level}_C{i}" for i in indices
+            ]
+        
+        current_level += 1
+        tree["levels"][str(current_level)] = summaries
+        current_chunks = summaries
+    
+    return tree
+```
+
+### Clustering Strategy
+
+```python
+def cluster_chunks(self, chunks: list[str], embeddings: np.ndarray,
+                   n_clusters: int) -> dict:
+    """Cluster chunks using soft clustering."""
+    from sklearn.cluster import KMeans
+    
+    # Use KMeans for simplicity (can use HDBSCAN for soft clustering)
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+    labels = kmeans.fit_predict(embeddings)
+    
+    clusters = {}
+    for i, label in enumerate(labels):
+        if label not in clusters:
+            clusters[label] = []
+        clusters[label].append(i)
+    
+    return clusters
+```
+
+### Summarization
+
+```python
+def summarize_cluster(self, chunks: list[str]) -> str:
+    """Generate abstractive summary."""
+    combined = "\n\n".join(chunks[:10])  # Limit context
+    
+    prompt = f"""Create a comprehensive summary of the following text chunks.
+    Capture the key themes, facts, and relationships.
+    
+    Text chunks:
+    {combined}
+    
+    Summary:"""
+    
+    return self.llm.generate(prompt, max_tokens=500)
+```
+
+### Level-Selective Retrieval
+
+```python
+def retrieve(self, query: str, k: int = 5, 
+             target_level: int = None) -> list[dict]:
+    """Retrieve from appropriate tree level."""
+    query_embedding = self.embedder.encode([query])[0]
+    
+    # Auto-select level based on query type
+    if target_level is None:
+        target_level = self.select_level(query)
+    
+    # Get nodes at target level
+    level_nodes = self.tree["levels"][str(target_level)]
+    level_embeddings = [self.get_embedding(node) for node in level_nodes]
+    
+    # Similarity search
+    similarities = cosine_similarity([query_embedding], level_embeddings)[0]
+    
+    # Get top-k
+    top_indices = np.argsort(similarities)[-k:][::-1]
+    
+    results = []
+    for idx in top_indices:
+        results.append({
+            "content": level_nodes[idx],
+            "level": target_level,
+            "score": similarities[idx],
+            "id": f"L{target_level}_N{idx}"
+        })
+    
+    return results
+
+def select_level(self, query: str) -> int:
+    """Heuristic to select appropriate tree level."""
+    # Keywords suggesting broad questions → higher levels
+    broad_keywords = ["summarize", "overview", "themes", "trends", "compare"]
+    
+    query_lower = query.lower()
+    if any(kw in query_lower for kw in broad_keywords):
+        return max(1, self.max_levels - 1)  # Near root
+    
+    # Specific questions → leaves
+    return 0
+```
+
+## Tree Structure Visualization
+
+```
+Level 3 (Root): "Company X 2023 Annual Report Summary"
+    ├── Level 2: "Financial Performance Overview"
+    │   ├── Level 1: "Q1 Financial Results"
+    │   │   ├── Leaf: "Revenue: $100M..."
+    │   │   ├── Leaf: "Expenses: $80M..."
+    │   │   └── Leaf: "Profit: $20M..."
+    │   ├── Level 1: "Q2 Financial Results"
+    │   └── Level 1: "Q3 Financial Results"
+    ├── Level 2: "Product Development"
+    │   ├── Level 1: "New Product Launches"
+    │   └── Level 1: "R&D Investments"
+    └── Level 2: "Market Analysis"
+        ├── Level 1: "Competitive Landscape"
+        └── Level 1: "Customer Segments"
+```
+
+## Evaluation Criteria
+
+1. **Tree Quality**: Balanced clusters, coherent summaries
+2. **Retrieval Accuracy**: Correct level selection
+3. **Coverage**: All relevant information reachable
+4. **Efficiency**: Reasonable build and query times
+
+## Test Cases
+
+```python
+def test_tree_construction():
+    """Test tree builds correctly."""
+    raptor = RAPTORTree(embedder, llm, cluster_size=3, max_levels=3)
+    
+    chunks = [f"Chunk {i} content..." for i in range(20)]
+    tree = raptor.build_tree(chunks)
+    
+    assert "0" in tree["levels"]  # Leaves
+    assert len(tree["levels"]["0"]) == 20
+    assert len(tree["levels"]) > 1  # Has summaries
+
+def test_level_selection():
+    """Test appropriate level selection."""
+    raptor = RAPTORTree(embedder, llm)
+    
+    # Broad query → higher level
+    assert raptor.select_level("Summarize the report") > 0
+    
+    # Specific query → leaves
+    assert raptor.select_level("What was Q3 revenue?") == 0
+
+def test_retrieval():
+    """Test retrieval returns relevant results."""
+    raptor = RAPTORTree(embedder, llm)
+    tree = raptor.build_tree(test_chunks)
+    
+    results = raptor.retrieve("financial performance", k=3)
+    assert len(results) == 3
+    assert all("score" in r for r in results)
+```
+
+## Complexity Analysis
+
+| Phase | Time | Space |
+|-------|------|-------|
+| Embedding | O(n × d) | O(n × d) |
+| Clustering | O(n × k × i) | O(n) |
+| Summarization | O(n/c × L) | O(n/c) |
+| Tree Build | O(n log n) | O(n) |
+| Retrieval | O(log n) | O(1) |
+
+Where:
+- n = number of leaf chunks
+- d = embedding dimension
+- k = clusters, i = iterations
+- c = cluster size
+- L = LLM latency
+
+## Comparison: RAPTOR vs Alternatives
+
+| Feature | Flat | Parent-Document | RAPTOR |
+|---------|------|-----------------|--------|
+| Specific queries | ✅ | ✅ | ✅ |
+| Broad queries | ❌ | ⚠️ | ✅ |
+| Hierarchical nav | ❌ | ⚠️ | ✅ |
+| Build cost | Low | Medium | High |
+| Query cost | Low | Low | Low |
+
+## Production Tips
+
+1. **Cluster size**: 5-10 chunks per cluster works well
+2. **Max levels**: 3-4 levels typically sufficient
+3. **Soft clustering**: Use HDBSCAN for overlapping clusters
+4. **Caching**: Cache embeddings and summaries
+5. **UMAP**: Reduce dimensionality before clustering for speed
+
+## Further Reading
+
+- [RAPTOR Paper](https://arxiv.org/abs/2401.18059)
+- [RAPTOR GitHub](https://github.com/parthsarthi03/raptor)
+- [HDBSCAN Documentation](https://hdbscan.readthedocs.io/)

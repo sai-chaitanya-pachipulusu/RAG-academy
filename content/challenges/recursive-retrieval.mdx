@@ -1,20 +1,416 @@
-﻿<Callout title="Goal" variant="info">
-  Embed summaries for high-level semantic search, then map to granular chunks.
-</Callout>
+﻿---
+title: "Recursive Retrieval"
+description: "Implement hierarchical retrieval that traverses from summaries to granular chunks"
+difficulty: "medium"
+xpReward: 100
+estimatedMinutes: 40
+stage: "advanced-retrieval"
+track: "graph-rag"
+tags: ["recursive", "hierarchical", "summary-retrieval", "multi-level", "drill-down"]
+prerequisites: ["raptor-tree-retrieval", "parent-document-chunking"]
+relatedChallenges: ["raptor-tree", "parent-document-tokenizer", "parent-document-chunking"]
+nextChallenges: ["parent-document-tokenizer"]
+theory:
+  overview: |
+    Recursive Retrieval solves the "needle in a haystack" problem by creating a 
+    two-stage hierarchy: summaries are indexed for high-level semantic search, 
+    then matched summaries are expanded to retrieve their granular chunks. This 
+    enables efficient navigation of large document collections.
+  keyFormulas:
+    - name: "Summary Coverage"
+      formula: "coverage = Σ|summary_i| / |document|"
+    - name: "Expansion Ratio"
+      formula: "r = |chunks_retrieved| / |summaries_matched|"
+    - name: "Retrieval Precision"
+      formula: "P = |relevant_chunks| / |total_chunks_retrieved|"
+    - name: "Hierarchical Gain"
+      formula: "gain = log(N/s) where N = total chunks, s = summary count"
+  visualIntuition: |
+    Recursive Retrieval Flow:
+    
+    ```
+    Level 1: Document Summaries (Indexed)
+      ├─ "Q3 Financial Overview - Revenue up 15%..."
+      ├─ "Q3 Product Updates - New feature X..."
+      └─ "Q3 Marketing Campaign - Results..."
+    
+    Query: "What was Q3 revenue?"
+      ↓
+    Retrieve: "Q3 Financial Overview" summary
+      ↓
+    Expand to Level 2: Financial Section Chunks
+      ├─ "Revenue increased 15% YoY..."
+      ├─ "Operating costs decreased..."
+      └─ "Profit margin improved..."
+      ↓
+    Final Answer: Detailed revenue information
+    ```
+    
+    First find the right document, then find the right details.
+  whyItMatters: |
+    Recursive retrieval is essential for:
+    1. **Large collections**: Navigate millions of documents efficiently
+    2. **Document-level filtering**: Quickly eliminate irrelevant docs
+    3. **Hierarchical exploration**: Drill down from overview to details
+    4. **Context preservation**: Maintain document structure
+  commonMistakes:
+    - "Poor summary quality (garbage in, garbage out)"
+    - "Losing summary-to-chunks mapping"
+    - "Over-expanding (retrieving too many chunks)"
+    - "Not handling multi-document queries"
+  interviewTips:
+    - "Compare recursive vs flat retrieval tradeoffs"
+    - "Discuss summary quality impact on performance"
+    - "Mention when to stop expanding"
+    - "Explain storage overhead considerations"
+realWorld:
+  description: |
+    Recursive retrieval powers enterprise search systems like Google Enterprise 
+    Search and Microsoft SharePoint. Legal discovery platforms use it to first 
+    identify relevant cases, then extract specific passages. Financial research 
+    systems employ it for report navigation.
+  companies: ["Google", "Microsoft", "LexisNexis", "Bloomberg", "Elastic"]
+  useCases:
+    - "Enterprise document search"
+    - "Legal discovery and e-discovery"
+    - "Financial report analysis"
+    - "Technical documentation Q&A"
+    - "Research database navigation"
+complexity:
+  time: "O(s + k × c) where s = summaries, k = matched summaries, c = chunks per summary"
+  space: "O(s + c) for storing both levels"
+  latency: "50-300ms for two-stage retrieval"
+resources:
+  papers:
+    - title: "RAPTOR: Recursive Abstractive Processing for Tree-Organized Retrieval"
+      url: "https://arxiv.org/abs/2401.18059"
+      authors: "Sarthi et al., UC Berkeley"
+      year: 2024
+    - title: "Hierarchical Retrieval for Extreme Multi-Label Classification"
+      url: "https://arxiv.org/abs/2104.04931"
+      authors: "Jain et al."
+      year: 2021
+  documentation:
+    - title: "LangChain Multi-Vector Retriever"
+      url: "https://python.langchain.com/docs/modules/data_connection/retrievers/multi_vector/"
+    - title: "LlamaIndex Recursive Retriever"
+      url: "https://docs.llamaindex.ai/en/stable/examples/retrievers/recursive_retriever/"
+  tutorials:
+    - title: "Building Hierarchical RAG Systems"
+      url: "https://blog.langchain.dev/hierarchical-rag/"
+    - title: "Two-Stage Retrieval Patterns"
+      url: "https://www.pinecone.io/learn/hierarchical-retrieval/"
+  tools:
+    - name: "LangChain Multi-Vector"
+      description: "Store summaries and raw chunks together"
+      url: "https://python.langchain.com/"
+    - name: "LlamaIndex"
+      description: "Recursive retriever implementation"
+      url: "https://www.llamaindex.ai/"
+    - name: "Pinecone"
+      description: "Vector DB with metadata filtering for hierarchy"
+      url: "https://www.pinecone.io/"
+---
 
-## The "Needle in a Haystack" problem
+# Recursive Retrieval
 
-If you have 1 million chunks, your retriever might miss the forest for the trees.
-**Recursive Retrieval** solves this by creating a hierarchy:
+Implement hierarchical two-stage retrieval that first matches document summaries, then expands to retrieve granular chunks for detailed answers.
 
-1.  **Summarize** groups of chunks (e.g., a whole page or section).
-2.  Index the **summaries**.
-3.  Retrieve the best summary.
-4.  Expand it into the **raw chunks** associated with that summary.
+## The Problem
+
+If you have 1 million chunks, your retriever might miss the forest for the trees. **Recursive Retrieval** solves this by creating a hierarchy:
+
+1. **Summarize** groups of chunks (e.g., a whole page or section)
+2. **Index the summaries** for fast high-level search
+3. **Retrieve the best summary**
+4. **Expand** it into the raw chunks associated with that summary
 
 This is excellent for questions like _"What does the Q3 report say about revenue?"_ where a single chunk might not capture the full "revenue" context, but the section summary does.
 
-## Implementation details
+## Your Task
 
-In this challenge, you will implement the logic: `Query -> Match Summary -> Lookup Chunks`.
+Implement a `RecursiveRetriever` class:
 
+```python
+class RecursiveRetriever:
+    def __init__(self, summary_index, chunk_store, llm=None):
+        """
+        Initialize recursive retriever.
+        
+        Args:
+            summary_index: Vector index of summaries
+            chunk_store: Mapping from summary_id to chunks
+            llm: Optional LLM for dynamic summarization
+        """
+        pass
+    
+    def retrieve_summaries(self, query: str, k: int = 3) -> list[dict]:
+        """
+        Stage 1: Retrieve relevant summaries.
+        
+        Args:
+            query: User query
+            k: Number of summaries to retrieve
+            
+        Returns:
+            List of summary objects with scores
+        """
+        pass
+    
+    def expand_summary(self, summary_id: str, 
+                       filter_query: str = None) -> list[str]:
+        """
+        Stage 2: Expand summary to its chunks.
+        
+        Args:
+            summary_id: Summary to expand
+            filter_query: Optional query to filter chunks
+            
+        Returns:
+            List of chunks
+        """
+        pass
+    
+    def retrieve(self, query: str, k_summaries: int = 3, 
+                 k_chunks_per_summary: int = 5) -> list[str]:
+        """
+        Full recursive retrieval pipeline.
+        
+        Args:
+            query: User query
+            k_summaries: Number of summaries to match
+            k_chunks_per_summary: Chunks to retrieve per summary
+            
+        Returns:
+            Combined list of relevant chunks
+        """
+        pass
+    
+    def retrieve_with_rerank(self, query: str, k: int = 10) -> list[str]:
+        """
+        Retrieve and rerank across all expanded chunks.
+        
+        Args:
+            query: User query
+            k: Final number of chunks
+            
+        Returns:
+            Reranked chunks
+        """
+        pass
+```
+
+## Example
+
+```python
+# Setup
+summary_index = VectorIndex()  # Contains document summaries
+chunk_store = {
+    "doc_1_summary": ["chunk_1_1", "chunk_1_2", "chunk_1_3"],
+    "doc_2_summary": ["chunk_2_1", "chunk_2_2", ...],
+}
+
+retriever = RecursiveRetriever(summary_index, chunk_store)
+
+# Query
+query = "What were the main revenue drivers in Q3?"
+
+# Stage 1: Find relevant documents via summaries
+summaries = retriever.retrieve_summaries(query, k=2)
+# Returns: [
+#   {"id": "doc_1_summary", "content": "Q3 Financial Report...", "score": 0.92},
+#   {"id": "doc_2_summary", "content": "Q3 Earnings Call...", "score": 0.85}
+# ]
+
+# Stage 2: Expand to chunks
+all_chunks = retriever.retrieve(query, k_summaries=2, k_chunks_per_summary=5)
+# Returns chunks from both Q3 Financial Report and Q3 Earnings Call
+
+# With reranking
+best_chunks = retriever.retrieve_with_rerank(query, k=5)
+# Returns top 5 chunks across all expanded documents
+```
+
+## Algorithm Details
+
+### Stage 1: Summary Retrieval
+
+```python
+def retrieve_summaries(self, query: str, k: int = 3) -> list[dict]:
+    """Retrieve top-k summaries."""
+    query_embedding = self.embedder.encode(query)
+    
+    # Search summary index
+    results = self.summary_index.search(query_embedding, k=k)
+    
+    return [
+        {
+            "id": r.id,
+            "content": r.content,
+            "score": r.score,
+            "metadata": r.metadata
+        }
+        for r in results
+    ]
+```
+
+### Stage 2: Expansion
+
+```python
+def expand_summary(self, summary_id: str, 
+                   filter_query: str = None) -> list[str]:
+    """Get chunks for a summary, optionally filtered."""
+    chunks = self.chunk_store.get(summary_id, [])
+    
+    if filter_query and len(chunks) > 10:
+        # Rerank chunks by relevance to filter_query
+        embeddings = self.embedder.encode(chunks)
+        query_emb = self.embedder.encode(filter_query)
+        
+        scores = cosine_similarity([query_emb], embeddings)[0]
+        ranked = sorted(zip(chunks, scores), key=lambda x: x[1], reverse=True)
+        
+        # Return top chunks
+        return [c for c, _ in ranked[:10]]
+    
+    return chunks
+```
+
+### Full Pipeline
+
+```python
+def retrieve(self, query: str, k_summaries: int = 3,
+             k_chunks_per_summary: int = 5) -> list[str]:
+    """Two-stage retrieval."""
+    # Stage 1: Get summaries
+    summaries = self.retrieve_summaries(query, k=k_summaries)
+    
+    # Stage 2: Expand each summary
+    all_chunks = []
+    for summary in summaries:
+        chunks = self.expand_summary(
+            summary["id"], 
+            filter_query=query
+        )
+        all_chunks.extend(chunks[:k_chunks_per_summary])
+    
+    return all_chunks
+```
+
+### With Cross-Summary Reranking
+
+```python
+def retrieve_with_rerank(self, query: str, k: int = 10) -> list[str]:
+    """Retrieve from multiple summaries and rerank."""
+    # Get more summaries initially
+    summaries = self.retrieve_summaries(query, k=5)
+    
+    # Expand all (with higher limit)
+    all_chunks = []
+    for summary in summaries:
+        chunks = self.expand_summary(summary["id"])
+        all_chunks.extend(chunks)
+    
+    # Deduplicate
+    seen = set()
+    unique_chunks = []
+    for chunk in all_chunks:
+        if chunk not in seen:
+            seen.add(chunk)
+            unique_chunks.append(chunk)
+    
+    # Rerank all chunks
+    chunk_embeddings = self.embedder.encode(unique_chunks)
+    query_embedding = self.embedder.encode(query)
+    
+    scores = cosine_similarity([query_embedding], chunk_embeddings)[0]
+    ranked = sorted(zip(unique_chunks, scores), key=lambda x: x[1], reverse=True)
+    
+    return [chunk for chunk, _ in ranked[:k]]
+```
+
+## Data Structure
+
+```python
+# Summary Index Entry
+{
+    "id": "doc_123_summary",
+    "content": "Q3 Financial Report: Revenue increased 15%...",
+    "embedding": [...],
+    "metadata": {
+        "source_doc": "doc_123.pdf",
+        "section": "financials",
+        "chunk_count": 12
+    }
+}
+
+# Chunk Store Entry
+{
+    "doc_123_summary": [
+        "Revenue for Q3 was $10M, up 15% from Q2...",
+        "Operating expenses decreased by 5%...",
+        "Net profit margin improved to 20%...",
+        # ... 9 more chunks
+    ]
+}
+```
+
+## Evaluation Criteria
+
+1. **Summary Precision**: Retrieved summaries are relevant
+2. **Expansion Quality**: Chunks match the summary
+3. **Overall Recall**: Final chunks answer the query
+4. **Efficiency**: Faster than flat search on large collections
+
+## Test Cases
+
+```python
+def test_two_stage_retrieval():
+    """Test basic recursive retrieval."""
+    retriever = RecursiveRetriever(summary_index, chunk_store)
+    
+    chunks = retriever.retrieve("revenue trends", k_summaries=2, k_chunks_per_summary=3)
+    
+    assert len(chunks) <= 6  # 2 summaries × 3 chunks
+    assert all(isinstance(c, str) for c in chunks)
+
+def test_expansion_filtering():
+    """Test chunk filtering during expansion."""
+    chunks = retriever.expand_summary("doc_1", filter_query="specific topic")
+    
+    # Should return filtered subset
+    assert len(chunks) <= 10
+
+def test_reranking():
+    """Test cross-summary reranking."""
+    chunks = retriever.retrieve_with_rerank("query", k=5)
+    
+    assert len(chunks) == 5
+    # Best chunks from all summaries should be returned
+```
+
+## Comparison: Flat vs Recursive Retrieval
+
+| Aspect | Flat | Recursive |
+|--------|------|-----------|
+| Index Size | O(N) chunks | O(N/c) summaries + chunks |
+| Query Time | O(N) comparisons | O(N/c) + O(k×c) |
+| Precision | Lower | Higher (filtered by summary) |
+| Recall | Good | Better (broader summary match) |
+| Storage | Lower | Higher (2x for summaries) |
+
+Where N = total chunks, c = chunks per summary, k = summaries retrieved
+
+## Production Considerations
+
+1. **Summary Quality**: Invest in good summarization
+2. **Chunk Mapping**: Maintain reliable summary→chunk links
+3. **Expansion Limits**: Cap chunks per summary to control latency
+4. **Caching**: Cache summary retrievals
+5. **Hybrid**: Combine with flat retrieval for best results
+
+## Further Reading
+
+- [RAPTOR Paper](https://arxiv.org/abs/2401.18059)
+- [LangChain Multi-Vector](https://python.langchain.com/docs/modules/data_connection/retrievers/multi_vector/)
+- [LlamaIndex Recursive](https://docs.llamaindex.ai/en/stable/examples/retrievers/recursive_retriever/)

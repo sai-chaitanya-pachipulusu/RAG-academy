@@ -1,34 +1,479 @@
 ---
 title: "QUCO-RAG Uncertainty"
-description: "Implement uncertainty quantification for RAG responses"
+description: "Implement uncertainty quantification for RAG responses with confidence scoring and flagging"
+difficulty: "hard"
+xpReward: 150
+topics: ["uncertainty-quantification", "confidence-scoring", "safety", "quality-assurance"]
+prerequisites: ["answer-relevancy-score", "faithfulness-judge", "llm-as-judge"]
 ---
 
 # QUCO-RAG Uncertainty
 
-Implement uncertainty quantification for RAG responses, allowing the system to express confidence levels and identify when it might be wrong.
+## Overview
 
-## Requirements
+RAG systems can produce confident-sounding but incorrect answers. Uncertainty quantification (QUCO) helps identify when the system might be wrong, enabling human review, fallback responses, or additional retrieval.
 
-1. Score retrieval confidence based on similarity distribution
-2. Measure answer uncertainty using token-level probabilities
-3. Combine into an overall confidence score
-4. Flag low-confidence responses for human review
+## Why This Matters
 
-## Starter Code
+- **Safety**: Don't trust low-confidence answers
+- **User Trust**: Show when answers are uncertain
+- **Quality Control**: Flag responses for review
+- **Continuous Improvement**: Identify system weaknesses
+
+## Key Concepts
+
+- **Retrieval confidence**: How well retrieved chunks match the query
+- **Generation confidence**: Token-level probability from LLM
+- **Consistency checks**: Agreement across multiple samples
+- **Calibration**: Align confidence with actual accuracy
+
+## Real-World Applications
+
+Medical diagnosis systems, legal research tools, and financial advice platforms all require uncertainty quantification for safety.
+
+## Uncertainty Sources
+
+| Source | Description | Mitigation |
+|--------|-------------|------------|
+| **Retrieval** | No relevant chunks found | Flag for knowledge gap |
+| **Generation** | Low token probabilities | Request clarification |
+| **Consistency** | Different answers on retries | Use consensus |
+| **Calibration** | Over/under-confidence | Score adjustment |
+
+## The Challenge
+
+### Part 1: Retrieval Confidence
 
 ```python
-def quantify_uncertainty(query: str, retrieved_chunks: list[dict], answer: str) -> dict:
-    """
-    Quantify uncertainty in a RAG response.
+from typing import List, Dict, Tuple
+from dataclasses import dataclass
+import numpy as np
+
+@dataclass
+class RetrievedChunk:
+    """A retrieved chunk with similarity score."""
+    content: str
+    similarity: float
+    metadata: Dict
+
+class RetrievalConfidenceScorer:
+    """Score confidence in retrieved results."""
     
-    Returns:
-        {
-            "retrieval_confidence": float,  # 0-1
-            "answer_confidence": float,     # 0-1
-            "overall_confidence": float,    # 0-1
-            "should_flag": bool
+    def __init__(
+        self,
+        min_similarity_threshold: float = 0.7,
+        confidence_temperature: float = 1.0
+    ):
+        self.min_threshold = min_similarity_threshold
+        self.temperature = confidence_temperature
+    
+    def score(
+        self,
+        query: str,
+        chunks: List[RetrievedChunk]
+    ) -> Dict[str, float]:
+        """Calculate retrieval confidence metrics."""
+        if not chunks:
+            return {
+                'overall_confidence': 0.0,
+                'max_similarity': 0.0,
+                'gap_ratio': 0.0,
+                'distribution_entropy': 1.0
+            }
+        
+        similarities = [c.similarity for c in chunks]
+        
+        # Max similarity (best match quality)
+        max_sim = max(similarities)
+        
+        # Gap ratio (how much better is top result)
+        if len(similarities) >= 2:
+            sorted_sims = sorted(similarities, reverse=True)
+            gap_ratio = (sorted_sims[0] - sorted_sims[1]) / sorted_sims[0]
+        else:
+            gap_ratio = 1.0
+        
+        # Distribution entropy (how spread out are scores)
+        entropy = self._calculate_entropy(similarities)
+        
+        # Overall confidence
+        # High max + high gap + low entropy = high confidence
+        overall = self._combine_scores(max_sim, gap_ratio, 1 - entropy)
+        
+        return {
+            'overall_confidence': overall,
+            'max_similarity': max_sim,
+            'gap_ratio': gap_ratio,
+            'distribution_entropy': entropy,
+            'above_threshold': sum(
+                1 for s in similarities if s >= self.min_threshold
+            ) / len(similarities)
         }
-    """
-    # Your implementation here
-    pass
+    
+    def _calculate_entropy(self, scores: List[float]) -> float:
+        """Calculate normalized entropy of score distribution."""
+        # Convert to probability distribution
+        probs = np.array(scores) / sum(scores)
+        
+        # Shannon entropy
+        entropy = -sum(
+            p * np.log2(p) if p > 0 else 0
+            for p in probs
+        )
+        
+        # Normalize by max entropy
+        max_entropy = np.log2(len(scores))
+        return entropy / max_entropy if max_entropy > 0 else 0.0
+    
+    def _combine_scores(
+        self,
+        max_sim: float,
+        gap_ratio: float,
+        concentration: float
+    ) -> float:
+        """Combine individual scores into overall confidence."""
+        # Weighted combination
+        weights = [0.5, 0.3, 0.2]
+        scores = [max_sim, gap_ratio, concentration]
+        
+        combined = sum(w * s for w, s in zip(weights, scores))
+        
+        # Apply temperature scaling
+        return combined ** (1 / self.temperature)
 ```
+
+### Part 2: Generation Confidence
+
+```python
+@dataclass
+class TokenProbability:
+    """Probability information for a token."""
+    token: str
+    probability: float
+    top_alternatives: List[Tuple[str, float]]
+
+class GenerationConfidenceScorer:
+    """Score confidence in generated text."""
+    
+    def __init__(
+        self,
+        min_token_prob_threshold: float = 0.1
+    ):
+        self.min_threshold = min_token_prob_threshold
+    
+    def score(
+        self,
+        answer: str,
+        token_probs: List[TokenProbability]
+    ) -> Dict[str, float]:
+        """Calculate generation confidence metrics."""
+        if not token_probs:
+            return {
+                'mean_probability': 0.0,
+                'min_probability': 0.0,
+                'uncertain_tokens': 0,
+                'overall_confidence': 0.0
+            }
+        
+        probs = [tp.probability for tp in token_probs]
+        
+        # Basic statistics
+        mean_prob = np.mean(probs)
+        min_prob = np.min(probs)
+        
+        # Count uncertain tokens
+        uncertain = sum(
+            1 for p in probs if p < self.min_threshold
+        )
+        uncertain_ratio = uncertain / len(probs)
+        
+        # Overall confidence (penalize uncertain tokens)
+        overall = mean_prob * (1 - uncertain_ratio * 0.5)
+        
+        return {
+            'mean_probability': mean_prob,
+            'min_probability': min_prob,
+            'uncertain_tokens': uncertain,
+            'uncertain_ratio': uncertain_ratio,
+            'overall_confidence': overall
+        }
+    
+    def identify_uncertain_spans(
+        self,
+        answer: str,
+        token_probs: List[TokenProbability],
+        threshold: float = 0.3
+    ) -> List[Dict]:
+        """Identify spans of low confidence in the answer."""
+        uncertain_spans = []
+        current_span = None
+        
+        for i, tp in enumerate(token_probs):
+            if tp.probability < threshold:
+                if current_span is None:
+                    current_span = {
+                        'start': i,
+                        'end': i,
+                        'tokens': [tp.token],
+                        'avg_probability': tp.probability
+                    }
+                else:
+                    current_span['end'] = i
+                    current_span['tokens'].append(tp.token)
+            else:
+                if current_span is not None:
+                    # Finalize span
+                    current_span['avg_probability'] = np.mean([
+                        token_probs[j].probability
+                        for j in range(current_span['start'], current_span['end'] + 1)
+                    ])
+                    uncertain_spans.append(current_span)
+                    current_span = None
+        
+        # Don't forget last span
+        if current_span is not None:
+            uncertain_spans.append(current_span)
+        
+        return uncertain_spans
+```
+
+### Part 3: Consistency Checking
+
+```python
+class ConsistencyChecker:
+    """Check answer consistency across multiple generations."""
+    
+    def __init__(self, llm_client, num_samples: int = 3):
+        self.llm = llm_client
+        self.num_samples = num_samples
+    
+    def check_consistency(
+        self,
+        query: str,
+        context: str,
+        original_answer: str
+    ) -> Dict[str, float]:
+        """Check if answer is consistent across multiple samples."""
+        # Generate multiple answers with different temperatures
+        samples = []
+        for temp in [0.3, 0.7, 1.0]:
+            answer = self.llm.generate(
+                query,
+                context=context,
+                temperature=temp
+            )
+            samples.append(answer)
+        
+        # Calculate pairwise similarities
+        similarities = []
+        all_answers = samples + [original_answer]
+        
+        for i in range(len(all_answers)):
+            for j in range(i + 1, len(all_answers)):
+                sim = self._semantic_similarity(
+                    all_answers[i],
+                    all_answers[j]
+                )
+                similarities.append(sim)
+        
+        # Consistency metrics
+        avg_similarity = np.mean(similarities)
+        min_similarity = np.min(similarities)
+        
+        # Check for contradictions
+        has_contradiction = any(sim < 0.5 for sim in similarities)
+        
+        return {
+            'sample_consistency': avg_similarity,
+            'min_pairwise_similarity': min_similarity,
+            'has_contradiction': has_contradiction,
+            'num_samples': len(samples),
+            'confidence': avg_similarity * (0.5 if has_contradiction else 1.0)
+        }
+    
+    def _semantic_similarity(self, text1: str, text2: str) -> float:
+        """Calculate semantic similarity between two texts."""
+        # Use embeddings or entailment model
+        emb1 = self.llm.embed(text1)
+        emb2 = self.llm.embed(text2)
+        return cosine_similarity(emb1, emb2)
+```
+
+### Part 4: Integrated Uncertainty Quantification
+
+```python
+@dataclass
+class UncertaintyReport:
+    """Complete uncertainty quantification report."""
+    overall_confidence: float
+    retrieval_confidence: float
+    generation_confidence: float
+    consistency_confidence: float
+    should_flag: bool
+    flag_reasons: List[str]
+    recommendations: List[str]
+
+class QUCORAG:
+    """RAG with integrated uncertainty quantification."""
+    
+    def __init__(
+        self,
+        retriever,
+        generator,
+        retrieval_scorer: RetrievalConfidenceScorer = None,
+        generation_scorer: GenerationConfidenceScorer = None,
+        consistency_checker: ConsistencyChecker = None
+    ):
+        self.retriever = retriever
+        self.generator = generator
+        self.retrieval_scorer = retrieval_scorer or RetrievalConfidenceScorer()
+        self.generation_scorer = generation_scorer or GenerationConfidenceScorer()
+        self.consistency_checker = consistency_checker
+    
+    def query(
+        self,
+        query: str,
+        flag_threshold: float = 0.6,
+        require_consistency: bool = True
+    ) -> Dict[str, Any]:
+        """Query with full uncertainty quantification."""
+        # Retrieve
+        chunks = self.retriever.retrieve(query)
+        
+        # Score retrieval confidence
+        retrieval_scores = self.retrieval_scorer.score(query, chunks)
+        
+        # Generate answer
+        answer, token_probs = self.generator.generate_with_probs(
+            query,
+            context=chunks
+        )
+        
+        # Score generation confidence
+        generation_scores = self.generation_scorer.score(answer, token_probs)
+        
+        # Check consistency if enabled
+        consistency_scores = None
+        if require_consistency and self.consistency_checker:
+            consistency_scores = self.consistency_checker.check_consistency(
+                query,
+                context=str(chunks),
+                original_answer=answer
+            )
+        
+        # Combine into overall uncertainty
+        report = self._combine_scores(
+            retrieval_scores,
+            generation_scores,
+            consistency_scores,
+            flag_threshold
+        )
+        
+        return {
+            'answer': answer,
+            'confidence': report.overall_confidence,
+            'uncertainty_report': report,
+            'should_review': report.should_flag,
+            'retrieval': retrieval_scores,
+            'generation': generation_scores,
+            'consistency': consistency_scores
+        }
+    
+    def _combine_scores(
+        self,
+        retrieval: Dict,
+        generation: Dict,
+        consistency: Dict,
+        flag_threshold: float
+    ) -> UncertaintyReport:
+        """Combine all uncertainty scores."""
+        # Weighted combination
+        retrieval_conf = retrieval['overall_confidence']
+        generation_conf = generation['overall_confidence']
+        
+        if consistency:
+            consistency_conf = consistency['confidence']
+            overall = (
+                0.4 * retrieval_conf +
+                0.3 * generation_conf +
+                0.3 * consistency_conf
+            )
+        else:
+            consistency_conf = 1.0
+            overall = 0.5 * retrieval_conf + 0.5 * generation_conf
+        
+        # Determine if should flag
+        should_flag = overall < flag_threshold
+        flag_reasons = []
+        recommendations = []
+        
+        if retrieval_conf < 0.5:
+            flag_reasons.append("Low retrieval confidence")
+            recommendations.append("Consider expanding search or adding documents")
+        
+        if generation_conf < 0.5:
+            flag_reasons.append("Low generation confidence")
+            recommendations.append("Review uncertain spans in answer")
+        
+        if consistency and consistency.get('has_contradiction'):
+            flag_reasons.append("Answer contradicts alternative generations")
+            recommendations.append("Request clarification or provide multiple options")
+        
+        return UncertaintyReport(
+            overall_confidence=overall,
+            retrieval_confidence=retrieval_conf,
+            generation_confidence=generation_conf,
+            consistency_confidence=consistency_conf,
+            should_flag=should_flag,
+            flag_reasons=flag_reasons,
+            recommendations=recommendations
+        )
+```
+
+## Calibration
+
+```python
+class ConfidenceCalibrator:
+    """Calibrate confidence scores to match actual accuracy."""
+    
+    def __init__(self):
+        self.temperature = 1.0
+    
+    def fit(self, confidences: List[float], accuracies: List[bool]):
+        """Fit calibration on validation data."""
+        # Find temperature that minimizes calibration error
+        from scipy.optimize import minimize_scalar
+        
+        def calibration_error(temp):
+            calibrated = [c ** (1/temp) for c in confidences]
+            # Expected calibration error
+            bins = np.linspace(0, 1, 11)
+            ece = 0.0
+            for i in range(len(bins) - 1):
+                mask = [
+                    bins[i] <= c < bins[i+1]
+                    for c in calibrated
+                ]
+                if any(mask):
+                    bin_conf = np.mean([c for c, m in zip(calibrated, mask) if m])
+                    bin_acc = np.mean([a for a, m in zip(accuracies, mask) if m])
+                    ece += abs(bin_conf - bin_acc) * sum(mask) / len(mask)
+            return ece
+        
+        result = minimize_scalar(calibration_error, bounds=(0.1, 5.0))
+        self.temperature = result.x
+    
+    def calibrate(self, confidence: float) -> float:
+        """Apply temperature scaling."""
+        return confidence ** (1 / self.temperature)
+```
+
+## Evaluation Criteria
+
+Your solution will be evaluated on:
+
+1. **Retrieval Scoring**: Accurate similarity assessment
+2. **Generation Scoring**: Proper token probability analysis
+3. **Consistency**: Reliable agreement detection
+4. **Calibration**: Confidence aligns with accuracy
+5. **Actionability**: Clear flagging and recommendations

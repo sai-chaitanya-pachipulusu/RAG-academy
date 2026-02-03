@@ -22,7 +22,7 @@ export type LessonMeta = {
 export type LessonSource = {
   title: string;
   url: string;
-  type: "paper" | "docs" | "blog" | "video" | "repo" | "thread" | "podcast";
+  type: "paper" | "docs" | "blog" | "video" | "repo" | "thread" | "podcast" | "code" | "course";
   authors?: string;
   year?: number;
   note?: string;

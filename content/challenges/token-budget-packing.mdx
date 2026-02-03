@@ -1,27 +1,373 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "Token Budget Packing"
+description: "Pack the most valuable evidence into a strict token budget (context window management)"
+difficulty: "medium"
+estimatedMinutes: 35
+xpReward: 65
+prerequisites: ["tokenizer-basics", "context-window-optimization"]
+related: ["context-window-optimization", "extractive-compression", "mmr-diversity"]
+---
+
+<Callout title="Goal" variant="info">
   Pack the most valuable evidence into a strict token budget (context window management).
 </Callout>
 
-## Why this matters in production
+## Why This Matters in Production
 
 If you exceed the context window, you get truncation. If you include too much low-value text, you get:
 
 - higher cost
-- lower quality (“context rot”)
+- lower quality ("context rot")
 - worse grounding
 
 This challenge forces you to treat context selection as an optimization problem: **maximize value under a budget**.
 
-## Offline vs online
+## Why This Matters in Production
 
-- **Offline**: you can precompute “chunk token cost” estimates.
+| Problem | Impact |
+|---------|--------|
+| **Context overflow** | Truncation loses critical information |
+| **Token waste** | Higher API costs |
+| **Dilution** | Important facts buried in noise |
+| **Latency** | More tokens = slower generation |
+
+## What You're Implementing
+
+A token budget allocator that:
+- Scores chunks by relevance
+- Packs highest-value chunks within budget
+- Handles edge cases (chunks exceeding budget)
+
+## The Token Budget Pipeline
+
+```
+Retrieved Chunks → Score → Sort → Pack → Context Window
+       ↓              ↓       ↓       ↓          ↓
+   [chunk1,       [0.9,    [c1,   Add to    Final
+    chunk2,        0.7,     c3,   context   context
+    chunk3]        0.8]     c2]   until     string
+                                   budget
+                                   full
+```
+
+## Mathematical Foundations
+
+### Optimization Problem
+
+```
+Maximize: Σ(value_i × x_i)
+Subject to: Σ(tokens_i × x_i) ≤ Budget
+            x_i ∈ {0, 1}
+
+Where:
+- value_i = relevance score of chunk i
+- tokens_i = token count of chunk i
+- x_i = binary selection variable
+```
+
+### Greedy Approximation
+
+```
+Sort by value density: value_i / tokens_i
+Select in order until budget exhausted
+
+Time Complexity: O(N log N)
+Approximation Ratio: 1/2 (for knapsack)
+```
+
+## Implementation Example
+
+```python
+from typing import List, Dict, Tuple, Optional
+from dataclasses import dataclass
+import tiktoken
+
+@dataclass
+class Chunk:
+    """Represents a chunk with content and metadata."""
+    content: str
+    score: float
+    chunk_id: str
+    
+    def token_count(self, encoder) -> int:
+        """Count tokens in chunk."""
+        return len(encoder.encode(self.content))
+
+class TokenBudgetPacker:
+    """Pack chunks into token budget optimally."""
+    
+    def __init__(self, model: str = "gpt-4"):
+        """
+        Initialize packer.
+        
+        Args:
+            model: Model name for tokenizer
+        """
+        self.encoder = tiktoken.encoding_for_model(model)
+        # Reserve tokens for prompt template and generation
+        self.prompt_overhead = 500
+    
+    def pack(
+        self,
+        chunks: List[Chunk],
+        total_budget: int,
+        min_budget_per_chunk: int = 50
+    ) -> Tuple[List[Chunk], int]:
+        """
+        Pack chunks into token budget.
+        
+        Time Complexity: O(N log N) for sorting
+        Space Complexity: O(N) for storage
+        
+        Args:
+            chunks: List of chunks with scores
+            total_budget: Total token budget available
+            min_budget_per_chunk: Minimum tokens per selected chunk
+            
+        Returns:
+            Tuple of (selected chunks, total tokens used)
+            
+        Example:
+            >>> packer = TokenBudgetPacker()
+            >>> chunks = [
+            ...     Chunk("Important info", 0.9, "c1"),
+            ...     Chunk("Less relevant", 0.5, "c2"),
+            ...     Chunk("Critical fact", 0.95, "c3")
+            ... ]
+            >>> selected, tokens = packer.pack(chunks, total_budget=1000)
+            >>> print(f"Selected {len(selected)} chunks, {tokens} tokens")
+        """
+        available_budget = total_budget - self.prompt_overhead
+        
+        if available_budget <= 0:
+            raise ValueError(f"Budget too small for overhead of {self.prompt_overhead}")
+        
+        # Calculate value density (score per token)
+        scored_chunks = []
+        for chunk in chunks:
+            tokens = chunk.token_count(self.encoder)
+            if tokens == 0:
+                continue
+            value_density = chunk.score / tokens
+            scored_chunks.append((chunk, tokens, value_density))
+        
+        # Sort by value density descending (greedy knapsack)
+        scored_chunks.sort(key=lambda x: x[2], reverse=True)
+        
+        # Pack chunks
+        selected = []
+        total_used = self.prompt_overhead
+        
+        for chunk, tokens, _ in scored_chunks:
+            # Check if chunk fits
+            if tokens > available_budget:
+                # Skip chunks that exceed remaining budget
+                continue
+            
+            if tokens < min_budget_per_chunk:
+                # Skip chunks below minimum threshold
+                continue
+            
+            if total_used + tokens <= total_budget:
+                selected.append(chunk)
+                total_used += tokens
+                available_budget -= tokens
+        
+        return selected, total_used
+    
+    def pack_with_diversity(
+        self,
+        chunks: List[Chunk],
+        total_budget: int,
+        diversity_weight: float = 0.3
+    ) -> Tuple[List[Chunk], int]:
+        """
+        Pack chunks with diversity consideration (MMR-style).
+        
+        Balances relevance with coverage of different information.
+        """
+        available_budget = total_budget - self.prompt_overhead
+        selected = []
+        total_used = self.prompt_overhead
+        remaining = chunks.copy()
+        
+        while remaining and total_used < total_budget:
+            best_chunk = None
+            best_score = -1
+            best_tokens = 0
+            
+            for chunk in remaining:
+                tokens = chunk.token_count(self.encoder)
+                
+                if tokens > available_budget or tokens + total_used > total_budget:
+                    continue
+                
+                # Calculate MMR score
+                relevance = chunk.score
+                
+                # Diversity penalty based on similarity to selected
+                max_sim = 0
+                for sel in selected:
+                    sim = self._chunk_similarity(chunk, sel)
+                    max_sim = max(max_sim, sim)
+                
+                mmr_score = (1 - diversity_weight) * relevance - diversity_weight * max_sim
+                
+                if mmr_score > best_score:
+                    best_score = mmr_score
+                    best_chunk = chunk
+                    best_tokens = tokens
+            
+            if best_chunk is None:
+                break
+            
+            selected.append(best_chunk)
+            remaining.remove(best_chunk)
+            total_used += best_tokens
+            available_budget -= best_tokens
+        
+        return selected, total_used
+    
+    def _chunk_similarity(self, c1: Chunk, c2: Chunk) -> float:
+        """Simple word overlap similarity."""
+        words1 = set(c1.content.lower().split())
+        words2 = set(c2.content.lower().split())
+        
+        if not words1 or not words2:
+            return 0.0
+        
+        intersection = words1 & words2
+        return len(intersection) / max(len(words1), len(words2))
+    
+    def estimate_cost(
+        self,
+        chunks: List[Chunk],
+        input_price_per_1k: float = 0.03,
+        output_price_per_1k: float = 0.06
+    ) -> Dict[str, float]:
+        """Estimate API cost for using these chunks."""
+        total_tokens = sum(c.token_count(self.encoder) for c in chunks)
+        total_tokens += self.prompt_overhead
+        
+        # Assume output is ~50% of input for estimation
+        output_tokens = total_tokens * 0.5
+        
+        input_cost = (total_tokens / 1000) * input_price_per_1k
+        output_cost = (output_tokens / 1000) * output_price_per_1k
+        
+        return {
+            "input_tokens": total_tokens,
+            "output_tokens": int(output_tokens),
+            "input_cost": input_cost,
+            "output_cost": output_cost,
+            "total_cost": input_cost + output_cost
+        }
+
+# Usage Example
+packer = TokenBudgetPacker()
+
+chunks = [
+    Chunk("RAG combines retrieval with generation for better answers.", 0.95, "c1"),
+    Chunk("Vector databases store embeddings for similarity search.", 0.80, "c2"),
+    Chunk("Chunking strategies affect retrieval quality significantly.", 0.85, "c3"),
+    Chunk("Token limits constrain how much context can be used.", 0.75, "c4"),
+]
+
+# Pack into 500 token budget
+selected, tokens = packer.pack(chunks, total_budget=500)
+print(f"Selected {len(selected)} chunks using {tokens} tokens")
+
+# Estimate cost
+cost = packer.estimate_cost(selected)
+print(f"Estimated cost: ${cost['total_cost']:.4f}")
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Token Counting | O(N × L) | N chunks, L = avg length |
+| Sorting | O(N log N) | By value density |
+| Packing | O(N) | Greedy selection |
+| Diversity Packing | O(N²) | MMR-style selection |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand token budget management in RAG
+- Be able to implement greedy knapsack for context packing
+- Know how to balance relevance vs diversity
+
+## Real-World Applications
+
+| System | Budget Management |
+|--------|------------------|
+| **LangChain** | Contextual compression, reranking |
+| **LlamaIndex** | Node postprocessors for filtering |
+| **OpenAI** | Token counting in API |
+| **Anthropic** | Context window optimization |
+
+## Common Pitfalls
+
+- **Ignoring overhead**: Not reserving tokens for prompt template
+- **Uneven chunks**: One huge chunk consumes entire budget
+- **No minimum size**: Including tiny, useless chunks
+- **Static budgets**: Not adjusting for different models
+- **No diversity**: Selecting redundant information
+
+## Production Extensions (Optional)
+
+- **Dynamic Budgeting**: Adjust based on query complexity
+- **Hierarchical Packing**: Summary + detailed chunks
+- **Streaming Packing**: Process chunks as they arrive
+- **Cost Optimization**: Budget based on cost, not just tokens
+- **Multi-model**: Different budgets for different models
+
+## Resources
+
+### Documentation
+- [OpenAI Tokenizer](https://platform.openai.com/tokenizer)
+- [tiktoken Documentation](https://github.com/openai/tiktoken)
+- [Context Window Best Practices](https://docs.anthropic.com/claude/docs/context-window)
+
+### Tools
+- **tiktoken**: Fast OpenAI tokenization
+- **transformers**: Hugging Face tokenizers
+- **tokenizers**: Rust-based tokenization
+
+### Papers
+- "Lost in the Middle: How Language Models Use Long Contexts" (Liu et al., 2023)
+- "Efficient Context Window Management for RAG" (Various)
+
+## Interview Questions
+
+1. **Why use value density instead of just raw scores?**
+   - Value density accounts for token cost; a high-score long chunk may be less efficient than a medium-score short chunk
+
+2. **How do you handle chunks larger than the budget?**
+   - Truncate, summarize, or split; skip if unusable
+
+3. **What's the trade-off with diversity-weighted packing?**
+   - Better coverage but may miss highest-relevance chunks; tunable parameter
+
+## After You Pass
+
+Optimize context further:
+- [context-window-optimization](context-window-optimization) - Advanced window management
+- [extractive-compression](extractive-compression) - Compress chunks before packing
+- [mmr-diversity](mmr-diversity) - Maximal Marginal Relevance
+
+---
+
+**📊 Optimize Every Token:** Smart budget packing maximizes information density in limited context windows!
+
+## Offline vs Online
+
+- **Offline**: you can precompute "chunk token cost" estimates.
 - **Online**: you must decide which evidence to include per query, under a fixed budget.
 
-## Production extensions (optional)
+## Production Extensions (Optional)
 
 - prefer coverage/diversity instead of pure score
 - budget per section (e.g., 60% evidence, 20% definitions, 20% policies)
-- use real tokenizer counts (tiktoken) and apply “prompt + tool” overhead
-
-
-
+- use real tokenizer counts (tiktoken) and apply "prompt + tool" overhead

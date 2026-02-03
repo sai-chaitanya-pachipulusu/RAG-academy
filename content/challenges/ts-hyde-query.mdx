@@ -1,23 +1,263 @@
+---
+title: "HyDE Query Generator (TypeScript)"
+description: "Implement HyDE — generate hypothetical answers to improve retrieval."
+language: "typescript"
+difficulty: "intermediate"
+category: "retrieval"
+prerequisites: ["ts-query-decomposition", "ts-top-k-search"]
+related: ["hyde-implementation", "hyde-retrieval", "hyde-search"]
+tags: ["hyde", "query-expansion", "retrieval", "hypothetical"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Implement HyDE — generate hypothetical answers to improve retrieval.
+  Implement HyDE (Hypothetical Document Embeddings) — generate hypothetical answers to improve retrieval for vague queries.
 </Callout>
 
-## Why this matters in production
+## Why HyDE Matters in Production
 
-HyDE (Hypothetical Document Embeddings) was shown to improve zero-shot retrieval by 40%+. It's especially effective for vague queries where the user doesn't know the exact terminology.
+HyDE (Hypothetical Document Embeddings) was shown to improve zero-shot retrieval by 40%+. It's especially effective for vague queries where the user doesn't know the exact terminology. HyDE bridges the vocabulary gap between queries and documents.
 
-## What you're implementing
+### Real-World Scenario
 
-- Take a user question.
-- Generate a hypothetical answer (as if you had the knowledge).
-- Use the hypothetical answer as the retrieval query.
+User query: "How do I make my code faster?"
 
-## Common pitfalls
+**Without HyDE:**
+- Query embedding captures general "performance" concepts
+- May retrieve documents about "optimization" but miss "profiling", "caching", "algorithmic complexity"
 
-- Making hypotheticals too short (loses embedding information).
-- Not preserving the original query for context.
+**With HyDE:**
+1. Generate hypothetical answer: "To make code faster, you can use profiling tools to identify bottlenecks, implement caching strategies, optimize algorithms for better time complexity..."
+2. Embed the hypothetical answer
+3. Retrieve using hypothetical embedding
+4. Results include documents about profiling, caching, and algorithms
 
-## After you pass
+## The Mathematical Foundation
 
-Combine HyDE with **Query Decomposition** for complex questions.
+### The Vocabulary Mismatch Problem
 
+Queries and documents often use different vocabulary:
+
+| Query Terms | Document Terms |
+|-------------|----------------|
+| "make faster" | "optimize", "performance tuning" |
+| "not working" | "error", "exception", "bug" |
+| "how to start" | "getting started", "tutorial", "introduction" |
+
+### HyDE Transformation
+
+```
+Query → LLM → Hypothetical Document → Embedding → Retrieval
+         ↑___________________________↓
+                    Bridge vocabulary gap
+```
+
+The hypothetical document:
+- Uses terminology from the document corpus
+- Expands query with relevant concepts
+- Provides richer semantic signal for embedding
+
+### Effectiveness Conditions
+
+HyDE works best when:
+1. Query is short/vague
+2. Document corpus has consistent terminology
+3. LLM can generate plausible hypotheticals
+4. Query-document vocabulary gap exists
+
+HyDE may hurt when:
+1. Query is already specific
+2. LLM generates incorrect hypotheticals
+3. Document corpus is very diverse
+
+## Theoretical Deep Dive
+
+### Embedding Space Transformation
+
+HyDE performs an implicit transformation in embedding space:
+
+```
+Query embedding: Q
+Hypothetical embedding: H = f(Q) where f is the LLM generation + embedding
+
+Retrieval: argmax(sim(H, D_i)) for documents D_i
+```
+
+This is a form of **query expansion** in the embedding space rather than token space.
+
+### Comparison with Traditional Query Expansion
+
+| Method | Expansion Space | Mechanism |
+|--------|-----------------|-----------|
+| **TF-IDF expansion** | Token space | Add synonyms, related terms |
+| **Pseudo-relevance feedback** | Token space | Expand using top-K results |
+| **HyDE** | Embedding space | Generate hypothetical document |
+
+### Confidence Weighting
+
+Combine original and hypothetical embeddings:
+
+```
+Final embedding = α × Query_embedding + (1-α) × Hypothetical_embedding
+
+Where α ∈ [0, 1] balances query fidelity vs expansion benefit
+```
+
+Default: α = 0.5 (equal weight)
+
+## Production Considerations
+
+### Latency Trade-off
+
+HyDE adds LLM generation latency:
+
+```
+Standard RAG:  Retrieval (50ms) + Generation (1000ms) = 1050ms
+HyDE RAG:      Hypothetical (500ms) + Retrieval (50ms) + Generation (1000ms) = 1550ms
+```
+
+Mitigations:
+- Cache common query hypotheticals
+- Use faster LLM for hypothetical generation
+- Parallelize with other operations
+
+### Fallback Strategy
+
+When to use HyDE vs standard retrieval:
+
+```typescript
+function shouldUseHyDE(query: string): boolean {
+  if (query.length < 10) return true;        // Short/vague
+  if (isTechnicalTerm(query)) return false;  // Already specific
+  if (hasLowConfidence(query)) return true;  // Uncertain
+  return false;
+}
+```
+
+### Multi-HyDE
+
+Generate multiple hypotheticals for robustness:
+
+```
+Query → LLM (temp=0.7) → Hypothetical 1
+     → LLM (temp=0.7) → Hypothetical 2
+     → LLM (temp=0.7) → Hypothetical 3
+
+Aggregate: mean embedding or max similarity
+```
+
+## Your Task
+
+Implement a HyDE query generator:
+
+```typescript
+interface HyDEConfig {
+  llmGenerator: (prompt: string) => Promise<string>;
+  embeddingFunction: (text: string) => Promise<number[]>;
+  alpha?: number;  // Weight for original query (default: 0.5)
+  maxHypotheticalLength?: number;  // Token limit for hypothetical
+}
+
+interface HyDEResult {
+  hypotheticalDocument: string;
+  queryEmbedding: number[];
+  hypotheticalEmbedding: number[];
+  combinedEmbedding: number[];
+  usedHyDE: boolean;
+}
+
+class HyDEQueryGenerator {
+  constructor(private config: HyDEConfig) {}
+
+  async generate(query: string): Promise<HyDEResult> {
+    /**
+     * Generate HyDE-enhanced query embedding.
+     * 
+     * Args:
+     *   query: User search query
+     * 
+     * Returns:
+     *   HyDEResult with embeddings and hypothetical document
+     * 
+     * Process:
+     *   1. Generate hypothetical answer document using LLM
+     *   2. Embed both original query and hypothetical
+     *   3. Combine embeddings using alpha weighting
+     *   4. Return all embeddings for flexibility
+     * 
+     * Prompt template:
+     *   "Given the question '{query}', write a paragraph that would 
+     *    answer this question based on relevant documentation."
+     * 
+     * Edge Cases:
+     *   - Empty query: return zero embedding
+     *   - LLM failure: fall back to query-only embedding
+     *   - Very long hypothetical: truncate
+     */
+  }
+
+  private async generateHypothetical(query: string): Promise<string> {
+    /**
+     * Generate hypothetical document using LLM.
+     * Handle errors gracefully.
+     */
+  }
+
+  private combineEmbeddings(
+    queryEmbedding: number[],
+    hypotheticalEmbedding: number[],
+    alpha: number
+  ): number[] {
+    /**
+     * Weighted combination of embeddings.
+     * combined = alpha * query + (1-alpha) * hypothetical
+     */
+  }
+}
+
+// Convenience function for simple usage
+async function generateHyDEEmbedding(
+  query: string,
+  config: HyDEConfig
+): Promise<number[]> {
+  /**
+   * One-shot HyDE embedding generation.
+   * Returns combined embedding ready for retrieval.
+   */
+}
+```
+
+### Validation Checklist
+
+- [ ] Hypothetical document generated from query
+- [ ] Both query and hypothetical embedded
+- [ ] Combined embedding uses correct alpha weighting
+- [ ] Empty query handled gracefully
+- [ ] LLM errors fallback to query-only
+- [ ] Hypothetical length limited
+- [ ] Embeddings normalized if needed
+
+## Common Pitfalls
+
+- **Making hypotheticals too short**: Loses embedding information
+- **Not preserving the original query**: HyDE should augment, not replace
+- **LLM generating off-topic hypotheticals**: Temperature too high or prompt unclear
+- **Ignoring latency impact**: HyDE adds significant overhead
+- **Using HyDE for all queries**: Only beneficial for vague queries
+
+## After You Pass
+
+Combine HyDE with **Query Decomposition** for complex questions, or implement Multi-HyDE for improved robustness.
+
+## Resources
+
+### Academic Papers
+- ["Precise Zero-Shot Dense Retrieval without Relevance Labels"](https://arxiv.org/abs/2212.10496) - Gao et al. (Original HyDE paper)
+- ["Query Expansion Techniques for Information Retrieval"](https://dl.acm.org/doi/10.1145/1321440.1321449) - Carpineto & Romano
+
+### Documentation
+- [LangChain HyDE](https://python.langchain.com/docs/modules/data_connection/retrievers/HyDE) - Implementation reference
+- [LlamaIndex Query Transformations](https://docs.llamaindex.ai/en/stable/optimizing/basic_strategies/basic_strategies.html) - Query enhancement
+
+### Tutorials
+- ["Improving RAG with HyDE"](https://blog.langchain.dev/improving-retrieval-with-hyde/) - LangChain blog
+- ["Query Expansion Strategies"](https://www.pinecone.io/learn/query-expansion/) - Pinecone guide

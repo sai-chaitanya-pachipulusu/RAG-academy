@@ -2,21 +2,16 @@
 title: "HyDE: Hypothetical Document Embedding"
 description: "Generate hypothetical answers for better retrieval through embedding alignment"
 difficulty: "hard"
-timeEstimate: "35-45 min"
-xpReward: 100
-prerequisites: ["query-expansion"]
+xpReward: 150
+topics: ["hyde", "query-rewriting", "embedding-alignment", "retrieval"]
+prerequisites: ["query-expansion", "embedding-model-selection"]
 ---
 
 # HyDE: Hypothetical Document Embedding
 
-## The Vocabulary Mismatch Problem
+## Overview
 
-**Query**: "What is RAG?"
-**Document**: "Retrieval-Augmented Generation combines external knowledge with language models..."
-
-The query is short and uses "RAG" (acronym). The document is detailed and uses full terminology. Their embeddings may not align well.
-
----
+The vocabulary mismatch problem: User asks "What is RAG?" (short, uses acronym) but documents say "Retrieval-Augmented Generation combines external knowledge..." (detailed, full terminology). Their embeddings don't align well.
 
 ## The HyDE Insight
 
@@ -36,48 +31,387 @@ Retrieve documents similar to the hypothetical
 
 The hypothetical answer shares vocabulary with actual documents!
 
----
+## Why This Matters
 
-## Why It Works
-
-| Embedding Target           | Similarity to Docs |
-| -------------------------- | ------------------ |
-| Raw query ("What is RAG?") | Low-Medium         |
-| Hypothetical answer        | High               |
-
-The LLM "imagines" what a good answer looks like, and that imagination contains the right terminology.
-
----
+- **Vocabulary Alignment**: Hypothetical answers use document-like language
+- **Better Retrieval**: Higher similarity to relevant documents
+- **Query Expansion**: Implicitly expands query with related terms
+- **Domain Adaptation**: Works well for specialized domains
 
 ## Research Results
 
 From the original HyDE paper (Gao et al., 2022):
-
 - **+10-15%** improvement on several benchmarks
 - Best improvements on specialized domains
 - Works with any embedding model
 
----
+## The Challenge
 
-## ⚠️ Tradeoffs
+### Part 1: Hypothetical Answer Generator
 
-### Pros
+```python
+from typing import List
+from dataclasses import dataclass
 
-- ✅ Better recall on vocabulary mismatch
-- ✅ Works with any embedding model
-- ✅ No training required
+@dataclass
+class HypotheticalDocument:
+    """A generated hypothetical document."""
+    text: str
+    confidence: float
+    generation_metadata: dict
 
-### Cons
+class HypotheticalAnswerGenerator:
+    """Generate hypothetical answers for HyDE."""
+    
+    def __init__(
+        self,
+        llm_client,
+        prompt_template: str = None,
+        num_hypotheses: int = 1,
+        temperature: float = 0.7
+    ):
+        self.llm = llm_client
+        self.num_hypotheses = num_hypotheses
+        self.temperature = temperature
+        
+        self.prompt_template = prompt_template or """Given the question, write a passage that would answer it.
+The passage should be detailed and use technical terminology where appropriate.
 
-- ❌ Requires LLM call at query time
-- ❌ Latency: +200-500ms for generation
-- ❌ Hypothetical may contain errors
+Question: {question}
 
----
+Passage:"""
+    
+    def generate(
+        self,
+        query: str,
+        context: str = None
+    ) -> List[HypotheticalDocument]:
+        """Generate hypothetical answer(s) for query."""
+        hypotheses = []
+        
+        for i in range(self.num_hypotheses):
+            # Vary temperature for diversity if multiple hypotheses
+            temp = self.temperature + (i * 0.1) if self.num_hypotheses > 1 else self.temperature
+            
+            # Build prompt
+            prompt = self.prompt_template.format(
+                question=query,
+                context=context or ""
+            )
+            
+            # Generate
+            response = self.llm.generate(
+                prompt,
+                temperature=temp,
+                max_tokens=200
+            )
+            
+            # Estimate confidence (could use logprobs if available)
+            confidence = self._estimate_confidence(response)
+            
+            hypotheses.append(HypotheticalDocument(
+                text=response.strip(),
+                confidence=confidence,
+                generation_metadata={
+                    'temperature': temp,
+                    'prompt': prompt
+                }
+            ))
+        
+        return hypotheses
+    
+    def _estimate_confidence(self, text: str) -> float:
+        """Estimate confidence of generated text."""
+        # Simple heuristics
+        score = 0.5
+        
+        # Longer answers tend to be more confident
+        word_count = len(text.split())
+        if word_count > 20:
+            score += 0.2
+        
+        # Answers with technical terms seem more confident
+        technical_indicators = ['is', 'are', 'refers to', 'means', 'involves']
+        if any(ind in text.lower() for ind in technical_indicators):
+            score += 0.1
+        
+        return min(score, 1.0)
+```
 
-## Related Challenges
+### Part 2: HyDE Retriever
 
-- `query-expansion` - Simpler expansion technique
-- `query-decomposition` - Break into sub-queries
-- `intent-classification` - Understand query type
+```python
+class HyDERetriever:
+    """Retriever using HyDE (Hypothetical Document Embedding)."""
+    
+    def __init__(
+        self,
+        hypothetical_generator: HypotheticalAnswerGenerator,
+        embedding_model,
+        vector_store,
+        combine_strategy: str = "concat"  # concat, avg, or best
+    ):
+        self.generator = hypothetical_generator
+        self.embedder = embedding_model
+        self.store = vector_store
+        self.combine_strategy = combine_strategy
+    
+    def retrieve(
+        self,
+        query: str,
+        top_k: int = 5,
+        generate_multiple: bool = False
+    ) -> List[Dict]:
+        """Retrieve using HyDE."""
+        # Generate hypothetical answer(s)
+        num_hypotheses = 3 if generate_multiple else 1
+        hypotheses = self.generator.generate(query)
+        
+        if len(hypotheses) == 1:
+            # Single hypothesis
+            hyp_embedding = self.embedder.embed(hypotheses[0].text)
+            results = self.store.search(hyp_embedding, k=top_k)
+        else:
+            # Multiple hypotheses - combine results
+            all_results = []
+            
+            for hyp in hypotheses:
+                hyp_embedding = self.embedder.embed(hyp.text)
+                results = self.store.search(hyp_embedding, k=top_k)
+                
+                # Weight by hypothesis confidence
+                for r in results:
+                    r['hyde_score'] = r['score'] * hyp.confidence
+                    r['hypothesis'] = hyp.text[:100]
+                
+                all_results.extend(results)
+            
+            # Deduplicate and rerank
+            results = self._merge_results(all_results, top_k)
+        
+        # Add HyDE metadata
+        for r in results:
+            r['retrieval_method'] = 'hyde'
+            r['hypotheses'] = [h.text[:100] for h in hypotheses]
+        
+        return results
+    
+    def _merge_results(
+        self,
+        results: List[Dict],
+        top_k: int
+    ) -> List[Dict]:
+        """Merge and deduplicate results from multiple hypotheses."""
+        # Group by document ID
+        by_doc = {}
+        for r in results:
+            doc_id = r['id']
+            if doc_id not in by_doc:
+                by_doc[doc_id] = r
+            else:
+                # Keep highest score
+                if r['hyde_score'] > by_doc[doc_id]['hyde_score']:
+                    by_doc[doc_id] = r
+        
+        # Sort by score and return top-k
+        merged = sorted(by_doc.values(), key=lambda x: x['hyde_score'], reverse=True)
+        return merged[:top_k]
+    
+    def compare_with_standard(
+        self,
+        query: str,
+        top_k: int = 5
+    ) -> Dict:
+        """Compare HyDE retrieval with standard retrieval."""
+        # Standard retrieval (query embedding)
+        query_emb = self.embedder.embed(query)
+        standard_results = self.store.search(query_emb, k=top_k)
+        
+        # HyDE retrieval
+        hyde_results = self.retrieve(query, top_k=top_k)
+        
+        # Compare
+        standard_ids = {r['id'] for r in standard_results}
+        hyde_ids = {r['id'] for r in hyde_results}
+        
+        return {
+            'query': query,
+            'standard_retrieval': {
+                'results': standard_results,
+                'doc_ids': list(standard_ids)
+            },
+            'hyde_retrieval': {
+                'results': hyde_results,
+                'doc_ids': list(hyde_ids)
+            },
+            'overlap': len(standard_ids & hyde_ids),
+            'hyde_unique': len(hyde_ids - standard_ids),
+            'standard_unique': len(standard_ids - hyde_ids)
+        }
+```
 
+### Part 3: HyDE with Fusion
+
+```python
+class HyDEFusionRetriever:
+    """Combine HyDE with original query for robust retrieval."""
+    
+    def __init__(
+        self,
+        hyde_retriever: HyDERetriever,
+        embedding_model,
+        alpha: float = 0.5  # Weight for HyDE vs query
+    ):
+        self.hyde = hyde_retriever
+        self.embedder = embedding_model
+        self.alpha = alpha
+    
+    def retrieve(
+        self,
+        query: str,
+        top_k: int = 5
+    ) -> List[Dict]:
+        """Retrieve using fusion of query and HyDE."""
+        # Get HyDE results
+        hyde_results = self.hyde.retrieve(query, top_k=top_k * 2)
+        
+        # Get standard results
+        query_emb = self.embedder.embed(query)
+        standard_results = self.hyde.store.search(query_emb, k=top_k * 2)
+        
+        # Fuse scores
+        all_results = {}
+        
+        # Add HyDE results
+        for r in hyde_results:
+            doc_id = r['id']
+            all_results[doc_id] = {
+                **r,
+                'hyde_score': r.get('score', 0) * self.alpha,
+                'query_score': 0
+            }
+        
+        # Add standard results
+        for r in standard_results:
+            doc_id = r['id']
+            if doc_id in all_results:
+                all_results[doc_id]['query_score'] = r['score'] * (1 - self.alpha)
+            else:
+                all_results[doc_id] = {
+                    **r,
+                    'hyde_score': 0,
+                    'query_score': r['score'] * (1 - self.alpha)
+                }
+        
+        # Combined score
+        for doc_id in all_results:
+            all_results[doc_id]['fused_score'] = (
+                all_results[doc_id]['hyde_score'] +
+                all_results[doc_id]['query_score']
+            )
+        
+        # Sort and return top-k
+        sorted_results = sorted(
+            all_results.values(),
+            key=lambda x: x['fused_score'],
+            reverse=True
+        )
+        
+        return sorted_results[:top_k]
+```
+
+### Part 4: HyDE Evaluator
+
+```python
+class HyDEEvaluator:
+    """Evaluate HyDE effectiveness."""
+    
+    def __init__(self, hyde_retriever: HyDERetriever):
+        self.hyde = hyde_retriever
+    
+    def evaluate_on_dataset(
+        self,
+        queries: List[str],
+        ground_truth: List[List[str]],  # Relevant doc IDs for each query
+        top_k: int = 5
+    ) -> Dict[str, float]:
+        """Evaluate HyDE vs standard retrieval."""
+        hyde_metrics = {'recall': [], 'precision': []}
+        standard_metrics = {'recall': [], 'precision': []}
+        
+        for query, relevant in zip(queries, ground_truth):
+            relevant_set = set(relevant)
+            
+            # HyDE retrieval
+            hyde_results = self.hyde.retrieve(query, top_k=top_k)
+            hyde_ids = {r['id'] for r in hyde_results}
+            
+            hyde_metrics['recall'].append(
+                len(hyde_ids & relevant_set) / len(relevant_set)
+            )
+            hyde_metrics['precision'].append(
+                len(hyde_ids & relevant_set) / len(hyde_ids)
+            )
+            
+            # Standard retrieval
+            query_emb = self.hyde.embedder.embed(query)
+            standard_results = self.hyde.store.search(query_emb, k=top_k)
+            standard_ids = {r['id'] for r in standard_results}
+            
+            standard_metrics['recall'].append(
+                len(standard_ids & relevant_set) / len(relevant_set)
+            )
+            standard_metrics['precision'].append(
+                len(standard_ids & relevant_set) / len(standard_ids)
+            )
+        
+        return {
+            'hyde': {
+                'avg_recall': sum(hyde_metrics['recall']) / len(queries),
+                'avg_precision': sum(hyde_metrics['precision']) / len(queries)
+            },
+            'standard': {
+                'avg_recall': sum(standard_metrics['recall']) / len(queries),
+                'avg_precision': sum(standard_metrics['precision']) / len(queries)
+            },
+            'improvement': {
+                'recall': (
+                    sum(hyde_metrics['recall']) - sum(standard_metrics['recall'])
+                ) / len(queries),
+                'precision': (
+                    sum(hyde_metrics['precision']) - sum(standard_metrics['precision'])
+                ) / len(queries)
+            }
+        }
+```
+
+## Example Usage
+
+```python
+# Setup
+llm = OpenAIClient()
+embedder = SentenceTransformer('all-MiniLM-L6-v2')
+store = VectorStore()
+
+# Create HyDE components
+generator = HypotheticalAnswerGenerator(llm)
+hyde_retriever = HyDERetriever(generator, embedder, store)
+
+# Retrieve
+query = "What is RAG?"
+results = hyde_retriever.retrieve(query, top_k=5)
+
+# Compare
+comparison = hyde_retriever.compare_with_standard(query)
+print(f"HyDE found {comparison['hyde_unique']} unique docs")
+```
+
+## Evaluation Criteria
+
+Your solution will be evaluated on:
+
+1. **Generation Quality**: Hypothetical answers are relevant
+2. **Retrieval Improvement**: Better results than standard retrieval
+3. **Vocabulary Alignment**: Generated text matches document style
+4. **Robustness**: Works across different query types
+5. **Efficiency**: Reasonable generation overhead

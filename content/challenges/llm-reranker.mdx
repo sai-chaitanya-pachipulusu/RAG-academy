@@ -1,29 +1,230 @@
 ﻿---
 title: "LLM-as-a-Reranker"
-description: "Use an LLM to rerank search results for complex queries."
+description: "Use an LLM to rerank search results for complex queries requiring nuanced judgment."
+prerequisites: ["recency-boost", "reranker-score-function"]
+related: ["contextual-compression-llm", "multi-judge-consensus"]
+next: ["contextual-compression-llm"]
 ---
 
-# LLM-as-a-Reranker
+<Callout title="Goal" variant="info">
+  Master LLM-based reranking — the advanced technique that leverages large language models for nuanced relevance judgment beyond what embeddings can capture.
+</Callout>
+
+## When to Use LLM Reranking
 
 Cross-encoders are great for "Is this relevant?" questions, but LLMs can answer complex questions like "Which of these documents **contradicts** the other?"
 
-### When to Use LLM Reranking
+### Use Cases
 
-- **Complex reasoning**: "Find the document that provides counter-evidence."
-- **Multi-hop queries**: "Find docs about X that also mention Y."
+- **Complex reasoning**: "Find the document that provides counter-evidence"
+- **Multi-hop queries**: "Find docs about X that also mention Y"
 - **Nuanced relevance**: "Which doc would a lawyer prefer?"
+- **Comparative analysis**: "Which document is more authoritative?"
 
 ### The Tradeoff
 
-| Approach      | Speed  | Cost      | Quality |
-| ------------- | ------ | --------- | ------- |
-| Bi-Encoder    | Fast   | Cheap     | Good    |
-| Cross-Encoder | Medium | Medium    | Great   |
-| LLM Reranker  | Slow   | Expensive | Best\*  |
+| Approach | Speed | Cost | Quality | Best For |
+|----------|-------|------|---------|----------|
+| Bi-Encoder | Fast (<10ms) | Cheap | Good | Initial retrieval |
+| Cross-Encoder | Medium (~100ms) | Medium | Great | Standard reranking |
+| LLM Reranker | Slow (~1s) | Expensive | Best* | Complex queries |
 
 \*For complex queries only; overkill for simple lookups.
 
-### Your Task
+## Theoretical Foundation
 
-Use a simulated LLM relevance scorer to rerank a list of documents, returning the top-K most relevant ones.
+### Why LLMs Excel at Reranking
 
+Traditional rerankers (cross-encoders) are trained on specific relevance judgments. LLMs bring:
+
+1. **Broad world knowledge**: Understand domain-specific terminology
+2. **Reasoning capabilities**: Can evaluate "which document better answers..."
+3. **Instruction following**: Adapt to custom relevance criteria
+4. **Context understanding**: Grasp nuanced relationships between query and documents
+
+### The Reranking Pipeline
+
+```
+Query → [Bi-Encoder Retrieval: 100 docs] → [Cross-Encoder: 20 docs] → [LLM Reranker: 5 docs]
+         (Fast, approximate)                (Medium, accurate)          (Slow, precise)
+```
+
+**Cascading approach**: Each stage filters for the next, optimizing cost vs. quality.
+
+### LLM Reranking Prompts
+
+#### Basic Relevance
+
+```
+Rate how relevant this document is to the query on a scale of 0-10.
+
+Query: {query}
+Document: {document}
+
+Relevance score (0-10):
+```
+
+#### Comparative Ranking
+
+```
+Rank the following documents by relevance to the query. 
+Consider: accuracy, authority, and completeness.
+
+Query: {query}
+
+Documents:
+1. {doc1}
+2. {doc2}
+3. {doc3}
+
+Ranked order (most relevant first):
+```
+
+#### Structured Scoring
+
+```
+Evaluate this document for the query across multiple dimensions:
+
+Query: {query}
+Document: {document}
+
+Score each (0-10):
+- Relevance: ___
+- Authority: ___
+- Recency: ___
+- Comprehensiveness: ___
+
+Total score: ___
+```
+
+## Production Considerations
+
+### Cost Optimization
+
+LLM reranking is expensive. Strategies to reduce costs:
+
+| Strategy | Savings | Implementation |
+|----------|---------|----------------|
+| **Token truncation** | 50-70% | Truncate docs to 200-300 tokens |
+| **Batch scoring** | 30-50% | Score multiple docs in one prompt |
+| **Early termination** | 20-40% | Stop if top score is very high |
+| **Caching** | Variable | Cache frequent query patterns |
+| **Selective reranking** | 60-80% | Only rerank ambiguous cases |
+
+### Latency Management
+
+```python
+import asyncio
+
+async def llm_rerank_async(query: str, docs: list[str]) -> list[tuple[int, float]]:
+    """
+    Parallel LLM scoring for multiple documents.
+    """
+    tasks = [score_document(query, doc) for doc in docs]
+    scores = await asyncio.gather(*tasks)
+    return sorted(enumerate(scores), key=lambda x: -x[1])
+```
+
+### Hybrid Approach
+
+```python
+def smart_rerank(query: str, docs: list[str]) -> list[str]:
+    """
+    Use LLM reranking only when needed.
+    """
+    # Fast cross-encoder pass
+    cross_scores = cross_encoder.score(query, docs)
+    
+    # If top scores are very close, use LLM to break ties
+    if max(cross_scores) - min(cross_scores[:5]) < 0.1:
+        return llm_rerank(query, docs[:10])
+    
+    return docs[:5]
+```
+
+## Your Task
+
+Implement LLM-based reranking:
+
+```python
+from typing import List, Tuple
+import re
+
+def simulate_llm_relevance(query: str, doc: str) -> float:
+    """
+    Simulate an LLM's relevance judgment (0.0 to 1.0).
+    
+    Heuristic for this lab:
+    - Token overlap between query and document
+    - Bonus for authoritative keywords ("official", "policy", "guide")
+    - Penalty for irrelevant content
+    
+    Args:
+        query: User query
+        doc: Document to evaluate
+        
+    Returns:
+        Relevance score between 0.0 and 1.0
+    """
+    pass
+
+def llm_rerank(
+    query: str,
+    docs: List[str],
+    top_k: int = 3,
+) -> List[Tuple[int, float]]:
+    """
+    Rerank documents using the LLM simulator.
+    
+    Args:
+        query: User query
+        docs: List of candidate documents
+        top_k: Number of top results to return
+        
+    Returns:
+        List of (doc_index, llm_score) sorted by score descending
+        
+    Requirements:
+        - Score each document using simulate_llm_relevance
+        - Sort by score descending
+        - Return top_k results
+    """
+    pass
+```
+
+### Validation Checklist
+
+- [ ] Documents with keyword overlap score higher
+- [ ] Authoritative content gets bonus
+- [ ] Results sorted by score descending
+- [ ] Returns exactly top_k results (or fewer if not enough docs)
+- [ ] Document indices preserved correctly
+
+## Resources
+
+### Academic Papers
+- ["Large Language Models are Effective Text Rankers with Pairwise Ranking Prompting"](https://arxiv.org/abs/2306.17563) - Qin et al.
+- ["RankGPT: Is ChatGPT Good for Search?"](https://arxiv.org/abs/2304.09542) - Sun et al.
+- ["Zero-Shot Listwise Document Reranking with a Large Language Model"](https://arxiv.org/abs/2305.02156) - Ma et al.
+
+### Documentation
+- [Cohere Rerank API](https://docs.cohere.com/docs/rerank) - Production LLM reranking
+- [Voyage AI Reranker](https://docs.voyageai.com/docs/reranker) - Specialized for RAG
+- [Jina AI Reranker](https://jina.ai/reranker/) - Open-source option
+
+### Tutorials
+- ["LLM Reranking for RAG"](https://www.pinecone.io/learn/series/rag/llm-reranking/) - Pinecone
+- ["Advanced Reranking Techniques"](https://blog.langchain.dev/reranking/) - LangChain
+- ["Cohere Rerank Tutorial"](https://docs.cohere.com/docs/reranking-2) - Official guide
+
+### Tools
+- [Cohere Rerank](https://cohere.com/rerank) - API-based reranking
+- [FlashRank](https://github.com/PrithivirajDamodaran/FlashRank) - Fast local reranking
+- [RankLLM](https://github.com/castorini/rank_llm) - Research implementation
+
+## Next Steps
+
+After mastering LLM reranking:
+- **Contextual Compression LLM**: Extract relevant parts with LLM
+- **Multi-Judge Consensus**: Combine multiple LLM judgments
+- **Reranker Cascade**: Multi-stage reranking pipeline

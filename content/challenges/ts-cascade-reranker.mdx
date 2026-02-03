@@ -1,24 +1,225 @@
+---
+title: "Cascade Reranker (TypeScript)"
+description: "Implement cascade reranking — cheap filter → expensive reranker for production efficiency."
+language: "typescript"
+difficulty: "advanced"
+category: "retrieval"
+prerequisites: ["ts-top-k-search", "ts-bm25-score"]
+related: ["rerank-cascade", "llm-reranker", "colbert-late-interaction"]
+tags: ["reranking", "cascade", "cost-optimization", "performance"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Implement cascade reranking — cheap filter → expensive reranker for production efficiency.
+  Implement cascade reranking — use cheap initial scores to filter, then apply expensive reranker only to top candidates.
 </Callout>
 
-## Why this matters in production
+## Why Cascade Reranking Matters in Production
 
-You can't afford to run expensive cross-encoder reranking on thousands of candidates. Cascade reranking uses cheap initial scores to filter, then applies the expensive reranker only to top candidates.
+You can't afford to run expensive cross-encoder reranking on thousands of candidates. Cascade reranking uses cheap initial scores to filter, then applies the expensive reranker only to top candidates. This pattern saves 80-95% of reranking costs while maintaining quality.
 
-## What you're implementing
+### Real-World Scenario
 
-- Filter by initial score threshold.
-- Select top N by initial score (reranker budget).
-- Apply expensive reranker to selected candidates.
-- Sort by reranked score.
+A legal document search system with 1M documents:
 
-## Common pitfalls
+- **Naive approach**: Rerank all 1M documents with cross-encoder
+  - Cost: $500/query, 30 minutes latency
+- **Cascade approach**: 
+  1. BM25 retrieves top 1000 ($0.001, 50ms)
+  2. Bi-encoder scores top 100 ($0.01, 100ms)
+  3. Cross-encoder reranks top 10 ($0.50, 2s)
+  - Cost: $0.51/query, 2.15s latency
 
-- Running reranker on too many documents (cost explosion).
-- Losing good documents by setting threshold too high.
+**Result**: 1000x cost reduction, 99% latency improvement
 
-## After you pass
+## The Mathematical Foundation
 
-Build a complete retrieval pipeline: retrieve → filter → rerank.
+### Cascade Architecture
 
+```
+Query → Stage 1 (Cheap) → Filter → Stage 2 (Medium) → Filter → Stage 3 (Expensive)
+         [Retrieve 1000]   →   [Score top 100]    →   [Rerank top 10]
+```
+
+### Cost Analysis
+
+For a 3-stage cascade:
+
+```
+Total Cost = C₁ × N₁ + C₂ × N₂ + C₃ × N₃
+
+Where:
+- Cᵢ = cost per document at stage i
+- Nᵢ = number of documents at stage i
+
+Example:
+- Stage 1: BM25 (free), N₁ = 10,000
+- Stage 2: Bi-encoder ($0.0001/doc), N₂ = 100
+- Stage 3: Cross-encoder ($0.05/doc), N₃ = 10
+
+Total: $0 + $0.01 + $0.50 = $0.51
+vs. $500 for full cross-encoder
+```
+
+### Quality Preservation
+
+The key insight: most relevant documents are already in the top-K of cheaper methods.
+
+| Stage | Recall@100 | Precision@10 |
+|-------|-----------|--------------|
+| BM25 alone | 85% | 60% |
++ Bi-encoder | 95% | 75% |
++ Cross-encoder | 98% | 90% |
+
+## Theoretical Deep Dive
+
+### The Efficiency-Quality Tradeoff
+
+Cascade design involves balancing:
+
+```
+Efficiency ∝ 1 / (Σ Cᵢ × Nᵢ)
+Quality ∝ Final stage performance
+```
+
+Optimal cascade minimizes cost while maintaining quality above threshold.
+
+### Stage Selection Criteria
+
+Each stage should be:
+
+1. **More expensive** than previous (C₁ < C₂ < C₃)
+2. **More accurate** than previous (A₁ < A₂ < A₃)
+3. **Correlated** with final stage (rankings shouldn't be random)
+
+### Common Stage Types
+
+| Stage | Method | Relative Cost | Use Case |
+|-------|--------|---------------|----------|
+| 1 | Inverted index / Vector search | 1x | Initial retrieval |
+| 2 | Bi-encoder / Light cross-encoder | 10-100x | Pre-ranking |
+| 3 | Heavy cross-encoder / LLM | 1000-10000x | Final reranking |
+
+## Production Considerations
+
+### Dynamic Budget Allocation
+
+Adjust reranker budget based on query:
+
+```typescript
+function getRerankBudget(query: string): number {
+  if (isSimpleQuery(query)) return 5;   // Top 5
+  if (isComplexQuery(query)) return 20;  // Top 20
+  return 10;  // Default
+}
+```
+
+### Early Exit Strategies
+
+Stop cascade early if confidence is high:
+
+```typescript
+if (stage2Scores[0] - stage2Scores[5] > threshold) {
+  // Gap is large enough, skip stage 3
+  return stage2Results.slice(0, 5);
+}
+```
+
+### Parallelization
+
+Stage 2 can process candidates in parallel batches:
+
+```typescript
+const batches = chunk(candidates, batchSize);
+const scores = await Promise.all(batches.map(batch => scoreBatch(batch)));
+```
+
+## Your Task
+
+Implement a cascade reranker:
+
+```typescript
+interface Document {
+  id: string;
+  text: string;
+  initialScore?: number;
+}
+
+interface RerankerStage {
+  name: string;
+  rerank: (query: string, documents: Document[]) => Promise<Document[]>;
+  budget: number;  // Max documents to pass to next stage
+}
+
+interface CascadeConfig {
+  stages: RerankerStage[];
+  earlyExitThreshold?: number;  // Skip remaining stages if confidence gap > threshold
+}
+
+class CascadeReranker {
+  constructor(private config: CascadeConfig) {}
+
+  async rerank(query: string, candidates: Document[]): Promise<Document[]> {
+    /**
+     * Execute cascade reranking pipeline.
+     * 
+     * Args:
+     *   query: Search query
+     *   candidates: Initial candidate documents (from retrieval)
+     * 
+     * Returns:
+     *   Reranked documents sorted by final score
+     * 
+     * Process:
+     *   1. Pass candidates through each stage
+     *   2. Each stage returns top 'budget' documents
+     *   3. Apply early exit if configured and confidence is high
+     *   4. Return final stage results
+     */
+  }
+}
+
+// Example usage:
+const cascade = new CascadeReranker({
+  stages: [
+    { name: 'bm25', rerank: bm25Rerank, budget: 100 },
+    { name: 'bi-encoder', rerank: biEncoderRerank, budget: 20 },
+    { name: 'cross-encoder', rerank: crossEncoderRerank, budget: 10 }
+  ],
+  earlyExitThreshold: 0.3
+});
+```
+
+### Validation Checklist
+
+- [ ] Each stage respects its budget limit
+- [ ] Documents maintain ID through cascade
+- [ ] Early exit works when confidence gap exceeds threshold
+- [ ] Empty candidates handled gracefully
+- [ ] Single stage cascade works correctly
+- [ ] Scores from final stage used for ranking
+
+## Common Pitfalls
+
+- **Running reranker on too many documents**: Cost explosion, defeats purpose
+- **Losing good documents by setting threshold too high**: Balance efficiency vs quality
+- **Not preserving document metadata**: IDs and original scores needed
+- **Synchronous processing**: Parallelize expensive stages
+- **Ignoring stage correlation**: Stages should agree on good documents
+
+## After You Pass
+
+Build a complete retrieval pipeline: retrieve → filter → rerank, or experiment with learned cascade policies that optimize stage selection.
+
+## Resources
+
+### Academic Papers
+- ["Cascade Ranking for Operational E-commerce Search"](https://arxiv.org/abs/2105.01697) - Wang et al.
+- ["Learning to Rank in the Cascade Model"](https://www.cs.cornell.edu/people/tj/publications/wang_etal_11a.pdf) - Wang et al.
+
+### Documentation
+- [Cohere Rerank API](https://docs.cohere.com/docs/rerank) - Production reranking service
+- [Jina AI Reranker](https://jina.ai/reranker/) - Open source reranking models
+
+### Tutorials
+- ["Multi-Stage Ranking Architecture"](https://www.elastic.co/blog/practical-reranking-with-elasticsearch) - Elastic blog
+- ["Cost-Effective Reranking"](https://blog.vespa.ai/cost-effective-reranking/) - Vespa blog

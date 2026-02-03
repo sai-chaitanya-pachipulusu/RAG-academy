@@ -1,4 +1,14 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "RAG Pipeline: The Retriever"
+description: "Add the retrieval logic to find the most relevant chunks for any given query"
+difficulty: "beginner"
+estimatedMinutes: 25
+xpReward: 40
+prerequisites: ["rag-pipeline-embedder", "cosine-similarity"]
+related: ["rag-pipeline-generator", "basic-retrieval", "naive-flat-index"]
+---
+
+<Callout title="Goal" variant="info">
   Add the retrieval logic to find the most relevant chunks for any given query.
 </Callout>
 
@@ -6,11 +16,225 @@
 
 With your chunks indexed as vectors, you can now perform a search. A good retriever doesn't just return matches; it handles top-k selection and score normalization efficiently.
 
-## Task
+## Why This Matters in Production
+
+Retrieval is the heart of RAG. The quality of retrieved chunks determines answer quality:
+
+| Metric | Impact |
+|--------|--------|
+| **Precision** | Relevant chunks → accurate answers |
+| **Recall** | Finding all relevant information |
+| **Latency** | Fast retrieval for real-time apps |
+| **Diversity** | Avoiding redundant information |
+
+## What You're Implementing
 
 Implement the `retrieve` method in your `Pipeline`. This method will:
 
 1. Embed the user query.
 2. Compare it against all document vectors in the pipeline.
 3. Return the best matching candidates.
+
+## The Retrieval Pipeline
+
+```
+User Query → Query Embedding → Similarity Search → Top-K Results
+     ↓              ↓                  ↓                ↓
+  "What is    [0.1, -0.2, ...]   Score all chunks   [chunk3,
+   RAG?"                           Sort by score      chunk1,
+                                                      chunk7]
+```
+
+## Mathematical Foundations
+
+### Vector Similarity
+
+```
+Cosine Similarity: cos(θ) = (q · d) / (||q|| × ||d||)
+
+Where:
+- q = query vector
+- d = document vector
+- θ = angle between vectors
+```
+
+For normalized vectors: `cos(θ) = q · d` (simple dot product)
+
+### Top-K Selection
+
+```
+Time Complexity: O(N × d + N log k)
+Where:
+- N = number of documents
+- d = vector dimension
+- k = number of results
+```
+
+## Implementation Example
+
+```python
+from typing import List, Tuple
+import numpy as np
+
+class Pipeline:
+    def __init__(self, embedding_model, chunk_size=500):
+        self.embedding_model = embedding_model
+        self.chunk_size = chunk_size
+        self.chunks = []
+        self.chunk_embeddings = []
+    
+    def chunk(self, text: str) -> List[str]:
+        """Split text into chunks."""
+        chunks = []
+        for i in range(0, len(text), self.chunk_size):
+            chunks.append(text[i:i + self.chunk_size])
+        return chunks
+    
+    def embed(self, chunks: List[str]) -> List[np.ndarray]:
+        """Generate embeddings for chunks."""
+        embeddings = []
+        for chunk in chunks:
+            vec = self.embedding_model.encode(chunk)
+            # Normalize for cosine similarity
+            vec = vec / np.linalg.norm(vec)
+            embeddings.append(vec)
+        return embeddings
+    
+    def retrieve(self, query: str, k: int = 5) -> List[Tuple[int, float]]:
+        """
+        Retrieve top-k most similar chunks for the query.
+        
+        Time Complexity: O(C × d + C log k) where C = chunks, d = dimension
+        Space Complexity: O(C) for scores
+        
+        Args:
+            query: User query string
+            k: Number of results to return
+            
+        Returns:
+            List of (chunk_index, similarity_score) tuples, sorted by score
+            
+        Raises:
+            ValueError: If k <= 0 or no chunks indexed
+            
+        Example:
+            >>> pipeline = Pipeline(embedding_model)
+            >>> pipeline.chunks = ["RAG is...", "LLMs are...", "Vectors..."]
+            >>> pipeline.chunk_embeddings = [...]  # pre-computed
+            >>> pipeline.retrieve("What is RAG?", k=2)
+            [(0, 0.95), (1, 0.72)]
+        """
+        if k <= 0:
+            raise ValueError("k must be positive")
+        
+        if not self.chunk_embeddings:
+            raise ValueError("No chunks indexed. Call embed() first.")
+        
+        # Embed and normalize query
+        query_vec = self.embedding_model.encode(query)
+        query_vec = query_vec / np.linalg.norm(query_vec)
+        
+        # Score all chunks
+        scores = []
+        for i, chunk_vec in enumerate(self.chunk_embeddings):
+            # Cosine similarity = dot product for normalized vectors
+            similarity = np.dot(query_vec, chunk_vec)
+            scores.append((i, similarity))
+        
+        # Sort by similarity descending
+        scores.sort(key=lambda x: x[1], reverse=True)
+        
+        # Return top k
+        return scores[:k]
+
+# Usage Example
+pipeline = Pipeline(embedding_model)
+text = """RAG stands for Retrieval-Augmented Generation. It combines retrieval 
+with language model generation. LLMs are large language models."""
+
+# Index
+pipeline.chunks = pipeline.chunk(text)
+pipeline.chunk_embeddings = pipeline.embed(pipeline.chunks)
+
+# Retrieve
+results = pipeline.retrieve("What is RAG?", k=2)
+for idx, score in results:
+    print(f"Score: {score:.3f} | Chunk: {pipeline.chunks[idx][:50]}...")
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Query Embedding | O(L) | L = query length |
+| Scoring | O(C × d) | C chunks × d dimensions |
+| Sorting | O(C log C) | Or O(C log k) with heap |
+| Total Search | O(C × d + C log k) | Dominant: embedding + scoring |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand vector similarity search fundamentals
+- Be able to implement brute-force retrieval
+- Know how to optimize top-k selection
+
+## Real-World Applications
+
+| Company | Retrieval System |
+|---------|-----------------|
+| **Google** | Dense retrieval for search |
+| **OpenAI** | Retrieval for ChatGPT plugins |
+| **Pinecone** | Managed vector retrieval |
+| **Weaviate** | Hybrid vector + BM25 retrieval |
+
+## Common Pitfalls
+
+- **Not normalizing vectors**: Breaks cosine similarity
+- **k > num_chunks**: Handle gracefully
+- **Empty index**: Check before searching
+- **Wrong similarity metric**: Use cosine for semantic, Euclidean for spatial
+- **Not validating k**: Negative or zero k causes errors
+
+## Production Extensions (Optional)
+
+- **Approximate Nearest Neighbors**: Use HNSW, IVF for large-scale
+- **Hybrid Search**: Combine dense + sparse (BM25) scores
+- **Metadata Filtering**: Pre-filter before vector search
+- **Reranking**: Cross-encoder for better ranking
+- **Caching**: Cache frequent query results
+
+## Resources
+
+### Documentation
+- [FAISS Index Guide](https://faiss.ai/)
+- [Pinecone Similarity Search](https://docs.pinecone.io/docs/similarity-search)
+- [Vector Search Basics](https://www.pinecone.io/learn/vector-search/)
+
+### Tools
+- **FAISS**: Facebook AI Similarity Search
+- **Annoy**: Approximate nearest neighbors
+- **ScaNN**: Google scalable nearest neighbors
+
+### Papers
+- "Efficient and Robust Approximate Nearest Neighbor Search" (Malkov & Yashunin, 2018)
+- "Relevance-based Word Embedding" (Zamani & Croft, 2017)
+
+## Interview Questions
+
+1. **Why normalize vectors before cosine similarity?**
+   - Normalization makes cosine similarity equivalent to dot product, faster to compute
+
+2. **What's the trade-off between exact and approximate nearest neighbor search?**
+   - Exact: 100% recall, slow at scale; Approximate: Slight recall loss, much faster
+
+3. **How would you handle a query with no relevant chunks?**
+   - Set a similarity threshold, return "no results" or fallback to general knowledge
+
+## After You Pass
+
+Move to **Stage 4: The Generator** with [rag-pipeline-generator](rag-pipeline-generator) to complete the RAG pipeline!
+
+---
+
+**🔍 Key Insight:** Retrieval quality is the ceiling for RAG quality. Perfect generation can't fix bad retrieval!
 

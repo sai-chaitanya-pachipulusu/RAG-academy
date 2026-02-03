@@ -1,24 +1,203 @@
+---
+title: "Answer Confidence Scoring (TypeScript)"
+description: "Score confidence in RAG answers based on retrieval quality and source consistency."
+language: "typescript"
+difficulty: "intermediate"
+category: "evaluation"
+prerequisites: ["ts-top-k-search", "ts-cosine-similarity"]
+related: ["answer-relevancy-score", "ts-groundedness-check", "rag-evaluation-suite"]
+tags: ["confidence", "evaluation", "trust", "quality-assurance"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Score confidence in RAG answers based on retrieval quality.
+  Score confidence in RAG answers based on retrieval quality, source consistency, and coverage metrics.
 </Callout>
 
-## Why this matters in production
+## Why Answer Confidence Matters in Production
 
-Users need to know when to trust RAG answers. Confidence scoring surfaces this, enabling appropriate caveats and human review triggers.
+Users need to know when to trust RAG answers. Confidence scoring surfaces this trustworthiness, enabling appropriate caveats and human review triggers. In production systems, confidence scores drive critical decisions:
 
-## What you're implementing
+- **Human-in-the-loop triggers**: Low confidence routes to human review
+- **UI indicators**: Visual cues (green/yellow/red) signal answer reliability
+- **Fallback strategies**: Low confidence triggers alternative retrieval or clarifying questions
+- **Audit trails**: Confidence scores logged for quality monitoring
 
-- Retrieval quality: average of retrieval scores.
-- Source consistency: variance of scores.
-- Coverage: number of supporting sources.
-- Overall score: weighted combination.
+### Real-World Scenario
 
-## Common pitfalls
+Consider a medical information RAG system. A query like "What are the side effects of metformin?" returns sources with varying relevance:
 
-- Not surfacing low confidence to users.
-- Overconfident on single high-scoring source.
+- High confidence: Multiple medical journal sources with consistent information
+- Medium confidence: Mixed sources with some disagreement
+- Low confidence: Single source or sources with low retrieval scores
 
-## After you pass
+Without confidence scoring, users can't distinguish between well-supported answers and potentially unreliable ones.
 
-Use confidence scores to trigger human review for critical applications.
+## The Mathematical Foundation
 
+### Confidence Score Components
+
+```
+confidence = w₁ × retrieval_quality + w₂ × source_consistency + w₃ × coverage
+```
+
+| Component | Formula | Description |
+|-----------|---------|-------------|
+| **Retrieval Quality** | `mean(retrieval_scores)` | Average relevance of retrieved sources |
+| **Source Consistency** | `1 - std(retrieval_scores)` | Low variance = consistent sources |
+| **Coverage** | `min(sources_count / max_sources, 1)` | Adequate source diversity |
+
+### Weighted Combination
+
+Default weights (configurable):
+- Retrieval Quality: 40%
+- Source Consistency: 35%
+- Coverage: 25%
+
+### Confidence Levels
+
+| Score Range | Level | Action |
+|-------------|-------|--------|
+| 0.8 - 1.0 | High | Direct answer, no caveats |
+| 0.5 - 0.8 | Medium | Answer with disclaimer |
+| 0.3 - 0.5 | Low | Suggest verification |
+| 0.0 - 0.3 | Very Low | Escalate to human |
+
+## Theoretical Deep Dive
+
+### Why Multiple Components?
+
+Single-metric confidence is fragile:
+
+- **Retrieval score only**: Misses when all sources say different things
+- **Source count only**: Misses when many sources are irrelevant
+- **Variance only**: Misses when single perfect source exists
+
+Combined metrics capture different failure modes.
+
+### Statistical Interpretation
+
+Confidence scores can be calibrated to probabilities:
+
+- Well-calibrated: 80% confidence → 80% of answers are correct
+- Overconfident: 80% confidence → 60% of answers are correct
+- Underconfident: 80% confidence → 95% of answers are correct
+
+Calibration requires validation on labeled datasets.
+
+### Confidence vs. Calibration
+
+| Aspect | Confidence | Calibration |
+|--------|-----------|-------------|
+| **What** | Model's certainty | Alignment with accuracy |
+| **How** | Score computation | Post-processing adjustment |
+| **Goal** | Rank answers | Predict accuracy |
+
+## Production Considerations
+
+### Dynamic Thresholds
+
+Different domains need different thresholds:
+
+```typescript
+const thresholds = {
+  medical: { high: 0.9, medium: 0.7, low: 0.5 },
+  general: { high: 0.8, medium: 0.5, low: 0.3 },
+  creative: { high: 0.6, medium: 0.4, low: 0.2 }
+};
+```
+
+### Confidence Degradation
+
+Track confidence trends over time:
+- Drifting embeddings → declining confidence
+- New document types → initial confidence drops
+- Model updates → recalibration needed
+
+### Explainable Confidence
+
+Users trust confidence more when they understand it:
+
+```
+Confidence: 72%
+- Source relevance: 85% (4/5 sources highly relevant)
+- Agreement: 70% (some disagreement on details)
+- Coverage: 60% (limited perspectives)
+```
+
+## Your Task
+
+Implement an answer confidence scorer:
+
+```typescript
+interface Source {
+  id: string;
+  score: number;  // Retrieval score (0-1)
+  content: string;
+}
+
+interface ConfidenceResult {
+  score: number;           // Overall confidence (0-1)
+  level: 'high' | 'medium' | 'low' | 'very_low';
+  components: {
+    retrievalQuality: number;
+    sourceConsistency: number;
+    coverage: number;
+  };
+  explanation: string;
+}
+
+function calculateAnswerConfidence(
+  sources: Source[],
+  weights?: { quality: number; consistency: number; coverage: number }
+): ConfidenceResult {
+  /**
+   * Calculate confidence score for a RAG answer.
+   * 
+   * Args:
+   *   sources: Retrieved sources with relevance scores
+   *   weights: Optional component weights (default: 0.4, 0.35, 0.25)
+   * 
+   * Returns:
+   *   ConfidenceResult with score, level, components, and explanation
+   * 
+   * Edge Cases:
+   *   - Empty sources: return 0 confidence, very_low level
+   *   - Single source: consistency = 1.0 (no variance)
+   *   - All identical scores: consistency = 1.0
+   */
+}
+```
+
+### Validation Checklist
+
+- [ ] Empty source array returns 0 confidence
+- [ ] Single source has perfect consistency (1.0)
+- [ ] Weights normalize to 1.0 if not provided
+- [ ] Level thresholds applied correctly
+- [ ] Explanation generated for all levels
+- [ ] Handles negative/zero scores gracefully
+
+## Common Pitfalls
+
+- **Overconfident on single high-scoring source**: Always check coverage
+- **Not surfacing low confidence to users**: Confidence is useless if hidden
+- **Static thresholds across domains**: Medical needs higher thresholds than creative writing
+- **Ignoring score distribution**: Mean alone misses important patterns
+
+## After You Pass
+
+Use confidence scores to trigger human review for critical applications, implement confidence-calibrated routing, or build confidence-based caching strategies.
+
+## Resources
+
+### Academic Papers
+- ["On Calibration of Modern Neural Networks"](https://arxiv.org/abs/1706.04599) - Guo et al.
+- ["Trusting Your Model: Confidence Calibration in NLP"](https://aclanthology.org/2021.emnlp-main.670/) - Desai & Durrett
+
+### Documentation
+- [OpenAI Evals Framework](https://github.com/openai/evals) - Confidence evaluation patterns
+- [LangChain Evaluation](https://python.langchain.com/docs/guides/evaluation/) - RAG confidence metrics
+
+### Tutorials
+- ["Building Trustworthy AI Systems"](https://pair.withgoogle.com/guidebook/) - Google PAIR
+- ["Confidence Calibration in ML"](https://plato.stanford.edu/entries/conformal-prediction/) - Stanford Encyclopedia

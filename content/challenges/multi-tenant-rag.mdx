@@ -3,28 +3,282 @@ title: "Multi-Tenant RAG Architecture"
 description: "Build a multi-tenant RAG system with complete data isolation"
 difficulty: "hard"
 xpReward: 150
+topics: ["multi-tenancy", "security", "saas", "data-isolation", "enterprise"]
+prerequisites: ["rag-pipeline-retriever", "metadata-filtering"]
 ---
 
 # Multi-Tenant RAG Architecture
 
 ## Overview
 
-SaaS RAG products must serve multiple customers while ensuring **Tenant A never sees Tenant B's data**. This challenge teaches you to build production-grade tenant isolation.
+SaaS RAG products must serve multiple customers while ensuring **Tenant A never sees Tenant B's data**. This challenge teaches you to build production-grade tenant isolation with proper security, scalability, and operational considerations.
 
 ## Why This Matters
 
 - **Data Isolation**: Critical P0 security requirement for enterprise RAG
 - **SaaS Products**: Every commercial RAG product needs multi-tenancy
 - **Compliance**: GDPR, SOC2, and security audits demand proper isolation
+- **Cost Efficiency**: Shared infrastructure with logical separation
 
 ## Key Concepts
 
-- Tenant-partitioned data structures
-- Per-tenant configuration (embedding models, limits)
-- Secure search with automatic tenant filtering
-- Tenant lifecycle management (create, delete, stats)
+- **Tenant-partitioned data structures**: Namespace all data by tenant_id
+- **Per-tenant configuration**: Embedding models, rate limits, retention policies
+- **Secure search**: Automatic tenant filtering on every query
+- **Tenant lifecycle**: Onboarding, offboarding, data export/deletion
 
 ## Real-World Applications
 
-Used by Glean, Moveworks, Notion AI, and every enterprise RAG platform.
+Used by Glean, Moveworks, Notion AI, and every enterprise RAG platform serving multiple organizations.
 
+## Architecture Patterns
+
+### 1. Database-Level Isolation
+
+```
+Option A: Row-Level Security (RLS)
+- Single database, tenant_id column on every table
+- PostgreSQL RLS policies enforce filtering
+
+Option B: Schema per Tenant
+- Each tenant gets own schema
+- Better isolation, harder to manage
+
+Option C: Database per Tenant
+- Maximum isolation
+- Higher operational overhead
+```
+
+### 2. Vector Store Isolation
+
+```
+Option A: Namespace/Collection per Tenant
+- Pinecone: namespace per tenant
+- Weaviate: class per tenant
+- Qdrant: collection per tenant
+
+Option B: Metadata Filtering
+- Single collection, filter by tenant_id
+- Requires careful index design
+```
+
+## The Challenge
+
+### Part 1: Tenant Context Manager
+
+Build a context manager that ensures tenant isolation:
+
+```python
+class TenantContext:
+    """Ensures all operations are scoped to a specific tenant."""
+    
+    def __init__(self, tenant_id: str):
+        self.tenant_id = tenant_id
+        self._previous_tenant = None
+    
+    def __enter__(self):
+        # Store current tenant and set new one
+        self._previous_tenant = get_current_tenant()
+        set_current_tenant(self.tenant_id)
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # Restore previous tenant
+        set_current_tenant(self._previous_tenant)
+```
+
+### Part 2: Tenant-Aware Vector Store
+
+Implement a wrapper that automatically applies tenant filtering:
+
+```python
+class TenantAwareVectorStore:
+    """Vector store that enforces tenant isolation."""
+    
+    def __init__(self, base_store: VectorStore):
+        self._store = base_store
+    
+    def add_documents(
+        self,
+        documents: List[Document],
+        tenant_id: Optional[str] = None
+    ) -> None:
+        """Add documents with automatic tenant tagging."""
+        tenant = tenant_id or get_current_tenant()
+        if not tenant:
+            raise TenantIsolationError("No tenant context")
+        
+        # Tag all documents with tenant_id
+        for doc in documents:
+            doc.metadata["tenant_id"] = tenant
+        
+        self._store.add_documents(documents)
+    
+    def search(
+        self,
+        query: str,
+        k: int = 10,
+        tenant_id: Optional[str] = None,
+        filters: Optional[Dict] = None
+    ) -> List[Document]:
+        """Search with mandatory tenant filter."""
+        tenant = tenant_id or get_current_tenant()
+        if not tenant:
+            raise TenantIsolationError("No tenant context")
+        
+        # Merge tenant filter with user filters
+        tenant_filter = {"tenant_id": {"$eq": tenant}}
+        combined_filters = self._merge_filters(filters, tenant_filter)
+        
+        return self._store.search(query, k=k, filters=combined_filters)
+```
+
+### Part 3: Tenant Configuration Service
+
+```python
+@dataclass
+class TenantConfig:
+    """Per-tenant configuration."""
+    tenant_id: str
+    embedding_model: str = "text-embedding-3-small"
+    chunk_size: int = 1000
+    chunk_overlap: int = 200
+    rate_limit: int = 100  # requests per minute
+    retention_days: int = 365
+    max_documents: int = 10000
+    allowed_file_types: List[str] = None
+    custom_prompts: Dict[str, str] = None
+
+class TenantConfigService:
+    """Manages per-tenant configuration."""
+    
+    def __init__(self, db: Database):
+        self._db = db
+        self._cache = {}  # Simple in-memory cache
+    
+    async def get_config(self, tenant_id: str) -> TenantConfig:
+        """Get tenant configuration with caching."""
+        if tenant_id in self._cache:
+            return self._cache[tenant_id]
+        
+        config = await self._db.fetch_one(
+            "SELECT * FROM tenant_configs WHERE tenant_id = :tenant_id",
+            {"tenant_id": tenant_id}
+        )
+        
+        if not config:
+            # Return default config
+            config = TenantConfig(tenant_id=tenant_id)
+        
+        self._cache[tenant_id] = config
+        return config
+    
+    async def update_config(
+        self,
+        tenant_id: str,
+        updates: Dict[str, Any]
+    ) -> TenantConfig:
+        """Update tenant configuration."""
+        # Validate updates
+        allowed_fields = {
+            'embedding_model', 'chunk_size', 'chunk_overlap',
+            'rate_limit', 'retention_days', 'max_documents'
+        }
+        
+        invalid = set(updates.keys()) - allowed_fields
+        if invalid:
+            raise ValueError(f"Invalid config fields: {invalid}")
+        
+        # Update in database
+        await self._db.execute(
+            """
+            INSERT INTO tenant_configs (tenant_id, ...)
+            VALUES (:tenant_id, ...)
+            ON CONFLICT (tenant_id) DO UPDATE SET ...
+            """,
+            {"tenant_id": tenant_id, **updates}
+        )
+        
+        # Invalidate cache
+        self._cache.pop(tenant_id, None)
+        
+        return await self.get_config(tenant_id)
+```
+
+## Testing Tenant Isolation
+
+```python
+class TestTenantIsolation:
+    """Comprehensive tests for tenant isolation."""
+    
+    async def test_cross_tenant_access_blocked(self):
+        """Verify Tenant A cannot access Tenant B's data."""
+        store = TenantAwareVectorStore(mock_store)
+        
+        # Add document for tenant_a
+        with TenantContext("tenant_a"):
+            await store.add_documents([doc])
+        
+        # Try to retrieve as tenant_b
+        with TenantContext("tenant_b"):
+            results = await store.search("query")
+            assert len(results) == 0, "Cross-tenant access detected!"
+    
+    async def test_no_context_raises_error(self):
+        """Verify operations fail without tenant context."""
+        store = TenantAwareVectorStore(mock_store)
+        
+        with pytest.raises(TenantIsolationError):
+            await store.add_documents([doc])
+    
+    async def test_tenant_filter_cannot_be_bypassed(self):
+        """Verify tenant filter is always applied."""
+        store = TenantAwareVectorStore(mock_store)
+        
+        # Try to override tenant filter
+        with TenantContext("tenant_a"):
+            # This should still only return tenant_a results
+            results = await store.search(
+                "query",
+                filters={"tenant_id": "tenant_b"}  # Attempted bypass
+            )
+            # Implementation should merge filters, not replace
+            assert all(r.metadata["tenant_id"] == "tenant_a" for r in results)
+```
+
+## Security Checklist
+
+- [ ] All database queries include tenant_id filter
+- [ ] Vector search enforces tenant isolation
+- [ ] No tenant can access another's embeddings
+- [ ] Admin operations require super-admin role
+- [ ] Tenant deletion properly purges all data
+- [ ] Audit logs include tenant context
+- [ ] Rate limits are per-tenant
+- [ ] API keys are scoped to tenant
+
+## Common Pitfalls
+
+1. **Filter Bypass**: User-provided filters overriding tenant filter
+2. **Cache Poisoning**: Cached results leaking between tenants
+3. **Background Jobs**: Async tasks losing tenant context
+4. **Export/Import**: Data portability breaking isolation
+5. **Analytics**: Aggregate queries exposing cross-tenant data
+
+## Production Considerations
+
+- **Tenant Onboarding**: Automated provisioning with defaults
+- **Data Retention**: Automated cleanup per tenant policy
+- **Resource Quotas**: Prevent noisy neighbor problems
+- **Monitoring**: Per-tenant metrics and alerting
+- **Backups**: Tenant-scoped backup and restore
+
+## Evaluation Criteria
+
+Your solution will be evaluated on:
+
+1. **Security**: No possible cross-tenant data leakage
+2. **Completeness**: All CRUD operations tenant-aware
+3. **Performance**: Minimal overhead from isolation
+4. **Test Coverage**: Comprehensive isolation tests
+5. **Documentation**: Clear security model explanation

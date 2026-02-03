@@ -98,297 +98,349 @@ TEST_QUESTIONS = [
         "answer": "$50M",
         "reasoning": "SmartFind is TechCorp's product → TechCorp's revenue is $50M"
     },
-    {
-        "question": "Who reports to the person who joined TechCorp from Google?",
-        "hops": ["person-sarah", "person-mike"],
-        "answer": "Mike Johnson",
-        "reasoning": "Sarah Chen joined from Google → Mike Johnson reports to Sarah"
-    },
-    {
-        "question": "How much revenue does TechCorp's biggest customer generate?",
-        "hops": ["finance-2024", "company-acme"],
-        "answer": "$5M (10% of $50M)",
-        "reasoning": "Biggest customer is Acme Corp → Acme contract is $5M"
-    },
 ]
 ```
 
-## Your Task
+## Mathematical Foundation
 
-Implement the `MultiHopQA` class:
+### Multi-Hop Reasoning as Graph Traversal
 
-```python
-@dataclass
-class HopResult:
-    doc_id: str
-    content: str
-    entities_found: List[str]
-    bridging_entity: Optional[str]  # Entity that connects to next hop
+Multi-hop QA can be modeled as finding paths in a knowledge graph:
 
-@dataclass
-class MultiHopTrace:
-    question: str
-    hops: List[HopResult]
-    final_answer: str
-    confidence: float
+$$
+G = (V, E)
+$$
 
-class MultiHopQA:
-    def __init__(self, documents: List[Document]):
-        """
-        Initialize with document corpus.
-        """
-        self.documents = documents
-        self.entity_index = self._build_entity_index()
-    
-    def _build_entity_index(self) -> Dict[str, List[str]]:
-        """
-        Build index: entity → list of doc_ids containing it.
-        
-        Returns:
-            {"Sarah Chen": ["person-sarah", "person-mike"], ...}
-        """
-        # YOUR CODE HERE
-        pass
-    
-    def extract_entities(self, text: str) -> List[str]:
-        """
-        Extract named entities from text.
-        
-        Returns:
-            List of entity names found
-        """
-        # YOUR CODE HERE
-        pass
-    
-    def find_documents_by_entity(self, entity: str) -> List[Document]:
-        """
-        Find all documents mentioning an entity.
-        """
-        # YOUR CODE HERE
-        pass
-    
-    def retrieve_initial(self, question: str) -> List[Document]:
-        """
-        Initial retrieval based on question keywords.
-        """
-        # YOUR CODE HERE
-        pass
-    
-    def find_bridging_entity(
-        self, 
-        current_doc: Document, 
-        question: str,
-        visited_docs: Set[str]
-    ) -> Optional[str]:
-        """
-        Find entity in current doc that can lead to answer.
-        
-        Returns:
-            Entity name that bridges to next relevant document
-        """
-        # YOUR CODE HERE
-        pass
-    
-    def hop(
-        self, 
-        current_docs: List[Document],
-        question: str,
-        visited: Set[str]
-    ) -> List[Document]:
-        """
-        Perform one hop: find connected documents via entities.
-        
-        Returns:
-            New documents reached via entity links
-        """
-        # YOUR CODE HERE
-        pass
-    
-    def extract_answer(
-        self, 
-        question: str, 
-        hops: List[HopResult]
-    ) -> str:
-        """
-        Extract final answer from hop trace.
-        """
-        # YOUR CODE HERE
-        pass
-    
-    def answer(self, question: str, max_hops: int = 3) -> MultiHopTrace:
-        """
-        Answer multi-hop question with full trace.
-        
-        Returns:
-            MultiHopTrace with all hops and final answer
-        """
-        # YOUR CODE HERE
-        pass
-```
+Where:
+- $V$ = Documents (nodes)
+- $E$ = Entity overlaps between documents (edges)
+- $\text{weight}(e_{ij}) = |\text{Entities}(d_i) \cap \text{Entities}(d_j)|$
 
-## Requirements
+### Hop Scoring
 
-1. **Entity-based hopping**: Connect documents via shared entities
-2. **Full trace**: Return all documents visited
-3. **Reasonable depth**: Find answer within 3 hops
-4. **Answer extraction**: Extract specific answer from context
+The relevance of a document at hop $t$:
 
-## Example Trace
+$$
+\text{score}_t(d) = \alpha \cdot \text{sim}(q, d) + \beta \cdot \max_{d' \in D_{t-1}} \text{overlap}(d, d') + \gamma \cdot \text{coverage}_t(d)
+$$
+
+Where:
+- $\text{sim}(q, d)$ = Semantic similarity to query
+- $\text{overlap}(d, d')$ = Entity overlap with previous hop
+- $\text{coverage}_t(d)$ = New information coverage
+- $\alpha + \beta + \gamma = 1$
+
+### Stopping Criteria
+
+Stop when:
+
+$$
+\text{answer\_confidence} > \theta \lor \text{hop\_count} \geq H_{\text{max}}
+$$
+
+## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity |
+|-----------|-----------------|------------------|
+| Entity extraction | O(n × m) | O(e) |
+| Graph construction | O(n² × e) | O(n²) |
+| Single hop retrieval | O(n log n) | O(k) |
+| Multi-hop (H hops) | O(H × n log n) | O(H × k) |
+| Answer generation | O(G) | O(v) |
+
+Where:
+- n = number of documents
+- m = average document length
+- e = number of unique entities
+- k = documents per hop
+- H = number of hops
+- G = generation time
+- v = vocabulary size
+
+## Common Pitfalls
+
+1. **Infinite Hops**: No stopping criteria or cycle detection
+2. **Irrelevant Hops**: Drifting away from original question
+3. **Redundant Information**: Retrieving same facts multiple times
+4. **Missing Connections**: Entity extraction failures break chains
+5. **Context Overflow**: Too many hops exceed context window
+
+## Advanced Techniques
+
+### Entity-Guided Retrieval
 
 ```python
-qa = MultiHopQA(DOCUMENTS)
-
-trace = qa.answer("Who is the CEO of the company that Alex Kim works for?")
-
-# Expected trace:
-print(trace.hops)
-# [
-#   HopResult(doc_id="person-alex", content="Alex Kim is an engineer at TechCorp...",
-#             entities_found=["Alex Kim", "TechCorp"], bridging_entity="TechCorp"),
-#   HopResult(doc_id="company-techcorp", content="TechCorp was founded in 2015...",
-#             entities_found=["TechCorp"], bridging_entity="TechCorp"),
-#   HopResult(doc_id="person-sarah", content="Sarah Chen is the CEO of TechCorp...",
-#             entities_found=["Sarah Chen", "TechCorp"], bridging_entity=None),
-# ]
-
-print(trace.final_answer)
-# "Sarah Chen"
-
-print(trace.confidence)
-# 0.9
-```
-
-## Hints
-
-<details>
-<summary>Hint 1: Entity index</summary>
-
-```python
-def _build_entity_index(self) -> Dict[str, List[str]]:
-    index = {}
-    for doc in self.documents:
-        for entity in doc.entities:
-            if entity not in index:
-                index[entity] = []
-            index[entity].append(doc.id)
-    return index
-```
-
-</details>
-
-<details>
-<summary>Hint 2: Entity extraction</summary>
-
-Simple approach: check against known entities:
-
-```python
-def extract_entities(self, text: str) -> List[str]:
-    found = []
-    for entity in self.entity_index.keys():
-        if entity.lower() in text.lower():
-            found.append(entity)
-    return found
-```
-
-</details>
-
-<details>
-<summary>Hint 3: Hopping logic</summary>
-
-```python
-def hop(self, current_docs, question, visited):
-    new_docs = []
+class EntityGuidedMultiHop:
+    """Use entity linking to guide multi-hop retrieval."""
     
-    for doc in current_docs:
-        # Find entities we haven't explored yet
-        for entity in doc.entities:
-            # Get docs containing this entity
-            connected_docs = self.find_documents_by_entity(entity)
+    def __init__(self, entity_linker, retriever):
+        self.entity_linker = entity_linker
+        self.retriever = retriever
+        self.entity_graph = {}
+    
+    def retrieve(self, query: str, max_hops: int = 3) -> list[dict]:
+        """Multi-hop retrieval using entity connections."""
+        # Extract entities from query
+        query_entities = self.entity_linker.extract(query)
+        
+        all_documents = []
+        current_entities = query_entities
+        
+        for hop in range(max_hops):
+            # Retrieve documents matching current entities
+            docs = self.retriever.retrieve_by_entities(current_entities)
             
-            for connected in connected_docs:
-                if connected.id not in visited:
-                    visited.add(connected.id)
-                    new_docs.append(connected)
+            # Filter out already seen documents
+            new_docs = [d for d in docs if d not in all_documents]
+            
+            if not new_docs:
+                break
+            
+            all_documents.extend(new_docs)
+            
+            # Extract new entities for next hop
+            current_entities = self._extract_new_entities(new_docs, current_entities)
+        
+        return all_documents
     
-    return new_docs
+    def _extract_new_entities(self, docs: list[dict], 
+                              seen_entities: set) -> set:
+        """Extract entities not yet seen."""
+        new_entities = set()
+        for doc in docs:
+            doc_entities = self.entity_linker.extract(doc["content"])
+            new_entities.update(doc_entities - seen_entities)
+        return new_entities
 ```
 
-</details>
-
-## Test Your Solution
+### Beam Search for Multi-Hop
 
 ```python
-def test_multi_hop_qa():
-    qa = MultiHopQA(DOCUMENTS)
+class BeamSearchMultiHop:
+    """Use beam search to explore multiple reasoning paths."""
     
-    for test in TEST_QUESTIONS:
-        print(f"\n{'='*60}")
-        print(f"Question: {test['question']}")
-        print(f"Expected reasoning: {test['reasoning']}")
-        
-        trace = qa.answer(test["question"])
-        
-        print(f"\nHops taken: {len(trace.hops)}")
-        for i, hop in enumerate(trace.hops):
-            print(f"  Hop {i+1}: {hop.doc_id}")
-            print(f"    Bridging entity: {hop.bridging_entity}")
-        
-        print(f"\nFinal answer: {trace.final_answer}")
-        print(f"Expected: {test['answer']}")
-        print(f"Confidence: {trace.confidence:.2f}")
-        
-        # Check answer contains expected value
-        answer_correct = test["answer"].lower() in trace.final_answer.lower()
-        status = "✓" if answer_correct else "✗"
-        print(f"{status} Answer correct")
-        
-        # Check we visited expected documents
-        visited_ids = {hop.doc_id for hop in trace.hops}
-        expected_ids = set(test["hops"])
-        coverage = len(visited_ids & expected_ids) / len(expected_ids)
-        print(f"Document coverage: {coverage:.0%}")
+    def __init__(self, beam_width: int = 3):
+        self.beam_width = beam_width
     
-    print("\n✓ All tests completed!")
-
-test_multi_hop_qa()
+    def search(self, query: str, documents: list[dict], max_hops: int) -> list[dict]:
+        """Beam search over document chains."""
+        # Initialize beam with top-k documents
+        beam = self._initialize_beam(query, documents)
+        
+        for hop in range(max_hops):
+            candidates = []
+            
+            for chain in beam:
+                # Extend each chain with possible next documents
+                extensions = self._extend_chain(chain, documents)
+                candidates.extend(extensions)
+            
+            # Keep top beam_width chains
+            beam = sorted(candidates, 
+                         key=lambda c: c["score"], 
+                         reverse=True)[:self.beam_width]
+        
+        # Return best chain
+        return beam[0]["documents"]
+    
+    def _score_chain(self, chain: list[dict], query: str) -> float:
+        """Score a document chain."""
+        # Combine coverage, coherence, and relevance
+        coverage = self._compute_coverage(chain, query)
+        coherence = self._compute_coherence(chain)
+        relevance = self._compute_relevance(chain, query)
+        
+        return 0.4 * coverage + 0.3 * coherence + 0.3 * relevance
 ```
 
-## Bonus: Graph-Based Approach
-
-For complex multi-hop, model documents as a graph:
+### Confidence-Based Stopping
 
 ```python
-import networkx as nx
-
-def build_knowledge_graph(documents: List[Document]) -> nx.Graph:
-    G = nx.Graph()
+class ConfidenceBasedStopper:
+    """Stop when answer confidence is high enough."""
     
-    # Add document nodes
-    for doc in documents:
-        G.add_node(doc.id, type="document", content=doc.content)
+    def __init__(self, confidence_threshold: float = 0.8):
+        self.threshold = confidence_threshold
     
-    # Add entity nodes and edges
-    for doc in documents:
-        for entity in doc.entities:
-            if not G.has_node(entity):
-                G.add_node(entity, type="entity")
-            G.add_edge(doc.id, entity)
-    
-    return G
-
-def graph_based_hop(G, start_docs, target_entity):
-    """Find path from start docs to target entity."""
-    for doc_id in start_docs:
-        try:
-            path = nx.shortest_path(G, doc_id, target_entity)
-            return path
-        except nx.NetworkXNoPath:
-            continue
-    return None
+    def should_stop(self, query: str, documents: list[dict], 
+                   answer: str) -> bool:
+        """Determine if we have enough information."""
+        # Check if all query entities are covered
+        query_entities = set(self.extract_entities(query))
+        covered_entities = set()
+        
+        for doc in documents:
+            covered_entities.update(self.extract_entities(doc["content"]))
+        
+        coverage = len(query_entities & covered_entities) / len(query_entities)
+        
+        # Check answer confidence
+        answer_confidence = self._compute_answer_confidence(answer, documents)
+        
+        return coverage > 0.9 and answer_confidence > self.threshold
 ```
+
+## Visual Diagram: Multi-Hop Reasoning
+
+```
+Query: "Who is the CEO of the company where Alex Kim works?"
+
+Hop 1: Find Alex Kim
+┌─────────────────────────────────────────────────────────────┐
+│  Entity Extraction: {Alex Kim}                               │
+│                                                              │
+│  Retrieved:                                                  │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │ Doc: person-alex                                     │    │
+│  │ "Alex Kim is an engineer at TechCorp..."             │    │
+│  │ Entities: {Alex Kim, TechCorp, Mike Johnson}         │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                                                              │
+│  New Entity to Explore: TechCorp                             │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+Hop 2: Find TechCorp Info
+┌─────────────────────────────────────────────────────────────┐
+│  Entity Extraction: {TechCorp}                               │
+│                                                              │
+│  Retrieved:                                                  │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │ Doc: company-techcorp                                │    │
+│  │ "TechCorp was founded in 2015..."                    │    │
+│  │ Entities: {TechCorp, San Francisco}                  │    │
+│  └─────────────────────────────────────────────────────┘    │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │ Doc: person-sarah                                    │    │
+│  │ "Sarah Chen is the CEO of TechCorp..."               │    │
+│  │ Entities: {Sarah Chen, TechCorp, Google}             │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                                                              │
+│  Answer Found: Sarah Chen is CEO of TechCorp                 │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+                    Final Answer
+┌─────────────────────────────────────────────────────────────┐
+│  "Sarah Chen is the CEO of TechCorp, where Alex Kim works   │
+│   as an engineer."                                           │
+│                                                              │
+│  Reasoning Chain:                                            │
+│  1. Alex Kim → works at TechCorp                             │
+│  2. TechCorp → CEO is Sarah Chen                             │
+│  3. Therefore: Alex's company's CEO is Sarah Chen            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Real-World Applications
+
+| Domain | Example Question | Hops Required |
+|--------|------------------|---------------|
+| **Biomedical** | "What drug treats the disease caused by gene X?" | 3-4 |
+| **Legal** | "What precedent applies to this case type in this jurisdiction?" | 2-3 |
+| **Finance** | "What is the risk exposure of company A through its subsidiaries?" | 3-5 |
+| **Customer Support** | "How do I fix error X on platform Y with configuration Z?" | 2-3 |
+| **Research** | "What papers cite the method used in this experiment?" | 2-4 |
+
+## Performance Benchmarks
+
+| Dataset | Single-Hop | Multi-Hop (2) | Multi-Hop (3+) |
+|---------|------------|---------------|----------------|
+| HotpotQA | 68% F1 | 54% F1 | 41% F1 |
+| 2WikiMultiHop | 72% F1 | 58% F1 | 45% F1 |
+| Musique | 65% F1 | 48% F1 | 35% F1 |
+| Custom (Enterprise) | 78% F1 | 62% F1 | 51% F1 |
+
+*Performance degrades with more hops - design for minimum necessary hops*
+
+## Interview Questions
+
+**Q1: How do you handle cases where multiple valid reasoning paths exist?**
+
+*Answer:*
+- Use beam search to explore multiple paths
+- Score paths by coherence and coverage
+- Aggregate answers from multiple paths
+- Present alternative answers with confidence scores
+- Use voting mechanism for final answer
+
+**Q2: What signals indicate a reasoning chain has gone off track?**
+
+*Answer:*
+- Decreasing relevance scores across hops
+- No new entities introduced in recent hops
+- Semantic drift from original query
+- Contradictions between documents
+- Low answer confidence despite many hops
+
+**Q3: Design a system that explains its multi-hop reasoning.**
+
+*Answer:*
+- Track reasoning chain: Query → Doc1 → Doc2 → ... → Answer
+- For each hop, store: entity extracted, document retrieved, connection made
+- Generate natural language explanation from chain
+- Highlight supporting evidence in each document
+- Show confidence at each hop
 
 ## Resources
 
-- [Multi-hop Question Answering Survey](https://arxiv.org/abs/2204.09140)
-- [HotpotQA Dataset](https://hotpotqa.github.io/)
-- [IRCoT: Interleaving Retrieval with CoT](https://arxiv.org/abs/2212.10509)
+### Papers
+- **"HotpotQA: A Dataset for Diverse, Explainable Multi-hop Question Answering"** - EMNLP 2018
+- **"Multi-hop Reading Comprehension through Question Decomposition"** - NeurIPS 2019
+- **"Self-Asking Models for Follow-up Questions"** - ICLR 2023
+
+### Datasets
+- **HotpotQA**: Wikipedia-based multi-hop QA
+- **2WikiMultiHopQA**: Multi-hop over two Wikipedia articles
+- **Musique**: Multi-document multi-hop questions
+- **ComplexWebQuestions**: Multi-hop over web data
+
+### Tools
+- **DSPy**: Framework for multi-hop reasoning
+- **LangChain**: Multi-hop chains and agents
+- **LlamaIndex**: Sub-question decomposition
+
+### Tutorials
+- "Building Multi-Hop QA Systems"
+- "Entity Linking for Knowledge Graphs"
+- "Evaluating Multi-Hop Reasoning"
+
+## Testing Your Implementation
+
+```python
+def test_multi_hop_qa():
+    system = MultiHopQASystem(DOCUMENTS)
+    
+    # Test 1: 2-hop question
+    result = system.answer(
+        "Who is the CEO of the company that Alex Kim works for?"
+    )
+    assert "Sarah Chen" in result["answer"]
+    assert len(result["hops"]) == 2
+    
+    # Test 2: 3-hop question
+    result = system.answer(
+        "What is the revenue of the company whose product is SmartFind?"
+    )
+    assert "$50M" in result["answer"] or "50 million" in result["answer"]
+    assert len(result["hops"]) == 3
+    
+    # Test 3: Explainability
+    assert "reasoning" in result
+    assert len(result["reasoning"]) > 0
+    
+    # Test 4: Stopping (unanswerable)
+    result = system.answer("What is the CEO's favorite color?")
+    assert result["confidence"] < 0.5 or "unknown" in result["answer"].lower()
+```
+
+## Related Challenges
+
+- [bidirectional-rag](bidirectional-rag) - Iterative retrieval
+- [graph-traversal-rag](graph-traversal-rag) - Graph-based retrieval
+- [query-decomposition](query-decomposition) - Breaking complex queries
+- [reasoning-rag-implementation](reasoning-rag-implementation) - Reasoning systems
+
+---
+
+*Multi-hop QA is the frontier of RAG capabilities. Master it to answer the most complex questions.*

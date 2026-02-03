@@ -1,42 +1,468 @@
 ---
-title: "Customer Support Bot"
-description: "Build a production-ready support chatbot"
+title: "Project: Dynamic Support Bot"
+description: "Fuse static policy documents with live user state (SQL) to answer personalized support questions like 'What about MY order?'"
+difficulty: "hard"
+xpReward: 150
+estimatedTime: "40-50 min"
 ---
 
-# Customer Support Bot
+<Callout title="Capstone Project" variant="info">
+  This is a **Phase 4 Capstone Project**. You'll build a production-ready customer support bot that combines static knowledge bases with dynamic user data—the most common enterprise RAG use case.
+</Callout>
 
-Build a customer support chatbot that can answer questions from a knowledge base, escalate complex issues, and maintain conversation context.
+## Project Overview
 
-## Requirements
+Enterprise support bots need to answer two types of questions:
+1. **General policy questions**: "What is your return policy?"
+2. **Personalized account questions**: "Can I return MY laptop?"
 
-1. Index support documentation
-2. Maintain conversation history
-3. Detect escalation triggers
-4. Provide cited answers
+The second type is harder because it requires combining:
+- **Static knowledge** (policy documents, FAQs)
+- **Dynamic data** (user orders, account status, recent activity)
 
-## Starter Code
+### What You'll Build
+
+A Dynamic Support Bot that:
+1. **Retrieves relevant policies** from a knowledge base
+2. **Fetches live user data** from a database
+3. **Synthesizes personalized answers** that apply policies to the user's specific situation
+4. **Handles escalation** when human intervention is needed
+
+### Real-World Impact
+
+This architecture powers:
+- **Klarna's AI assistant** - Handles 2/3 of customer service chats
+- **Zendesk AI** - Automated ticket resolution
+- **Salesforce Einstein** - CRM-integrated support bots
+- **Intercom Fin** - Contextual customer support
+
+---
+
+## Why This Matters
+
+### The Personalization Gap
+
+```
+User: "Can I return my laptop?"
+
+Generic Bot: "Returns are allowed within 30 days if the item is unused."
+           ↳ Helpful, but not personalized
+
+Dynamic Bot: "Hi Alice! I see you ordered a Laptop on Oct 1st. Since it's 
+              been 31 days, it's outside our 30-day return window. However, 
+              I can connect you with a specialist to review your case."
+           ↳ Personalized, actionable, context-aware
+```
+
+### Hybrid RAG Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         USER QUERY                                      │
+│              "Can I return my laptop?"                                  │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      INTENT CLASSIFICATION                              │
+│              "return_policy + user_order_lookup"                        │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                    ┌───────────────┴───────────────┐
+                    ▼                               ▼
+┌───────────────────────────────┐    ┌───────────────────────────────┐
+│   STATIC KNOWLEDGE BASE       │    │      DYNAMIC DATABASE         │
+│   (Vector DB / Documents)     │    │      (SQL / User API)         │
+│                               │    │                               │
+│ • Return policy: 30 days      │    │ • User: Alice                 │
+│ • Shipping: 5-7 business days │    │ • Order: Laptop (Oct 1)       │
+│ • Warranty terms              │    │ • Status: Delivered           │
+└───────────────────────────────┘    └───────────────────────────────┘
+                    │                               │
+                    └───────────────┬───────────────┘
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      ANSWER SYNTHESIS                                   │
+│                                                                         │
+│   "You ordered a Laptop on Oct 1st (delivered). Our return policy      │
+│    allows returns within 30 days. Your order is 31 days old, so it's    │
+│    outside the window. Would you like me to escalate to a specialist?"  │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Learning Outcomes
+
+After completing this capstone, you will be able to:
+
+1. **Design hybrid RAG systems** that combine multiple data sources
+2. **Implement user context retrieval** from databases and APIs
+3. **Apply policy logic** to personalized scenarios
+4. **Build escalation mechanisms** for edge cases
+5. **Handle multi-turn conversations** with context preservation
+
+---
+
+## Project Structure
+
+### Milestone 1: Policy Retrieval (10 min)
+Retrieve relevant policies based on query intent.
+
+**Key Concepts:**
+- Intent classification (returns, shipping, warranty, etc.)
+- Semantic search over policy documents
+- Metadata filtering by policy type
+
+### Milestone 2: User Context Fetching (10 min)
+Retrieve the user's specific data and order history.
+
+**Key Concepts:**
+- Database querying (SQL simulation)
+- User authentication and authorization
+- Data privacy and PII handling
+
+### Milestone 3: Personalized Synthesis (15 min)
+Combine policies with user data to generate tailored responses.
+
+**Key Concepts:**
+- Template-based response generation
+- Conditional logic (if/then based on user state)
+- Natural language synthesis
+
+### Milestone 4: Escalation Handling (5 min)
+Detect when to hand off to human agents.
+
+**Key Concepts:**
+- Escalation triggers (complex issues, frustrated users)
+- Context preservation for handoff
+- Fallback responses
+
+---
+
+## Implementation Guide
+
+### Data Models
 
 ```python
-class SupportBot:
-    def __init__(self, knowledge_base: list[dict]):
-        self.kb = knowledge_base
-        self.conversations = {}
-    
-    def start_conversation(self, user_id: str) -> str:
-        """Start a new support conversation."""
-        pass
-    
-    def respond(self, user_id: str, message: str) -> dict:
-        """
-        Generate response.
-        
-        Returns:
+# Static Policy Knowledge Base (Vector DB simulation)
+POLICY_DOCS = {
+    "return_policy": """
+        Returns are allowed within 30 days of delivery if the item is unused 
+        and in original packaging. Electronics must be unopened for full refund. 
+        After 30 days, returns are at the discretion of customer service.
+    """,
+    "shipping_policy": """
+        Standard shipping takes 5-7 business days. Express shipping (2-3 days) 
+        is available for $15. Free shipping on orders over $50.
+    """,
+    "warranty_policy": """
+        All electronics come with a 1-year manufacturer warranty. 
+        Extended warranties can be purchased at checkout for $25.
+    """,
+}
+
+# Live User Database (SQL simulation)
+USER_DB = {
+    "u1": {
+        "name": "Alice",
+        "tier": "premium",
+        "orders": [
             {
-                "response": str,
-                "citations": list[str],
-                "should_escalate": bool,
-                "escalation_reason": str | None
-            }
-        """
-        pass
+                "id": "o101", 
+                "item": "Laptop", 
+                "date": "2023-10-01", 
+                "status": "delivered",
+                "price": 1200.00
+            },
+        ]
+    },
+    "u2": {
+        "name": "Bob",
+        "tier": "standard",
+        "orders": [
+            {
+                "id": "o102", 
+                "item": "Shirt", 
+                "date": "2024-01-01", 
+                "status": "shipped",
+                "price": 45.00
+            },
+        ]
+    }
+}
 ```
+
+### Policy Retrieval Function
+
+```python
+def retrieve_policy(query: str) -> str:
+    """
+    Retrieve relevant policy based on query keywords.
+    
+    In production, this would use semantic search over a vector database
+    of policy documents.
+    
+    Args:
+        query: User's question
+        
+    Returns:
+        Relevant policy text
+    """
+    query_lower = query.lower()
+    
+    if "return" in query_lower:
+        return POLICY_DOCS["return_policy"]
+    
+    if "shipping" in query_lower or "how long" in query_lower or "when" in query_lower:
+        return POLICY_DOCS["shipping_policy"]
+    
+    if "warranty" in query_lower:
+        return POLICY_DOCS["warranty_policy"]
+    
+    return ""
+```
+
+### User State Retrieval
+
+```python
+def get_user_state(user_id: str) -> Dict[str, Any]:
+    """
+    Fetch user data from the database.
+    
+    Args:
+        user_id: Unique user identifier
+        
+    Returns:
+        User profile and order history
+    """
+    return USER_DB.get(user_id, {})
+```
+
+### The Support Bot Core
+
+```python
+def support_bot_answer(user_id: str, query: str) -> str:
+    """
+    Generate a personalized support response.
+    
+    This function combines static policy knowledge with dynamic user data
+    to provide context-aware answers.
+    
+    Args:
+        user_id: Unique identifier for the user
+        query: User's support question
+        
+    Returns:
+        Personalized response synthesizing policy and user context
+    """
+    # Step 1: Fetch user state
+    user = get_user_state(user_id)
+    if not user:
+        return "I'm sorry, I couldn't find your account. Please verify your user ID."
+    
+    # Step 2: Retrieve relevant policy
+    policy = retrieve_policy(query)
+    
+    # Step 3: Get user orders
+    orders = user.get("orders", [])
+    
+    # Step 4: Generate personalized response based on query type
+    
+    # Case: User asking about their orders
+    if "order" in query.lower() or "what did" in query.lower():
+        if orders:
+            items = [o["item"] for o in orders]
+            return f"Hi {user['name']}! You ordered: {', '.join(items)}. Your most recent order status is: {orders[-1]['status']}."
+        return f"Hi {user['name']}! I don't see any orders on your account."
+    
+    # Case: Return eligibility check
+    if "return" in query.lower() and orders:
+        item = orders[-1]["item"]
+        return f"Hi {user['name']}! You ordered a {item}. {policy}"
+    
+    # Case: Shipping inquiry
+    if "shipping" in query.lower() or "when" in query.lower() or "arrive" in query.lower():
+        if orders:
+            status = orders[-1]["status"]
+            return f"Hi {user['name']}! Your order is currently {status}. {policy}"
+        return f"Hi {user['name']}! {policy}"
+    
+    # Default: Return policy only
+    return f"Hi {user['name']}! {policy}" if policy else f"Hi {user['name']}! How can I help you today?"
+```
+
+---
+
+## Production Considerations
+
+### Multi-Tenant Security
+
+In enterprise environments, strict tenant isolation is critical:
+
+```python
+def secure_support_bot_answer(user_id: str, query: str, tenant_id: str) -> str:
+    """Production version with tenant isolation."""
+    
+    # Verify user belongs to tenant
+    user = get_user_with_tenant_check(user_id, tenant_id)
+    if not user:
+        raise UnauthorizedError("User not found in tenant")
+    
+    # Apply tenant-specific policies
+    policies = get_policies_for_tenant(tenant_id)
+    
+    # Log for audit (without PII)
+    audit_log.info(f"Support query: tenant={tenant_id}, intent={classify_intent(query)}")
+    
+    return generate_response(user, policies, query)
+```
+
+### Conversation Memory
+
+For multi-turn support conversations:
+
+```python
+class ConversationalSupportBot:
+    def __init__(self):
+        self.conversations: Dict[str, List[dict]] = {}
+    
+    def respond(self, user_id: str, query: str) -> dict:
+        # Get conversation history
+        history = self.conversations.get(user_id, [])
+        
+        # Build context-aware prompt
+        context = self.build_context(history, query)
+        
+        # Generate response
+        response = self.generate(context)
+        
+        # Store turn
+        history.append({"user": query, "bot": response})
+        self.conversations[user_id] = history[-10:]  # Keep last 10 turns
+        
+        return response
+```
+
+### Escalation Detection
+
+```python
+def should_escalate(query: str, user_state: dict, sentiment: str) -> tuple[bool, str]:
+    """
+    Determine if conversation should escalate to human agent.
+    
+    Returns:
+        (should_escalate, reason)
+    """
+    # Escalation triggers
+    if sentiment == "angry" or sentiment == "frustrated":
+        return True, "Customer showing frustration"
+    
+    if "refund" in query.lower() and user_state.get("tier") == "premium":
+        return True, "Premium customer refund request"
+    
+    if "lawsuit" in query.lower() or "lawyer" in query.lower():
+        return True, "Legal mention detected"
+    
+    # Check if we've gone in circles
+    history = user_state.get("conversation_history", [])
+    if len(history) > 5 and self.is_repetitive(history):
+        return True, "Conversation going in circles"
+    
+    return False, ""
+```
+
+---
+
+## Testing Your Bot
+
+### Test Cases
+
+```python
+# Test 1: Shipping inquiry with context
+ans_bob = support_bot_answer("u2", "When will my shirt arrive?")
+assert "5-7" in ans_bob or "business days" in ans_bob, "Should include shipping policy"
+assert "shipped" in ans_bob.lower() or "on its way" in ans_bob.lower(), "Should include order status"
+
+# Test 2: Order lookup
+ans_alice = support_bot_answer("u1", "What did I order?")
+assert "Laptop" in ans_alice, "Should identify ordered item"
+assert "Alice" in ans_alice, "Should personalize with name"
+
+# Test 3: Return policy with personalization
+ans_return = support_bot_answer("u1", "Can I return my laptop?")
+assert "30 days" in ans_return, "Should include return policy"
+assert "Laptop" in ans_return, "Should reference specific item"
+
+print("All tests passed!")
+```
+
+### Evaluation Criteria
+
+| Criterion | Weight | Description |
+|-----------|--------|-------------|
+| **Personalization** | 30% | Response includes user-specific data |
+| **Accuracy** | 25% | Policy information is correct |
+| **Relevance** | 20% | Response addresses the specific question |
+| **Tone** | 15% | Professional, helpful, empathetic |
+| **Safety** | 10% | No PII leakage, proper authorization |
+
+---
+
+## Common Pitfalls
+
+1. **Data Leakage**
+   - ❌ Retrieving user data without authorization checks
+   - ✅ Always verify user_id matches authenticated session
+
+2. **Over-Personalization**
+   - ❌ Including too much user data (overwhelming)
+   - ✅ Only include relevant context
+
+3. **Stale Policies**
+   - ❌ Hardcoding policy text
+   - ✅ Retrieve from version-controlled knowledge base
+
+4. **Missing Escalation**
+   - ❌ Trying to handle everything automatically
+   - ✅ Know when to hand off to humans
+
+5. **PII Exposure**
+   - ❌ Logging full credit card numbers, passwords
+   - ✅ Redact sensitive data in logs
+
+---
+
+## Extensions & Next Steps
+
+### Level Up Your Bot
+
+1. **Sentiment Analysis**: Detect frustrated customers and respond appropriately
+2. **Proactive Suggestions**: "I see your order is delayed. Would you like a refund?"
+3. **Multi-Language Support**: Detect language and respond accordingly
+4. **Order Tracking Integration**: Real-time shipping updates from carriers
+5. **Knowledge Gap Detection**: Identify when policies don't cover a scenario
+
+### Related Challenges
+
+- [metadata-filtering](metadata-filtering) - Learn tenant isolation
+- [conversational-rag](conversational-rag) - Add conversation memory
+- [pii-redaction](pii-redaction) - Handle sensitive data safely
+- [rag-observability](rag-observability) - Monitor bot performance
+
+---
+
+## Summary
+
+You've built a **Dynamic Support Bot** that demonstrates the most common enterprise RAG pattern: combining static knowledge with dynamic user data. This architecture enables:
+
+- **Personalized experiences** at scale
+- **Consistent policy application** across all interactions
+- **Reduced support costs** through automation
+- **Improved customer satisfaction** through context awareness
+
+The key insight: **The best support bots don't just answer questions—they understand the user's situation and provide actionable guidance.**
+
+---
+
+**🎉 Capstone Complete!** You've built a production-ready support bot that showcases enterprise RAG best practices. This project demonstrates your ability to design systems that balance automation with personalization.

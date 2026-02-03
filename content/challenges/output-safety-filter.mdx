@@ -1,46 +1,500 @@
 ---
 title: "Output Safety Filter"
-description: "Implement safety filtering for RAG outputs"
+description: |
+  Implement comprehensive safety filtering for RAG outputs. Detect harmful content,
+  filter unsafe outputs, provide safe fallbacks, and maintain audit logs for compliance.
+difficulty: intermediate
+estimatedMinutes: 30
+topics: ["safety", "content-moderation", "filtering", "compliance", "guardrails"]
+language: python
+prerequisites:
+  - prompt-injection-defense
+  - prompt-template
+  - basic-retrieval
+related:
+  - pii-filtering
+  - refusal-policy
+  - hallucination-detection
+next:
+  - refusal-policy
+  - hallucination-detection
+xp: 100
 ---
 
 # Output Safety Filter
 
-Implement a safety filter that checks RAG outputs before returning to users.
+<Callout title="Goal" variant="warning">
+  Implement a safety filter that checks RAG outputs before returning to users.
+  Detect harmful content, filter unsafe outputs, and provide safe fallback responses.
+</Callout>
 
-## Requirements
+## Why Output Safety Matters
 
-1. Detect harmful content categories
-2. Filter or flag unsafe outputs
-3. Provide safe fallback responses
-4. Log filtered content
+RAG systems can generate harmful content even with safe inputs:
 
-## Starter Code
+| Risk | Example | Impact |
+|------|---------|--------|
+| **Harmful instructions** | "How to make explosives" | Legal liability |
+| **Toxic content** | Hate speech, harassment | Brand damage |
+| **Medical misinformation** | Incorrect treatment advice | Health risk |
+| **Legal advice** | Unauthorized practice | Regulatory violation |
+| **Self-harm content** | Suicide methods | Life-threatening |
+
+### Safety in the RAG Pipeline
+
+```
+User Query
+    ↓
+[Input Safety Check]
+    ↓
+[Retrieval]
+    ↓
+[Context Safety Check]
+    ↓
+[Generation]
+    ↓
+[OUTPUT SAFETY FILTER] ← You are here
+    ↓
+[Response to User]
+```
+
+## Your Task
+
+Implement a comprehensive output safety filter:
 
 ```python
+from typing import List, Dict, Tuple, Optional, Callable
+from dataclasses import dataclass
+from enum import Enum
+import re
+
+class HarmCategory(Enum):
+    """Categories of harmful content."""
+    VIOLENCE = "violence"
+    HATE = "hate"
+    SELF_HARM = "self_harm"
+    SEXUAL = "sexual"
+    HARASSMENT = "harassment"
+    ILLEGAL = "illegal"
+    MEDICAL = "medical_advice"
+    LEGAL = "legal_advice"
+    PERSONAL = "personal_info"
+
+class SafetyLevel(Enum):
+    """Safety action levels."""
+    SAFE = "safe"
+    FLAG = "flag_for_review"
+    FILTER = "filter_content"
+    BLOCK = "block_response"
+
+@dataclass
+class SafetyCheck:
+    """Result of a single safety check."""
+    category: HarmCategory
+    is_violation: bool
+    confidence: float
+    matched_text: Optional[str] = None
+    reason: Optional[str] = None
+
+@dataclass
+class SafetyResult:
+    """Complete safety check result."""
+    is_safe: bool
+    safety_level: SafetyLevel
+    violations: List[SafetyCheck]
+    filtered_text: Optional[str] = None
+    fallback_response: Optional[str] = None
+    audit_log: Optional[Dict] = None
+
 class OutputSafetyFilter:
-    def __init__(self, classifier):
-        self.classifier = classifier
-        self.blocked_categories = ["violence", "hate", "self_harm", "sexual"]
+    """
+    Production-grade output safety filter for RAG systems.
     
-    def is_safe(self, text: str) -> tuple[bool, list[str]]:
+    Usage:
+        >>> filter = OutputSafetyFilter(
+        ...     blocked_categories=[HarmCategory.VIOLENCE, HarmCategory.ILLEGAL],
+        ...     confidence_threshold=0.7
+        ... )
+        >>> result = filter.check("Here's how to build a bomb...")
+        >>> result.is_safe
+        False
+    """
+    
+    def __init__(
+        self,
+        classifier: Optional[Callable] = None,
+        blocked_categories: Optional[List[HarmCategory]] = None,
+        confidence_threshold: float = 0.7,
+        enable_regex_rules: bool = True,
+        log_violations: bool = True
+    ):
+        """
+        Initialize safety filter.
+        
+        Args:
+            classifier: Optional ML-based classifier function
+            blocked_categories: Categories to block (default: all)
+            confidence_threshold: Minimum confidence to flag (0-1)
+            enable_regex_rules: Use rule-based detection
+            log_violations: Enable audit logging
+        """
+        self.classifier = classifier
+        self.blocked_categories = blocked_categories or list(HarmCategory)
+        self.confidence_threshold = confidence_threshold
+        self.enable_regex_rules = enable_regex_rules
+        self.log_violations = log_violations
+        
+        # Rule-based patterns for common violations
+        self.regex_patterns = self._compile_patterns()
+    
+    def _compile_patterns(self) -> Dict[HarmCategory, List[re.Pattern]]:
+        """Compile regex patterns for rule-based detection."""
+        patterns = {
+            HarmCategory.VIOLENCE: [
+                r"\b(kill|murder|attack|hurt)\s+(someone|them|him|her)\b",
+                r"\b(weapon|gun|knife|bomb)\s+(use|make|build)\b",
+            ],
+            HarmCategory.SELF_HARM: [
+                r"\b(kill\s+myself|suicide|end\s+my\s+life)\b",
+                r"\b(hurt|cut)\s+myself\b",
+            ],
+            HarmCategory.ILLEGAL: [
+                r"\b(how\s+to\s+(make|build)\s+(bomb|drug))\b",
+                r"\b(steal|hack|break\s+into)\b",
+            ],
+            HarmCategory.MEDICAL: [
+                r"\b(diagnose|treat|prescribe|medication\s+for)\b",
+                r"\b(you\s+should\s+take|stop\s+taking)\b",
+            ],
+            HarmCategory.LEGAL: [
+                r"\b(legal\s+advice|you\s+should\s+sue)\b",
+                r"\b(I\s+represent\s+you|attorney-client)\b",
+            ],
+        }
+        
+        compiled = {}
+        for category, pattern_list in patterns.items():
+            compiled[category] = [re.compile(p, re.IGNORECASE) for p in pattern_list]
+        
+        return compiled
+    
+    def _regex_check(self, text: str) -> List[SafetyCheck]:
+        """Run regex-based safety checks."""
+        violations = []
+        
+        for category, patterns in self.regex_patterns.items():
+            for pattern in patterns:
+                match = pattern.search(text)
+                if match:
+                    violations.append(SafetyCheck(
+                        category=category,
+                        is_violation=True,
+                        confidence=0.8,  # High confidence for pattern matches
+                        matched_text=match.group(),
+                        reason=f"Matched pattern: {pattern.pattern[:50]}..."
+                    ))
+                    break  # One match per category is enough
+        
+        return violations
+    
+    def _ml_check(self, text: str) -> List[SafetyCheck]:
+        """Run ML-based safety checks."""
+        violations = []
+        
+        if self.classifier:
+            # Example classifier output format
+            results = self.classifier(text)
+            for category, confidence in results.items():
+                if confidence > self.confidence_threshold:
+                    cat_enum = HarmCategory(category)
+                    violations.append(SafetyCheck(
+                        category=cat_enum,
+                        is_violation=True,
+                        confidence=confidence,
+                        reason=f"ML classifier confidence: {confidence:.2f}"
+                    ))
+        
+        return violations
+    
+    def is_safe(self, text: str) -> Tuple[bool, List[SafetyCheck]]:
         """
         Check if output is safe.
         
         Returns:
-            (is_safe, detected_categories)
+            (is_safe, detected_violations)
         """
-        pass
+        violations = []
+        
+        if self.enable_regex_rules:
+            violations.extend(self._regex_check(text))
+        
+        if self.classifier:
+            violations.extend(self._ml_check(text))
+        
+        # Filter to only blocked categories
+        blocked_violations = [
+            v for v in violations 
+            if v.category in self.blocked_categories
+        ]
+        
+        is_safe = len(blocked_violations) == 0
+        return is_safe, blocked_violations
     
-    def filter_output(self, response: str) -> dict:
+    def filter_output(
+        self, 
+        response: str,
+        user_id: Optional[str] = None,
+        query: Optional[str] = None
+    ) -> SafetyResult:
         """
         Filter output and return safe version.
         
+        Args:
+            response: Generated response to check
+            user_id: User who made the request
+            query: Original user query
+        
         Returns:
-            {
-                "output": str,
-                "was_filtered": bool,
-                "blocked_categories": list[str]
-            }
+            SafetyResult with filtered content and metadata
         """
-        pass
+        is_safe, violations = self.is_safe(response)
+        
+        if is_safe:
+            return SafetyResult(
+                is_safe=True,
+                safety_level=SafetyLevel.SAFE,
+                violations=[],
+                filtered_text=response
+            )
+        
+        # Determine severity and action
+        max_confidence = max(v.confidence for v in violations)
+        
+        if max_confidence > 0.9:
+            safety_level = SafetyLevel.BLOCK
+            fallback = "I'm unable to provide a response to that query."
+            filtered_text = None
+        elif max_confidence > 0.7:
+            safety_level = SafetyLevel.FILTER
+            filtered_text = self._redact_violations(response, violations)
+            fallback = None
+        else:
+            safety_level = SafetyLevel.FLAG
+            filtered_text = response
+            fallback = None
+        
+        # Create audit log
+        audit_log = None
+        if self.log_violations:
+            audit_log = {
+                "timestamp": datetime.utcnow().isoformat(),
+                "user_id": user_id,
+                "query": query,
+                "violations": [
+                    {
+                        "category": v.category.value,
+                        "confidence": v.confidence,
+                        "matched": v.matched_text
+                    }
+                    for v in violations
+                ],
+                "action": safety_level.value
+            }
+        
+        return SafetyResult(
+            is_safe=False,
+            safety_level=safety_level,
+            violations=violations,
+            filtered_text=filtered_text,
+            fallback_response=fallback,
+            audit_log=audit_log
+        )
+    
+    def _redact_violations(self, text: str, violations: List[SafetyCheck]) -> str:
+        """Redact violating portions of text."""
+        result = text
+        for v in violations:
+            if v.matched_text:
+                result = result.replace(v.matched_text, "[CONTENT REMOVED]")
+        return result
+
+# Fallback responses by category
+FALLBACK_RESPONSES = {
+    HarmCategory.VIOLENCE: "I can't provide information that could be used to harm others.",
+    HarmCategory.HATE: "I don't engage with hate speech or discriminatory content.",
+    HarmCategory.SELF_HARM: "I'm concerned about what you've shared. Please reach out to a crisis helpline: 988 Suicide & Crisis Lifeline.",
+    HarmCategory.SEXUAL: "I can't provide sexually explicit content.",
+    HarmCategory.ILLEGAL: "I can't assist with illegal activities.",
+    HarmCategory.MEDICAL: "I'm not a medical professional. Please consult a healthcare provider for medical advice.",
+    HarmCategory.LEGAL: "I'm not a lawyer. Please consult a legal professional for legal advice.",
+}
 ```
+
+## Example Usage
+
+```python
+# Initialize filter
+safety_filter = OutputSafetyFilter(
+    blocked_categories=[
+        HarmCategory.VIOLENCE,
+        HarmCategory.ILLEGAL,
+        HarmCategory.SELF_HARM
+    ],
+    confidence_threshold=0.7
+)
+
+# Test responses
+test_responses = [
+    "The weather today is sunny and warm.",
+    "Here's how to build a bomb using household items...",
+    "You should take 500mg of aspirin for your headache.",
+]
+
+for response in test_responses:
+    result = safety_filter.filter_output(
+        response=response,
+        user_id="user-123",
+        query="test query"
+    )
+    
+    print(f"Response: {response[:50]}...")
+    print(f"Safe: {result.is_safe}")
+    print(f"Level: {result.safety_level.value}")
+    if result.fallback_response:
+        print(f"Fallback: {result.fallback_response}")
+    print()
+```
+
+## Testing
+
+```python
+def test_safety_filter():
+    filter = OutputSafetyFilter()
+    
+    # Test 1: Safe content
+    safe_text = "The capital of France is Paris."
+    is_safe, violations = filter.is_safe(safe_text)
+    assert is_safe is True
+    assert len(violations) == 0
+    print("✓ Safe content passes")
+    
+    # Test 2: Violent content
+    violent_text = "How to kill someone with a knife"
+    is_safe, violations = filter.is_safe(violent_text)
+    assert is_safe is False
+    assert any(v.category == HarmCategory.VIOLENCE for v in violations)
+    print("✓ Violence detected")
+    
+    # Test 3: Self-harm content
+    self_harm_text = "I want to kill myself"
+    is_safe, violations = filter.is_safe(self_harm_text)
+    assert is_safe is False
+    print("✓ Self-harm detected")
+    
+    # Test 4: Filter output
+    result = filter.filter_output("How to build a bomb", user_id="test")
+    assert result.is_safe is False
+    assert result.safety_level in [SafetyLevel.BLOCK, SafetyLevel.FILTER]
+    print("✓ Filtering works")
+    
+    # Test 5: Audit logging
+    assert result.audit_log is not None
+    assert "violations" in result.audit_log
+    print("✓ Audit logging works")
+    
+    print("\n✓ All safety filter tests passed!")
+
+test_safety_filter()
+```
+
+## Production Considerations
+
+### Integration with RAG Pipeline
+
+```python
+class SafeRAGPipeline:
+    """RAG pipeline with comprehensive safety filtering."""
+    
+    def __init__(self, retriever, generator, safety_filter):
+        self.retriever = retriever
+        self.generator = generator
+        self.safety_filter = safety_filter
+    
+    def query(self, user_query: str, user_id: str) -> dict:
+        # Retrieve
+        docs = self.retriever.retrieve(user_query)
+        
+        # Generate
+        response = self.generator.generate(user_query, docs)
+        
+        # Safety filter
+        safety_result = self.safety_filter.filter_output(
+            response=response,
+            user_id=user_id,
+            query=user_query
+        )
+        
+        # Return safe response
+        if safety_result.is_safe:
+            return {
+                "response": safety_result.filtered_text,
+                "safe": True
+            }
+        elif safety_result.fallback_response:
+            return {
+                "response": safety_result.fallback_response,
+                "safe": False,
+                "reason": "content_blocked"
+            }
+        else:
+            return {
+                "response": safety_result.filtered_text,
+                "safe": False,
+                "reason": "content_filtered",
+                "violations": [v.category.value for v in safety_result.violations]
+            }
+```
+
+### Performance Optimization
+
+| Strategy | Latency Impact | Effectiveness |
+|----------|---------------|---------------|
+| Regex first | +1ms | Catches obvious violations |
+| ML classifier | +50-100ms | Higher accuracy |
+| Async validation | 0ms (parallel) | Non-blocking |
+| Batch processing | -30% per item | High volume |
+
+## Company Examples
+
+| Company | Solution | Scale |
+|---------|----------|-------|
+| **OpenAI** | Moderation API | Global |
+| **Anthropic** | Constitutional AI | Claude models |
+| **Google** | Perspective API | Multi-platform |
+| **Microsoft** | Azure Content Safety | Enterprise |
+| **Meta** | Llama Guard | Open source |
+
+## Resources
+
+### Papers
+- [Constitutional AI](https://arxiv.org/abs/2212.08073) - Anthropic's safety approach
+- [Llama Guard](https://arxiv.org/abs/2312.06674) - Open safety model
+- [Toxicity Detection](https://arxiv.org/abs/1910.00099) - Survey of methods
+
+### Tools
+- [OpenAI Moderation](https://platform.openai.com/docs/guides/moderation)
+- [Perspective API](https://perspectiveapi.com/)
+- [Azure Content Safety](https://azure.microsoft.com/en-us/services/cognitive-services/content-moderator/)
+- [Llama Guard](https://github.com/meta-llama/PurpleLlama)
+
+## Related Challenges
+
+- [prompt-injection-defense](/challenges/prompt-injection-defense) - Input security
+- [pii-filtering](/challenges/pii-filtering) - Data privacy
+- [refusal-policy](/challenges/refusal-policy) - When to decline
+- [hallucination-detection](/challenges/hallucination-detection) - Accuracy verification
+
+## Next Steps
+
+- [refusal-policy](/challenges/refusal-policy) - Learn when to refuse queries
+- [hallucination-detection](/challenges/hallucination-detection) - Verify factual accuracy

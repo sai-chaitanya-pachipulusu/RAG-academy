@@ -20,3 +20,322 @@ Implement a formatter that converts a raw instruction, context, and answer into 
 
 If you train a model on one format but prompt it with another, its performance will drop significantly. Standardizing your pipeline on a format like ChatML ensures compatibility across modern open-source ecosystems (like Hugging Face and vLLM).
 
+## Mathematical Foundation
+
+### Token Efficiency
+
+Different formats have different token overheads:
+
+$$
+\text{Efficiency} = \frac{\text{Content Tokens}}{\text{Total Tokens}} = \frac{T_{\text{content}}}{T_{\text{content}} + T_{\text{format}}}
+$$
+
+Typical format overheads:
+
+| Format | Overhead Tokens | Efficiency (1K content) |
+|--------|-----------------|------------------------|
+| Raw text | 0 | 100% |
+| Alpaca | ~10 | 99% |
+| ChatML | ~20 | 98% |
+| Llama-2 Chat | ~25 | 97.5% |
+| GPT-4 (JSON) | ~50 | 95% |
+
+### Sequence Length Distribution
+
+When preparing training data, ensure your sequences fit within the model's context window:
+
+$$
+P(\text{truncate}) = P(T_{\text{total}} > T_{\text{max}})
+$$
+
+Best practice: Keep $P(\text{truncate}) < 0.01$ (1% truncation rate)
+
+## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity |
+|-----------|-----------------|------------------|
+| Template rendering | O(T) | O(T) |
+| Tokenization | O(T log V) | O(T) |
+| Truncation | O(T) | O(T) |
+| Batching | O(N × T) | O(B × T) |
+
+Where:
+- T = sequence length in tokens
+- V = vocabulary size
+- N = number of examples
+- B = batch size
+
+## Common Pitfalls
+
+1. **Format Mismatch**: Training with Alpaca, inferencing with ChatML
+2. **Special Token Confusion**: Using wrong special tokens for the model
+3. **Truncation Artifacts**: Cutting off in the middle of important context
+4. **Label Masking**: Not masking prompt tokens during loss calculation
+5. **Inconsistent Padding**: Different padding strategies break batching
+
+## Format Specifications
+
+### ChatML Format
+
+```xml
+<|im_start|>system
+You are a helpful assistant.<|im_end|>
+<|im_start|>user
+Context: {retrieved_chunks}
+
+Question: {question}<|im_end|>
+<|im_start|>assistant
+{answer}<|im_end|>
+```
+
+### Alpaca Format
+
+```
+### Instruction:
+{instruction}
+
+### Input:
+{context}
+
+### Response:
+{answer}
+```
+
+### Llama-2 Chat Format
+
+```
+<s>[INST] <<SYS>>
+{system_prompt}
+<</SYS>>
+
+{user_message} [/INST] {assistant_response} </s>
+```
+
+## Advanced Techniques
+
+### Dynamic Template Selection
+
+```python
+class MultiFormatTokenizer:
+    """Support multiple fine-tuning formats."""
+    
+    FORMATS = {
+        "chatml": ChatMLTemplate(),
+        "alpaca": AlpacaTemplate(),
+        "llama2": Llama2Template(),
+        "gemma": GemmaTemplate(),
+    }
+    
+    def format(self, example: dict, format_type: str) -> str:
+        template = self.FORMATS.get(format_type)
+        if not template:
+            raise ValueError(f"Unknown format: {format_type}")
+        return template.render(example)
+```
+
+### Smart Truncation
+
+```python
+class SmartTruncator:
+    """Truncate while preserving important content."""
+    
+    def truncate(self, text: str, max_tokens: int, priority: list[str]) -> str:
+        """
+        Truncate text while keeping high-priority sections.
+        
+        priority: List of section markers in order of importance
+        """
+        sections = self.split_into_sections(text)
+        
+        # Always keep highest priority sections
+        result = []
+        current_tokens = 0
+        
+        for marker in priority:
+            if marker in sections:
+                section_tokens = self.count_tokens(sections[marker])
+                if current_tokens + section_tokens <= max_tokens:
+                    result.append(sections[marker])
+                    current_tokens += section_tokens
+                else:
+                    # Partial inclusion
+                    remaining = max_tokens - current_tokens
+                    result.append(self.truncate_section(sections[marker], remaining))
+                    break
+        
+        return "\n".join(result)
+```
+
+### Label Masking for Causal LM
+
+```python
+def create_labels(input_ids: list[int], prompt_length: int) -> list[int]:
+    """
+    Create labels for causal LM training.
+    Only compute loss on assistant response tokens.
+    """
+    labels = [-100] * prompt_length  # Ignore prompt tokens
+    labels.extend(input_ids[prompt_length:])  # Learn response tokens
+    return labels
+```
+
+## Visual Diagram: Dataset Formatting Pipeline
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Raw Training Example                      │
+│  {                                                           │
+│    "question": "What is RAG?",                               │
+│    "context": "RAG stands for...",                           │
+│    "answer": "RAG is a technique..."                         │
+│  }                                                           │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                 Template Selection                           │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐                     │
+│  │ ChatML  │  │ Alpaca  │  │ Llama-2 │                     │
+│  │  [X]    │  │  [ ]    │  │  [ ]    │                     │
+│  └────┬────┘  └─────────┘  └─────────┘                     │
+└───────┼─────────────────────────────────────────────────────┘
+        │
+        ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Template Rendering                              │
+│  <|im_start|>system                                         │
+│  You are a helpful assistant.<|im_end|>                     │
+│  <|im_start|>user                                           │
+│  Context: RAG stands for...                                  │
+│                                                              │
+│  Question: What is RAG?<|im_end|>                           │
+│  <|im_start|>assistant                                       │
+│  RAG is a technique...<|im_end|>                            │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  Tokenization                                │
+│  [151644, 912, 10184, ... , 151645, 151644, ...]            │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Label Masking & Padding                         │
+│  Input IDs:  [151644, 912, ..., 198, 151645]                │
+│  Labels:     [-100, -100, ..., 456, 789]  (mask prompt)     │
+│  Attention:  [1, 1, ..., 1, 1, 0, 0]      (padding mask)    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Real-World Applications
+
+| Organization | Format | Use Case |
+|-------------|--------|----------|
+| **OpenAI** | ChatML | GPT-3.5/4 fine-tuning |
+| **Meta** | Llama-2 Chat | Open source chat models |
+| **Stanford** | Alpaca | Instruction following |
+| **Mistral** | Mistral Instruct | Efficient instruction tuning |
+| **Google** | Gemma | Lightweight models |
+
+## Performance Benchmarks
+
+| Format | Tokens/Example | Training Speed | Model Performance |
+|--------|----------------|----------------|-------------------|
+| Raw text | 512 | 100% baseline | Lower (no structure) |
+| Alpaca | 522 | 98% | Good |
+| ChatML | 532 | 96% | Better |
+| Llama-2 | 537 | 95% | Best for Llama models |
+
+*Benchmarks on 7B parameter model, 512 token average length*
+
+## Interview Questions
+
+**Q1: Why do we need different formats for different models?**
+
+*Answer:*
+- Models are pre-trained with specific special tokens
+- Format defines the "language" the model understands
+- Wrong format = distribution shift = poor performance
+- Some models have unique architectural requirements (e.g., system prompts)
+
+**Q2: How would you handle examples longer than the context window?**
+
+*Answer:*
+- Truncate with priority (keep question and answer, truncate context)
+- Use sliding window for long documents
+- Split into multiple training examples
+- Consider using a model with longer context
+
+**Q3: Design a data pipeline that supports multiple models simultaneously.**
+
+*Answer:*
+- Store raw data in model-agnostic format
+- Apply format-specific templates at training time
+- Cache tokenized outputs per model
+- Use data collators that handle different padding requirements
+
+## Resources
+
+### Documentation
+- [Hugging Face Tokenizers](https://huggingface.co/docs/tokenizers/index)
+- [ChatML Specification](https://github.com/openai/openai-python/blob/main/chatml.md)
+- [Llama-2 Prompt Format](https://huggingface.co/blog/llama2#how-to-prompt-llama-2)
+
+### Libraries
+- **transformers**: Hugging Face model and tokenizer library
+- **tokenizers**: Fast tokenization
+- **trl**: Transformer Reinforcement Learning for SFT
+- **axolotl**: Simplified fine-tuning framework
+
+### Papers
+- **"InstructGPT: Training language models to follow instructions"** - OpenAI
+- **"Llama 2: Open Foundation and Fine-Tuned Chat Models"** - Meta
+- **"The Alignment Handbook"** - Hugging Face
+
+### Tutorials
+- "Fine-tuning LLMs for RAG Applications"
+- "Understanding ChatML and Special Tokens"
+- "Building Custom Instruction Datasets"
+
+## Testing Your Implementation
+
+```python
+def test_formatters():
+    example = {
+        "instruction": "Answer the question based on context.",
+        "context": "RAG combines retrieval with generation.",
+        "question": "What is RAG?",
+        "answer": "RAG is a technique that combines retrieval with generation."
+    }
+    
+    # Test ChatML
+    chatml = ChatMLFormatter().format(example)
+    assert "<|im_start|>" in chatml
+    assert "<|im_end|>" in chatml
+    
+    # Test Alpaca
+    alpaca = AlpacaFormatter().format(example)
+    assert "### Instruction:" in alpaca
+    assert "### Response:" in alpaca
+    
+    # Test tokenization
+    tokenizer = AutoTokenizer.from_pretrained("gpt2")
+    tokens = tokenizer.encode(chatml)
+    assert len(tokens) > 0
+    
+    # Test truncation
+    truncated = SmartTruncator().truncate(chatml, max_tokens=50, priority=["question", "answer"])
+    assert len(tokenizer.encode(truncated)) <= 50
+```
+
+## Related Challenges
+
+- [eval-dataset-curation](eval-dataset-curation) - Building evaluation datasets
+- [custom-eval-dataset](custom-eval-dataset) - Custom evaluation metrics
+- [fine-tuning-embeddings-guide](fine-tuning-embeddings-guide) - Embedding fine-tuning
+- [embedding-finetuning](embedding-finetuning) - Domain adaptation
+
+---
+
+*Proper dataset formatting is the foundation of successful fine-tuning. Small formatting errors can lead to significant performance degradation.*

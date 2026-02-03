@@ -2,9 +2,17 @@
 title: "Multi-Step Reasoning Agent"
 description: "Break complex queries into executable sub-steps"
 difficulty: "hard"
+timeEstimate: "50-60 min"
 xpReward: 150
+topics: ["agentic-rag", "reasoning", "planning"]
 prerequisites: ["react-implementation", "self-correction-loop"]
+related: ["reasoning-rag-implementation", "conversational-rag"]
+next: ["reasoning-rag-implementation"]
 ---
+
+<Callout title="Goal" variant="info">
+  Build an agent that breaks complex queries into sub-steps and executes them sequentially.
+</Callout>
 
 # Multi-Step Reasoning Agent
 
@@ -13,6 +21,13 @@ Build an agent that breaks complex queries into sub-steps and executes them sequ
 ## Why This Matters
 
 Single-shot RAG fails on complex questions. Multi-step reasoning enables "chain of thought" retrieval for multi-hop queries.
+
+| Query Type | Single-Shot | Multi-Step |
+|------------|-------------|------------|
+| "What is X?" | ✅ Works | ✅ Works |
+| "Compare X and Y" | ⚠️ Partial | ✅ Works |
+| "What caused X to affect Y?" | ❌ Fails | ✅ Works |
+| "Summarize trends from A, B, C" | ❌ Fails | ✅ Works |
 
 ## What You'll Learn
 
@@ -32,22 +47,371 @@ Single-shot RAG fails on complex questions. Multi-step reasoning enables "chain 
 
 ```python
 # "What is Python and what is JavaScript?"
-# ["What is Python?", "What is JavaScript?"]
+# → ["What is Python?", "What is JavaScript?"]
+
+# "How did Apple's revenue growth compare to Microsoft's in Q3 2024?"
+# → ["What was Apple's Q3 2024 revenue?",
+#    "What was Microsoft's Q3 2024 revenue?",
+#    "Compare the growth rates"]
 ```
 
 ### Reasoning Plan
 
 ```python
+from dataclasses import dataclass
+from typing import List, Optional, Literal
+from enum import Enum
+
+class StepType(Enum):
+    RETRIEVE = "retrieve"      # Fetch relevant documents
+    REASON = "reason"          # Generate answer from context
+    CALCULATE = "calculate"    # Perform computation
+    SYNTHESIZE = "synthesize"  # Combine multiple results
+    ANSWER = "answer"          # Final output
+
+@dataclass
+class ReasoningStep:
+    step_number: int
+    step_type: StepType
+    description: str
+    query: str
+    dependencies: List[int]  # Steps that must complete first
+    result: Optional[str] = None
+    status: Literal["pending", "running", "completed", "failed"] = "pending"
+
 @dataclass
 class ReasoningPlan:
     original_query: str
     steps: List[ReasoningStep]
-    final_answer: str
+    created_at: float
+    
+    def get_ready_steps(self) -> List[ReasoningStep]:
+        """Get steps ready to execute (dependencies met)."""
+        completed = {s.step_number for s in self.steps if s.status == "completed"}
+        return [
+            s for s in self.steps
+            if s.status == "pending"
+            and all(d in completed for d in s.dependencies)
+        ]
 ```
 
-### Step Types
+## Implementation
 
-- `RETRIEVE` - Fetch relevant documents
-- `REASON` - Generate answer from context
-- `ANSWER` - Final synthesis
+### Reasoning Engine
 
+```python
+class MultiStepReasoner:
+    """
+    Execute multi-step reasoning plans.
+    
+    Time Complexity: O(n * (R + G)) where:
+    - n = number of steps
+    - R = retrieval cost
+    - G = generation cost
+    """
+    
+    def __init__(self, retriever, llm, max_steps: int = 10):
+        self.retriever = retriever
+        self.llm = llm
+        self.max_steps = max_steps
+        self.execution_trace: List[Dict] = []
+    
+    def reason(self, query: str) -> Dict:
+        """
+        Execute multi-step reasoning on a query.
+        
+        Returns execution trace and final answer.
+        """
+        # Step 1: Decompose query into plan
+        plan = self.create_plan(query)
+        
+        # Step 2: Execute plan
+        for step_num in range(self.max_steps):
+            ready_steps = plan.get_ready_steps()
+            
+            if not ready_steps:
+                if all(s.status == "completed" for s in plan.steps):
+                    break  # All done
+                else:
+                    raise ValueError("Deadlock: steps waiting on each other")
+            
+            # Execute ready steps (can parallelize independent steps)
+            for step in ready_steps:
+                result = self.execute_step(step, plan)
+                step.result = result
+                step.status = "completed"
+                
+                self.execution_trace.append({
+                    "step": step.step_number,
+                    "type": step.step_type.value,
+                    "query": step.query,
+                    "result": result
+                })
+        
+        # Step 3: Return final result
+        final_step = [s for s in plan.steps if s.step_type == StepType.ANSWER]
+        if final_step:
+            return {
+                "answer": final_step[0].result,
+                "plan": plan,
+                "trace": self.execution_trace
+            }
+        
+        return {
+            "answer": "Could not complete reasoning",
+            "plan": plan,
+            "trace": self.execution_trace
+        }
+    
+    def create_plan(self, query: str) -> ReasoningPlan:
+        """Create a reasoning plan for the query."""
+        prompt = f"""Break this complex query into steps. For each step, specify:
+1. Step number
+2. Type: RETRIEVE (get info), REASON (analyze), CALCULATE (compute), SYNTHESIZE (combine), ANSWER (final)
+3. Description
+4. Dependencies (which steps must complete first)
+
+Query: {query}
+
+Format:
+1. RETRIEVE | Get X information | dependencies: none
+2. REASON | Analyze X | dependencies: 1
+..."""
+        
+        response = self.llm.generate(prompt, max_tokens=500)
+        
+        # Parse response into steps
+        steps = self._parse_plan(response)
+        
+        return ReasoningPlan(
+            original_query=query,
+            steps=steps,
+            created_at=time.time()
+        )
+    
+    def execute_step(self, step: ReasoningStep, plan: ReasoningPlan) -> str:
+        """Execute a single reasoning step."""
+        step.status = "running"
+        
+        if step.step_type == StepType.RETRIEVE:
+            return self._execute_retrieve(step)
+        
+        elif step.step_type == StepType.REASON:
+            return self._execute_reason(step, plan)
+        
+        elif step.step_type == StepType.CALCULATE:
+            return self._execute_calculate(step, plan)
+        
+        elif step.step_type == StepType.SYNTHESIZE:
+            return self._execute_synthesize(step, plan)
+        
+        elif step.step_type == StepType.ANSWER:
+            return self._execute_answer(step, plan)
+        
+        else:
+            raise ValueError(f"Unknown step type: {step.step_type}")
+    
+    def _execute_retrieve(self, step: ReasoningStep) -> str:
+        """Execute a retrieval step."""
+        docs = self.retriever.search(step.query, k=5)
+        return json.dumps([{"id": d["id"], "text": d["text"][:500]} for d in docs])
+    
+    def _execute_reason(self, step: ReasoningStep, plan: ReasoningPlan) -> str:
+        """Execute a reasoning step."""
+        # Get dependency results
+        context = self._get_dependency_results(step, plan)
+        
+        prompt = f"""Based on the following information:
+{context}
+
+Answer this question: {step.query}
+
+Provide a clear, concise answer."""
+        
+        return self.llm.generate(prompt)
+    
+    def _execute_calculate(self, step: ReasoningStep, plan: ReasoningPlan) -> str:
+        """Execute a calculation step."""
+        # Get dependency results
+        context = self._get_dependency_results(step, plan)
+        
+        prompt = f"""Based on the following information:
+{context}
+
+Perform this calculation: {step.query}
+
+Show your work and provide the final result."""
+        
+        return self.llm.generate(prompt)
+    
+    def _execute_synthesize(self, step: ReasoningStep, plan: ReasoningPlan) -> str:
+        """Execute a synthesis step."""
+        # Get all dependency results
+        results = []
+        for dep_num in step.dependencies:
+            dep_step = next(s for s in plan.steps if s.step_number == dep_num)
+            results.append(f"Result {dep_num}: {dep_step.result}")
+        
+        prompt = f"""Synthesize the following results:
+{chr(10).join(results)}
+
+Into a coherent response for: {step.query}"""
+        
+        return self.llm.generate(prompt)
+    
+    def _execute_answer(self, step: ReasoningStep, plan: ReasoningPlan) -> str:
+        """Execute final answer step."""
+        # Get all previous results
+        context = self._get_all_results(plan)
+        
+        prompt = f"""Original question: {plan.original_query}
+
+Based on all the work done:
+{context}
+
+Provide the final answer."""
+        
+        return self.llm.generate(prompt)
+    
+    def _get_dependency_results(self, step: ReasoningStep, plan: ReasoningPlan) -> str:
+        """Get results from dependency steps."""
+        results = []
+        for dep_num in step.dependencies:
+            dep_step = next(s for s in plan.steps if s.step_number == dep_num)
+            results.append(f"Step {dep_num} result: {dep_step.result}")
+        return "\n\n".join(results)
+    
+    def _get_all_results(self, plan: ReasoningPlan) -> str:
+        """Get all completed step results."""
+        results = []
+        for step in plan.steps:
+            if step.status == "completed" and step.result:
+                results.append(f"Step {step.step_number} ({step.step_type.value}): {step.result[:200]}...")
+        return "\n\n".join(results)
+```
+
+## Example: Complex Query
+
+```python
+# Query: "How did Apple's revenue growth in Q3 2024 compare to their growth 
+#         in Q3 2023, and what factors contributed to the difference?"
+
+# Generated Plan:
+plan = ReasoningPlan(
+    original_query="...",
+    steps=[
+        ReasoningStep(1, StepType.RETRIEVE, 
+                     "Get Apple Q3 2024 revenue",
+                     "Apple Q3 2024 revenue earnings",
+                     []),
+        ReasoningStep(2, StepType.RETRIEVE,
+                     "Get Apple Q3 2023 revenue", 
+                     "Apple Q3 2023 revenue earnings",
+                     []),
+        ReasoningStep(3, StepType.CALCULATE,
+                     "Calculate growth rate",
+                     "Calculate YoY growth from Q3 2023 to Q3 2024",
+                     [1, 2]),
+        ReasoningStep(4, StepType.RETRIEVE,
+                     "Get growth factors",
+                     "Apple Q3 2024 growth factors product sales iPhone",
+                     []),
+        ReasoningStep(5, StepType.REASON,
+                     "Analyze factors",
+                     "What factors contributed to Apple's revenue growth?",
+                     [4]),
+        ReasoningStep(6, StepType.SYNTHESIZE,
+                     "Combine results",
+                     "Synthesize growth comparison and factors",
+                     [3, 5]),
+        ReasoningStep(7, StepType.ANSWER,
+                     "Final answer",
+                     "Provide comprehensive answer",
+                     [6])
+    ]
+)
+```
+
+## Error Handling
+
+```python
+class RobustMultiStepReasoner(MultiStepReasoner):
+    """Multi-step reasoner with error recovery."""
+    
+    def execute_step(self, step: ReasoningStep, plan: ReasoningPlan) -> str:
+        """Execute step with error handling."""
+        try:
+            return super().execute_step(step, plan)
+        except Exception as e:
+            # Log error
+            self.execution_trace.append({
+                "step": step.step_number,
+                "error": str(e),
+                "status": "failed"
+            })
+            
+            # Try recovery strategies
+            if step.step_type == StepType.RETRIEVE:
+                # Try broader search
+                return self._retry_retrieve(step)
+            
+            elif step.step_type == StepType.CALCULATE:
+                # Ask LLM to handle
+                return self._fallback_calculate(step, plan)
+            
+            else:
+                # Mark as failed
+                step.status = "failed"
+                return f"Error: {str(e)}"
+    
+    def _retry_retrieve(self, step: ReasoningStep) -> str:
+        """Retry retrieval with broader query."""
+        broader_query = step.query.split()[0:3]  # Simplified
+        docs = self.retriever.search(" ".join(broader_query), k=10)
+        return json.dumps([{"id": d["id"], "text": d["text"][:500]} for d in docs])
+```
+
+## Performance Metrics
+
+| Metric | Target | Measurement |
+|--------|--------|-------------|
+| Plan Accuracy | >90% | Correct decomposition |
+| Step Success | >95% | Individual step completion |
+| End-to-End Success | >85% | Full plan completion |
+| Avg Steps | 3-7 | Per query |
+| Latency | <5s | For complex queries |
+
+## Real-World Applications
+
+| Company | Use Case |
+|---------|----------|
+| **Cognition (Devin)** | Software engineering tasks |
+| **Perplexity** | Research and analysis |
+| **Elicit** | Academic paper synthesis |
+| **Google DeepMind** | Scientific reasoning |
+
+## Resources
+
+### Papers
+- [Chain-of-Thought Prompting](https://arxiv.org/abs/2201.11993) - Wei et al.
+- [Tree of Thoughts](https://arxiv.org/abs/2305.10601) - Yao et al.
+- [ReAct](https://arxiv.org/abs/2210.03629) - Yao et al.
+
+### Documentation
+- [LangChain Agents](https://python.langchain.com/docs/modules/agents/)
+- [LlamaIndex Agents](https://docs.llamaindex.ai/en/stable/module_guides/deploying/agents/)
+
+### Tools
+- **LangChain**: Agent and tool frameworks
+- **AutoGen**: Multi-agent conversations
+- **DSPy**: Optimized LM pipelines
+
+## Related Challenges
+
+- **Prerequisites**: [react-implementation](react-implementation), [self-correction-loop](self-correction-loop)
+- **Next**: [reasoning-rag-implementation](reasoning-rag-implementation)
+- **Related**: [conversational-rag](conversational-rag), [agentic-rag-workflows](agentic-rag-workflows)
+
+---
+
+**🧩 Reasoning Mastery:** Multi-step reasoning transforms RAG from a simple lookup tool into a sophisticated problem-solving system capable of tackling complex, multi-faceted queries!

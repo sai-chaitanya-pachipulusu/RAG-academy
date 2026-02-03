@@ -1,301 +1,466 @@
-﻿<Callout title="Goal" variant="info">
-  Implement RAPTOR — recursive abstractive processing for tree-organized
-  retrieval that handles both detailed and high-level queries.
-</Callout>
+﻿---
+title: "RAPTOR Tree Retrieval"
+description: "Implement efficient retrieval from RAPTOR hierarchical trees with level selection and navigation"
+difficulty: "hard"
+xpReward: 150
+estimatedMinutes: 45
+stage: "advanced-retrieval"
+track: "graph-rag"
+tags: ["raptor", "tree-retrieval", "hierarchical", "multi-level", "navigation"]
+prerequisites: ["raptor-tree", "cosine-similarity"]
+relatedChallenges: ["raptor-tree", "recursive-retrieval", "parent-document-chunking"]
+nextChallenges: ["recursive-retrieval"]
+theory:
+  overview: |
+    RAPTOR Tree Retrieval implements intelligent navigation of hierarchical summary 
+    trees to answer queries at the appropriate granularity. It combines semantic 
+    search across all levels with smart level selection based on query characteristics.
+  keyFormulas:
+    - name: "Cross-Level Similarity"
+      formula: "sim(q, T) = max_l(sim(q, level_l))"
+    - name: "Level Weighting"
+      formula: "w_l = α^l where α = decay factor (typically 0.8-0.9)"
+    - name: "Navigation Score"
+      formula: "score(node) = sim(q, node) × coverage(node) × confidence(node)"
+    - name: "Tree Pruning"
+      formula: "prune if score < θ × max_score_at_level"
+  visualIntuition: |
+    Multi-Level Retrieval:
+    
+    ```
+    Query: "What were the main themes?"
+         ↓
+    Level 2 (Summaries): High match → Retrieve
+         ↓
+    [Summary A] [Summary B] [Summary C]
+         ↓           ↓           ↓
+    Expand to Level 1 for details
+         ↓
+    Return: Combined from multiple levels
+    
+    Query: "What was Q3 revenue?"
+         ↓
+    Level 0 (Leaves): High match → Retrieve directly
+         ↓
+    ["Q3 revenue was $10M..."]
+    ```
+  whyItMatters: |
+    Tree retrieval enables:
+    1. **Adaptive granularity**: Right level for each query
+    2. **Hierarchical exploration**: Drill down from summaries
+    3. **Cross-level fusion**: Combine insights from multiple levels
+    4. **Efficient navigation**: Avoid exhaustive search
+  commonMistakes:
+    - "Always retrieving from the same level"
+    - "Not using parent-child links for expansion"
+    - "Ignoring confidence scores at each level"
+    - "Retrieving too many nodes per level"
+  interviewTips:
+    - "Explain level selection heuristics"
+    - "Discuss beam search vs greedy navigation"
+    - "Mention handling of overlapping clusters"
+    - "Compare to flat and parent-document retrieval"
+realWorld:
+  description: |
+    RAPTOR retrieval powers enterprise document Q&A systems at scale.
+    Legal research platforms use tree navigation for case law exploration.
+    Financial analysis tools employ hierarchical retrieval for report analysis.
+  companies: ["UC Berkeley", "Microsoft", "LexisNexis", "Bloomberg"]
+  useCases:
+    - "Legal document exploration"
+    - "Financial report Q&A"
+    - "Research paper synthesis"
+    - "Technical documentation search"
+    - "Medical literature review"
+complexity:
+  time: "O(L × k × log n) where L = levels, k = results per level"
+  space: "O(L × k) for storing candidates"
+  latency: "50-200ms for tree navigation"
+resources:
+  papers:
+    - title: "RAPTOR: Recursive Abstractive Processing for Tree-Organized Retrieval"
+      url: "https://arxiv.org/abs/2401.18059"
+      authors: "Sarthi et al., UC Berkeley"
+      year: 2024
+    - title: "Hierarchical Document Retrieval"
+      url: "https://arxiv.org/abs/2210.02666"
+      authors: "Li et al."
+      year: 2022
+  documentation:
+    - title: "RAPTOR GitHub"
+      url: "https://github.com/parthsarthi03/raptor"
+    - title: "Faiss Indexing"
+      url: "https://github.com/facebookresearch/faiss/wiki"
+  tutorials:
+    - title: "Hierarchical Retrieval Patterns"
+      url: "https://blog.langchain.dev/retrieval-patterns/"
+  tools:
+    - name: "RAPTOR"
+      description: "Official RAPTOR implementation"
+      url: "https://github.com/parthsarthi03/raptor"
+    - name: "Faiss"
+      description: "Efficient similarity search"
+      url: "https://github.com/facebookresearch/faiss"
+---
 
-## The Problem with Flat Retrieval
+# RAPTOR Tree Retrieval
 
-Standard RAG retrieves at one granularity:
+Implement efficient retrieval from RAPTOR hierarchical trees, enabling intelligent level selection and hierarchical navigation for both specific and broad queries.
 
-```
-Query: "What was Acme Corp's Q3 revenue?"
-→ Finds: Specific chunk with "Q3 revenue: $10M"
+## The Problem
 
-Query: "Summarize Acme Corp's financial performance"
-→ Problem: No chunk contains the full summary
-```
+Given a RAPTOR tree with multiple levels of summaries:
+- **Which level** should we retrieve from?
+- **How do we navigate** from summaries to details?
+- **How do we combine** information across levels?
 
-## RAPTOR's Solution: Hierarchical Summaries
+## Your Task
 
-RAPTOR builds a tree of summaries:
-
-```
-                    [Full Document Summary]
-                           Level 3
-                    /                 \
-           [Section A]            [Section B]
-            Summary                 Summary
-            Level 2                 Level 2
-           /    \                  /    \
-        [Chunk] [Chunk]        [Chunk] [Chunk]
-        Level 1 (Leaves)
-```
-
-**Key insight**: Index ALL levels. Query retrieves from appropriate level.
-
-## RAPTOR Algorithm
-
-### Step 1: Cluster Leaf Chunks
-
-```python
-from sklearn.cluster import KMeans
-import numpy as np
-
-def cluster_chunks(chunks: list[str], embeddings: np.ndarray, k: int = 10) -> dict:
-    """Cluster similar chunks together."""
-    kmeans = KMeans(n_clusters=k, random_state=42)
-    labels = kmeans.fit_predict(embeddings)
-
-    clusters = {}
-    for i, label in enumerate(labels):
-        if label not in clusters:
-            clusters[label] = []
-        clusters[label].append(chunks[i])
-
-    return clusters
-```
-
-### Step 2: Summarize Each Cluster
-
-```python
-def summarize_cluster(chunks: list[str]) -> str:
-    """Create a summary from a cluster of related chunks."""
-    combined = "\n\n".join(chunks)
-
-    prompt = f"""Summarize the key information from these related text chunks.
-Be comprehensive but concise.
-
-Chunks:
-{combined}
-
-Summary:"""
-
-    return llm.generate(prompt)
-```
-
-### Step 3: Build Tree Recursively
-
-```python
-def build_raptor_tree(chunks: list[str], max_levels: int = 3) -> dict:
-    """Build hierarchical summary tree."""
-    tree = {"level_0": chunks}  # Leaves
-
-    current_level = chunks
-    current_embeddings = embed(current_level)
-
-    for level in range(1, max_levels + 1):
-        if len(current_level) <= 5:
-            break  # Too few to cluster further
-
-        # Cluster
-        n_clusters = max(2, len(current_level) // 5)
-        clusters = cluster_chunks(current_level, current_embeddings, n_clusters)
-
-        # Summarize each cluster
-        summaries = []
-        for cluster_chunks in clusters.values():
-            summary = summarize_cluster(cluster_chunks)
-            summaries.append(summary)
-
-        tree[f"level_{level}"] = summaries
-
-        # Prepare for next level
-        current_level = summaries
-        current_embeddings = embed(current_level)
-
-    return tree
-```
-
-### Step 4: Index All Levels
-
-```python
-def build_raptor_index(tree: dict) -> VectorIndex:
-    """Index all levels of the tree."""
-    all_nodes = []
-
-    for level_name, nodes in tree.items():
-        for node in nodes:
-            all_nodes.append({
-                "text": node,
-                "level": level_name,
-                "embedding": embed(node)
-            })
-
-    return create_index(all_nodes)
-```
-
-### Step 5: Query Across Levels
+Implement a `RAPTORTreeRetriever` class:
 
 ```python
-def raptor_retrieve(query: str, index: VectorIndex, k: int = 5) -> list[str]:
-    """Retrieve from any level of the tree."""
-    query_embedding = embed(query)
+class RAPTORTreeRetriever:
+    def __init__(self, tree: dict, embedder, level_weights: dict = None):
+        """
+        Initialize tree retriever.
+        
+        Args:
+            tree: RAPTOR tree structure
+            embedder: Embedding model
+            level_weights: Optional weights for each level
+        """
+        pass
+    
+    def select_level(self, query: str) -> int:
+        """
+        Determine optimal retrieval level for query.
+        
+        Args:
+            query: User query
+            
+        Returns:
+            Recommended tree level (0 = leaves)
+        """
+        pass
+    
+    def search_level(self, query: str, level: int, k: int = 5) -> list[dict]:
+        """
+        Search specific tree level.
+        
+        Args:
+            query: User query
+            level: Tree level to search
+            k: Number of results
+            
+        Returns:
+            List of nodes with scores
+        """
+        pass
+    
+    def expand_node(self, node_id: str, direction: str = "children") -> list[dict]:
+        """
+        Expand node to children or parent.
+        
+        Args:
+            node_id: Node identifier
+            direction: "children" or "parent"
+            
+        Returns:
+            Connected nodes
+        """
+        pass
+    
+    def retrieve_with_expansion(self, query: str, k: int = 5,
+                                expansion_depth: int = 1) -> list[dict]:
+        """
+        Retrieve with hierarchical expansion.
+        
+        Args:
+            query: User query
+            k: Final number of results
+            expansion_depth: How many levels to expand
+            
+        Returns:
+            Expanded and ranked results
+        """
+        pass
+    
+    def multi_level_fusion(self, query: str, k_per_level: int = 3) -> list[dict]:
+        """
+        Fuse results from multiple levels.
+        
+        Args:
+            query: User query
+            k_per_level: Results per level
+            
+        Returns:
+            Combined and deduplicated results
+        """
+        pass
+```
 
-    # Search across all levels
-    results = index.search(query_embedding, k=k * 2)
+## Example
 
-    # Optionally: prefer certain levels based on query type
-    if is_high_level_query(query):
-        # Boost summary nodes
+```python
+# Setup
+retriever = RAPTORTreeRetriever(tree, embedder)
+
+# Automatic level selection
+query = "Summarize the main findings"
+level = retriever.select_level(query)
+print(f"Selected level: {level}")  # Likely 2 or 3 (higher levels)
+
+results = retriever.search_level(query, level, k=3)
+
+# Expansion: Get summary then drill down
+summary = results[0]
+children = retriever.expand_node(summary["id"], "children")
+print(f"Summary covers {len(children)} sub-topics")
+
+# Retrieve with automatic expansion
+query = "Tell me about revenue trends"
+results = retriever.retrieve_with_expansion(
+    query, 
+    k=5, 
+    expansion_depth=1  # Get matches + their children
+)
+
+# Multi-level fusion
+query = "What are the key risks and opportunities?"
+results = retriever.multi_level_fusion(query, k_per_level=2)
+# Combines high-level themes + specific details
+```
+
+## Algorithm Details
+
+### Level Selection
+
+```python
+def select_level(self, query: str) -> int:
+    """Select optimal level based on query characteristics."""
+    query_lower = query.lower()
+    
+    # Heuristic-based selection
+    broad_indicators = [
+        "summarize", "overview", "themes", "main", "key points",
+        "what are", "tell me about", "describe"
+    ]
+    
+    specific_indicators = [
+        "what was", "when did", "who", "how much", "specific",
+        "exactly", "detail", "number", "date"
+    ]
+    
+    broad_score = sum(1 for ind in broad_indicators if ind in query_lower)
+    specific_score = sum(1 for ind in specific_indicators if ind in query_lower)
+    
+    if broad_score > specific_score:
+        # Return middle-to-high level
+        return max(1, len(self.tree["levels"]) // 2)
+    else:
+        # Return leaf level
+        return 0
+```
+
+### Cross-Level Search
+
+```python
+def search_all_levels(self, query: str, k: int = 3) -> dict:
+    """Search across all levels and return best matches per level."""
+    query_embedding = self.embedder.encode([query])[0]
+    
+    level_results = {}
+    for level_num, nodes in self.tree["levels"].items():
+        embeddings = self.get_level_embeddings(level_num)
+        
+        # Calculate similarities
+        similarities = cosine_similarity([query_embedding], embeddings)[0]
+        
+        # Get top-k for this level
+        top_indices = np.argsort(similarities)[-k:][::-1]
+        
+        level_results[level_num] = [
+            {
+                "content": nodes[i],
+                "score": similarities[i],
+                "level": level_num,
+                "id": f"L{level_num}_N{i}"
+            }
+            for i in top_indices
+        ]
+    
+    return level_results
+```
+
+### Hierarchical Expansion
+
+```python
+def retrieve_with_expansion(self, query: str, k: int = 5,
+                            expansion_depth: int = 1) -> list[dict]:
+    """Retrieve and expand results hierarchically."""
+    # Start at selected level
+    start_level = self.select_level(query)
+    candidates = self.search_level(query, start_level, k=k*2)
+    
+    expanded = []
+    for node in candidates:
+        expanded.append(node)
+        
+        # Expand to children if we want more detail
+        if expansion_depth > 0 and start_level > 0:
+            children = self.expand_node(node["id"], "children")
+            for child in children[:3]:  # Limit expansion
+                child["parent_score"] = node["score"]
+                expanded.append(child)
+        
+        # Expand to parent if we want context
+        if expansion_depth > 0 and start_level < max(self.tree["levels"].keys()):
+            parent = self.expand_node(node["id"], "parent")
+            if parent:
+                parent[0]["child_score"] = node["score"]
+                expanded.append(parent[0])
+    
+    # Rerank combined results
+    return self.rerank(query, expanded, top_k=k)
+```
+
+### Multi-Level Fusion
+
+```python
+def multi_level_fusion(self, query: str, k_per_level: int = 3) -> list[dict]:
+    """Combine insights from multiple levels."""
+    all_results = []
+    
+    # Search each level
+    for level in self.tree["levels"].keys():
+        results = self.search_level(query, int(level), k=k_per_level)
+        
+        # Apply level weighting
+        weight = self.level_weights.get(level, 1.0)
         for r in results:
-            if "level_2" in r["level"] or "level_3" in r["level"]:
-                r["score"] *= 1.2
-
-    # Resort and return top k
-    results.sort(key=lambda x: x["score"], reverse=True)
-    return [r["text"] for r in results[:k]]
+            r["weighted_score"] = r["score"] * weight
+        
+        all_results.extend(results)
+    
+    # Deduplicate (same content may appear at multiple levels)
+    seen_content = set()
+    unique_results = []
+    for r in sorted(all_results, key=lambda x: x["weighted_score"], reverse=True):
+        content_hash = hash(r["content"][:100])  # First 100 chars
+        if content_hash not in seen_content:
+            seen_content.add(content_hash)
+            unique_results.append(r)
+    
+    return unique_results[:k_per_level * 2]
 ```
 
-## Full RAPTOR Pipeline
+## Navigation Strategies
+
+### Strategy 1: Top-Down (Summary → Details)
 
 ```python
-class RAPTORRetriever:
-    def __init__(self, llm, embedder, max_levels: int = 3, cluster_size: int = 5):
-        self.llm = llm
-        self.embedder = embedder
-        self.max_levels = max_levels
-        self.cluster_size = cluster_size
-        self.tree = None
-        self.index = None
-
-    def index_documents(self, documents: list[str]):
-        """Build RAPTOR tree and index."""
-        # Chunk documents
-        chunks = []
-        for doc in documents:
-            chunks.extend(chunk_text(doc, size=500, overlap=50))
-
-        # Build tree
-        self.tree = self._build_tree(chunks)
-
-        # Index all levels
-        self._build_index()
-
-    def _build_tree(self, chunks: list[str]) -> dict:
-        tree = {"level_0": chunks}
-        current = chunks
-
-        for level in range(1, self.max_levels + 1):
-            if len(current) <= self.cluster_size:
-                break
-
-            embeddings = self.embedder.encode(current)
-            n_clusters = max(2, len(current) // self.cluster_size)
-
-            kmeans = KMeans(n_clusters=n_clusters)
-            labels = kmeans.fit_predict(embeddings)
-
-            # Group by cluster
-            clusters = {}
-            for i, label in enumerate(labels):
-                clusters.setdefault(label, []).append(current[i])
-
-            # Summarize
-            summaries = []
-            for cluster_chunks in clusters.values():
-                summary = self._summarize(cluster_chunks)
-                summaries.append(summary)
-
-            tree[f"level_{level}"] = summaries
-            current = summaries
-
-        return tree
-
-    def _summarize(self, texts: list[str]) -> str:
-        combined = "\n---\n".join(texts)
-        return self.llm.generate(
-            f"Summarize these related passages:\n\n{combined}\n\nSummary:"
-        )
-
-    def _build_index(self):
-        all_docs = []
-        for level, texts in self.tree.items():
-            for text in texts:
-                all_docs.append({"text": text, "level": level})
-
-        embeddings = self.embedder.encode([d["text"] for d in all_docs])
-        self.index = create_vector_index(all_docs, embeddings)
-
-    def retrieve(self, query: str, k: int = 5) -> list[str]:
-        query_emb = self.embedder.encode([query])
-        results = self.index.search(query_emb, k=k)
-        return [r["text"] for r in results]
+def top_down_retrieval(self, query: str, k: int = 5) -> list[dict]:
+    """Start high, drill down to relevant branches."""
+    # Start at root level
+    current_level = max(self.tree["levels"].keys())
+    candidates = self.search_level(query, current_level, k=3)
+    
+    results = []
+    for node in candidates:
+        if node["score"] > 0.8:  # High confidence
+            # Drill down
+            children = self.expand_node(node["id"], "children")
+            child_matches = self.search_in_nodes(query, children, k=2)
+            results.extend(child_matches)
+        else:
+            results.append(node)
+    
+    return results[:k]
 ```
 
-## RAPTOR vs Other Hierarchical Approaches
-
-| Approach     | Summary Strategy  | When Created  | Flexibility     |
-| ------------ | ----------------- | ------------- | --------------- |
-| RAPTOR       | Cluster + LLM     | Indexing time | Fixed tree      |
-| Parent-Child | None (use parent) | Indexing time | Fixed hierarchy |
-| Map-Reduce   | LLM summary       | Query time    | Flexible        |
-| GraphRAG     | Community summary | Indexing time | Graph structure |
-
-## Cost Analysis
-
-RAPTOR requires LLM calls at indexing time:
-
-| Corpus      | Chunks  | ~Clusters      | ~Summaries | Cost  |
-| ----------- | ------- | -------------- | ---------- | ----- |
-| 1K chunks   | 1,000   | 200 + 40 + 8   | 248        | ~$5   |
-| 10K chunks  | 10,000  | 2K + 400 + 80  | 2,480      | ~$50  |
-| 100K chunks | 100,000 | 20K + 4K + 800 | 24,800     | ~$500 |
-
-**Trade-off**: High upfront cost, but enables high-level queries at no extra per-query cost.
-
-## Benefits
-
-1. **Handles multi-scale queries**: Detail and summary in same index
-2. **Reduces "lost in the middle"**: Summaries capture key info
-3. **Improves global questions**: "What are the main themes?"
-4. **Pre-computed summaries**: No query-time summarization needed
-
-## Limitations
-
-1. **Indexing cost**: LLM calls for summaries
-2. **Static tree**: Doesn't update easily
-3. **Quality depends on**: Clustering and summarization quality
-4. **Storage**: More nodes to store
-
-## When to Use RAPTOR
-
-**Use RAPTOR when:**
-
-- You need to answer both detail and high-level questions
-- Corpus is relatively static
-- You can afford indexing-time LLM costs
-- GraphRAG is overkill (no need for entity extraction)
-
-**Skip RAPTOR when:**
-
-- All queries are detail-focused
-- Corpus updates frequently
-- Budget is very limited
-- Simple parent-child retrieval suffices
-
-## Integration with Hybrid Retrieval
+### Strategy 2: Bottom-Up (Details → Context)
 
 ```python
-def raptor_hybrid_retrieve(query: str, k: int = 10):
-    # RAPTOR for semantic matching across levels
-    raptor_results = raptor_retriever.retrieve(query, k=k)
-
-    # BM25 for lexical matching (leaves only)
-    bm25_results = bm25_search(query, corpus=tree["level_0"], k=k)
-
-    # Combine with RRF
-    combined = rrf_fusion([raptor_results, bm25_results])
-
-    # Rerank
-    return rerank(query, combined, top_k=k)
+def bottom_up_retrieval(self, query: str, k: int = 5) -> list[dict]:
+    """Start at leaves, add parent context."""
+    # Search leaves
+    leaf_results = self.search_level(query, 0, k=k)
+    
+    results = []
+    for node in leaf_results:
+        # Add parent for context
+        parent = self.expand_node(node["id"], "parent")
+        if parent:
+            results.append({
+                "content": f"Context: {parent[0]['content']}\n\nDetail: {node['content']}",
+                "score": node["score"],
+                "sources": [parent[0]["id"], node["id"]]
+            })
+        else:
+            results.append(node)
+    
+    return results
 ```
 
-## Production Checklist
+## Evaluation Criteria
 
-- [ ] Tune cluster size for your domain
-- [ ] Test different summarization prompts
-- [ ] Benchmark query latency
-- [ ] Monitor summary quality
-- [ ] Plan for corpus updates (rebuild strategy)
-- [ ] Consider hybrid with BM25
+1. **Level Selection Accuracy**: Chooses appropriate level for query type
+2. **Retrieval Quality**: Returns relevant nodes
+3. **Expansion Utility**: Children/parents add value
+4. **Efficiency**: Reasonable query time
 
+## Test Cases
+
+```python
+def test_level_selection():
+    """Test level selection heuristics."""
+    retriever = RAPTORTreeRetriever(tree, embedder)
+    
+    # Broad query → higher level
+    assert retriever.select_level("Summarize the report") >= 1
+    
+    # Specific query → leaves
+    assert retriever.select_level("What was Q3 revenue?") == 0
+
+def test_expansion():
+    """Test hierarchical expansion."""
+    results = retriever.retrieve_with_expansion(
+        "financial performance", 
+        k=3, 
+        expansion_depth=1
+    )
+    
+    # Should have results from multiple levels
+    levels = set(r["level"] for r in results)
+    assert len(levels) >= 1
+
+def test_fusion():
+    """Test multi-level fusion."""
+    results = retriever.multi_level_fusion("key findings", k_per_level=2)
+    
+    # Should combine from multiple levels
+    assert len(results) > 0
+    assert all("weighted_score" in r for r in results)
+```
+
+## Comparison: Retrieval Strategies
+
+| Strategy | Best For | Latency | Coverage |
+|----------|----------|---------|----------|
+| Single Level | Known granularity | Low | Limited |
+| Top-Down | Broad → Specific | Medium | Good |
+| Bottom-Up | Specific + Context | Medium | Good |
+| Multi-Level Fusion | Complex queries | Higher | Best |
+
+## Production Considerations
+
+1. **Index per level**: Build separate vector index for each level
+2. **Lazy expansion**: Only expand high-confidence nodes
+3. **Caching**: Cache level selection decisions
+4. **Feedback loop**: Learn optimal levels from user clicks
+
+## Further Reading
+
+- [RAPTOR Paper](https://arxiv.org/abs/2401.18059)
+- [Hierarchical Retrieval Survey](https://arxiv.org/abs/2210.02666)
+- [LangChain RAPTOR Integration](https://blog.langchain.dev/)

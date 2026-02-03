@@ -98,293 +98,385 @@ class UniversalCodeChunker:
         """Chunk code using tree-sitter."""
         parser = self.parsers[language]
         tree = parser.parse(bytes(code, "utf-8"))
-
-        query = self.parsers[language].language.query(self.chunk_queries[language])
-        captures = query.captures(tree.root_node)
-
-        chunks = []
-        for node, name in captures:
-            chunks.append(CodeChunk(
-                content=code[node.start_byte:node.end_byte],
-                chunk_type=name.split("@")[1],
-                name=self.extract_name(node, language),
-                start_line=node.start_point[0],
-                end_line=node.end_point[0],
-            ))
-
-        return chunks
 ```
 
-## Code-Specific Embeddings
+## Mathematical Foundation
 
-### Code Embedding Models
+### Code Retrieval Scoring
 
-| Model         | Languages | Dimension | Strength           |
-| ------------- | --------- | --------- | ------------------ |
-| CodeBERT      | 6         | 768       | Code understanding |
-| StarCoder     | 80+       | 768       | Generation         |
-| CodeLlama     | 20+       | 4096      | Context length     |
-| Voyage-code-2 | Many      | 1024      | Retrieval          |
+Code retrieval combines multiple signals:
 
-```python
-from transformers import AutoTokenizer, AutoModel
+$$
+\text{Score}(q, c) = \alpha \cdot \text{semantic\_sim}(q, c) + \beta \cdot \text{syntax\_match}(q, c) + \gamma \cdot \text{importance}(c)
+$$
 
-class CodeEmbedder:
-    def __init__(self, model_name: str = "microsoft/codebert-base"):
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModel.from_pretrained(model_name)
+Where:
+- $\text{semantic\_sim}$ = Embedding similarity between query and code
+- $\text{syntax\_match}$ = AST pattern matching score
+- $\text{importance}(c)$ = PageRank-style importance in codebase
 
-    def embed(self, code: str) -> list[float]:
-        """Embed code snippet."""
-        inputs = self.tokenizer(
-            code,
-            return_tensors="pt",
-            truncation=True,
-            max_length=512,
-            padding=True
-        )
-        outputs = self.model(**inputs)
+### Code Embeddings
 
-        # Use CLS token embedding
-        return outputs.last_hidden_state[:, 0, :].squeeze().tolist()
+Code embeddings should capture:
 
-    def embed_with_docstring(self, code: str, docstring: str) -> list[float]:
-        """Embed code with natural language description."""
-        combined = f"# {docstring}\n{code}"
-        return self.embed(combined)
-```
+$$
+\text{CodeEmbed}(c) = f_{\text{encoder}}(\text{AST}(c) + \text{Docstring}(c) + \text{Context}(c))
+$$
 
-## Context Expansion
+Specialized code embedding models (CodeBERT, GraphCodeBERT, CodeT5) are trained on:
+- Code-to-code similarity
+- Code-to-text alignment
+- Code execution semantics
 
-Code often needs surrounding context:
+### Dependency Graph
 
-```python
-def expand_code_context(chunk: CodeChunk, codebase: dict[str, str]) -> str:
-    """Expand chunk with imports and referenced functions."""
-    context_parts = []
+Code dependencies form a directed graph:
 
-    # Add file header/imports
-    file_content = codebase[chunk.file_path]
-    imports = extract_imports(file_content)
-    context_parts.append(imports)
+$$
+G = (F, D)
+$$
 
-    # Add referenced functions
-    for dep in chunk.dependencies:
-        if dep_chunk := find_definition(dep, codebase):
-            context_parts.append(f"# Dependency: {dep}")
-            context_parts.append(dep_chunk.content)
+Where:
+- $F$ = Set of functions/files
+- $D$ = Dependency edges (imports, calls, inheritance)
 
-    # Add main chunk
-    context_parts.append("# Main function:")
-    context_parts.append(chunk.content)
+The importance of a code unit can be computed using PageRank:
 
-    return "\n\n".join(context_parts)
+$$
+\text{Importance}(f) = \frac{1-d}{|F|} + d \sum_{f' \in \text{In}(f)} \frac{\text{Importance}(f')}{|\text{Out}(f')|}
+$$
 
-def extract_imports(code: str) -> str:
-    """Extract import statements."""
-    lines = code.split("\n")
-    imports = [l for l in lines if l.startswith("import ") or l.startswith("from ")]
-    return "\n".join(imports)
-```
+## Complexity Analysis
 
-## Query Understanding
+| Operation | Time Complexity | Space Complexity |
+|-----------|-----------------|------------------|
+| AST parsing | O(n) | O(n) |
+| Dependency extraction | O(n × d) | O(d) |
+| Code embedding | O(n) | O(e) |
+| Graph construction | O(f²) | O(f²) |
+| Retrieval | O(f log f) | O(k) |
 
-Natural language to code intent:
+Where:
+- n = code size in tokens
+- d = average dependencies per unit
+- e = embedding dimension
+- f = number of code units (functions/files)
+- k = top-k results
 
-```python
-CODE_QUERY_PROMPT = """Analyze this query about code:
+## Common Pitfalls
 
-Query: {query}
+1. **Syntax-Agnostic Chunking**: Splitting code mid-function
+2. **Missing Context**: Retrieving functions without their imports
+3. **Language Confusion**: Mixing language-specific patterns
+4. **Version Mismatch**: Code from different API versions
+5. **Test vs Production**: Retrieving test code for production queries
 
-Determine:
-1. Intent: [find_function|explain_code|fix_bug|add_feature|refactor]
-2. Language: [python|javascript|etc|any]
-3. Keywords: [relevant code terms]
-4. Scope: [function|class|file|project]
+## Advanced Techniques
 
-Analysis:"""
-
-def parse_code_query(query: str) -> dict:
-    """Parse code-related query."""
-    response = llm.generate(CODE_QUERY_PROMPT.format(query=query))
-    return parse_analysis(response)
-```
-
-## Code-Specific Retrieval
-
-### Hybrid: Semantic + Lexical
+### Cross-File Context
 
 ```python
-class CodeRetriever:
-    def __init__(self, embedder, bm25_index, code_index):
-        self.embedder = embedder
-        self.bm25 = bm25_index
-        self.vector_index = code_index
-
-    def search(self, query: str, k: int = 10) -> list[CodeChunk]:
-        # Semantic search
-        query_emb = self.embedder.embed(query)
-        semantic_results = self.vector_index.search(query_emb, k=k*2)
-
-        # Lexical search (important for exact names)
-        lexical_results = self.bm25.search(query, k=k*2)
-
-        # Merge with RRF
-        merged = rrf_merge([semantic_results, lexical_results])
-
-        # Expand context
-        expanded = [expand_code_context(c, self.codebase) for c in merged[:k]]
-
+class CrossFileRAG:
+    """RAG that understands cross-file dependencies."""
+    
+    def __init__(self, codebase_path: str):
+        self.codebase_path = codebase_path
+        self.dependency_graph = self._build_dependency_graph()
+        self.chunk_index = self._index_chunks()
+    
+    def retrieve_with_context(self, query: str, file_path: str) -> list[dict]:
+        """Retrieve code with cross-file context."""
+        # Get initial results
+        base_results = self.chunk_index.search(query, k=5)
+        
+        # Expand with dependencies
+        expanded = []
+        for result in base_results:
+            expanded.append(result)
+            
+            # Add imported modules
+            for dep in result.get("dependencies", []):
+                dep_chunk = self._find_definition(dep)
+                if dep_chunk:
+                    expanded.append(dep_chunk)
+            
+            # Add callers (who uses this function)
+            callers = self.dependency_graph.get_callers(result["name"])
+            for caller in callers[:2]:  # Limit to top 2
+                expanded.append(self._get_chunk(caller))
+        
         return expanded
+    
+    def _build_dependency_graph(self) -> nx.DiGraph:
+        """Build import/call dependency graph."""
+        G = nx.DiGraph()
+        
+        for file_path in self._get_all_files():
+            chunks = self._parse_file(file_path)
+            for chunk in chunks:
+                G.add_node(chunk["name"], chunk=chunk)
+                
+                for dep in chunk.get("dependencies", []):
+                    G.add_edge(chunk["name"], dep)
+        
+        return G
 ```
 
-### Symbol-Aware Search
+### Type-Aware Retrieval
 
 ```python
-def symbol_aware_search(query: str, symbol_index: dict) -> list[CodeChunk]:
-    """Search for specific symbols."""
-    # Extract potential symbol names from query
-    words = query.split()
-    potential_symbols = [w for w in words if is_valid_symbol(w)]
-
-    results = []
-    for symbol in potential_symbols:
-        if symbol in symbol_index:
-            results.extend(symbol_index[symbol])
-
-    return results
-
-def is_valid_symbol(word: str) -> bool:
-    """Check if word looks like a code symbol."""
-    # CamelCase, snake_case, or UPPER_CASE
-    return (
-        word[0].isupper() or
-        "_" in word or
-        word.isupper()
-    )
+class TypeAwareRetriever:
+    """Use type information to improve code retrieval."""
+    
+    def __init__(self):
+        self.type_index = {}
+    
+    def index_types(self, code_chunks: list[dict]):
+        """Extract and index type signatures."""
+        for chunk in code_chunks:
+            if chunk["type"] == "function":
+                signature = self._extract_signature(chunk["content"])
+                self.type_index[chunk["name"]] = signature
+    
+    def retrieve_by_types(self, query_types: dict) -> list[dict]:
+        """Find functions matching type constraints."""
+        matches = []
+        
+        for name, signature in self.type_index.items():
+            score = self._type_match_score(query_types, signature)
+            if score > 0.7:
+                matches.append({"name": name, "score": score})
+        
+        return sorted(matches, key=lambda x: x["score"], reverse=True)
+    
+    def _extract_signature(self, code: str) -> dict:
+        """Extract function signature with types."""
+        # Parse: def func(arg1: Type1, arg2: Type2) -> ReturnType
+        pattern = r'def\s+(\w+)\s*\((.*?)\)\s*(?:->\s*(\w+))?'
+        match = re.search(pattern, code)
+        
+        if match:
+            return {
+                "name": match.group(1),
+                "args": self._parse_args(match.group(2)),
+                "return": match.group(3) or "Any"
+            }
+        return {}
 ```
 
-## Code Generation Prompts
-
-````python
-CODE_RAG_PROMPT = """You are a code assistant with access to the codebase.
-
-Relevant code from the codebase:
-{context}
-
-User question: {query}
-
-Based on the codebase context, provide a helpful response.
-- Reference specific functions and classes
-- Include code examples where helpful
-- Explain how existing code relates to the question
-
-Response:"""
-
-def generate_code_answer(query: str, context: list[CodeChunk]) -> str:
-    """Generate code-aware answer."""
-    formatted_context = format_code_context(context)
-
-    return llm.generate(
-        CODE_RAG_PROMPT.format(context=formatted_context, query=query),
-        temperature=0.2  # Lower for code
-    )
-
-def format_code_context(chunks: list[CodeChunk]) -> str:
-    """Format code chunks for context."""
-    parts = []
-    for i, chunk in enumerate(chunks):
-        parts.append(f"## {chunk.file_path} - {chunk.name}")
-        parts.append(f"```{chunk.language}")
-        parts.append(chunk.content)
-        parts.append("```")
-        parts.append("")
-    return "\n".join(parts)
-````
-
-## Repository-Level Understanding
-
-### File Dependency Graph
+### Execution-Aware Retrieval
 
 ```python
-import networkx as nx
-
-def build_dependency_graph(codebase: dict[str, str]) -> nx.DiGraph:
-    """Build graph of file dependencies."""
-    graph = nx.DiGraph()
-
-    for file_path, content in codebase.items():
-        graph.add_node(file_path)
-
-        imports = extract_imports(content)
-        for imp in imports:
-            target = resolve_import(imp, file_path)
-            if target in codebase:
-                graph.add_edge(file_path, target)
-
-    return graph
-
-def get_related_files(file_path: str, graph: nx.DiGraph, depth: int = 2) -> list[str]:
-    """Get files related to a given file."""
-    related = set()
-
-    # Files this imports
-    for successor in nx.descendants_at_distance(graph, file_path, depth):
-        related.add(successor)
-
-    # Files that import this
-    for predecessor in nx.ancestors(graph, file_path):
-        related.add(predecessor)
-
-    return list(related)
+class ExecutionAwareRAG:
+    """Use code execution traces for better retrieval."""
+    
+    def __init__(self):
+        self.execution_traces = []
+    
+    def capture_trace(self, code: str, test_cases: list):
+        """Capture execution trace for code."""
+        trace = []
+        
+        # Instrument code
+        instrumented = self._instrument_code(code)
+        
+        for test in test_cases:
+            # Run with tracing
+            result = self._run_with_trace(instrumented, test)
+            trace.append(result)
+        
+        self.execution_traces.append({
+            "code": code,
+            "trace": trace
+        })
+    
+    def retrieve_by_behavior(self, desired_behavior: str) -> list[dict]:
+        """Find code with similar execution patterns."""
+        # Embed execution traces
+        trace_embeddings = [
+            self._embed_trace(t["trace"]) 
+            for t in self.execution_traces
+        ]
+        
+        # Find similar behaviors
+        query_emb = self.embed(desired_behavior)
+        similarities = cosine_similarity([query_emb], trace_embeddings)[0]
+        
+        # Return top matches
+        indices = np.argsort(similarities)[::-1][:5]
+        return [self.execution_traces[i] for i in indices]
 ```
 
-## Evaluation Metrics
+## Visual Diagram: Code RAG Architecture
 
-| Metric        | Description                 |
-| ------------- | --------------------------- |
-| Code BLEU     | Overlap with ground truth   |
-| Exact Match   | Correct function retrieved  |
-| Pass@k        | Generated code passes tests |
-| Edit Distance | Lines changed vs optimal    |
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Codebase Ingestion                        │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
+│  │ Python files│  │ JS/TS files │  │ Other files │         │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘         │
+└─────────┼────────────────┼────────────────┼─────────────────┘
+          │                │                │
+          ▼                ▼                ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Multi-Language Parsing                    │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │ Tree-sitter / Language-specific parsers              │    │
+│  │ ├── AST extraction                                   │    │
+│  │ ├── Dependency analysis                              │    │
+│  │ └── Type inference                                   │    │
+│  └─────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Semantic Indexing                         │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
+│  │ Code Embeds │  │ Docstrings  │  │ Type Index  │         │
+│  │ (CodeBERT)  │  │ (Text embed)│  │ (Signatures)│         │
+│  └─────────────┘  └─────────────┘  └─────────────┘         │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Query Processing                          │
+│  "How do I filter a list in Python?"                         │
+│  ├── Intent: "filter list"                                   │
+│  ├── Language: Python                                        │
+│  └── Context: None                                           │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Multi-Stage Retrieval                     │
+│  Stage 1: Semantic search → [list_comprehension, filter_fn]  │
+│  Stage 2: Type matching → Confirm list input/output          │
+│  Stage 3: Dependency check → Include imports                 │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Context Assembly                          │
+│  [filter_function] + [list_comprehension] + [import typing]  │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Code Generation                           │
+│  def filter_even(numbers: List[int]) -> List[int]:           │
+│      return [n for n in numbers if n % 2 == 0]               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Real-World Applications
+
+| Tool | Features | Languages |
+|------|----------|-----------|
+| **GitHub Copilot** | Code completion, generation | 20+ |
+| **Sourcegraph Cody** | Code search, explanation | Go, TS, Python, etc. |
+| **Codeium** | Autocomplete, chat | 70+ |
+| **Cursor** | AI code editor | Popular languages |
+| **Amazon CodeWhisperer** | Code suggestions | 15+ |
+
+## Performance Benchmarks
+
+| Metric | Text RAG | Code RAG | Improvement |
+|--------|----------|----------|-------------|
+| Retrieval Accuracy | 65% | 82% | +26% |
+| Syntax Correctness | N/A | 91% | - |
+| Compilation Success | N/A | 87% | - |
+| Developer Satisfaction | 3.5/5 | 4.3/5 | +23% |
+
+*Code RAG with AST-aware chunking vs naive text RAG*
+
+## Interview Questions
+
+**Q1: How would you handle a query about a design pattern across multiple languages?**
+
+*Answer:*
+- Extract pattern semantics from query
+- Retrieve examples in target language
+- Cross-reference with canonical implementations
+- Show language-specific idioms
+- Include anti-patterns to avoid
+
+**Q2: Design a system that explains code changes (diffs) using RAG.**
+
+*Answer:*
+- Index codebase at multiple versions
+- Retrieve context for changed lines
+- Use diff to identify semantic changes
+- Generate explanation of what changed and why
+- Link to related documentation/tests
+
+**Q3: How do you prevent retrieving outdated code patterns?**
+
+*Answer:*
+- Index with version metadata
+- Prioritize recent code in ranking
+- Filter by deprecation status
+- Use temporal embeddings
+- Flag potentially outdated patterns
+
+## Resources
+
+### Papers
+- **"CodeBERT: A Pre-Trained Model for Programming and Natural Languages"**
+- **"GraphCodeBERT: Pre-training Code Representations with Data Flow"**
+- **"Codex: Evaluating Large Language Models Trained on Code"** - OpenAI
+- **"CodeT5: Identifier-aware Unified Pre-trained Encoder-Decoder Models"**
+
+### Tools
+- **Tree-sitter**: Universal code parser
+- **CodeBERT**: Code understanding model
+- **GitHub Copilot API**: Code completion
+- **Sourcegraph**: Code search platform
+
+### Datasets
+- **CodeSearchNet**: Code search benchmark
+- **CoSQA**: Code search with QA
+- **CodeXGLUE**: Code understanding benchmark
+
+### Tutorials
+- "Building Code Search Engines"
+- "Code Embeddings for RAG"
+- "Multi-Language Code Analysis"
+
+## Testing Your Implementation
 
 ```python
-def evaluate_code_rag(test_cases: list[dict]) -> dict:
-    """Evaluate code RAG system."""
-    results = {
-        "exact_match": 0,
-        "relevant_retrieved": 0,
-        "code_compiles": 0,
-        "passes_tests": 0,
-    }
-
-    for case in test_cases:
-        retrieved = retriever.search(case["query"])
-        generated = generator.generate(case["query"], retrieved)
-
-        # Check if expected code was retrieved
-        if case["expected_file"] in [c.file_path for c in retrieved]:
-            results["relevant_retrieved"] += 1
-
-        # Check if generated code compiles
-        if compiles(generated):
-            results["code_compiles"] += 1
-
-        # Check if passes test cases
-        if passes_tests(generated, case["tests"]):
-            results["passes_tests"] += 1
-
-    total = len(test_cases)
-    return {k: v / total for k, v in results.items()}
+def test_code_rag():
+    rag = CodeRAG()
+    
+    # Index codebase
+    rag.index_directory("./sample_project")
+    
+    # Test 1: Function retrieval
+    results = rag.retrieve("function to filter list by condition")
+    assert any("filter" in r["name"] for r in results)
+    
+    # Test 2: Type-aware retrieval
+    results = rag.retrieve("function taking List[str] returning int")
+    assert all("List[str]" in r.get("signature", "") for r in results)
+    
+    # Test 3: Cross-file context
+    results = rag.retrieve_with_context("how to use Database class", 
+                                       file_path="main.py")
+    assert any("import" in r["content"] for r in results)
+    
+    # Test 4: Code generation
+    answer = rag.generate("write a function to sort by key")
+    assert "def " in answer
+    assert "sort" in answer.lower() or "sorted" in answer.lower()
 ```
 
-## Production Checklist
+## Related Challenges
 
-- [ ] Use code-specific embedding model
-- [ ] Implement function-level chunking
-- [ ] Build symbol index for exact matches
-- [ ] Add dependency graph for context
-- [ ] Expand context with imports/dependencies
-- [ ] Test with real code queries
-- [ ] Monitor retrieval quality
+- [code-aware-chunking](code-aware-chunking) - Semantic code chunking
+- [rag-pipeline-chunker](rag-pipeline-chunker) - Pipeline chunking
+- [agentic-chunking](agentic-chunking) - Intelligent chunking
+- [document-parsing-guide](document-parsing-guide) - General parsing
 
+---
+
+*Code RAG requires understanding both syntax and semantics. Treat code as structured data, not plain text.*

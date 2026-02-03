@@ -1,23 +1,215 @@
+---
+title: "BM25 Scoring (TypeScript)"
+description: "Implement BM25 scoring — the best classical text retrieval algorithm."
+language: "typescript"
+difficulty: "intermediate"
+category: "retrieval"
+prerequisites: ["ts-inverted-index", "ts-token-counter"]
+related: ["bm25-from-scratch", "ts-rrf-fusion", "ts-sparse-embedding"]
+tags: ["bm25", "tf-idf", "keyword-search", "lexical-retrieval"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Implement BM25 scoring — the best classical text retrieval algorithm.
+  Implement BM25 scoring — the best classical text retrieval algorithm that powers Elasticsearch and Lucene.
 </Callout>
 
-## Why this matters in production
+## Why BM25 Matters in Production
 
-BM25 powers Elasticsearch, Lucene, and most traditional search. In hybrid RAG systems, BM25 handles exact keyword matching where dense embeddings fail (like product codes or technical terms).
+BM25 powers Elasticsearch, Lucene, and most traditional search. In hybrid RAG systems, BM25 handles exact keyword matching where dense embeddings fail (like product codes or technical terms). It's the "S" in "semantic + lexical = hybrid search."
 
-## What you're implementing
+### Real-World Scenario
 
-- Compute IDF (inverse document frequency) for query terms.
-- Compute length-normalized term frequency.
-- Apply the BM25 formula with k1 and b parameters.
+Consider searching for "USB-C cable 2m" in a product catalog:
 
-## Common pitfalls
+- **Dense embeddings**: Might match "HDMI cable" (similar concept) but miss exact specs
+- **BM25**: Matches exact terms "USB-C", "cable", "2m" with precise scoring
+- **Hybrid (BM25 + Dense)**: Best of both worlds
 
-- Forgetting the `+1` in IDF to avoid negative scores.
-- Not normalizing by document length.
+BM25 is particularly strong for:
+- Product codes (SKU-12345-X)
+- Technical terms ("Kubernetes", "GraphQL")
+- Named entities ("OpenAI", "TensorFlow")
+- Acronyms ("RAG", "API", "SDK")
 
-## After you pass
+## The Mathematical Foundation
 
-Combine dense and sparse results with **RRF Fusion (TypeScript)**.
+### The BM25 Formula
 
+For a query term $t$ in document $D$:
+
+$$\text{BM25}(t, D) = \text{IDF}(t) \cdot \frac{f(t, D) \cdot (k_1 + 1)}{f(t, D) + k_1 \cdot (1 - b + b \cdot \frac{|D|}{\text{avgdl}})}$$
+
+Where:
+- $f(t, D)$ = term frequency in document
+- $|D|$ = document length
+- $\text{avgdl}$ = average document length
+- $k_1$ = term saturation parameter (typically 1.2-2.0)
+- $b$ = length normalization parameter (typically 0.75)
+
+### IDF (Inverse Document Frequency)
+
+$$\text{IDF}(t) = \ln\left(\frac{N - n(t) + 0.5}{n(t) + 0.5} + 1\right)$$
+
+Where:
+- $N$ = total number of documents
+- $n(t)$ = number of documents containing term $t$
+
+The `+1` prevents negative IDF for terms appearing in >50% of docs.
+
+### Parameter Tuning
+
+| Parameter | Effect | Typical Value |
+|-----------|--------|---------------|
+| **k₁** | Term frequency saturation | 1.2 - 2.0 |
+| **b** | Length normalization | 0.75 |
+
+- Higher k₁ = more emphasis on term frequency
+- Higher b = more aggressive length normalization
+
+## Theoretical Deep Dive
+
+### BM25 vs TF-IDF
+
+BM25 improves upon TF-IDF in two key ways:
+
+1. **Term frequency saturation**: Repeated terms have diminishing returns
+   ```
+   TF-IDF: score ∝ term_count
+   BM25: score ∝ term_count / (term_count + constant)
+   ```
+
+2. **Length normalization**: Longer documents don't automatically score higher
+
+### Probabilistic Foundation
+
+BM25 is derived from probabilistic retrieval theory:
+
+- **Binary Independence Model**: Terms are independent binary variables
+- **2-Poisson Model**: Term frequency follows a mixture of Poisson distributions
+- **RSJ Weight**: Robertson/Sparck Jones relevance weighting
+
+### Saturation Effect
+
+BM25's key insight: the 10th occurrence of a term is less informative than the 1st.
+
+```
+Term Frequency:  1   2   3   5   10   20
+TF-IDF Score:    1   2   3   5   10   20  (linear)
+BM25 Score:      1  1.5 1.8 2.1 2.4  2.5  (saturating)
+```
+
+## Production Considerations
+
+### Precomputed Statistics
+
+For efficiency, precompute and store:
+- Document count (N)
+- Document frequencies per term (n(t))
+- Average document length (avgdl)
+- Individual document lengths
+
+### Query Processing Pipeline
+
+```
+Query → Tokenize → Remove stopwords → Stem/Lemmatize → BM25 Score → Rank
+```
+
+### BM25 Variants
+
+| Variant | Difference | Use Case |
+|---------|-----------|----------|
+| **BM25+** | Lower bound on IDF | Short documents |
+| **BM25-ATF** | Adjusted term frequency | Very long documents |
+| **BM25F** | Field-aware | Structured documents |
+
+## Your Task
+
+Implement BM25 scoring:
+
+```typescript
+interface Document {
+  id: string;
+  text: string;
+  length: number;
+}
+
+interface CorpusStats {
+  totalDocs: number;
+  avgDocLength: number;
+  docFreq: Map<string, number>;  // term → document frequency
+}
+
+interface BM25Config {
+  k1: number;  // Term frequency saturation (default: 1.5)
+  b: number;   // Length normalization (default: 0.75)
+}
+
+function computeBM25(
+  query: string,
+  document: Document,
+  corpusStats: CorpusStats,
+  config?: Partial<BM25Config>
+): number {
+  /**
+   * Compute BM25 score for a query-document pair.
+   * 
+   * Args:
+   *   query: Search query string
+   *   document: Document to score
+   *   corpusStats: Precomputed corpus statistics
+   *   config: Optional BM25 parameters
+   * 
+   * Returns:
+   *   BM25 score (higher = more relevant)
+   * 
+   * Edge Cases:
+   *   - Empty query: return 0
+   *   - Term not in corpus: IDF = 0 (no contribution)
+   *   - Document length = 0: handle gracefully
+   */
+}
+
+function computeIDF(
+  term: string,
+  corpusStats: CorpusStats
+): number {
+  /**
+   * Compute IDF for a single term.
+   * Use the BM25 IDF formula with +1 smoothing.
+   */
+}
+```
+
+### Validation Checklist
+
+- [ ] Empty query returns 0
+- [ ] IDF uses correct formula with +1 smoothing
+- [ ] Term frequency saturates (not linear)
+- [ ] Length normalization applied correctly
+- [ ] Multiple query terms summed correctly
+- [ ] Handles terms not in corpus (IDF = 0)
+
+## Common Pitfalls
+
+- **Forgetting the `+1` in IDF**: Causes negative scores for common terms
+- **Not normalizing by document length**: Long documents unfairly advantage
+- **Case sensitivity**: "Apple" ≠ "apple" without normalization
+- **Integer overflow**: Use floating-point for intermediate calculations
+
+## After You Pass
+
+Combine dense and sparse results with **RRF Fusion (TypeScript)** to build a complete hybrid search system.
+
+## Resources
+
+### Academic Papers
+- ["Okapi at TREC-3"](https://trec.nist.gov/pubs/trec3/papers/city.ps.gz) - Robertson et al. (Original BM25)
+- ["The Probabilistic Relevance Framework: BM25 and Beyond"](https://www.staff.city.ac.uk/~sb317/papers/foundations_bm25_review.pdf) - Stephen Robertson & Hugo Zaragoza
+
+### Documentation
+- [Elasticsearch BM25](https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-similarity.html) - Default similarity
+- [Lucene BM25Similarity](https://lucene.apache.org/core/9_0_0/core/org/apache/lucene/search/similarities/BM25Similarity.html) - Java implementation
+
+### Tutorials
+- ["BM25: The Next Generation of Lucene Relevance"](https://www.elastic.co/blog/practical-bm25-part-2-the-bm25-algorithm-and-its-variables) - Elastic blog series
+- ["Understanding TF-IDF and BM25"](https://www.youtube.com/watch?v=ruBm9WywevM) - Video explanation

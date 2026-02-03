@@ -1,0 +1,531 @@
+---
+title: "SPLADE: Learned Sparse Retrieval"
+description: "Implement SPLADE for learned sparse embeddings that combine the efficiency of lexical search with the semantic power of dense retrieval"
+difficulty: "hard"
+xpReward: 200
+prerequisites: ["sparse-vector-bow", "bm25-from-scratch"]
+---
+
+# SPLADE: Learned Sparse Retrieval
+
+<Callout title="Goal" variant="info">
+  Implement SPLADE for learned sparse embeddings that combine the efficiency of lexical search with the semantic power of dense retrieval.
+</Callout>
+
+## The Sparse vs. Dense Dilemma
+
+Traditional retrieval faces a fundamental tradeoff:
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| **Lexical (BM25)** | Exact matching, interpretable, efficient | Misses semantic variations |
+| **Dense** | Semantic understanding, captures meaning | Requires large vectors, expensive |
+
+**SPLADE** (Sparse Lexical and Expansion Model) bridges this gap by learning sparse representations that expand documents with relevant terms.
+
+## What is SPLADE?
+
+SPLADE is a neural retrieval model that:
+1. **Learns term importance** from BERT representations
+2. **Expands documents** with predicted relevant terms
+3. **Produces sparse vectors** that can be efficiently indexed
+4. **Matches semantically** without exact term overlap
+
+### Key Innovation
+
+Instead of using raw term frequencies, SPLADE learns which terms are important and which related terms should be included:
+
+```
+Document: "The cat sat on the mat"
+
+Traditional BoW: {cat: 1, sat: 1, mat: 1}
+
+SPLADE: {cat: 0.9, feline: 0.7, sat: 0.8, sat_on: 0.6, mat: 0.85, rug: 0.5, ...}
+```
+
+## Why This Matters
+
+- **Efficiency**: Sparse vectors enable fast inverted index retrieval
+- **Effectiveness**: Matches or exceeds dense retrieval on many benchmarks
+- **Interpretability**: Can see which terms contribute to matching
+- **Scalability**: Billions of documents with sub-100ms latency
+
+## Real-World Applications
+
+**Companies:** Naver, Microsoft, Amazon
+**Use Cases:**
+- Web search at scale
+- Enterprise document search
+- E-commerce product search
+- Legal/healthcare document retrieval
+
+## Key Concepts
+
+### Term Expansion
+
+SPLADE expands documents by predicting which terms in the vocabulary are relevant:
+
+```python
+# Document encoder output
+logits = bert(document_tokens)  # [seq_len, vocab_size]
+
+# Max pooling over sequence
+importance = logits.max(dim=0)  # [vocab_size]
+
+# Apply ReLU + log(1 + x) for sparsity
+weights = torch.log(1 + torch.relu(importance))
+
+# Keep top-k terms
+sparse_vector = topk(weights, k=256)
+```
+
+### Query Expansion
+
+Same process for queries, but typically with fewer terms:
+
+```python
+# Query typically uses fewer expansion terms
+query_vector = splade_encode(query, max_terms=32)
+doc_vector = splade_encode(document, max_terms=256)
+```
+
+### Similarity Scoring
+
+Dot product between sparse vectors:
+
+```python
+score = sum(
+    query_vector[term] * doc_vector[term]
+    for term in query_vector.keys() & doc_vector.keys()
+)
+```
+
+## Implementation
+
+### SPLADE Encoder
+
+```python
+import torch
+import torch.nn as nn
+from transformers import AutoModel, AutoTokenizer
+from typing import Dict, List, Tuple
+import numpy as np
+
+class SPLADEEncoder:
+    """
+    SPLADE: Sparse Lexical and Expansion Model for learned sparse retrieval.
+    
+    Based on: "SPLADE: Sparse Lexical and Expansion Model for First Stage Ranking"
+    (Formal et al., 2021)
+    """
+    
+    def __init__(
+        self,
+        model_name: str = "distilbert-base-uncased",
+        max_seq_length: int = 512,
+        doc_max_terms: int = 256,
+        query_max_terms: int = 32
+    ):
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = AutoModel.from_pretrained(model_name).to(self.device)
+        self.model.eval()
+        
+        self.max_seq_length = max_seq_length
+        self.doc_max_terms = doc_max_terms
+        self.query_max_terms = query_max_terms
+        
+        # Vocabulary
+        self.vocab = self.tokenizer.get_vocab()
+        self.id2token = {v: k for k, v in self.vocab.items()}
+    
+    def encode(
+        self,
+        text: str,
+        max_terms: int = None
+    ) -> Dict[int, float]:
+        """
+        Encode text into sparse SPLADE representation.
+        
+        Args:
+            text: Input text to encode
+            max_terms: Maximum number of terms to keep (None = use default)
+            
+        Returns:
+            Dictionary mapping token IDs to weights
+        """
+        if max_terms is None:
+            max_terms = self.doc_max_terms
+        
+        # Tokenize
+        inputs = self.tokenizer(
+            text,
+            max_length=self.max_seq_length,
+            truncation=True,
+            padding=True,
+            return_tensors="pt"
+        ).to(self.device)
+        
+        with torch.no_grad():
+            # Get BERT outputs
+            outputs = self.model(**inputs)
+            
+            # Get logits for MLM head (if available) or use hidden states
+            # For simplicity, we use hidden state projections
+            hidden_states = outputs.last_hidden_state  # [1, seq_len, hidden_dim]
+            
+            # Project to vocabulary using the model's word embeddings
+            vocab_size = len(self.vocab)
+            logits = torch.matmul(
+                hidden_states,
+                self.model.embeddings.word_embeddings.weight.t()
+            )  # [1, seq_len, vocab_size]
+            
+            # Max pooling over sequence dimension
+            max_logits = logits.max(dim=1).values.squeeze()  # [vocab_size]
+            
+            # Apply ReLU and log(1 + x) transformation
+            weights = torch.log(1 + torch.relu(max_logits))
+            
+            # Get top-k terms
+            top_weights, top_indices = torch.topk(
+                weights,
+                k=min(max_terms, (weights > 0).sum().item())
+            )
+            
+            # Build sparse dictionary
+            sparse_dict = {}
+            for idx, weight in zip(top_indices.tolist(), top_weights.tolist()):
+                if weight > 0:
+                    sparse_dict[idx] = weight
+            
+            return sparse_dict
+    
+    def encode_document(self, text: str) -> Dict[int, float]:
+        """Encode a document (more expansion terms)."""
+        return self.encode(text, max_terms=self.doc_max_terms)
+    
+    def encode_query(self, text: str) -> Dict[int, float]:
+        """Encode a query (fewer expansion terms)."""
+        return self.encode(text, max_terms=self.query_max_terms)
+    
+    def decode_sparse_vector(self, sparse_vec: Dict[int, float]) -> Dict[str, float]:
+        """Decode sparse vector to human-readable terms."""
+        return {
+            self.id2token.get(token_id, "<unk>"): weight
+            for token_id, weight in sparse_vec.items()
+        }
+
+class SPLADERetriever:
+    """SPLADE-based document retriever with inverted index."""
+    
+    def __init__(self, encoder: SPLADEEncoder):
+        self.encoder = encoder
+        self.index: Dict[int, List[Tuple[str, float]]] = {}  # token_id -> [(doc_id, weight)]
+        self.documents: Dict[str, str] = {}
+        self.doc_vectors: Dict[str, Dict[int, float]] = {}
+    
+    def index_document(self, doc_id: str, text: str):
+        """Index a document."""
+        # Encode document
+        sparse_vec = self.encoder.encode_document(text)
+        
+        # Store document
+        self.documents[doc_id] = text
+        self.doc_vectors[doc_id] = sparse_vec
+        
+        # Add to inverted index
+        for token_id, weight in sparse_vec.items():
+            if token_id not in self.index:
+                self.index[token_id] = []
+            self.index[token_id].append((doc_id, weight))
+    
+    def index_documents(self, documents: Dict[str, str]):
+        """Index multiple documents."""
+        for doc_id, text in documents.items():
+            self.index_document(doc_id, text)
+    
+    def search(
+        self,
+        query: str,
+        top_k: int = 10
+    ) -> List[Tuple[str, float]]:
+        """
+        Search for documents matching query.
+        
+        Args:
+            query: Search query
+            top_k: Number of results to return
+            
+        Returns:
+            List of (doc_id, score) tuples sorted by score
+        """
+        # Encode query
+        query_vec = self.encoder.encode_query(query)
+        
+        # Score documents using inverted index
+        scores: Dict[str, float] = {}
+        
+        for token_id, query_weight in query_vec.items():
+            if token_id in self.index:
+                for doc_id, doc_weight in self.index[token_id]:
+                    if doc_id not in scores:
+                        scores[doc_id] = 0.0
+                    scores[doc_id] += query_weight * doc_weight
+        
+        # Sort by score and return top-k
+        sorted_results = sorted(
+            scores.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )
+        
+        return sorted_results[:top_k]
+    
+    def batch_search(
+        self,
+        queries: List[str],
+        top_k: int = 10
+    ) -> List[List[Tuple[str, float]]]:
+        """Search multiple queries."""
+        return [self.search(q, top_k) for q in queries]
+    
+    def get_document_vector(self, doc_id: str) -> Dict[int, float]:
+        """Get SPLADE vector for a document."""
+        return self.doc_vectors.get(doc_id, {})
+    
+    def explain_score(
+        self,
+        query: str,
+        doc_id: str
+    ) -> Dict[str, any]:
+        """Explain why a document matches a query."""
+        query_vec = self.encoder.encode_query(query)
+        doc_vec = self.doc_vectors.get(doc_id, {})
+        
+        # Find matching terms
+        matching_terms = []
+        total_score = 0.0
+        
+        for token_id, q_weight in query_vec.items():
+            if token_id in doc_vec:
+                d_weight = doc_vec[token_id]
+                contribution = q_weight * d_weight
+                total_score += contribution
+                
+                term = self.encoder.id2token.get(token_id, "<unk>")
+                matching_terms.append({
+                    "term": term,
+                    "query_weight": q_weight,
+                    "doc_weight": d_weight,
+                    "contribution": contribution
+                })
+        
+        # Sort by contribution
+        matching_terms.sort(key=lambda x: x["contribution"], reverse=True)
+        
+        return {
+            "doc_id": doc_id,
+            "total_score": total_score,
+            "matching_terms": matching_terms[:10],
+            "query_expansion": list(self.encoder.decode_sparse_vector(query_vec).keys()),
+            "doc_expansion": list(self.encoder.decode_sparse_vector(doc_vec).keys())[:20]
+        }
+```
+
+### Usage Example
+
+```python
+# Initialize SPLADE
+splade = SPLADEEncoder(
+    model_name="distilbert-base-uncased",
+    doc_max_terms=256,
+    query_max_terms=32
+)
+
+# Create retriever
+retriever = SPLADERetriever(splade)
+
+# Index documents
+documents = {
+    "doc1": "Machine learning is a subset of artificial intelligence.",
+    "doc2": "Deep learning uses neural networks with multiple layers.",
+    "doc3": "Natural language processing helps computers understand text.",
+    "doc4": "Computer vision enables machines to interpret images."
+}
+
+retriever.index_documents(documents)
+
+# Search
+results = retriever.search("AI and neural networks", top_k=3)
+
+print("Search Results:")
+for doc_id, score in results:
+    print(f"  {doc_id}: {score:.4f}")
+    print(f"    Content: {documents[doc_id]}")
+
+# Explain a result
+explanation = retriever.explain_score("AI and neural networks", "doc1")
+print("\nExplanation:")
+print(f"Matching terms: {[t['term'] for t in explanation['matching_terms']]}")
+print(f"Query expanded to: {explanation['query_expansion']}")
+```
+
+## Advanced Features
+
+### Document Expansion Visualization
+
+```python
+def visualize_expansion(encoder: SPLADEEncoder, text: str, title: str):
+    """Visualize SPLADE document expansion."""
+    sparse_vec = encoder.encode_document(text)
+    decoded = encoder.decode_sparse_vector(sparse_vec)
+    
+    print(f"\n{title}")
+    print("=" * 50)
+    print(f"Original: {text}")
+    print("\nTop expansion terms:")
+    
+    sorted_terms = sorted(decoded.items(), key=lambda x: x[1], reverse=True)
+    for term, weight in sorted_terms[:15]:
+        bar = "█" * int(weight * 20)
+        print(f"  {term:20s} {weight:.3f} {bar}")
+
+# Example
+visualize_expansion(
+    splade,
+    "The quick brown fox jumps over the lazy dog",
+    "Document Expansion Example"
+)
+```
+
+### Hybrid SPLADE + Dense
+
+```python
+class HybridRetriever:
+    """Combine SPLADE sparse retrieval with dense retrieval."""
+    
+    def __init__(
+        self,
+        splade_retriever: SPLADERetriever,
+        dense_retriever,  # Your dense retrieval system
+        alpha: float = 0.5  # Weight for SPLADE (1-alpha for dense)
+    ):
+        self.splade = splade_retriever
+        self.dense = dense_retriever
+        self.alpha = alpha
+    
+    def search(self, query: str, top_k: int = 10) -> List[Tuple[str, float]]:
+        """Hybrid search combining sparse and dense."""
+        # Get results from both retrievers
+        sparse_results = dict(self.splade.search(query, top_k * 2))
+        dense_results = dict(self.dense.search(query, top_k * 2))
+        
+        # Combine scores
+        all_docs = set(sparse_results.keys()) | set(dense_results.keys())
+        combined_scores = {}
+        
+        for doc_id in all_docs:
+            sparse_score = sparse_results.get(doc_id, 0.0)
+            dense_score = dense_results.get(doc_id, 0.0)
+            
+            # Normalize scores (simple min-max)
+            # In practice, use learned weights or score calibration
+            combined_scores[doc_id] = (
+                self.alpha * sparse_score +
+                (1 - self.alpha) * dense_score
+            )
+        
+        # Return top-k
+        return sorted(
+            combined_scores.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )[:top_k]
+```
+
+## Evaluation
+
+### Benchmarking SPLADE
+
+```python
+def evaluate_splade(
+    retriever: SPLADERetriever,
+    queries: Dict[str, str],  # qid -> query
+    qrels: Dict[str, Dict[str, int]],  # qid -> {doc_id: relevance}
+    k: int = 10
+) -> Dict[str, float]:
+    """Evaluate SPLADE retriever."""
+    
+    recall_at_k = []
+    ndcg_at_k = []
+    
+    for qid, query in queries.items():
+        results = retriever.search(query, top_k=k)
+        retrieved_docs = [doc_id for doc_id, _ in results]
+        
+        # Calculate metrics
+        relevant_docs = set(qrels.get(qid, {}).keys())
+        
+        if relevant_docs:
+            # Recall@K
+            retrieved_relevant = len(set(retrieved_docs) & relevant_docs)
+            recall_at_k.append(retrieved_relevant / len(relevant_docs))
+            
+            # nDCG@K (simplified)
+            dcg = sum(
+                qrels[qid].get(doc_id, 0) / np.log2(i + 2)
+                for i, doc_id in enumerate(retrieved_docs)
+            )
+            ideal_dcg = sum(
+                1.0 / np.log2(i + 2)
+                for i in range(min(len(relevant_docs), k))
+            )
+            ndcg_at_k.append(dcg / ideal_dcg if ideal_dcg > 0 else 0)
+    
+    return {
+        f"recall@{k}": np.mean(recall_at_k),
+        f"ndcg@{k}": np.mean(ndcg_at_k)
+    }
+```
+
+## Production Considerations
+
+### Indexing at Scale
+
+```python
+class ShardedSPLADEIndex:
+    """Sharded SPLADE index for large-scale retrieval."""
+    
+    def __init__(self, encoder: SPLADEEncoder, num_shards: int = 10):
+        self.encoder = encoder
+        self.num_shards = num_shards
+        self.shards = [
+            SPLADERetriever(encoder)
+            for _ in range(num_shards)
+        ]
+    
+    def index_document(self, doc_id: str, text: str):
+        """Route document to appropriate shard."""
+        shard_id = hash(doc_id) % self.num_shards
+        self.shards[shard_id].index_document(doc_id, text)
+    
+    def search(self, query: str, top_k: int = 10) -> List[Tuple[str, float]]:
+        """Search across all shards."""
+        # Search each shard
+        all_results = []
+        for shard in self.shards:
+            results = shard.search(query, top_k)
+            all_results.extend(results)
+        
+        # Merge and re-rank
+        all_results.sort(key=lambda x: x[1], reverse=True)
+        return all_results[:top_k]
+```
+
+## Resources
+
+- [SPLADE Paper](https://arxiv.org/abs/2109.10086)
+- [SPLADE v2: Improved Model](https://arxiv.org/abs/2109.10086)
+- [Efficient SPLADE](https://arxiv.org/abs/2205.13417)
+- [PyTerrier SPLADE](https://github.com/terrierteam/pyterrier_ance)

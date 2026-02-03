@@ -1,4 +1,15 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "Cosine Similarity"
+description: "Implement cosine similarity — the default similarity metric for most embedding models"
+difficulty: "beginner"
+estimatedMinutes: 20
+xpReward: 25
+prerequisites: ["dot-product"]
+related: ["euclidean-distance", "basic-retrieval", "embed-and-search"]
+next: "euclidean-distance"
+---
+
+<Callout title="Goal" variant="info">
   Implement cosine similarity — the default similarity metric for most embedding
   models.
 </Callout>
@@ -17,6 +28,73 @@ That's why it's used for embeddings:
 ```
 cos(θ) = (a · b) / (||a|| × ||b||)
 ```
+
+Where:
+- `a · b` = dot product
+- `||a||` = magnitude (L2 norm) of vector a
+- `||b||` = magnitude (L2 norm) of vector b
+
+## The Algorithm
+
+```python
+import math
+
+def cosine_similarity(a: list[float], b: list[float]) -> float:
+    """
+    Compute cosine similarity between two vectors.
+    
+    Time Complexity: O(N) where N = vector dimension
+    Space Complexity: O(1) additional
+    
+    Args:
+        a: First vector
+        b: Second vector
+        
+    Returns:
+        Cosine similarity in range [-1, 1]
+        
+    Raises:
+        ValueError: If vectors have different lengths or zero magnitude
+    """
+    if len(a) != len(b):
+        raise ValueError(f"Vector length mismatch: {len(a)} vs {len(b)}")
+    
+    # Compute dot product
+    dot = sum(x * y for x, y in zip(a, b))
+    
+    # Compute magnitudes
+    mag_a = math.sqrt(sum(x * x for x in a))
+    mag_b = math.sqrt(sum(x * x for x in b))
+    
+    # Guard against zero magnitude
+    if mag_a == 0 or mag_b == 0:
+        raise ValueError("Cannot compute cosine similarity for zero vector")
+    
+    return dot / (mag_a * mag_b)
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Time | O(N) | Two passes (dot + norms) |
+| Space | O(1) | No additional storage |
+| Range | [-1, 1] | 1 = identical, -1 = opposite, 0 = orthogonal |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Master the industry-standard metric for semantic similarity
+- Understand why normalization matters in vector comparisons
+- Be able to build semantic search systems from scratch
+
+## Real-World Impact
+
+Cosine similarity powers:
+- **Semantic search** in Google, Amazon, and enterprise systems
+- **Recommendation engines** at Netflix and Spotify
+- **Document clustering** for legal and medical research
+- **Duplicate detection** in content management systems
 
 ## Edge Cases (Critical for Production)
 
@@ -60,13 +138,31 @@ mag = np.linalg.norm(vec)
 
 | Metric            | Formula            | Range   | Use when                 |
 | ----------------- | ------------------ | ------- | ------------------------ |
-| Cosine similarity | dot / (mag \* mag) | [-1, 1] | Semantic similarity      |
+| Cosine similarity | dot / (mag * mag) | [-1, 1] | Semantic similarity      |
 | Cosine distance   | 1 - cosine_sim     | [0, 2]  | Some vector DBs use this |
-| L2 (Euclidean)    | sqrt(sum((a-b)^2)) | [0, ∞)  | Magnitude matters        |
-| Dot product       | sum(a \* b)        | (-∞, ∞) | Normalized vectors       |
+| L2 (Euclidean)    | sqrt(sum((a-b)^2)) | [0, ∞) | Magnitude matters        |
+| Dot product       | sum(a * b)        | (-∞, ∞) | Normalized vectors       |
 
 For normalized vectors: **cosine similarity = dot product** and **L2 distance ∝ 1 - cosine similarity**
 
+## Resources
+
+### Documentation
+- [Scikit-learn Cosine Similarity](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise.cosine_similarity.html)
+- [SciPy Spatial Distance](https://docs.scipy.org/doc/scipy/reference/spatial.distance.html)
+
+### Papers
+- **"Vector Space Model"** - Salton et al. (Foundational IR work)
+
+### Tools
+- **NumPy**: `np.dot()` for normalized vectors
+- **SciPy**: `cosine()` distance function
+- **scikit-learn**: `cosine_similarity()` for matrices
+
 ## After you pass
 
-Use cosine similarity to build **Top-K retrieval**.
+Use cosine similarity to build **Top-K retrieval** with [basic-retrieval](basic-retrieval).
+
+---
+
+**What's Next?** Complete [euclidean-distance](euclidean-distance) to understand when magnitude matters more than direction, then move on to building real retrieval systems.

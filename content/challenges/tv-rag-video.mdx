@@ -1,34 +1,576 @@
 ---
-title: "TV-RAG Video"
-description: "Implement RAG over video content with temporal awareness"
+title: "TV-RAG: Video Retrieval"
+description: "Implement RAG over video content with temporal awareness — retrieve and reason over visual frames and audio transcripts"
+difficulty: "hard"
+xpReward: 200
+prerequisites: ["multimodal-rag-guide", "image-embedding-rag"]
 ---
 
-# TV-RAG Video
+# TV-RAG: Video Retrieval
 
-Implement a RAG system that can retrieve and reason over video content, including visual frames and audio transcripts.
+<Callout title="Goal" variant="info">
+  Implement RAG over video content with temporal awareness — retrieve and reason over visual frames and audio transcripts.
+</Callout>
 
-## Requirements
+## The Challenge of Video RAG
 
-1. Index video frames with timestamps
-2. Index audio transcripts
-3. Align visual and text retrieval
-4. Generate answers with temporal citations
+Video content presents unique challenges:
+- **Temporal dimension**: Information changes over time
+- **Multimodal nature**: Visual + audio + text
+- **Volume**: Hours of content to index
+- **Synchronization**: Aligning visual and audio events
 
-## Starter Code
+**TV-RAG** (Temporal Video RAG) addresses these by creating temporally-aware, multimodal representations of video content.
+
+## Why This Matters
+
+- **Rich Content**: Videos contain more information than text alone
+- **Context Preservation**: Temporal relationships matter
+- **Accessibility**: Make video content searchable
+- **Applications**: YouTube, security footage, educational content
+
+## Real-World Applications
+
+**Companies:** Google (YouTube), TikTok, Netflix, security systems
+**Use Cases:**
+- Video content platforms
+- Surveillance analysis
+- Educational video search
+- Sports highlight extraction
+- Meeting transcription and search
+
+## Key Concepts
+
+### Temporal Indexing
+
+```
+Video Timeline:
+00:00 ──[Frame 1]── 00:05 ──[Frame 2]── 00:10 ──[Frame 3]──►
+         ↓                    ↓                    ↓
+    [Transcript 1]      [Transcript 2]      [Transcript 3]
+         ↓                    ↓                    ↓
+    Embedding(Visual + Text) at each timestamp
+```
+
+### Multimodal Fusion
+
+Combine visual and textual information:
 
 ```python
+# Frame embedding (CLIP-like)
+visual_embedding = image_encoder(frame)
+
+# Transcript embedding (text)
+text_embedding = text_encoder(transcript)
+
+# Fused representation
+fused = fusion_layer(visual_embedding, text_embedding)
+```
+
+## Implementation
+
+### Video RAG System
+
+```python
+from dataclasses import dataclass
+from typing import List, Dict, Optional, Tuple
+import numpy as np
+from datetime import timedelta
+
+@dataclass
+class VideoSegment:
+    """A segment of video with multimodal content."""
+    start_time: float  # seconds
+    end_time: float
+    frame_embedding: np.ndarray
+    transcript: str
+    transcript_embedding: np.ndarray
+    keyframe_path: Optional[str] = None
+    
+@dataclass
+class VideoQueryResult:
+    """Result from video search."""
+    segment: VideoSegment
+    score: float
+    modality: str  # "visual", "text", "fused"
+
 class VideoRAG:
-    def __init__(self, frame_encoder, text_encoder):
+    """
+    Temporal Video RAG system for multimodal video retrieval.
+    
+    Indexes video frames and transcripts with temporal alignment
+    for context-aware retrieval.
+    """
+    
+    def __init__(
+        self,
+        frame_encoder,  # CLIP or similar
+        text_encoder,   # Sentence transformer
+        fusion_strategy: str = "concatenate"
+    ):
         self.frame_encoder = frame_encoder
         self.text_encoder = text_encoder
-        self.frame_index = []
-        self.transcript_index = []
+        self.fusion_strategy = fusion_strategy
+        
+        # Storage
+        self.segments: List[VideoSegment] = []
+        self.frame_index: Dict[int, List[int]] = {}  # simple inverted index
+        self.transcript_index: Dict[int, List[int]] = {}
+        
+    def index_video(
+        self,
+        video_path: str,
+        transcript: str,
+        segment_duration: float = 5.0
+    ) -> List[VideoSegment]:
+        """
+        Index a video file with its transcript.
+        
+        Args:
+            video_path: Path to video file
+            transcript: VTT or SRT formatted transcript with timestamps
+            segment_duration: Duration of each segment in seconds
+            
+        Returns:
+            List of indexed segments
+        """
+        segments = []
+        
+        # Parse transcript with timestamps
+        transcript_segments = self._parse_transcript(transcript)
+        
+        # Extract frames at regular intervals
+        frame_interval = segment_duration
+        current_time = 0.0
+        
+        while current_time < self._get_video_duration(video_path):
+            # Extract frame at current_time
+            frame = self._extract_frame(video_path, current_time)
+            
+            # Get transcript for this time window
+            window_transcripts = [
+                ts for ts in transcript_segments
+                if ts["start"] <= current_time <= ts["end"]
+            ]
+            window_text = " ".join([ts["text"] for ts in window_transcripts])
+            
+            # Generate embeddings
+            frame_emb = self.frame_encoder.encode(frame)
+            text_emb = self.text_encoder.encode(window_text)
+            
+            # Create segment
+            segment = VideoSegment(
+                start_time=current_time,
+                end_time=current_time + segment_duration,
+                frame_embedding=frame_emb,
+                transcript=window_text,
+                transcript_embedding=text_emb
+            )
+            
+            segments.append(segment)
+            current_time += segment_duration
+        
+        # Add to index
+        self._add_segments_to_index(segments)
+        
+        return segments
     
-    def index_video(self, video_path: str, transcript: str):
-        """Index video frames and transcript."""
-        pass
+    def _parse_transcript(self, transcript: str) -> List[Dict]:
+        """Parse VTT/SRT transcript format."""
+        segments = []
+        
+        # Simple VTT parser (simplified)
+        lines = transcript.strip().split('\n')
+        current_segment = {}
+        
+        for line in lines:
+            if '-->' in line:
+                # Time range line
+                start, end = line.split('-->')
+                current_segment = {
+                    "start": self._parse_timestamp(start.strip()),
+                    "end": self._parse_timestamp(end.strip()),
+                    "text": ""
+                }
+            elif line.strip() and current_segment:
+                # Text line
+                current_segment["text"] += line.strip() + " "
+            elif not line.strip() and current_segment:
+                # Empty line - end of segment
+                segments.append(current_segment)
+                current_segment = {}
+        
+        return segments
     
-    def query(self, query: str) -> dict:
-        """Query with temporal alignment."""
-        pass
+    def _parse_timestamp(self, timestamp: str) -> float:
+        """Convert VTT timestamp to seconds."""
+        # Format: 00:00:05.000 or 00:05.000
+        parts = timestamp.replace(',', '.').split(':')
+        
+        if len(parts) == 3:
+            hours, minutes, seconds = parts
+            return float(hours) * 3600 + float(minutes) * 60 + float(seconds)
+        else:
+            minutes, seconds = parts
+            return float(minutes) * 60 + float(seconds)
+    
+    def _extract_frame(self, video_path: str, timestamp: float) -> np.ndarray:
+        """Extract frame at specific timestamp."""
+        import cv2
+        
+        cap = cv2.VideoCapture(video_path)
+        cap.set(cv2.CAP_PROP_POS_MSEC, timestamp * 1000)
+        ret, frame = cap.read()
+        cap.release()
+        
+        if ret:
+            return cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        else:
+            raise ValueError(f"Could not extract frame at {timestamp}s")
+    
+    def _add_segments_to_index(self, segments: List[VideoSegment]):
+        """Add segments to the index."""
+        start_idx = len(self.segments)
+        self.segments.extend(segments)
+        
+        # Build simple index (in production, use FAISS or similar)
+        for i, segment in enumerate(segments):
+            idx = start_idx + i
+            # Index by time range for temporal queries
+            # (simplified - in practice use vector DB)
+    
+    def query(
+        self,
+        query: str,
+        modality: str = "fused",
+        top_k: int = 5,
+        time_range: Optional[Tuple[float, float]] = None
+    ) -> List[VideoQueryResult]:
+        """
+        Query the video index.
+        
+        Args:
+            query: Search query
+            modality: "visual", "text", or "fused"
+            top_k: Number of results
+            time_range: Optional (start, end) time filter
+            
+        Returns:
+            List of video segments matching query
+        """
+        # Encode query
+        query_embedding = self.text_encoder.encode(query)
+        
+        # Filter by time range if specified
+        candidates = self.segments
+        if time_range:
+            candidates = [
+                s for s in candidates
+                if time_range[0] <= s.start_time <= time_range[1]
+            ]
+        
+        # Score segments
+        results = []
+        for segment in candidates:
+            if modality == "visual":
+                score = self._cosine_similarity(
+                    query_embedding,
+                    segment.frame_embedding
+                )
+            elif modality == "text":
+                score = self._cosine_similarity(
+                    query_embedding,
+                    segment.transcript_embedding
+                )
+            else:  # fused
+                # Average of both similarities
+                visual_score = self._cosine_similarity(
+                    query_embedding,
+                    segment.frame_embedding
+                )
+                text_score = self._cosine_similarity(
+                    query_embedding,
+                    segment.transcript_embedding
+                )
+                score = (visual_score + text_score) / 2
+            
+            results.append(VideoQueryResult(
+                segment=segment,
+                score=score,
+                modality=modality
+            ))
+        
+        # Sort and return top-k
+        results.sort(key=lambda x: x.score, reverse=True)
+        return results[:top_k]
+    
+    def _cosine_similarity(self, a: np.ndarray, b: np.ndarray) -> float:
+        """Calculate cosine similarity."""
+        return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+    
+    def generate_answer(
+        self,
+        query: str,
+        results: List[VideoQueryResult]
+    ) -> Dict:
+        """
+        Generate an answer with temporal citations.
+        
+        Args:
+            query: User question
+            results: Retrieved video segments
+            
+        Returns:
+            Answer with timestamps and sources
+        """
+        # Build context from segments
+        context_parts = []
+        for i, result in enumerate(results):
+            segment = result.segment
+            timestamp = self._format_timestamp(segment.start_time)
+            
+            context_parts.append(
+                f"[{i+1}] At {timestamp}:\n"
+                f"Visual: [Frame at {timestamp}]\n"
+                f"Audio: {segment.transcript}\n"
+            )
+        
+        context = "\n".join(context_parts)
+        
+        # Generate answer (in practice, use LLM)
+        prompt = f"""Answer the question based on the video segments provided.
+Include timestamps in your answer like [MM:SS].
+
+Video Segments:
+{context}
+
+Question: {query}
+
+Answer:"""
+        
+        # Mock answer generation
+        answer = f"Based on the video, here's what I found..."
+        
+        return {
+            "answer": answer,
+            "sources": [
+                {
+                    "timestamp": self._format_timestamp(r.segment.start_time),
+                    "transcript": r.segment.transcript[:200],
+                    "score": r.score
+                }
+                for r in results
+            ]
+        }
+    
+    def _format_timestamp(self, seconds: float) -> str:
+        """Format seconds as MM:SS."""
+        td = timedelta(seconds=int(seconds))
+        return str(td)[2:7]  # Remove hours if 0
+    
+    def _get_video_duration(self, video_path: str) -> float:
+        """Get video duration in seconds."""
+        import cv2
+        cap = cv2.VideoCapture(video_path)
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+        cap.release()
+        return frame_count / fps if fps > 0 else 0
 ```
+
+### Usage Example
+
+```python
+# Initialize encoders (mock implementations)
+class CLIPEncoder:
+    def encode(self, frame):
+        # In practice, use CLIP or similar
+        return np.random.randn(512)  # Mock embedding
+
+class TextEncoder:
+    def encode(self, text):
+        # In practice, use sentence-transformers
+        return np.random.randn(512)  # Mock embedding
+
+# Create VideoRAG
+video_rag = VideoRAG(
+    frame_encoder=CLIPEncoder(),
+    text_encoder=TextEncoder()
+)
+
+# Index a video
+transcript = """
+00:00:00.000 --> 00:00:05.000
+Welcome to this tutorial on machine learning.
+
+00:00:05.000 --> 00:00:10.000
+Today we'll cover neural networks and deep learning.
+
+00:00:10.000 --> 00:00:15.000
+Neural networks are inspired by the human brain.
+"""
+
+segments = video_rag.index_video(
+    video_path="tutorial.mp4",
+    transcript=transcript
+)
+
+print(f"Indexed {len(segments)} segments")
+
+# Query
+results = video_rag.query("What are neural networks?", top_k=3)
+
+print("\nSearch Results:")
+for result in results:
+    print(f"  [{result.segment.start_time:.1f}s] Score: {result.score:.3f}")
+    print(f"    Transcript: {result.segment.transcript[:100]}...")
+
+# Generate answer
+answer = video_rag.generate_answer("What are neural networks?", results)
+print(f"\nAnswer: {answer['answer']}")
+```
+
+## Advanced Features
+
+### Scene Detection
+
+```python
+class SceneDetectionVideoRAG(VideoRAG):
+    """VideoRAG with automatic scene detection."""
+    
+    def detect_scenes(self, video_path: str, threshold: float = 0.3) -> List[Tuple[float, float]]:
+        """Detect scene boundaries in video."""
+        import cv2
+        
+        cap = cv2.VideoCapture(video_path)
+        scenes = []
+        prev_frame = None
+        prev_time = 0.0
+        
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            
+            current_time = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000
+            
+            if prev_frame is not None:
+                # Calculate frame difference
+                diff = cv2.absdiff(prev_frame, frame)
+                diff_score = np.mean(diff) / 255.0
+                
+                if diff_score > threshold:
+                    # Scene change detected
+                    scenes.append((prev_time, current_time))
+                    prev_time = current_time
+            
+            prev_frame = frame
+        
+        cap.release()
+        return scenes
+    
+    def index_by_scenes(self, video_path: str, transcript: str):
+        """Index video by detected scenes instead of fixed intervals."""
+        scenes = self.detect_scenes(video_path)
+        
+        for start, end in scenes:
+            # Index each scene as a segment
+            mid_time = (start + end) / 2
+            frame = self._extract_frame(video_path, mid_time)
+            # ... rest of indexing logic
+```
+
+### Cross-Modal Retrieval
+
+```python
+def cross_modal_search(
+    self,
+    query_image: Optional[np.ndarray] = None,
+    query_text: Optional[str] = None,
+    top_k: int = 5
+) -> List[VideoQueryResult]:
+    """
+    Search using either image or text query.
+    
+    Args:
+        query_image: Optional image to search for
+        query_text: Optional text to search for
+        top_k: Number of results
+        
+    Returns:
+        Matching video segments
+    """
+    if query_image is not None:
+        # Visual search
+        query_emb = self.frame_encoder.encode(query_image)
+        modality = "visual"
+    elif query_text is not None:
+        # Text search
+        query_emb = self.text_encoder.encode(query_text)
+        modality = "text"
+    else:
+        raise ValueError("Must provide either query_image or query_text")
+    
+    # Score all segments
+    results = []
+    for segment in self.segments:
+        if modality == "visual":
+            score = self._cosine_similarity(query_emb, segment.frame_embedding)
+        else:
+            score = self._cosine_similarity(query_emb, segment.transcript_embedding)
+        
+        results.append(VideoQueryResult(
+            segment=segment,
+            score=score,
+            modality=modality
+        ))
+    
+    results.sort(key=lambda x: x.score, reverse=True)
+    return results[:top_k]
+```
+
+## Production Considerations
+
+### Performance Optimization
+
+```python
+class OptimizedVideoRAG(VideoRAG):
+    """VideoRAG with performance optimizations."""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.use_gpu = True
+        self.batch_size = 32
+    
+    def batch_encode_frames(self, frames: List[np.ndarray]) -> np.ndarray:
+        """Encode frames in batches for efficiency."""
+        embeddings = []
+        
+        for i in range(0, len(frames), self.batch_size):
+            batch = frames[i:i + self.batch_size]
+            batch_emb = self.frame_encoder.encode_batch(batch)
+            embeddings.extend(batch_emb)
+        
+        return np.array(embeddings)
+    
+    def build_faiss_index(self):
+        """Build FAISS index for fast retrieval."""
+        import faiss
+        
+        # Collect all embeddings
+        embeddings = np.array([
+            s.frame_embedding for s in self.segments
+        ])
+        
+        # Build index
+        dimension = embeddings.shape[1]
+        self.faiss_index = faiss.IndexFlatIP(dimension)  # Inner product
+        self.faiss_index.add(embeddings)
+```
+
+## Resources
+
+- [CLIP: Connecting Text and Images](https://arxiv.org/abs/2103.00020)
+- [Video Understanding with AI](https://research.google.com/youtube8m/)
+- [Multimodal Retrieval](https://arxiv.org/abs/2201.02609)
+- [FAISS: Similarity Search](https://github.com/facebookresearch/faiss)

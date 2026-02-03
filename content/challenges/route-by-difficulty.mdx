@@ -1,38 +1,454 @@
-﻿<Callout title="Goal" variant="info">
-  Route queries to **fast / standard / slow** retrieval paths to control cost while preserving quality on hard queries.
+﻿---
+title: "Route by Difficulty"
+description: "Route queries to fast/standard/slow retrieval paths to control cost while preserving quality on hard queries."
+difficulty: "intermediate"
+estimatedMinutes: 35
+prerequisites: ["query-complexity-classifier", "adaptive-rag-router"]
+related: ["adaptive-rag-router", "cost-aware-router", "query-complexity-classifier"]
+next: "query-complexity-classifier"
+xpReward: 120
+---
+
+<Callout title="Goal" variant="info">
+  Route queries to **fast / standard / slow** retrieval paths to control cost
+  while preserving quality on hard queries.
 </Callout>
 
-## Why this matters in production
+## The "Overkill" Problem
 
 Not all queries deserve the same compute:
 
-- Easy queries (70%) can be answered with a cheap pipeline.
-- Hard queries (5–10%) need expensive transforms (HyDE, multi-query, rerank).
+- **Easy queries** (70%): Simple lookups, greetings, math
+- **Medium queries** (20%): Standard RAG pipeline
+- **Hard queries** (10%): Need expensive transforms (HyDE, multi-query, rerank)
 
-If you run the “slow path” on every query, you’ll get:
+Running the "slow path" on every query wastes resources and increases latency.
 
-- higher latency
-- higher cost
-- more failure surface area
+## Complexity Analysis
 
-## Online pipeline (query time)
+| Path | Latency | Cost/Query | Quality |
+|------|---------|------------|---------|
+| Fast | 50ms | $0.001 | Good for simple |
+| Standard | 200ms | $0.005 | Balanced |
+| Slow | 800ms | $0.02 | Best for complex |
 
-1. Classify query difficulty / intent
-2. Allocate budgets (candidate pool size, rerank count, transforms)
-3. Execute chosen path
+## Real-World Context
 
-## What this lab teaches
+| Company | Strategy |
+|---------|----------|
+| **Perplexity** | Query routing by complexity |
+| **ChatGPT** | Adaptive pipeline selection |
+| **Claude** | Tiered processing |
+| **Cohere** | Route by intent classification |
 
-A deterministic routing policy based on simple signals:
+## Resources
 
-- query length
-- ID-like tokens (digits/underscores)
+### Papers
+- **"Adaptive-RAG: Learning to Adapt Retrieval-Augmented Large Language Models"** - Jeong et al.
+- **"FrugalGPT"** - Chen et al.
 
-## Production extensions (optional)
+### Tools
+- **LangChain Router**: Built-in routing chains
+- **LlamaIndex Router**: Query engine routing
+- **LiteLLM**: Model routing
 
-- Use a learned classifier (small model) instead of heuristics.
-- Track per-path metrics (p95 latency, Recall@K, cost/query).
-- Add guardrails: max tool calls, max token budget, max rerank pairs.
+## Implementation
+
+```python
+from typing import Dict, Callable, List
+from dataclasses import dataclass
+from enum import Enum
+import re
+
+class DifficultyLevel(Enum):
+    """Query difficulty levels."""
+    EASY = "easy"
+    MEDIUM = "medium"
+    HARD = "hard"
+
+@dataclass
+class RetrievalPath:
+    """Configuration for a retrieval path."""
+    name: str
+    retriever: Callable[[str], List[str]]
+    reranker: Callable[[str, List[str]], List[str]]
+    max_chunks: int
+    use_hyde: bool
+    use_multi_query: bool
 
 
+class DifficultyRouter:
+    """
+    Router that selects retrieval paths based on query difficulty.
+    
+    Routes easy queries to fast paths, hard queries to thorough paths.
+    """
+    
+    def __init__(
+        self,
+        fast_path: RetrievalPath,
+        standard_path: RetrievalPath,
+        slow_path: RetrievalPath
+    ):
+        """
+        Initialize with three retrieval paths.
+        
+        Args:
+            fast_path: Quick retrieval for easy queries
+            standard_path: Balanced retrieval for medium queries
+            slow_path: Thorough retrieval for hard queries
+        """
+        self.fast_path = fast_path
+        self.standard_path = standard_path
+        self.slow_path = slow_path
+        
+        # Difficulty indicators
+        self.easy_patterns = [
+            r'^\s*\d+\s*[+\-*/]\s*\d+',  # Math
+            r'^(hi|hello|hey|thanks|bye)\b',  # Greetings
+            r'^(what is|who is|when is|where is)\s+\w+$',  # Simple facts
+        ]
+        
+        self.hard_patterns = [
+            r'\b(compare|contrast|analyze|evaluate)\b',
+            r'\b(why|how does|explain the)\b',
+            r'\b(trends?|patterns?|relationship)\b',
+            r'\b(pros? and cons?|advantages? and disadvantages?)\b',
+            r'\b(implications?|consequences?|impact)\b',
+        ]
+    
+    def assess_difficulty(self, query: str) -> DifficultyLevel:
+        """
+        Assess query difficulty.
+        
+        Args:
+            query: User query
+        
+        Returns:
+            DifficultyLevel enum
+        """
+        query_lower = query.lower().strip()
+        word_count = len(query_lower.split())
+        
+        # Check easy patterns
+        for pattern in self.easy_patterns:
+            if re.search(pattern, query_lower):
+                return DifficultyLevel.EASY
+        
+        # Check hard patterns
+        hard_indicators = 0
+        for pattern in self.hard_patterns:
+            if re.search(pattern, query_lower):
+                hard_indicators += 1
+        
+        if hard_indicators >= 2 or word_count > 15:
+            return DifficultyLevel.HARD
+        elif hard_indicators == 1 or word_count > 8:
+            return DifficultyLevel.MEDIUM
+        
+        return DifficultyLevel.EASY
+    
+    def select_path(self, query: str) -> RetrievalPath:
+        """
+        Select appropriate retrieval path.
+        
+        Args:
+            query: User query
+        
+        Returns:
+            Selected retrieval path
+        """
+        difficulty = self.assess_difficulty(query)
+        
+        if difficulty == DifficultyLevel.EASY:
+            return self.fast_path
+        elif difficulty == DifficultyLevel.HARD:
+            return self.slow_path
+        else:
+            return self.standard_path
+    
+    def route(self, query: str) -> Dict:
+        """
+        Route query through selected path.
+        
+        Args:
+            query: User query
+        
+        Returns:
+            Dict with results and path info
+        """
+        path = self.select_path(query)
+        difficulty = self.assess_difficulty(query)
+        
+        # Execute retrieval
+        chunks = path.retriever(query)
+        
+        # Apply reranker if configured
+        if path.reranker:
+            chunks = path.reranker(query, chunks)
+        
+        # Limit chunks
+        chunks = chunks[:path.max_chunks]
+        
+        return {
+            'query': query,
+            'difficulty': difficulty.value,
+            'path': path.name,
+            'chunks': chunks,
+            'config': {
+                'max_chunks': path.max_chunks,
+                'use_hyde': path.use_hyde,
+                'use_multi_query': path.use_multi_query
+            }
+        }
+    
+    def get_path_stats(self) -> Dict:
+        """
+        Get statistics about configured paths.
+        
+        Returns:
+            Dict with path configurations
+        """
+        return {
+            'fast': {
+                'name': self.fast_path.name,
+                'max_chunks': self.fast_path.max_chunks,
+                'use_hyde': self.fast_path.use_hyde,
+                'use_multi_query': self.fast_path.use_multi_query
+            },
+            'standard': {
+                'name': self.standard_path.name,
+                'max_chunks': self.standard_path.max_chunks,
+                'use_hyde': self.standard_path.use_hyde,
+                'use_multi_query': self.standard_path.use_multi_query
+            },
+            'slow': {
+                'name': self.slow_path.name,
+                'max_chunks': self.slow_path.max_chunks,
+                'use_hyde': self.slow_path.use_hyde,
+                'use_multi_query': self.slow_path.use_multi_query
+            }
+        }
+```
 
+## Challenge: Implement Difficulty Router
+
+### Requirements
+
+1. Implement `DifficultyLevel` enum
+2. Implement `RetrievalPath` dataclass
+3. Implement `assess_difficulty()` for query analysis
+4. Implement `select_path()` for path selection
+5. Implement `route()` for execution
+
+### Starter Code
+
+```python
+from typing import Dict, Callable, List
+from dataclasses import dataclass
+from enum import Enum
+import re
+
+class DifficultyLevel(Enum):
+    EASY = "easy"
+    MEDIUM = "medium"
+    HARD = "hard"
+
+@dataclass
+class RetrievalPath:
+    name: str
+    retriever: Callable[[str], List[str]]
+    reranker: Callable[[str, List[str]], List[str]]
+    max_chunks: int
+    use_hyde: bool
+    use_multi_query: bool
+
+
+class DifficultyRouter:
+    """Router that selects retrieval paths based on query difficulty."""
+    
+    def __init__(
+        self,
+        fast_path: RetrievalPath,
+        standard_path: RetrievalPath,
+        slow_path: RetrievalPath
+    ):
+        self.fast_path = fast_path
+        self.standard_path = standard_path
+        self.slow_path = slow_path
+    
+    def assess_difficulty(self, query: str) -> DifficultyLevel:
+        """Assess query difficulty."""
+        # TODO: Implement difficulty assessment
+        pass
+    
+    def select_path(self, query: str) -> RetrievalPath:
+        """Select appropriate retrieval path."""
+        # TODO: Implement path selection
+        pass
+    
+    def route(self, query: str) -> Dict:
+        """Route query through selected path."""
+        # TODO: Implement routing
+        pass
+
+
+# Mock implementations
+def mock_retriever(q): return [f"chunk_{i}" for i in range(5)]
+def mock_reranker(q, chunks): return sorted(chunks, reverse=True)
+
+
+# Test
+def test_difficulty_router():
+    router = DifficultyRouter(
+        RetrievalPath("fast", mock_retriever, None, 3, False, False),
+        RetrievalPath("standard", mock_retriever, mock_reranker, 5, False, False),
+        RetrievalPath("slow", mock_retriever, mock_reranker, 10, True, True)
+    )
+    
+    # Test easy query
+    result = router.route("What is 2 + 2?")
+    assert result['difficulty'] == "easy"
+    assert result['path'] == "fast"
+    print(f"Easy query → {result['path']} (chunks: {len(result['chunks'])})")
+    
+    # Test hard query
+    result = router.route("Analyze the trends in our Q1-Q4 revenue and explain the factors")
+    assert result['difficulty'] == "hard"
+    assert result['path'] == "slow"
+    print(f"Hard query → {result['path']} (HyDE: {result['config']['use_hyde']})")
+    
+    # Test medium query
+    result = router.route("What is our return policy?")
+    assert result['difficulty'] == "medium"
+    assert result['path'] == "standard"
+    print(f"Medium query → {result['path']}")
+    
+    print("\nAll tests passed!")
+
+test_difficulty_router()
+```
+
+### Solution
+
+<details>
+<summary>Click to reveal solution</summary>
+
+```python
+from typing import Dict, Callable, List
+from dataclasses import dataclass
+from enum import Enum
+import re
+
+class DifficultyLevel(Enum):
+    EASY = "easy"
+    MEDIUM = "medium"
+    HARD = "hard"
+
+@dataclass
+class RetrievalPath:
+    name: str
+    retriever: Callable[[str], List[str]]
+    reranker: Callable[[str, List[str]], List[str]]
+    max_chunks: int
+    use_hyde: bool
+    use_multi_query: bool
+
+
+class DifficultyRouter:
+    """Router that selects retrieval paths based on query difficulty."""
+    
+    def __init__(
+        self,
+        fast_path: RetrievalPath,
+        standard_path: RetrievalPath,
+        slow_path: RetrievalPath
+    ):
+        self.fast_path = fast_path
+        self.standard_path = standard_path
+        self.slow_path = slow_path
+        
+        self.easy_patterns = [
+            r'^\s*\d+\s*[+\-*/]\s*\d+',
+            r'^(hi|hello|hey|thanks|bye)\b',
+            r'^(what is|who is|when is|where is)\s+\w+$',
+        ]
+        
+        self.hard_patterns = [
+            r'\b(compare|contrast|analyze|evaluate)\b',
+            r'\b(why|how does|explain the)\b',
+            r'\b(trends?|patterns?|relationship)\b',
+            r'\b(pros? and cons?|advantages? and disadvantages?)\b',
+        ]
+    
+    def assess_difficulty(self, query: str) -> DifficultyLevel:
+        """Assess query difficulty."""
+        query_lower = query.lower().strip()
+        word_count = len(query_lower.split())
+        
+        for pattern in self.easy_patterns:
+            if re.search(pattern, query_lower):
+                return DifficultyLevel.EASY
+        
+        hard_indicators = sum(
+            1 for p in self.hard_patterns if re.search(p, query_lower)
+        )
+        
+        if hard_indicators >= 2 or word_count > 15:
+            return DifficultyLevel.HARD
+        elif hard_indicators == 1 or word_count > 8:
+            return DifficultyLevel.MEDIUM
+        
+        return DifficultyLevel.EASY
+    
+    def select_path(self, query: str) -> RetrievalPath:
+        """Select appropriate retrieval path."""
+        difficulty = self.assess_difficulty(query)
+        
+        if difficulty == DifficultyLevel.EASY:
+            return self.fast_path
+        elif difficulty == DifficultyLevel.HARD:
+            return self.slow_path
+        return self.standard_path
+    
+    def route(self, query: str) -> Dict:
+        """Route query through selected path."""
+        path = self.select_path(query)
+        difficulty = self.assess_difficulty(query)
+        
+        chunks = path.retriever(query)
+        
+        if path.reranker:
+            chunks = path.reranker(query, chunks)
+        
+        chunks = chunks[:path.max_chunks]
+        
+        return {
+            'query': query,
+            'difficulty': difficulty.value,
+            'path': path.name,
+            'chunks': chunks,
+            'config': {
+                'max_chunks': path.max_chunks,
+                'use_hyde': path.use_hyde,
+                'use_multi_query': path.use_multi_query
+            }
+        }
+```
+
+</details>
+
+## Cost Savings Analysis
+
+| Query Mix | All Slow | With Routing | Savings |
+|-----------|----------|--------------|---------|
+| 70% easy, 20% medium, 10% hard | $100 | $37 | 63% |
+| 50% easy, 30% medium, 20% hard | $100 | $51 | 49% |
+
+## Best Practices
+
+1. **Monitor quality**: Ensure fast path maintains accuracy
+2. **Fallback**: Route to slower path if fast path fails
+3. **Learn from feedback**: Adjust difficulty thresholds
+4. **A/B test**: Compare routing vs uniform approach
+5. **Track metrics**: Latency, cost, accuracy per path

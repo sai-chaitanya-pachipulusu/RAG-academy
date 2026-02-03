@@ -1,25 +1,419 @@
-﻿<Callout title="Goal" variant="info">
-  Implement a **train-only retrieval guard** so evaluation doesn’t leak by accidentally retrieving validation/test items as context.
-</Callout>
+﻿---
+title: "Train-Only Retrieval Guard"
+description: "Implement a train-only retrieval guard to prevent evaluation data leakage in RAG systems"
+difficulty: "medium"
+xpReward: 100
+topics: ["evaluation", "data-leakage", "train-test-split", "ml-best-practices"]
+prerequisites: ["rag-evaluation-suite"]
+---
 
-## Why this matters (honest evaluation)
+# Train-Only Retrieval Guard
 
-If your few-shot selector or retrieval system can pull from validation/test, your scores get inflated.
-You’ll ship changes that “look good” offline but fail in production.
+## Overview
 
-## What you’ll implement
+If your few-shot selector or retrieval system can pull from validation/test sets, your evaluation scores get inflated. You'll ship changes that "look good" offline but fail in production. This challenge implements guards to ensure honest evaluation.
 
-- A **train-only index builder**:
-  - keep `split == "train"`
-  - de-dup by `question_hash`
-- A **few-shot selector** with hard guards:
-  - only train items allowed
-  - block the current item’s `question_hash` (and other blocked hashes)
+## Why This Matters
 
-## Production pattern
+- **Honest Evaluation**: True measure of system performance
+- **Production Readiness**: Changes that work in the real world
+- **Scientific Rigor**: Valid experimental methodology
+- **Trust**: Confidence in reported metrics
 
-- Store `split`, `question_hash`, and IDs in metadata.
-- Hard-assert invariants (train-only) in code, not in docs.
+## Key Concepts
 
+- **Data contamination**: Test data leaking into training
+- **Train/test separation**: Strict boundaries between splits
+- **Few-shot guards**: Prevent test examples as demonstrations
+- **Retrieval boundaries**: Index only training data
 
+## Real-World Applications
 
+| Scenario | Risk of Leakage |
+|----------|----------------|
+| **Few-shot prompting** | Using test examples as demonstrations |
+| **Retrieval augmentation** | Retrieving test documents for test queries |
+| **Embedding evaluation** | Training on test set during fine-tuning |
+| **Benchmarking** | Contaminating evaluation with training data |
+
+## The Leakage Problem
+
+```
+❌ WRONG: Contaminated Evaluation
+Train Set: [doc1, doc2, doc3]
+Test Set:  [doc4, doc5, doc6]
+
+Query from doc4 → Retrieval finds doc4 (it's in the index!)
+→ "Perfect" retrieval score!
+→ But in production, doc4 wouldn't exist yet.
+```
+
+## The Challenge
+
+### Part 1: Split Validator
+
+```python
+from enum import Enum
+from typing import List, Dict, Set
+from dataclasses import dataclass
+
+class DataSplit(Enum):
+    TRAIN = "train"
+    VALIDATION = "validation"
+    TEST = "test"
+
+@dataclass
+class DataItem:
+    """A data item with split assignment."""
+    id: str
+    content: str
+    split: DataSplit
+    question_hash: str = None
+    metadata: Dict = None
+
+class SplitValidator:
+    """Validate data split boundaries."""
+    
+    def __init__(self):
+        self.train_ids: Set[str] = set()
+        self.val_ids: Set[str] = set()
+        self.test_ids: Set[str] = set()
+        self.question_hashes: Set[str] = set()
+    
+    def register_items(self, items: List[DataItem]):
+        """Register items by split."""
+        for item in items:
+            if item.split == DataSplit.TRAIN:
+                self.train_ids.add(item.id)
+                if item.question_hash:
+                    self.question_hashes.add(item.question_hash)
+            elif item.split == DataSplit.VALIDATION:
+                self.val_ids.add(item.id)
+            elif item.split == DataSplit.TEST:
+                self.test_ids.add(item.id)
+    
+    def is_train_only(self, item_id: str) -> bool:
+        """Check if item is in training set only."""
+        return item_id in self.train_ids
+    
+    def is_contaminated(self, item_id: str) -> bool:
+        """Check if item is from validation or test."""
+        return item_id in self.val_ids or item_id in self.test_ids
+    
+    def check_few_shot_selection(
+        self,
+        selected_ids: List[str],
+        current_item_id: str
+    ) -> Dict[str, any]:
+        """Validate few-shot selection."""
+        violations = []
+        
+        for sel_id in selected_ids:
+            # Check for test/val contamination
+            if self.is_contaminated(sel_id):
+                violations.append({
+                    'type': 'split_contamination',
+                    'item_id': sel_id,
+                    'message': f'Item {sel_id} is from test/validation set'
+                })
+            
+            # Check for self-selection
+            if sel_id == current_item_id:
+                violations.append({
+                    'type': 'self_selection',
+                    'item_id': sel_id,
+                    'message': 'Cannot select current item as few-shot example'
+                })
+        
+        return {
+            'valid': len(violations) == 0,
+            'violations': violations
+        }
+```
+
+### Part 2: Train-Only Index
+
+```python
+class TrainOnlyIndex:
+    """Vector index that only contains training data."""
+    
+    def __init__(self, validator: SplitValidator, base_index):
+        self.validator = validator
+        self.index = base_index
+        self.train_items: Dict[str, DataItem] = {}
+    
+    def add_items(self, items: List[DataItem]):
+        """Add only training items to index."""
+        for item in items:
+            if item.split == DataSplit.TRAIN:
+                self.train_items[item.id] = item
+                self.index.add(
+                    id=item.id,
+                    content=item.content,
+                    metadata={
+                        'split': item.split.value,
+                        'question_hash': item.question_hash,
+                        **(item.metadata or {})
+                    }
+                )
+            else:
+                # Skip non-training items
+                pass
+    
+    def search(
+        self,
+        query: str,
+        query_split: DataSplit = None,
+        top_k: int = 5
+    ) -> List[Dict]:
+        """Search index with split-aware filtering."""
+        results = self.index.search(query, k=top_k)
+        
+        # Additional safety: filter results
+        filtered = []
+        for result in results:
+            item_id = result['id']
+            
+            # Only return training items
+            if self.validator.is_train_only(item_id):
+                filtered.append(result)
+            else:
+                # This shouldn't happen if index is built correctly
+                raise ValueError(
+                    f"Retrieved non-training item: {item_id}"
+                )
+        
+        return filtered
+    
+    def get_stats(self) -> Dict[str, int]:
+        """Get index statistics."""
+        return {
+            'train_items': len(self.train_items),
+            'total_indexed': self.index.size()
+        }
+```
+
+### Part 3: Few-Shot Selector with Guards
+
+```python
+class GuardedFewShotSelector:
+    """Few-shot selector with hard guards against leakage."""
+    
+    def __init__(
+        self,
+        validator: SplitValidator,
+        embedding_model,
+        num_examples: int = 3
+    ):
+        self.validator = validator
+        self.embedder = embedding_model
+        self.num_examples = num_examples
+        self.train_examples: List[DataItem] = []
+    
+    def set_train_examples(self, examples: List[DataItem]):
+        """Set training examples for selection."""
+        # Verify all are training examples
+        for ex in examples:
+            if not self.validator.is_train_only(ex.id):
+                raise ValueError(
+                    f"Example {ex.id} is not from training set"
+                )
+        
+        self.train_examples = examples
+    
+    def select(
+        self,
+        query: str,
+        blocked_hashes: Set[str] = None
+    ) -> List[DataItem]:
+        """Select few-shot examples with guards."""
+        blocked_hashes = blocked_hashes or set()
+        
+        # Embed query
+        query_emb = self.embedder.embed(query)
+        
+        # Score all training examples
+        scored = []
+        for ex in self.train_examples:
+            # Skip blocked hashes (e.g., current item)
+            if ex.question_hash in blocked_hashes:
+                continue
+            
+            # Score similarity
+            ex_emb = self.embedder.embed(ex.content)
+            similarity = cosine_similarity(query_emb, ex_emb)
+            
+            scored.append((ex, similarity))
+        
+        # Sort by similarity
+        scored.sort(key=lambda x: x[1], reverse=True)
+        
+        # Return top-k
+        return [ex for ex, _ in scored[:self.num_examples]]
+    
+    def select_for_item(
+        self,
+        item: DataItem
+    ) -> List[DataItem]:
+        """Select few-shot examples for a specific item."""
+        # Block current item's hash
+        blocked = {item.question_hash} if item.question_hash else set()
+        
+        # Select examples
+        examples = self.select(item.content, blocked_hashes=blocked)
+        
+        # Validate selection
+        validation = self.validator.check_few_shot_selection(
+            [ex.id for ex in examples],
+            item.id
+        )
+        
+        if not validation['valid']:
+            raise ValueError(
+                f"Few-shot selection failed: {validation['violations']}"
+            )
+        
+        return examples
+```
+
+### Part 4: Evaluation Pipeline with Guards
+
+```python
+class GuardedEvaluationPipeline:
+    """Evaluation pipeline with built-in leakage guards."""
+    
+    def __init__(
+        self,
+        validator: SplitValidator,
+        train_index: TrainOnlyIndex,
+        few_shot_selector: GuardedFewShotSelector
+    ):
+        self.validator = validator
+        self.index = train_index
+        self.selector = few_shot_selector
+    
+    def evaluate(
+        self,
+        test_items: List[DataItem],
+        rag_system
+    ) -> Dict[str, any]:
+        """Run guarded evaluation."""
+        results = []
+        
+        for item in test_items:
+            # Verify test item is not contaminated
+            if not self.validator.is_contaminated(item.id):
+                raise ValueError(
+                    f"Item {item.id} not marked as test/validation"
+                )
+            
+            # Select few-shot examples (guarded)
+            few_shot = self.selector.select_for_item(item)
+            
+            # Retrieve from train-only index
+            retrieved = self.index.search(
+                item.content,
+                query_split=item.split
+            )
+            
+            # Generate answer
+            answer = rag_system.generate(
+                query=item.content,
+                few_shot_examples=few_shot,
+                retrieved_context=retrieved
+            )
+            
+            # Evaluate
+            score = self._score_answer(answer, item)
+            
+            results.append({
+                'item_id': item.id,
+                'answer': answer,
+                'score': score,
+                'few_shot_ids': [ex.id for ex in few_shot],
+                'retrieved_ids': [r['id'] for r in retrieved]
+            })
+        
+        # Aggregate scores
+        avg_score = sum(r['score'] for r in results) / len(results)
+        
+        return {
+            'average_score': avg_score,
+            'num_evaluated': len(results),
+            'results': results,
+            'guards_active': True
+        }
+    
+    def _score_answer(self, answer: str, item: DataItem) -> float:
+        """Score generated answer against ground truth."""
+        # Implementation depends on task
+        # Could use exact match, F1, BLEU, etc.
+        pass
+    
+    def verify_integrity(self) -> Dict[str, bool]:
+        """Verify evaluation integrity."""
+        checks = {
+            'train_only_index': all(
+                self.validator.is_train_only(id)
+                for id in self.index.train_items.keys()
+            ),
+            'no_test_in_few_shot': len(
+                self.selector.train_examples
+            ) == len([
+                ex for ex in self.selector.train_examples
+                if self.validator.is_train_only(ex.id)
+            ]),
+            'validator_initialized': len(
+                self.validator.train_ids
+            ) > 0
+        }
+        
+        return {
+            **checks,
+            'all_passed': all(checks.values())
+        }
+```
+
+## Example Usage
+
+```python
+# Create validator
+validator = SplitValidator()
+
+# Register data splits
+train_items = [
+    DataItem(id="train_1", content="...", split=DataSplit.TRAIN),
+    DataItem(id="train_2", content="...", split=DataSplit.TRAIN),
+]
+test_items = [
+    DataItem(id="test_1", content="...", split=DataSplit.TEST),
+]
+
+validator.register_items(train_items + test_items)
+
+# Build train-only index
+index = TrainOnlyIndex(validator, base_index)
+index.add_items(train_items + test_items)  # Only train gets indexed
+
+# Create guarded selector
+selector = GuardedFewShotSelector(validator, embedder)
+selector.set_train_examples(train_items)
+
+# Run evaluation
+pipeline = GuardedEvaluationPipeline(validator, index, selector)
+results = pipeline.evaluate(test_items, rag_system)
+
+# Verify integrity
+integrity = pipeline.verify_integrity()
+print(f"Integrity checks: {integrity}")
+```
+
+## Evaluation Criteria
+
+Your solution will be evaluated on:
+
+1. **Split Enforcement**: No test data in training index
+2. **Few-Shot Guards**: No test examples as demonstrations
+3. **Validation**: Proper validation of selections
+4. **Integrity Checks**: Can verify evaluation setup
+5. **Error Handling**: Clear errors on violations

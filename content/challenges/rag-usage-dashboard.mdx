@@ -1,9 +1,24 @@
 ﻿---
 title: "RAG Usage Dashboard"
 description: "Build metrics collection for RAG observability"
-difficulty: "medium"
-xpReward: 100
-prerequisites: ["retrieval-metrics"]
+difficulty: medium
+xpReward: 120
+estimatedMinutes: 35
+topics: ["metrics", "observability", "monitoring", "dashboard", "production"]
+language: python
+prerequisites:
+  - retrieval-metrics
+  - rag-audit-logging
+  - basic-retrieval
+xp: 150
+related:
+  - rag-cost-tracker
+  - rag-observability
+  - rag-failure-diagnosis
+  - index-warmup
+next:
+  - rag-ab-testing
+  - rag-cost-calculator
 ---
 
 # RAG Usage Dashboard Metrics
@@ -12,40 +27,327 @@ Build metrics collection for a RAG usage dashboard.
 
 ## Why This Matters
 
-"What gets measured gets managed." Visibility into cost, latency, and quality enables optimization.
+"What gets measured gets managed." Visibility into cost, latency, and quality enables optimization. Production RAG systems require comprehensive observability to maintain reliability, debug failures, and optimize costs. Without metrics, you're flying blind.
 
 ## What You'll Learn
 
 - Metrics aggregation patterns
-- Percentile calculations (P95)
-- Cost estimation
+- Percentile calculations (P50, P95, P99)
+- Cost estimation and tracking
 - Time-series analysis
+- Health check implementation
 
 ## Real-World Application
 
 **Companies:** Datadog, New Relic, Langfuse, Helicone
-**Use Cases:** Cost optimization, Performance monitoring, SLA tracking
+**Use Cases:**
+- Cost optimization and budgeting
+- Performance monitoring and alerting
+- SLA tracking and compliance
+- Capacity planning
+- Debugging production issues
+
+## The Seven Golden Signals of RAG
+
+| Signal | Metric | Target | Alert Threshold |
+|--------|--------|--------|-----------------|
+| **Latency** | End-to-end response time | < 2s | P95 > 3s |
+| **Traffic** | Queries per minute (QPM) | — | Spike detection |
+| **Errors** | Failure rate | < 1% | > 5% |
+| **Saturation** | Queue depth | < 10 | > 50 |
+| **Cost** | $ per 1K queries | < $10 | > $20 |
+| **Quality** | Answer relevance score | > 0.8 | < 0.6 |
+| **Coverage** | Retrieved doc recall | > 0.7 | < 0.5 |
 
 ## Key Concepts
 
 ### RAG Metrics
 
 ```python
+from dataclasses import dataclass
+from typing import Optional, Dict, List
+from datetime import datetime
+
 @dataclass
 class RAGMetrics:
-    retrieval_latency_ms: float
-    generation_latency_ms: float
-    tokens_in: int
-    tokens_out: int
-    model: str
-    success: bool
+    """Complete metrics for a single RAG query."""
+    # Identification
+    query_id: str
+    timestamp: datetime
+    user_id: Optional[str] = None
+    
+    # Latency breakdown (milliseconds)
+    embedding_latency_ms: float = 0.0
+    retrieval_latency_ms: float = 0.0
+    reranking_latency_ms: float = 0.0
+    generation_latency_ms: float = 0.0
+    total_latency_ms: float = 0.0
+    
+    # Token usage
+    tokens_in: int = 0
+    tokens_out: int = 0
+    embedding_tokens: int = 0
+    
+    # Model info
+    embedding_model: str = ""
+    llm_model: str = ""
+    reranker_model: Optional[str] = None
+    
+    # Quality metrics
+    num_docs_retrieved: int = 0
+    num_docs_reranked: int = 0
+    top_score: float = 0.0
+    
+    # Status
+    success: bool = True
+    error_type: Optional[str] = None
+    cache_hit: bool = False
+    
+    # Cost (estimated)
+    estimated_cost_usd: float = 0.0
 ```
 
-### Summary Statistics
+### Rolling Time Windows
 
-- Total requests
-- Success rate
-- Avg/P95 latency
-- Token usage
-- Estimated cost
+```python
+from collections import deque
+import time
 
+class RollingWindowMetrics:
+    """Metrics aggregated over a rolling time window."""
+    
+    def __init__(self, window_seconds: float = 300.0):
+        self.window_seconds = window_seconds
+        self.metrics: deque = deque()
+    
+    def add(self, metric: RAGMetrics):
+        """Add a metric and remove expired ones."""
+        now = time.time()
+        cutoff = now - self.window_seconds
+        
+        # Remove expired metrics
+        while self.metrics and self.metrics[0].timestamp < cutoff:
+            self.metrics.popleft()
+        
+        self.metrics.append(metric)
+    
+    def get_summary(self) -> Dict:
+        """Get aggregated statistics."""
+        if not self.metrics:
+            return {}
+        
+        latencies = [m.total_latency_ms for m in self.metrics]
+        costs = [m.estimated_cost_usd for m in self.metrics]
+        
+        return {
+            "count": len(self.metrics),
+            "avg_latency_ms": sum(latencies) / len(latencies),
+            "p50_latency_ms": self._percentile(latencies, 50),
+            "p95_latency_ms": self._percentile(latencies, 95),
+            "p99_latency_ms": self._percentile(latencies, 99),
+            "total_cost_usd": sum(costs),
+            "error_rate": sum(1 for m in self.metrics if not m.success) / len(self.metrics),
+        }
+    
+    @staticmethod
+    def _percentile(values: List[float], p: float) -> float:
+        """Calculate percentile using nearest-rank method."""
+        if not values:
+            return 0.0
+        sorted_vals = sorted(values)
+        k = (len(sorted_vals) - 1) * p / 100
+        f = int(k)
+        c = f + 1 if f + 1 < len(sorted_vals) else f
+        return sorted_vals[f] + (k - f) * (sorted_vals[c] - sorted_vals[f])
+```
+
+## Summary Statistics
+
+Key metrics to track:
+
+| Metric | Formula | Why It Matters |
+|--------|---------|----------------|
+| Total requests | `count(metrics)` | Traffic volume |
+| Success rate | `successes / total` | Reliability |
+| Avg/P95 latency | Percentile(latencies) | User experience |
+| Token usage | `sum(tokens)` | Cost tracking |
+| Estimated cost | `calculated from tokens` | Budget management |
+
+### Percentile Calculation
+
+```python
+def calculate_percentiles(values: List[float]) -> Dict[str, float]:
+    """Calculate key percentiles for latency distribution."""
+    if not values:
+        return {}
+    
+    sorted_vals = sorted(values)
+    n = len(sorted_vals)
+    
+    def percentile(p: float) -> float:
+        """Nearest-rank percentile."""
+        idx = int((p / 100) * (n - 1))
+        return sorted_vals[idx]
+    
+    return {
+        "p50": percentile(50),  # Median
+        "p90": percentile(90),  # 90% of queries
+        "p95": percentile(95),  # 95% of queries
+        "p99": percentile(99),  # Worst 1%
+        "min": sorted_vals[0],
+        "max": sorted_vals[-1],
+    }
+```
+
+## Resources
+
+### Documentation
+- [Google SRE Book - Monitoring](https://sre.google/sre-book/monitoring-distributed-systems/)
+- [Datadog Monitoring 101](https://www.datadoghq.com/blog/monitoring-101-collecting-data/)
+- [OpenTelemetry Metrics](https://opentelemetry.io/docs/concepts/signals/metrics/)
+
+### Tools
+- **Prometheus**: Time-series metrics collection
+- **Grafana**: Visualization and dashboards
+- **Langfuse**: LLM observability platform
+- **Helicone**: LLM API monitoring
+
+### Papers
+- "Site Reliability Engineering" (Google)
+- "The Tail at Scale" (Dean & Barroso, 2013)
+
+## Production Implementation
+
+### Exporter Pattern
+
+```python
+from abc import ABC, abstractmethod
+
+class MetricsExporter(ABC):
+    """Abstract base for metrics exporters."""
+    
+    @abstractmethod
+    def export(self, metrics: RAGMetrics):
+        """Export a single metric point."""
+        pass
+    
+    @abstractmethod
+    def flush(self):
+        """Flush any buffered metrics."""
+        pass
+
+class PrometheusExporter(MetricsExporter):
+    """Export metrics to Prometheus."""
+    
+    def __init__(self, port: int = 8000):
+        self.port = port
+        # Setup Prometheus counters, histograms
+    
+    def export(self, metrics: RAGMetrics):
+        # Update counters and histograms
+        pass
+
+class CloudWatchExporter(MetricsExporter):
+    """Export to AWS CloudWatch."""
+    
+    def export(self, metrics: RAGMetrics):
+        # Batch and send to CloudWatch
+        pass
+```
+
+## Dashboard Widgets
+
+### Essential Panels
+
+| Panel | Query | Visualization |
+|-------|-------|---------------|
+| QPS | `rate(queries_total[1m])` | Line chart |
+| Latency P99 | `histogram_quantile(0.99, rate(latency_bucket[5m]))` | Line chart |
+| Error Rate | `rate(errors_total[5m]) / rate(queries_total[5m])` | Gauge |
+| Cost Trend | `sum(cost_usd) by (model)` | Stacked area |
+| Top Slow Queries | `topk(10, latency_seconds)` | Table |
+
+## Challenge Linking
+
+**Prerequisites:**
+- Complete [Retrieval Metrics](/challenges/retrieval-metrics) for retrieval metrics basics
+- Complete [RAG Audit Logging](/challenges/rag-audit-logging) for logging infrastructure
+- Complete [Basic Retrieval](/challenges/basic-retrieval) for RAG fundamentals
+
+**Next Steps:**
+- [RAG A/B Testing](/challenges/rag-ab-testing) - Split testing with metrics
+- [RAG Cost Calculator](/challenges/rag-cost-calculator) - Advanced cost modeling
+
+## Your Task
+
+Build a `RAGMetricsCollector` class that:
+
+1. Collects per-query metrics using the [`RAGMetrics`](content/challenges/rag-usage-dashboard.mdx:25) dataclass
+2. Aggregates rolling window statistics
+3. Calculates percentiles (P50, P90, P95, P99)
+4. Tracks cost estimates
+5. Provides health check endpoints
+
+### Starter Code
+
+```python
+from dataclasses import dataclass, field
+from typing import List, Dict, Optional
+from datetime import datetime
+from collections import defaultdict
+import time
+
+@dataclass
+class RAGMetrics:
+    """Metrics for a single RAG query."""
+    query_id: str
+    timestamp: datetime
+    total_latency_ms: float
+    tokens_in: int
+    tokens_out: int
+    success: bool
+    estimated_cost_usd: float = 0.0
+    # Add more fields as needed...
+
+
+class RAGMetricsCollector:
+    """Collect and aggregate RAG metrics."""
+    
+    def __init__(self, window_seconds: float = 300.0):
+        self.window_seconds = window_seconds
+        self.metrics: List[RAGMetrics] = []
+    
+    def record(self, metric: RAGMetrics):
+        """Record a new metric."""
+        pass  # TODO: Implement
+    
+    def get_summary(self) -> Dict:
+        """Get aggregated statistics for the window."""
+        pass  # TODO: Implement
+    
+    def get_health(self) -> Dict:
+        """Get health status based on metrics."""
+        pass  # TODO: Implement
+```
+
+### Requirements
+
+1. **Latency percentiles**: Calculate P50, P90, P95, P99
+2. **Rolling window**: Metrics expire after `window_seconds`
+3. **Cost tracking**: Aggregate estimated costs
+4. **Health checks**: Return status based on error rate and latency
+5. **Thread safety**: Handle concurrent metric recording
+
+```
+Expected Output:
+{
+    "total_queries": 1000,
+    "error_rate": 0.02,
+    "avg_latency_ms": 245.5,
+    "p50_latency_ms": 180.0,
+    "p95_latency_ms": 520.0,
+    "p99_latency_ms": 890.0,
+    "total_cost_usd": 12.45,
+    "health": "healthy"  // healthy|degraded|unhealthy
+}
+```

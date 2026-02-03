@@ -1,24 +1,160 @@
 ﻿---
 title: "Vector Normalization (L2 Norm)"
 description: "Normalize a vector to unit length for consistent similarity computation."
+prerequisites: ["dot-product"]
+related: ["cosine-similarity", "euclidean-distance"]
+next: ["sparse-vector-bow"]
 ---
 
-# Vector Normalization (L2 Norm)
+<Callout title="Goal" variant="info">
+  Master vector normalization — the foundation of consistent similarity computation across different embedding sources and models.
+</Callout>
 
-When working with embeddings from different models or sources, **normalization** is critical. A normalized vector has a magnitude (L2 norm) of exactly 1.0.
+## Why Vector Normalization Matters
 
-### Why it Matters
+When working with embeddings from different models or sources, **normalization** is critical. A normalized vector has a magnitude (L2 norm) of exactly 1.0. Without normalization:
 
-If you mix unnormalized embeddings from OpenAI (which are already normalized) with embeddings from a local model (which might not be), your similarity scores become meaningless.
+- **Similarity scores become meaningless** when mixing embeddings from different sources
+- **Dot products don't equal cosine similarity** for unnormalized vectors
+- **Distance metrics become unreliable** across different embedding spaces
 
-### The Formula
+### Real-World Scenario
 
-For a vector `v = [v1, v2, ..., vn]`:
+Imagine you're building a RAG system that ingests documents from:
+- OpenAI embeddings (already normalized)
+- Local BGE model embeddings (not normalized by default)
+- Fine-tuned custom embeddings
 
-- **Magnitude**: `||v|| = sqrt(v1² + v2² + ... + vn²)`
-- **Normalized**: `v_norm = [v1/||v||, v2/||v||, ..., vn/||v||]`
+Without normalization, a query vector might have a magnitude of 0.95 while document vectors range from 0.8 to 1.2. Your similarity scores become inconsistent and retrieval quality degrades.
 
-### Your Task
+## The Mathematical Foundation
 
-Implement a function that returns a unit-length vector. Handle the edge case where the input is a zero vector (return it unchanged).
+### L2 Norm (Euclidean Norm)
 
+For a vector **v** = [v₁, v₂, ..., vₙ]:
+
+$$||v||_2 = \sqrt{v_1^2 + v_2^2 + ... + v_n^2}$$
+
+### Normalization Formula
+
+$$v_{normalized} = \frac{v}{||v||_2} = \left[\frac{v_1}{||v||_2}, \frac{v_2}{||v||_2}, ..., \frac{v_n}{||v||_2}\right]$$
+
+### Properties of Normalized Vectors
+
+| Property | Description |
+|----------|-------------|
+| **Magnitude** | Always equals 1.0 |
+| **Direction** | Preserved from original vector |
+| **Dot Product** | Equals cosine similarity |
+| **Distance** | Euclidean distance relates directly to angular distance |
+
+## Theoretical Deep Dive
+
+### Why L2 Norm?
+
+The L2 norm is the natural choice for embeddings because:
+
+1. **Geometric Interpretation**: It measures the true Euclidean length in vector space
+2. **Rotation Invariance**: Rotating the coordinate system doesn't change the norm
+3. **Differentiability**: Smooth gradient for optimization (unlike L1)
+4. **Probability Connection**: Related to Gaussian distributions in probabilistic models
+
+### Connection to Cosine Similarity
+
+When vectors are normalized:
+
+$$\text{cosine\_similarity}(a, b) = \frac{a \cdot b}{||a|| \cdot ||b||} = a_{norm} \cdot b_{norm}$$
+
+This is why **dot product of normalized vectors equals cosine similarity** — a crucial optimization in production systems.
+
+### Normalization in Neural Networks
+
+Modern embedding models often use internal normalization:
+
+- **Layer Normalization**: Applied during training for stable gradients
+- **Final L2 Normalization**: Some models (OpenAI, Cohere) output normalized vectors
+- **No Normalization**: Models like BGE require explicit normalization
+
+## Production Considerations
+
+### When to Normalize
+
+| Scenario | Action | Why |
+|----------|--------|-----|
+| Single model, all queries | Check if already normalized | Avoid double normalization |
+| Multiple models | Always normalize | Ensure consistent comparison |
+| Custom embeddings | Always normalize | Unknown normalization state |
+| Hybrid search | Normalize dense, keep sparse as-is | Different representations |
+
+### Performance Impact
+
+```
+Normalization Cost: O(n) per vector
+- 768-dim vector: ~1μs on CPU
+- 3072-dim vector: ~4μs on CPU
+- Batch of 1000: ~1ms total
+```
+
+**Optimization**: Normalize once at indexing time, not at query time.
+
+### Edge Cases
+
+1. **Zero Vector**: Division by zero — return unchanged or raise error
+2. **Very Small Magnitude**: Numerical instability — add epsilon check
+3. **NaN/Inf Values**: Data corruption — validate inputs
+
+## Your Task
+
+Implement a function that returns a unit-length vector:
+
+```python
+def normalize_l2(vector: List[float]) -> List[float]:
+    """
+    Normalize a vector to unit length (L2 norm = 1.0).
+    
+    Args:
+        vector: Input vector of arbitrary length
+        
+    Returns:
+        Normalized vector with magnitude 1.0
+        
+    Edge Cases:
+        - Zero vector: return unchanged
+        - Empty vector: return empty list
+    """
+    pass
+```
+
+### Validation Checklist
+
+- [ ] Zero vector returns unchanged (avoid division by zero)
+- [ ] Empty vector returns empty list
+- [ ] Output magnitude is exactly 1.0 (within floating-point epsilon)
+- [ ] Direction is preserved (angle unchanged)
+- [ ] Works with positive, negative, and mixed values
+
+## Resources
+
+### Academic Papers
+- ["Efficient Estimation of Word Representations in Vector Space"](https://arxiv.org/abs/1301.3781) - Mikolov et al. (Word2Vec normalization)
+- ["Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks"](https://arxiv.org/abs/1908.10084) - Reimers & Gurevych
+
+### Documentation
+- [OpenAI Embeddings API](https://platform.openai.com/docs/guides/embeddings) - Notes on normalization
+- [Sentence Transformers Documentation](https://www.sbert.net/) - Normalization utilities
+- [NumPy Linalg Norm](https://numpy.org/doc/stable/reference/generated/numpy.linalg.norm.html) - Implementation reference
+
+### Tutorials
+- ["Vector Similarity Explained"](https://www.pinecone.io/learn/vector-similarity/) - Pinecone
+- ["Embedding Models: A Comprehensive Guide"](https://huggingface.co/blog/getting-started-with-embeddings) - Hugging Face
+
+### Tools
+- [MTEB Leaderboard](https://huggingface.co/spaces/mteb/leaderboard) - Compare normalized vs unnormalized models
+- [Vector DB Comparison](https://thedataquarry.com/posts/vector-db/) - Normalization requirements by database
+
+## Next Steps
+
+After mastering normalization, explore:
+- **Sparse Vector BOW**: Understanding sparse representations
+- **Cosine Similarity**: Using normalized vectors for similarity
+- **BM25 from Scratch**: Combining normalized dense with sparse vectors

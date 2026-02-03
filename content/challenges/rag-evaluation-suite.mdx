@@ -1,4 +1,15 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "RAG Evaluation Suite"
+description: "Build a comprehensive RAG evaluation suite — systematically measure and improve retrieval and generation quality."
+difficulty: "hard"
+estimatedMinutes: 60
+prerequisites: ["llm-as-judge", "multi-judge-consensus", "retrieval-metrics"]
+related: ["retrieval-regression-tests", "rag-ab-testing", "beir-evaluation-setup"]
+next: "retrieval-regression-tests"
+xpReward: 150
+---
+
+<Callout title="Goal" variant="info">
   Build a comprehensive RAG evaluation suite — systematically measure and
   improve retrieval and generation quality.
 </Callout>
@@ -29,365 +40,305 @@ RAG systems fail in subtle ways:
 └─────────────────────────────────────────┘
 ```
 
-## Level 1: Retrieval Metrics
+## Complexity Analysis
 
-### Core Metrics
+| Level | Metrics | Time Complexity | Typical Latency |
+|-------|---------|-----------------|-----------------|
+| L1: Retrieval | Recall, Precision, MRR, nDCG | O(Q × K) | < 1s |
+| L2: Generation | Faithfulness, Relevance | O(Q × L³) | 5-30s |
+| L3: End-to-End | User satisfaction, Task success | O(Q × T) | Hours |
+
+Where Q = queries, K = top-k, L = sequence length, T = task time
+
+## Real-World Context
+
+| Company | Focus | Key Metrics |
+|---------|-------|-------------|
+| **OpenAI** | All levels | Custom eval suite for GPT-4 |
+| **Anthropic** | L2 + L3 | Constitutional AI evaluation |
+| **Google** | L1 + L2 | Search quality metrics |
+| **Microsoft** | All levels | Copilot evaluation framework |
+
+## Resources
+
+### Papers
+- **"RAGAS: Automated Evaluation of Retrieval Augmented Generation"** - Comprehensive framework
+- **"Evaluating RAG: A Comprehensive Survey"** - 2024 survey
+
+### Tools
+- **RAGAS**: Full RAG evaluation framework
+- **Arize Phoenix**: LLM observability
+- **TruLens**: RAG evaluation and tracking
+- **LangSmith**: LangChain evaluation
+
+## Implementation: Complete Suite
 
 ```python
+from typing import List, Dict, Optional, Callable
+from dataclasses import dataclass
 import numpy as np
+from datetime import datetime
+
+@dataclass
+class RAGResult:
+    """Result from a RAG pipeline execution."""
+    query: str
+    contexts: List[str]
+    context_ids: List[str]
+    answer: str
+    latency_ms: float
+    token_usage: Dict[str, int]
 
-def recall_at_k(retrieved: list[str], relevant: list[str], k: int) -> float:
-    """What fraction of relevant docs were retrieved?"""
-    retrieved_set = set(retrieved[:k])
-    relevant_set = set(relevant)
-
-    if not relevant_set:
-        return 1.0
-
-    return len(retrieved_set & relevant_set) / len(relevant_set)
-
-def precision_at_k(retrieved: list[str], relevant: list[str], k: int) -> float:
-    """What fraction of retrieved docs are relevant?"""
-    retrieved_set = set(retrieved[:k])
-    relevant_set = set(relevant)
-
-    if not retrieved_set:
-        return 0.0
-
-    return len(retrieved_set & relevant_set) / len(retrieved_set)
-
-def mrr(retrieved: list[str], relevant: list[str]) -> float:
-    """Mean Reciprocal Rank - where does first relevant doc appear?"""
-    for i, doc_id in enumerate(retrieved):
-        if doc_id in relevant:
-            return 1 / (i + 1)
-    return 0.0
-
-def ndcg_at_k(retrieved: list[str], relevant: dict[str, float], k: int) -> float:
-    """Normalized Discounted Cumulative Gain."""
-    def dcg(scores):
-        return sum(score / np.log2(i + 2) for i, score in enumerate(scores))
-
-    # Actual DCG
-    actual_scores = [relevant.get(doc_id, 0) for doc_id in retrieved[:k]]
-    actual_dcg = dcg(actual_scores)
-
-    # Ideal DCG
-    ideal_scores = sorted(relevant.values(), reverse=True)[:k]
-    ideal_dcg = dcg(ideal_scores)
-
-    return actual_dcg / ideal_dcg if ideal_dcg > 0 else 0
-```
-
-### Context Relevance
-
-```python
-def context_relevance(query: str, contexts: list[str]) -> float:
-    """Score how relevant each context is to the query."""
-    prompt = f"""Rate the relevance of each context to the query on a scale of 0-10.
-
-Query: {query}
-
-Contexts:
-{format_numbered_contexts(contexts)}
-
-For each context, output: context_number: score
-"""
-
-    response = llm.generate(prompt)
-    scores = parse_scores(response)
-
-    return sum(scores) / len(scores) if scores else 0
-
-def context_precision(query: str, contexts: list[str], ground_truth: str) -> float:
-    """How much of the context is actually useful?"""
-    useful_count = 0
-
-    for ctx in contexts:
-        if is_useful_for_answer(ctx, ground_truth):
-            useful_count += 1
-
-    return useful_count / len(contexts) if contexts else 0
-```
-
-## Level 2: Generation Metrics
-
-### Faithfulness (Grounding)
-
-```python
-def faithfulness_score(response: str, contexts: list[str]) -> dict:
-    """Is the response grounded in the provided context?"""
-    # Extract claims from response
-    claims = extract_claims(response)
-
-    supported = 0
-    unsupported = []
-
-    for claim in claims:
-        if is_supported_by_context(claim, contexts):
-            supported += 1
-        else:
-            unsupported.append(claim)
-
-    return {
-        "score": supported / len(claims) if claims else 1.0,
-        "total_claims": len(claims),
-        "supported_claims": supported,
-        "unsupported_claims": unsupported
-    }
-
-def extract_claims(response: str) -> list[str]:
-    """Extract factual claims from response."""
-    prompt = f"""Extract all factual claims from this response.
-Each claim should be atomic and verifiable.
-
-Response: {response}
-
-Claims (one per line):"""
-
-    result = llm.generate(prompt)
-    return [c.strip() for c in result.split("\n") if c.strip()]
-
-def is_supported_by_context(claim: str, contexts: list[str]) -> bool:
-    """Check if claim is supported by any context."""
-    combined_context = "\n".join(contexts)
-
-    prompt = f"""Is this claim supported by the context?
-
-Claim: {claim}
-
-Context: {combined_context}
-
-Answer SUPPORTED or NOT_SUPPORTED:"""
-
-    return "SUPPORTED" in llm.generate(prompt)
-```
-
-### Answer Relevance
-
-```python
-def answer_relevance(query: str, response: str) -> float:
-    """Does the response actually answer the query?"""
-    prompt = f"""Rate how well this response answers the query.
-
-Query: {query}
-
-Response: {response}
-
-Score (0-10, where 10 = perfectly answers the question):"""
-
-    result = llm.generate(prompt)
-    return float(result.strip()) / 10
-
-def answer_completeness(query: str, response: str, expected_points: list[str]) -> float:
-    """Are all expected points covered?"""
-    covered = 0
-
-    for point in expected_points:
-        if point_covered_in_response(point, response):
-            covered += 1
-
-    return covered / len(expected_points) if expected_points else 1.0
-```
-
-## Level 3: End-to-End Metrics
-
-### RAGAS-style Metrics
-
-```python
-class RAGASEvaluator:
-    """Implement RAGAS-style evaluation."""
-
-    def evaluate(self, query: str, response: str, contexts: list[str],
-                 ground_truth: str = None) -> dict:
-        results = {}
-
-        # Context metrics
-        results["context_precision"] = self.context_precision(query, contexts)
-        results["context_recall"] = self.context_recall(query, contexts, ground_truth)
-        results["context_relevancy"] = self.context_relevancy(query, contexts)
-
-        # Generation metrics
-        results["faithfulness"] = self.faithfulness(response, contexts)
-        results["answer_relevancy"] = self.answer_relevancy(query, response)
-
-        if ground_truth:
-            results["answer_correctness"] = self.answer_correctness(response, ground_truth)
-
-        return results
-
-    def context_precision(self, query: str, contexts: list[str]) -> float:
-        """Precision of retrieved contexts."""
-        # Implementation...
-        pass
-
-    def faithfulness(self, response: str, contexts: list[str]) -> float:
-        """All claims in response are from context."""
-        # Implementation...
-        pass
-```
-
-### LLM-as-Judge
-
-```python
-def llm_judge(query: str, response: str, reference: str = None) -> dict:
-    """Use LLM to judge response quality."""
-
-    prompt = f"""You are an expert judge evaluating a RAG system response.
-
-Query: {query}
-
-Response being evaluated:
-{response}
-
-{"Reference answer: " + reference if reference else ""}
-
-Rate the response on these dimensions (0-10):
-1. Relevance: Does it answer the question?
-2. Accuracy: Is the information correct?
-3. Completeness: Are all aspects covered?
-4. Clarity: Is it well-written and clear?
-
-Provide scores and brief justification for each."""
-
-    result = llm.generate(prompt)
-    return parse_judge_scores(result)
-```
-
-## Evaluation Datasets
-
-### Creating Test Sets
-
-```python
 @dataclass
 class EvalExample:
+    """Evaluation example with ground truth."""
     query: str
-    expected_docs: list[str]
-    expected_answer: str
-    metadata: dict = None
+    expected_answer: Optional[str] = None
+    expected_context_ids: Optional[List[str]] = None
+    metadata: Optional[Dict] = None
 
-def create_eval_set_from_logs(logs: list[dict]) -> list[EvalExample]:
-    """Create evaluation set from production logs."""
-    examples = []
 
-    for log in logs:
-        if log.get("user_rating", 0) >= 4:  # Positive examples
-            examples.append(EvalExample(
-                query=log["query"],
-                expected_docs=log["retrieved_doc_ids"],
-                expected_answer=log["response"],
-                metadata={"source": "positive_logs"}
-            ))
+class RAGEvaluationSuite:
+    """
+    Comprehensive RAG evaluation suite.
+    
+    Evaluates at three levels:
+    1. Retrieval metrics
+    2. Generation metrics
+    3. End-to-end metrics
+    """
+    
+    def __init__(
+        self,
+        judge_fn: Optional[Callable[[str], str]] = None
+    ):
+        """
+        Initialize evaluation suite.
+        
+        Args:
+            judge_fn: LLM function for generation evaluation
+        """
+        self.judge_fn = judge_fn
+        self.history: List[Dict] = []
+    
+    # ==================== Level 1: Retrieval Metrics ====================
+    
+    def recall_at_k(
+        self,
+        retrieved_ids: List[str],
+        relevant_ids: set,
+        k: int = 10
+    ) -> float:
+        """Recall@K: Fraction of relevant docs found."""
+        if not relevant_ids:
+            return 1.0
+        top_k = set(retrieved_ids[:k])
+        return len(top_k & relevant_ids) / len(relevant_ids)
+    
+    def precision_at_k(
+        self,
+        retrieved_ids: List[str],
+        relevant_ids: set,
+        k: int = 10
+    ) -> float:
+        """Precision@K: Fraction of top-K that are relevant."""
+        if not retrieved_ids:
+            return 0.0
+        top_k = retrieved_ids[:k]
+        return sum(1 for d in top_k if d in relevant_ids) / len(top_k)
+    
+    def mrr(self, retrieved_ids: List[str], relevant_ids: set) -> float:
+        """MRR: Reciprocal rank of first relevant document."""
+        for i, doc_id in enumerate(retrieved_ids, start=1):
+            if doc_id in relevant_ids:
+                return 1.0 / i
+        return 0.0
+    
+    # ==================== Level 2: Generation Metrics ====================
+    
+    def faithfulness_score(
+        self,
+        answer: str,
+        contexts: List[str]
+    ) -> Dict:
+        """
+        Evaluate if answer is grounded in contexts.
+        
+        Uses LLM-as-a-Judge if available, otherwise heuristics.
+        """
+        if self.judge_fn:
+            prompt = f"""Rate how well this answer is supported by the context (0-1):
 
-    return examples
+Context: {' '.join(contexts)[:1000]}
+Answer: {answer}
 
-def create_synthetic_eval_set(documents: list[str], n: int = 100) -> list[EvalExample]:
-    """Generate synthetic questions from documents."""
-    examples = []
-
-    for doc in random.sample(documents, min(n, len(documents))):
-        # Generate question
-        question = generate_question(doc)
-        # Generate expected answer
-        answer = generate_answer(question, doc)
-
-        examples.append(EvalExample(
-            query=question,
-            expected_docs=[doc.id],
-            expected_answer=answer,
-            metadata={"source": "synthetic"}
-        ))
-
-    return examples
-```
-
-## Running Evaluations
-
-### Batch Evaluation
-
-```python
-class RAGEvaluationRunner:
-    def __init__(self, rag_pipeline, evaluator):
-        self.pipeline = rag_pipeline
-        self.evaluator = evaluator
-
-    def evaluate_batch(self, eval_set: list[EvalExample]) -> dict:
-        results = []
-
-        for example in tqdm(eval_set):
-            # Run RAG pipeline
-            rag_result = self.pipeline.query(example.query)
-
-            # Evaluate
-            eval_result = self.evaluator.evaluate(
-                query=example.query,
-                response=rag_result["response"],
-                contexts=rag_result["contexts"],
-                ground_truth=example.expected_answer
-            )
-
-            # Add retrieval metrics
-            eval_result["recall@10"] = recall_at_k(
-                rag_result["doc_ids"],
-                example.expected_docs,
-                10
-            )
-
-            results.append(eval_result)
-
-        return self.aggregate_results(results)
-
-    def aggregate_results(self, results: list[dict]) -> dict:
-        """Compute aggregate metrics."""
-        metrics = {}
-
-        for key in results[0].keys():
-            values = [r[key] for r in results if isinstance(r.get(key), (int, float))]
-            if values:
-                metrics[key] = {
-                    "mean": np.mean(values),
-                    "std": np.std(values),
-                    "min": np.min(values),
-                    "max": np.max(values),
+Respond with JSON: {{"score": X.XX, "reasoning": "..."}}"""
+            
+            try:
+                response = self.judge_fn(prompt)
+                import json
+                result = json.loads(response)
+                return {
+                    "score": float(result.get("score", 0.5)),
+                    "reasoning": result.get("reasoning", ""),
+                    "method": "llm_judge"
                 }
+            except:
+                pass
+        
+        # Fallback: keyword overlap
+        answer_words = set(answer.lower().split())
+        context_words = set(' '.join(contexts).lower().split())
+        overlap = len(answer_words & context_words) / len(answer_words) if answer_words else 1.0
+        
+        return {
+            "score": overlap,
+            "reasoning": "Keyword overlap fallback",
+            "method": "heuristic"
+        }
+    
+    def relevance_score(self, query: str, answer: str) -> Dict:
+        """Evaluate if answer addresses the query."""
+        if self.judge_fn:
+            prompt = f"""Rate how well this answer addresses the query (0-1):
 
+Query: {query}
+Answer: {answer}
+
+Respond with JSON: {{"score": X.XX, "reasoning": "..."}}"""
+            
+            try:
+                response = self.judge_fn(prompt)
+                import json
+                result = json.loads(response)
+                return {
+                    "score": float(result.get("score", 0.5)),
+                    "reasoning": result.get("reasoning", ""),
+                    "method": "llm_judge"
+                }
+            except:
+                pass
+        
+        # Fallback: keyword overlap
+        query_words = set(query.lower().split())
+        answer_words = set(answer.lower().split())
+        overlap = len(query_words & answer_words) / len(query_words) if query_words else 1.0
+        
+        return {
+            "score": overlap,
+            "reasoning": "Keyword overlap fallback",
+            "method": "heuristic"
+        }
+    
+    # ==================== Level 3: End-to-End Metrics ====================
+    
+    def answer_correctness(
+        self,
+        generated: str,
+        expected: str
+    ) -> Dict:
+        """Compare generated answer to expected answer."""
+        # Simple word overlap (in production, use LLM or semantic similarity)
+        gen_words = set(generated.lower().split())
+        exp_words = set(expected.lower().split())
+        
+        if not exp_words:
+            return {"score": 1.0, "method": "exact"}
+        
+        precision = len(gen_words & exp_words) / len(gen_words) if gen_words else 0.0
+        recall = len(gen_words & exp_words) / len(exp_words)
+        
+        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+        
+        return {
+            "score": f1,
+            "precision": precision,
+            "recall": recall,
+            "method": "token_f1"
+        }
+    
+    # ==================== Full Evaluation ====================
+    
+    def evaluate(
+        self,
+        result: RAGResult,
+        example: EvalExample,
+        k: int = 10
+    ) -> Dict:
+        """
+        Run complete evaluation on a RAG result.
+        
+        Returns:
+            Dict with all metrics
+        """
+        metrics = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "query": result.query,
+            "latency_ms": result.latency_ms,
+            "token_usage": result.token_usage
+        }
+        
+        # Level 1: Retrieval
+        if example.expected_context_ids:
+            relevant = set(example.expected_context_ids)
+            metrics["retrieval"] = {
+                f"recall@{k}": self.recall_at_k(result.context_ids, relevant, k),
+                f"precision@{k}": self.precision_at_k(result.context_ids, relevant, k),
+                "mrr": self.mrr(result.context_ids, relevant)
+            }
+        
+        # Level 2: Generation
+        metrics["generation"] = {
+            "faithfulness": self.faithfulness_score(result.answer, result.contexts),
+            "relevance": self.relevance_score(result.query, result.answer)
+        }
+        
+        # Level 3: End-to-end
+        if example.expected_answer:
+            metrics["end_to_end"] = {
+                "correctness": self.answer_correctness(
+                    result.answer,
+                    example.expected_answer
+                )
+            }
+        
+        # Store in history
+        self.history.append(metrics)
+        
         return metrics
-```
-
-### Continuous Evaluation
-
-```python
-class ContinuousEvaluator:
-    """Run periodic evaluations and track trends."""
-
-    def __init__(self, runner, eval_set, schedule="daily"):
-        self.runner = runner
-        self.eval_set = eval_set
-        self.schedule = schedule
-        self.history = []
-
-    def run_and_store(self):
-        results = self.runner.evaluate_batch(self.eval_set)
-
-        self.history.append({
-            "timestamp": datetime.utcnow(),
-            "results": results
-        })
-
-        # Check for regression
-        if len(self.history) >= 2:
-            self.check_regression()
-
-        return results
-
-    def check_regression(self, threshold: float = 0.1):
-        """Alert if quality drops."""
-        current = self.history[-1]["results"]
-        previous = self.history[-2]["results"]
-
-        for metric in ["faithfulness", "recall@10", "answer_relevancy"]:
-            if current[metric]["mean"] < previous[metric]["mean"] * (1 - threshold):
-                alert(f"Regression in {metric}: {previous[metric]['mean']:.2f} → {current[metric]['mean']:.2f}")
+    
+    def aggregate(self, metrics_list: List[Dict]) -> Dict:
+        """Aggregate metrics across multiple evaluations."""
+        if not metrics_list:
+            return {}
+        
+        # Extract numeric values
+        retrieval_scores = []
+        faithfulness_scores = []
+        relevance_scores = []
+        
+        for m in metrics_list:
+            if "retrieval" in m:
+                retrieval_scores.append(m["retrieval"].get(f"recall@10", 0))
+            if "generation" in m:
+                faithfulness_scores.append(m["generation"]["faithfulness"]["score"])
+                relevance_scores.append(m["generation"]["relevance"]["score"])
+        
+        return {
+            "count": len(metrics_list),
+            "retrieval": {
+                "mean": np.mean(retrieval_scores) if retrieval_scores else 0,
+                "std": np.std(retrieval_scores) if retrieval_scores else 0
+            },
+            "faithfulness": {
+                "mean": np.mean(faithfulness_scores) if faithfulness_scores else 0,
+                "std": np.std(faithfulness_scores) if faithfulness_scores else 0
+            },
+            "relevance": {
+                "mean": np.mean(relevance_scores) if relevance_scores else 0,
+                "std": np.std(relevance_scores) if relevance_scores else 0
+            }
+        }
 ```
 
 ## Metrics Dashboard
@@ -410,3 +361,184 @@ class ContinuousEvaluator:
 - [ ] Alert on quality regression
 - [ ] Track trends over time
 
+## Challenge: Complete the Suite
+
+### Requirements
+
+1. Implement all three levels of metrics
+2. Support both LLM-based and heuristic evaluation
+3. Add aggregation functions
+4. Store evaluation history
+
+### Starter Code
+
+```python
+from typing import List, Dict, Optional
+from dataclasses import dataclass
+
+@dataclass
+class RAGResult:
+    query: str
+    contexts: List[str]
+    context_ids: List[str]
+    answer: str
+    latency_ms: float = 0.0
+
+@dataclass
+class EvalExample:
+    query: str
+    expected_answer: Optional[str] = None
+    expected_context_ids: Optional[List[str]] = None
+
+
+class RAGEvaluationSuite:
+    """Comprehensive RAG evaluation suite."""
+    
+    def __init__(self, judge_fn=None):
+        self.judge_fn = judge_fn
+        self.history = []
+    
+    def recall_at_k(self, retrieved_ids: List[str], relevant_ids: set, k: int = 10) -> float:
+        """Recall@K metric."""
+        # TODO: Implement
+        pass
+    
+    def faithfulness_score(self, answer: str, contexts: List[str]) -> Dict:
+        """Faithfulness metric."""
+        # TODO: Implement
+        pass
+    
+    def relevance_score(self, query: str, answer: str) -> Dict:
+        """Relevance metric."""
+        # TODO: Implement
+        pass
+    
+    def evaluate(self, result: RAGResult, example: EvalExample, k: int = 10) -> Dict:
+        """Run complete evaluation."""
+        # TODO: Implement
+        pass
+
+
+# Test your implementation
+def test_rag_suite():
+    suite = RAGEvaluationSuite()
+    
+    result = RAGResult(
+        query="What is Python?",
+        contexts=["Python is a programming language."],
+        context_ids=["doc1"],
+        answer="Python is a popular programming language."
+    )
+    
+    example = EvalExample(
+        query="What is Python?",
+        expected_answer="Python is a programming language.",
+        expected_context_ids=["doc1"]
+    )
+    
+    metrics = suite.evaluate(result, example)
+    
+    assert "retrieval" in metrics
+    assert "generation" in metrics
+    assert "end_to_end" in metrics
+    
+    print(f"Metrics: {metrics}")
+    print("All tests passed!")
+
+test_rag_suite()
+```
+
+### Solution
+
+<details>
+<summary>Click to reveal solution</summary>
+
+```python
+from typing import List, Dict, Optional
+from dataclasses import dataclass
+import numpy as np
+
+@dataclass
+class RAGResult:
+    query: str
+    contexts: List[str]
+    context_ids: List[str]
+    answer: str
+    latency_ms: float = 0.0
+
+@dataclass
+class EvalExample:
+    query: str
+    expected_answer: Optional[str] = None
+    expected_context_ids: Optional[List[str]] = None
+
+
+class RAGEvaluationSuite:
+    """Comprehensive RAG evaluation suite."""
+    
+    def __init__(self, judge_fn=None):
+        self.judge_fn = judge_fn
+        self.history = []
+    
+    def recall_at_k(self, retrieved_ids: List[str], relevant_ids: set, k: int = 10) -> float:
+        if not relevant_ids:
+            return 1.0
+        top_k = set(retrieved_ids[:k])
+        return len(top_k & relevant_ids) / len(relevant_ids)
+    
+    def precision_at_k(self, retrieved_ids: List[str], relevant_ids: set, k: int = 10) -> float:
+        if not retrieved_ids:
+            return 0.0
+        top_k = retrieved_ids[:k]
+        return sum(1 for d in top_k if d in relevant_ids) / len(top_k)
+    
+    def faithfulness_score(self, answer: str, contexts: List[str]) -> Dict:
+        answer_words = set(answer.lower().split())
+        context_words = set(' '.join(contexts).lower().split())
+        overlap = len(answer_words & context_words) / len(answer_words) if answer_words else 1.0
+        return {"score": overlap, "method": "heuristic"}
+    
+    def relevance_score(self, query: str, answer: str) -> Dict:
+        query_words = set(query.lower().split())
+        answer_words = set(answer.lower().split())
+        overlap = len(query_words & answer_words) / len(query_words) if query_words else 1.0
+        return {"score": overlap, "method": "heuristic"}
+    
+    def answer_correctness(self, generated: str, expected: str) -> Dict:
+        gen_words = set(generated.lower().split())
+        exp_words = set(expected.lower().split())
+        
+        if not exp_words:
+            return {"score": 1.0}
+        
+        precision = len(gen_words & exp_words) / len(gen_words) if gen_words else 0.0
+        recall = len(gen_words & exp_words) / len(exp_words)
+        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+        
+        return {"score": f1, "precision": precision, "recall": recall}
+    
+    def evaluate(self, result: RAGResult, example: EvalExample, k: int = 10) -> Dict:
+        metrics = {"query": result.query, "latency_ms": result.latency_ms}
+        
+        if example.expected_context_ids:
+            relevant = set(example.expected_context_ids)
+            metrics["retrieval"] = {
+                f"recall@{k}": self.recall_at_k(result.context_ids, relevant, k),
+                f"precision@{k}": self.precision_at_k(result.context_ids, relevant, k)
+            }
+        
+        metrics["generation"] = {
+            "faithfulness": self.faithfulness_score(result.answer, result.contexts),
+            "relevance": self.relevance_score(result.query, result.answer)
+        }
+        
+        if example.expected_answer:
+            metrics["end_to_end"] = {
+                "correctness": self.answer_correctness(result.answer, example.expected_answer)
+            }
+        
+        self.history.append(metrics)
+        return metrics
+```
+
+</details>

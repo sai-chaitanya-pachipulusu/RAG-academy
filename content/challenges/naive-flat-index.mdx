@@ -1,4 +1,15 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "Naive Flat Index"
+description: "Implement a naive flat index (brute force search) for small-scale retrieval"
+difficulty: "beginner"
+estimatedMinutes: 30
+xpReward: 35
+prerequisites: ["basic-retrieval", "embed-and-search"]
+related: ["hnsw-index", "ivf-flat-index", "product-quantization"]
+next: "hnsw-index"
+---
+
+<Callout title="Goal" variant="info">
   Implement a naive flat index (brute force search) for small-scale retrieval.
 </Callout>
 
@@ -10,7 +21,7 @@ Before reaching for Faiss or Pinecone, understanding how to iterate and score ve
 - Implementing "reranking" or custom scoring
 - Handling small datasets where an index overhead is unnecessary
 
-## What you’re implementing
+## What you're implementing
 
 Given:
 
@@ -22,3 +33,115 @@ Return top `k` similar vectors.
 
 This is fundamentally similar to "Embed and Search" but focuses on the data structure aspect (List of Lists).
 
+## The Algorithm
+
+```python
+class NaiveFlatIndex:
+    """
+    Simple brute-force vector index.
+    
+    Time Complexity:
+    - Indexing: O(N) to store vectors
+    - Search: O(N × d) where N = vectors, d = dimension
+    
+    Space Complexity: O(N × d) for storing all vectors
+    """
+    
+    def __init__(self, dim: int, metric: str = "cosine"):
+        self.dim = dim
+        self.metric = metric
+        self.vectors = []
+        self.ids = []
+    
+    def add(self, vectors: list[list[float]], ids: list[int] = None):
+        """Add vectors to the index."""
+        if ids is None:
+            ids = list(range(len(self.vectors), len(self.vectors) + len(vectors)))
+        
+        for vec, vid in zip(vectors, ids):
+            if len(vec) != self.dim:
+                raise ValueError(f"Vector dim {len(vec)} != index dim {self.dim}")
+            self.vectors.append(vec)
+            self.ids.append(vid)
+    
+    def search(self, query: list[float], k: int = 10) -> list[tuple[int, float]]:
+        """
+        Brute force search - score all vectors.
+        
+        Time Complexity: O(N × d) - linear scan
+        """
+        if len(query) != self.dim:
+            raise ValueError(f"Query dim {len(query)} != index dim {self.dim}")
+        
+        # Score all vectors
+        scores = []
+        for vid, vec in zip(self.ids, self.vectors):
+            if self.metric == "cosine":
+                score = cosine_similarity(query, vec)
+            elif self.metric == "dot":
+                score = dot_product(query, vec)
+            elif self.metric == "l2":
+                score = -euclidean_distance(query, vec)  # Negative for sorting
+            else:
+                raise ValueError(f"Unknown metric: {self.metric}")
+            scores.append((vid, score))
+        
+        # Return top k
+        scores.sort(key=lambda x: x[1], reverse=True)
+        return scores[:k]
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Indexing | O(N) | Store vectors |
+| Search | O(N × d) | Linear scan |
+| Space | O(N × d) | Full vectors stored |
+| Recall | 100% | Exact search |
+
+## When to Use Flat Index
+
+| Scenario | Recommendation |
+|----------|----------------|
+| < 10K vectors | Flat index is fine |
+| Debugging | Use flat for ground truth |
+| Exact recall required | Flat or exact index |
+| > 100K vectors | Consider ANN (HNSW, IVF) |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand the baseline for all vector search
+- Know when brute force is sufficient vs. when to use ANN
+- Be able to implement custom scoring logic
+
+## Real-World Applications
+
+| Use Case | Why Flat? |
+|----------|-----------|
+| **Testing/CI** | Deterministic results |
+| **Small datasets** | No ANN overhead needed |
+| **Reranking** | Exact top-K from candidates |
+| **Ground truth** | Evaluate ANN recall |
+
+## Common pitfalls
+
+- Not validating dimensions match.
+- Forgetting to handle empty index.
+- Not normalizing vectors for cosine similarity.
+
+## Resources
+
+### Documentation
+- [FAISS IndexFlat](https://faiss.ai/cpp_api/struct/structfaiss_1_1IndexFlat.html)
+- [Vector Search Basics](https://www.pinecone.io/learn/vector-search/)
+
+### Papers
+- **"Efficient K-Nearest Neighbor Search"** - Survey of exact methods
+
+## Related Challenges
+
+- [hnsw-index](hnsw-index) - Approximate nearest neighbor
+- [ivf-flat-index](ivf-flat-index) - Inverted file index
+- [product-quantization](product-quantization) - Vector compression

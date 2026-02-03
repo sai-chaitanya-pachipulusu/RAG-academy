@@ -1,32 +1,312 @@
-﻿<Callout title="Goal" variant="info">
-  Build the simplest query rewrite: normalize → remove stopwords → dedupe tokens.
-</Callout>
+﻿---
+title: "Query Normalization"
+description: "Build query rewrite with normalization, stopword removal, and token deduplication"
+difficulty: "beginner"
+xpReward: 50
+topics: ["query-processing", "normalization", "text-preprocessing"]
+prerequisites: []
+---
 
-## Why this matters in production
+# Query Normalization
 
-Real user queries are messy:
+## Overview
 
-- inconsistent casing (`API Key` vs `api_key`)
-- filler words (“how do I…”, “can you…”, “please…”)
-- repeated terms
+Real user queries are messy: inconsistent casing (`API Key` vs `api_key`), filler words ("how do I…", "can you…", "please…"), and repeated terms. Normalization improves retrieval stability and reduces unnecessary variance in logs, caches, and evals.
 
-Normalization improves **retrieval stability** and reduces unnecessary variance in logs, caches, and evals.
+## Why This Matters
 
-## Offline vs online
+- **Retrieval Stability**: Same intent → same normalized query
+- **Caching**: Cache hits on equivalent queries
+- **Analytics**: Group similar queries together
+- **Consistency**: Predictable behavior across inputs
 
-- **Online (query time)**: normalize the user query before any retrieval step.
-- **Offline**: not needed (but you may normalize document fields similarly during ingestion).
+## Key Concepts
 
-## Common pitfalls
+- **Case normalization**: Lowercase everything
+- **Stopword removal**: Filter out common words
+- **Token deduplication**: Remove repeated terms
+- **Stemming/Lemmatization**: Reduce to root forms
 
-- Removing too much (stopwords list that deletes important domain terms).
-- Reordering tokens (you usually want to preserve order for debuggability).
+## Real-World Applications
 
-## Production extensions (optional)
+| System | Normalization Purpose |
+|--------|----------------------|
+| **Google Search** | Handle typos, case, synonyms |
+| **Elasticsearch** | Standard tokenization and filtering |
+| **Chatbots** | Consistent intent recognition |
+| **RAG systems** | Stable retrieval and caching |
 
-- Lemmatization/stemming (careful: can hurt technical terms).
-- Preserve special tokens like `api_key`, `S3`, `RFC2616`.
-- Normalization per language (multilingual tokenization).
+## The Normalization Pipeline
 
+```
+Raw Query: "How do I rotate an API key??"
+      ↓
+Lowercase: "how do i rotate an api key??"
+      ↓
+Tokenize: ["how", "do", "i", "rotate", "an", "api", "key"]
+      ↓
+Remove Stopwords: ["rotate", "api", "key"]
+      ↓
+Deduplicate: ["rotate", "api", "key"]
+      ↓
+Final: "rotate api key"
+```
 
+## The Challenge
 
+### Part 1: Query Normalizer
+
+```python
+import re
+from typing import List, Set
+
+class QueryNormalizer:
+    """Normalize queries for stable retrieval."""
+    
+    def __init__(
+        self,
+        remove_stopwords: bool = True,
+        remove_punctuation: bool = True,
+        lowercase: bool = True,
+        deduplicate: bool = True
+    ):
+        self.remove_stopwords = remove_stopwords
+        self.remove_punctuation = remove_punctuation
+        self.lowercase = lowercase
+        self.deduplicate = deduplicate
+        
+        # Common English stopwords
+        self.stopwords = {
+            'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for',
+            'from', 'has', 'he', 'in', 'is', 'it', 'its', 'of', 'on',
+            'that', 'the', 'to', 'was', 'will', 'with', 'the', 'can',
+            'could', 'would', 'should', 'may', 'might', 'do', 'does',
+            'did', 'have', 'had', 'been', 'being', 'am', 'i', 'you',
+            'we', 'they', 'this', 'these', 'those', 'there', 'here',
+            'when', 'where', 'why', 'how', 'what', 'who', 'which',
+            'please', 'help', 'me', 'my', 'mine', 'your', 'yours'
+        }
+    
+    def normalize(self, query: str) -> str:
+        """Apply full normalization pipeline."""
+        # Step 1: Lowercase
+        if self.lowercase:
+            query = query.lower()
+        
+        # Step 2: Remove extra whitespace
+        query = re.sub(r'\s+', ' ', query).strip()
+        
+        # Step 3: Tokenize
+        tokens = self._tokenize(query)
+        
+        # Step 4: Remove stopwords
+        if self.remove_stopwords:
+            tokens = self._remove_stopwords(tokens)
+        
+        # Step 5: Deduplicate
+        if self.deduplicate:
+            tokens = self._deduplicate(tokens)
+        
+        # Step 6: Reconstruct
+        return ' '.join(tokens)
+    
+    def _tokenize(self, text: str) -> List[str]:
+        """Tokenize text into words."""
+        if self.remove_punctuation:
+            # Remove punctuation and split
+            text = re.sub(r'[^\w\s]', ' ', text)
+        
+        return text.split()
+    
+    def _remove_stopwords(self, tokens: List[str]) -> List[str]:
+        """Remove common stopwords."""
+        return [t for t in tokens if t.lower() not in self.stopwords]
+    
+    def _deduplicate(self, tokens: List[str]) -> List[str]:
+        """Remove duplicate tokens while preserving order."""
+        seen = set()
+        result = []
+        for token in tokens:
+            if token not in seen:
+                seen.add(token)
+                result.append(token)
+        return result
+```
+
+### Part 2: Query Cache Key Generator
+
+```python
+import hashlib
+
+class QueryCacheKeyGenerator:
+    """Generate cache keys from normalized queries."""
+    
+    def __init__(self, normalizer: QueryNormalizer = None):
+        self.normalizer = normalizer or QueryNormalizer()
+    
+    def generate_key(self, query: str, filters: dict = None) -> str:
+        """Generate cache key for query."""
+        # Normalize query
+        normalized = self.normalizer.normalize(query)
+        
+        # Combine with filters
+        if filters:
+            filter_str = str(sorted(filters.items()))
+            cache_input = f"{normalized}:{filter_str}"
+        else:
+            cache_input = normalized
+        
+        # Hash for fixed-length key
+        return hashlib.md5(cache_input.encode()).hexdigest()
+    
+    def are_equivalent(self, query1: str, query2: str) -> bool:
+        """Check if two queries are equivalent after normalization."""
+        norm1 = self.normalizer.normalize(query1)
+        norm2 = self.normalizer.normalize(query2)
+        return norm1 == norm2
+```
+
+### Part 3: Query Variations Generator
+
+```python
+from typing import List
+
+class QueryVariationsGenerator:
+    """Generate variations of a query for better retrieval."""
+    
+    def __init__(self, normalizer: QueryNormalizer = None):
+        self.normalizer = normalizer or QueryNormalizer()
+    
+    def generate_variations(self, query: str) -> List[str]:
+        """Generate query variations."""
+        variations = [query]
+        
+        # Variation 1: Just normalized
+        normalized = self.normalizer.normalize(query)
+        if normalized != query:
+            variations.append(normalized)
+        
+        # Variation 2: Without stopwords only
+        no_stop = QueryNormalizer(
+            remove_stopwords=True,
+            remove_punctuation=False,
+            lowercase=True,
+            deduplicate=False
+        ).normalize(query)
+        if no_stop not in variations:
+            variations.append(no_stop)
+        
+        # Variation 3: Key terms only (most aggressive)
+        key_terms = QueryNormalizer(
+            remove_stopwords=True,
+            remove_punctuation=True,
+            lowercase=True,
+            deduplicate=True
+        ).normalize(query)
+        if key_terms not in variations:
+            variations.append(key_terms)
+        
+        return variations
+    
+    def expand_with_synonyms(
+        self,
+        query: str,
+        synonym_dict: dict
+    ) -> List[str]:
+        """Expand query with synonyms."""
+        tokens = query.split()
+        variations = [query]
+        
+        for i, token in enumerate(tokens):
+            synonyms = synonym_dict.get(token.lower(), [])
+            for syn in synonyms:
+                new_tokens = tokens.copy()
+                new_tokens[i] = syn
+                variations.append(' '.join(new_tokens))
+        
+        return variations
+```
+
+### Part 4: Normalized Query Logger
+
+```python
+from datetime import datetime
+from typing import List, Dict
+import json
+
+class NormalizedQueryLogger:
+    """Log queries in normalized form for analytics."""
+    
+    def __init__(self, normalizer: QueryNormalizer = None):
+        self.normalizer = normalizer or QueryNormalizer()
+        self.logs: List[Dict] = []
+    
+    def log_query(
+        self,
+        raw_query: str,
+        user_id: str = None,
+        metadata: dict = None
+    ):
+        """Log a query with its normalized form."""
+        normalized = self.normalizer.normalize(raw_query)
+        
+        entry = {
+            'timestamp': datetime.utcnow().isoformat(),
+            'raw_query': raw_query,
+            'normalized_query': normalized,
+            'query_hash': hashlib.md5(normalized.encode()).hexdigest()[:16],
+            'user_id': user_id,
+            'metadata': metadata or {}
+        }
+        
+        self.logs.append(entry)
+    
+    def get_query_patterns(self) -> Dict[str, int]:
+        """Get frequency of normalized query patterns."""
+        patterns = {}
+        for log in self.logs:
+            norm = log['normalized_query']
+            patterns[norm] = patterns.get(norm, 0) + 1
+        return patterns
+    
+    def export_logs(self, filepath: str):
+        """Export logs to file."""
+        with open(filepath, 'w') as f:
+            for log in self.logs:
+                f.write(json.dumps(log) + '\n')
+```
+
+## Example Usage
+
+```python
+# Create normalizer
+normalizer = QueryNormalizer()
+
+# Normalize queries
+queries = [
+    "How do I rotate an API key??",
+    "how to rotate api key",
+    "API key rotation please help",
+    "Rotate my API key"
+]
+
+for q in queries:
+    normalized = normalizer.normalize(q)
+    print(f"'{q}' → '{normalized}'")
+
+# Output:
+# 'How do I rotate an API key??' → 'rotate api key'
+# 'how to rotate api key' → 'rotate api key'
+# 'API key rotation please help' → 'api key rotation'
+# 'Rotate my API key' → 'rotate api key'
+```
+
+## Evaluation Criteria
+
+Your solution will be evaluated on:
+
+1. **Normalization Quality**: Equivalent queries produce same output
+2. **Token Preservation**: Important terms retained
+3. **Stopword Removal**: Common words properly filtered
+4. **Deduplication**: Repeats removed
+5. **Cache Effectiveness**: Equivalent queries get same key

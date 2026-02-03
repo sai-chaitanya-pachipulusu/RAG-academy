@@ -1,4 +1,14 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "RAG Pipeline: The Embedder"
+description: "Integrate an embedding model into your pipeline to convert text into searchable vectors"
+difficulty: "beginner"
+estimatedMinutes: 20
+xpReward: 35
+prerequisites: ["rag-pipeline-chunker"]
+related: ["rag-pipeline-retriever", "dense-vector-class", "embedding-cache"]
+---
+
+<Callout title="Goal" variant="info">
   Integrate an embedding model into your pipeline to convert text into
   searchable vectors.
 </Callout>
@@ -7,7 +17,166 @@
 
 Now that you have chunks, you need to turn them into numbers. A production pipeline typically caches these embeddings or uses a consistent API.
 
-## Task
+## Why This Matters in Production
+
+Embedding is the bridge between human-readable text and machine-searchable vectors:
+
+| Aspect | Impact |
+|--------|--------|
+| **Retrieval Quality** | Better embeddings = more relevant results |
+| **Latency** | Caching embeddings reduces API calls |
+| **Cost** | Embedding APIs charge per token |
+| **Consistency** | Same model must be used for indexing and querying |
+
+## What You're Implementing
 
 Extend your `Pipeline` class with an `embed` method. This method will take your chunks and generate high-dimensional vectors that capture their semantic meaning.
+
+## The Embedding Pipeline
+
+```
+Text Chunks → Embedding Model → Vector Representations → Storage
+     ↓              ↓                    ↓                  ↓
+  "Hello"    text-embedding-    [0.23, -0.15, ...]    Vector DB
+  "World"       ada-002
+```
+
+## Mathematical Foundations
+
+### What is an Embedding?
+
+An embedding is a dense vector representation where:
+- **Semantic similarity** → **Vector proximity** (cosine similarity)
+- **Dimensionality**: Typically 384-4096 dimensions
+- **Normalization**: Many models output unit vectors
+
+### Cosine Similarity for Retrieval
+
+```
+similarity(a, b) = (a · b) / (||a|| × ||b||)
+```
+
+For normalized vectors: `similarity(a, b) = a · b` (simple dot product)
+
+## Implementation Example
+
+```python
+from typing import List
+import numpy as np
+
+class Pipeline:
+    def __init__(self, embedding_model, cache=None):
+        self.embedding_model = embedding_model
+        self.cache = cache or {}
+        self.chunk_embeddings = []
+    
+    def embed(self, chunks: List[str]) -> List[np.ndarray]:
+        """
+        Convert text chunks to embedding vectors.
+        
+        Time Complexity: O(N × L) where N = chunks, L = avg length
+        Space Complexity: O(N × d) where d = embedding dimension
+        
+        Args:
+            chunks: List of text chunks
+            
+        Returns:
+            List of embedding vectors
+        """
+        embeddings = []
+        
+        for chunk in chunks:
+            # Check cache first
+            chunk_hash = hash(chunk)
+            if chunk_hash in self.cache:
+                embeddings.append(self.cache[chunk_hash])
+                continue
+            
+            # Generate embedding
+            vector = self.embedding_model.encode(chunk)
+            
+            # Normalize for cosine similarity
+            vector = vector / np.linalg.norm(vector)
+            
+            # Cache and store
+            self.cache[chunk_hash] = vector
+            embeddings.append(vector)
+        
+        self.chunk_embeddings = embeddings
+        return embeddings
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Embedding Generation | O(N × L) | N chunks, L = avg token length |
+| Storage | O(N × d) | d = embedding dimension |
+| Cache Lookup | O(1) | Per chunk with hash |
+| Similarity Search | O(N × d) | Brute force (use ANN for scale) |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand how text becomes searchable vectors
+- Be able to implement embedding caching for efficiency
+- Know why normalization matters for retrieval
+
+## Real-World Applications
+
+| Company | Embedding Use Case |
+|---------|-------------------|
+| **OpenAI** | text-embedding-3-large for enterprise search |
+| **Cohere** | Multilingual embeddings for global RAG |
+| **Google** | Gemini embeddings for Workspace search |
+| **Pinecone** | Vector database for embedding storage |
+
+## Common Pitfalls
+
+- **Model Mismatch**: Using different embedding models for indexing vs querying
+- **No Caching**: Re-embedding identical chunks wastes API costs
+- **Missing Normalization**: Unnormalized vectors break cosine similarity
+- **Wrong Dimension**: Assuming all embeddings have the same dimension
+
+## Production Extensions (Optional)
+
+- **Batch Embedding**: Process multiple chunks per API call
+- **Async Embedding**: Parallel embedding for large datasets
+- **Embedding Versioning**: Track which model version created each vector
+- **Dimensionality Reduction**: Use PCA for storage optimization
+
+## Resources
+
+### Documentation
+- [OpenAI Embeddings](https://platform.openai.com/docs/guides/embeddings)
+- [Sentence Transformers](https://www.sbert.net/)
+- [Hugging Face Embeddings](https://huggingface.co/blog/getting-started-with-embeddings)
+
+### Tools
+- **sentence-transformers**: Open-source embedding models
+- **tiktoken**: Token counting for cost estimation
+- **FAISS**: Efficient similarity search
+
+### Papers
+- "Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks" (Reimers & Gurevych)
+- "Text Embeddings by Weakly-Supervised Contrastive Pre-training" (Neelakantan et al.)
+
+## Interview Questions
+
+1. **Why normalize embedding vectors?**
+   - Normalization ensures cosine similarity depends only on direction, not magnitude
+
+2. **What happens if you use different embedding models for indexing and querying?**
+   - The vectors exist in different semantic spaces, making retrieval meaningless
+
+3. **How do you handle embedding model updates in production?**
+   - Re-index all documents with the new model, or maintain versioned indices
+
+## After You Pass
+
+Move to **Stage 3: The Retriever** with [rag-pipeline-retriever](rag-pipeline-retriever) to implement the search functionality.
+
+---
+
+**🎯 Milestone:** You're halfway through the RAG Pipeline Saga! Next: implement retrieval to complete the search loop.
 

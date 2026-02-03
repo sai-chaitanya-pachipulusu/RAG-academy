@@ -1,4 +1,15 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "F1-Score Evaluator"
+description: "Implement F1-Score — the harmonic mean of Precision and Recall that balances both concerns"
+difficulty: "beginner"
+estimatedMinutes: 20
+xpReward: 30
+prerequisites: ["evaluator-precision-at-k", "evaluator-recall-at-k"]
+related: ["evaluator-precision-at-k", "evaluator-recall-at-k", "evaluator-map"]
+next: "evaluator-map"
+---
+
+<Callout title="Goal" variant="info">
   Implement F1-Score — the harmonic mean of Precision and Recall that balances
   both concerns.
 </Callout>
@@ -30,6 +41,49 @@ Where:
 - FP = False Positives (irrelevant docs retrieved)
 - FN = False Negatives (relevant docs missed)
 
+## The Algorithm
+
+```python
+def f1_at_k(
+    retrieved: list[str],
+    relevant: set[str],
+    k: int
+) -> float:
+    """
+    Compute F1 score for top-K retrieval.
+    
+    Time Complexity: O(K) where K = cutoff
+    Space Complexity: O(1) additional
+    
+    Args:
+        retrieved: Ordered list of retrieved doc IDs
+        relevant: Set of relevant doc IDs
+        k: Cutoff position
+    
+    Returns:
+        F1 score between 0.0 and 1.0
+    """
+    top_k = set(retrieved[:k])
+    
+    true_positives = len(top_k & relevant)
+    false_positives = len(top_k - relevant)
+    false_negatives = len(relevant - top_k)
+    
+    precision = true_positives / (true_positives + false_positives) if top_k else 0.0
+    recall = true_positives / (true_positives + false_negatives) if relevant else 0.0
+    
+    if precision + recall == 0:
+        return 0.0
+    
+    return 2 * precision * recall / (precision + recall)
+```
+
+## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity |
+|-----------|-----------------|------------------|
+| F1@K computation | O(K) | O(1) |
+
 ## Why Harmonic Mean?
 
 The harmonic mean penalizes extreme imbalances:
@@ -42,38 +96,6 @@ The harmonic mean penalizes extreme imbalances:
 | 0.8       | 0.8    | 0.80            | **0.80**          |
 
 Notice: With 0.9 precision and 0.1 recall, the F1 is only 0.18 — the harmonic mean penalizes the low recall!
-
-## F1@K for Retrieval
-
-In RAG, we compute F1 at a specific cutoff K:
-
-```python
-def f1_at_k(retrieved: List[str], relevant: Set[str], k: int) -> float:
-    """
-    Compute F1 score for top-K retrieval.
-
-    Args:
-        retrieved: Ordered list of retrieved doc IDs
-        relevant: Set of relevant doc IDs
-        k: Cutoff position
-
-    Returns:
-        F1 score between 0.0 and 1.0
-    """
-    top_k = set(retrieved[:k])
-
-    true_positives = len(top_k & relevant)
-    false_positives = len(top_k - relevant)
-    false_negatives = len(relevant - top_k)
-
-    precision = true_positives / (true_positives + false_positives) if top_k else 0.0
-    recall = true_positives / (true_positives + false_negatives) if relevant else 0.0
-
-    if precision + recall == 0:
-        return 0.0
-
-    return 2 * precision * recall / (precision + recall)
-```
 
 ## Worked Example
 
@@ -90,110 +112,34 @@ Recall@5 = 2/5 = 0.40
 F1@5 = 2 × (0.40 × 0.40) / (0.40 + 0.40) = 0.40
 ```
 
-## F-beta Score (Weighted F1)
+## Real-World Context
 
-Sometimes you care more about Precision or Recall. F-beta lets you weight them:
+| Company | Use Case | F1 Application |
+|---------|----------|----------------|
+| **Google** | Search quality | F1 for balanced ranking |
+| **Amazon** | Product search | F1 for relevance + coverage |
+| **Microsoft** | Enterprise search | F1 for document discovery |
+| **OpenAI** | GPT retrieval | F1 for context selection |
 
-$$
-F_\beta = (1 + \beta^2) \times \frac{\text{Precision} \times \text{Recall}}{(\beta^2 \times \text{Precision}) + \text{Recall}}
-$$
+## Learning Outcomes
 
-| β value | Emphasis                    | Use case                         |
-| ------- | --------------------------- | -------------------------------- |
-| β = 0.5 | Precision 2x more important | High-stakes RAG (medical, legal) |
-| β = 1.0 | Equal importance            | General RAG                      |
-| β = 2.0 | Recall 2x more important    | Document discovery, research     |
+After completing this challenge, you will:
+- Understand the balanced metric for retrieval evaluation
+- Be able to compare systems with a single score
+- Know when F1 is appropriate vs. precision or recall alone
 
-```python
-def f_beta(precision: float, recall: float, beta: float = 1.0) -> float:
-    if precision + recall == 0:
-        return 0.0
-    beta_sq = beta ** 2
-    return (1 + beta_sq) * precision * recall / (beta_sq * precision + recall)
-```
+## Resources
 
-## Edge Cases
+### Documentation
+- [F1 Score](https://en.wikipedia.org/wiki/F-score)
+- [scikit-learn F1](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html)
 
-| Scenario                        | Precision | Recall  | F1      |
-| ------------------------------- | --------- | ------- | ------- |
-| Perfect retrieval               | 1.0       | 1.0     | 1.0     |
-| No relevant docs in corpus      | Undefined | 0.0     | 0.0     |
-| Empty retrieval                 | 0.0       | 0.0     | 0.0     |
-| All retrieved are relevant      | 1.0       | Depends | Depends |
-| All relevant retrieved + extras | <1.0      | 1.0     | <1.0    |
+### Tools
+- **scikit-learn**: `f1_score()`
+- **ir-measures**: Comprehensive IR metrics
 
-## F1 in RAG Evaluation
+## Related Challenges
 
-| Evaluation Stage      | Primary Metric | Why                          |
-| --------------------- | -------------- | ---------------------------- |
-| First-stage retrieval | Recall@100     | Don't miss relevant docs     |
-| After reranking       | F1@10          | Balance precision and recall |
-| Final context         | Precision@5    | Every token counts           |
-
-## Implementation
-
-```python
-from typing import List, Set
-
-def precision_recall_f1(
-    retrieved: List[str],
-    relevant: Set[str],
-    k: int
-) -> tuple[float, float, float]:
-    """Compute Precision, Recall, and F1 at K."""
-    if k <= 0:
-        return 0.0, 0.0, 0.0
-
-    top_k = set(retrieved[:k])
-
-    if not top_k and not relevant:
-        return 0.0, 0.0, 0.0
-
-    tp = len(top_k & relevant)
-
-    precision = tp / len(top_k) if top_k else 0.0
-    recall = tp / len(relevant) if relevant else 0.0
-
-    if precision + recall == 0:
-        f1 = 0.0
-    else:
-        f1 = 2 * precision * recall / (precision + recall)
-
-    return precision, recall, f1
-```
-
-## When to Use F1 vs Other Metrics
-
-| Metric          | Best for                    |
-| --------------- | --------------------------- |
-| **Recall@K**    | "Did we find the evidence?" |
-| **Precision@K** | "Is the context clean?"     |
-| **F1@K**        | "Overall retrieval quality" |
-| **MRR**         | "How fast do we find it?"   |
-| **nDCG**        | "Graded relevance ranking"  |
-
-## Micro vs Macro F1
-
-When aggregating across queries:
-
-- **Micro F1**: Sum all TP, FP, FN, then compute F1 (favors frequent queries)
-- **Macro F1**: Compute F1 per query, then average (treats all queries equally)
-
-```python
-def micro_f1(all_results: List[tuple], all_relevant: List[Set[str]]) -> float:
-    total_tp = total_fp = total_fn = 0
-    for retrieved, relevant in zip(all_results, all_relevant):
-        top_k = set(retrieved)
-        total_tp += len(top_k & relevant)
-        total_fp += len(top_k - relevant)
-        total_fn += len(relevant - top_k)
-
-    precision = total_tp / (total_tp + total_fp) if total_tp + total_fp else 0
-    recall = total_tp / (total_tp + total_fn) if total_tp + total_fn else 0
-    return 2 * precision * recall / (precision + recall) if precision + recall else 0
-
-def macro_f1(all_results: List[tuple], all_relevant: List[Set[str]], k: int) -> float:
-    f1_scores = [f1_at_k(r, rel, k) for r, rel in zip(all_results, all_relevant)]
-    return sum(f1_scores) / len(f1_scores) if f1_scores else 0
-```
-
+- [evaluator-precision-at-k](evaluator-precision-at-k) - Accuracy metric
+- [evaluator-recall-at-k](evaluator-recall-at-k) - Completeness metric
+- [evaluator-map](evaluator-map) - Ranking-aware metric

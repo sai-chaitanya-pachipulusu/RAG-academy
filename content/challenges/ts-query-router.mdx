@@ -1,23 +1,288 @@
+---
+title: "Query Router (TypeScript)"
+description: "Route queries to different retrieval strategies based on intent."
+language: "typescript"
+difficulty: "intermediate"
+category: "retrieval"
+prerequisites: ["ts-metadata-filter"]
+related: ["query-routing", "intent-classification", "adaptive-rag-router"]
+tags: ["routing", "intent-detection", "query-classification", "optimization"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Route queries to different retrieval strategies based on intent.
+  Route queries to different retrieval strategies based on intent — optimize both quality and cost.
 </Callout>
 
-## Why this matters in production
+## Why Query Routing Matters in Production
 
-Not all queries need the same retrieval strategy. Keyword queries → BM25. Semantic queries → dense search. Complex queries → hybrid. Smart routing optimizes both quality and cost.
+Not all queries need the same retrieval strategy. Keyword queries → BM25. Semantic queries → dense search. Complex queries → hybrid. Smart routing optimizes both quality and cost. Without routing:
 
-## What you're implementing
+- Simple queries waste expensive embedding compute
+- Complex queries underperform with basic retrieval
+- All queries treated equally regardless of needs
+- Suboptimal cost-quality trade-offs
 
-- Detect query intent: semantic, keyword, hybrid, none.
-- Calculate confidence in routing decision.
-- Provide reasoning for explainability.
+### Real-World Scenario
 
-## Common pitfalls
+A RAG system handling diverse queries:
 
-- Over-routing to expensive strategies.
-- Not having a default for ambiguous queries.
+| Query | Best Strategy | Why |
+|-------|---------------|-----|
+| "API-12345 error" | BM25 | Exact product code match |
+| "How does semantic search work?" | Dense | Conceptual understanding |
+| "Compare RAG vs fine-tuning" | Hybrid | Needs both keyword and semantic |
+| "What is the weather?" | None → Direct LLM | No document retrieval needed |
 
-## After you pass
+**Without routing**: All use dense retrieval → slower, more expensive
+**With routing**: Each query uses optimal strategy → faster, cheaper, better
 
-Integrate routing into a multi-retriever RAG pipeline.
+## The Mathematical Foundation
 
+### Intent Classification
+
+```
+Query Features → Classifier → Intent → Strategy
+
+Features:
+- Query length
+- Presence of technical terms
+- Question words (what, how, why)
+- Entity types (product codes, names)
+- Complexity indicators
+```
+
+### Confidence Scoring
+
+```
+routing_confidence = classifier_confidence × strategy_match_score
+
+If confidence < threshold:
+  Use default strategy (usually hybrid)
+```
+
+### Strategy Selection Matrix
+
+| Intent | Primary Strategy | Fallback |
+|--------|-----------------|----------|
+| Keyword | BM25 | Dense |
+| Semantic | Dense | BM25 |
+| Comparison | Hybrid | Dense |
+| Factual | Dense | Direct LLM |
+| Ambiguous | Hybrid | Ask clarifying |
+
+## Theoretical Deep Dive
+
+### Query Intent Taxonomy
+
+```
+Query Intent
+├── Informational ("What is X?")
+│   ├── Definition → Dense
+│   ├── How-to → Dense
+│   └── Comparison → Hybrid
+├── Navigational ("Find X document")
+│   ├── Exact match → BM25
+│   └── Semantic match → Dense
+├── Transactional ("How do I do X?")
+│   └── Procedure → Dense
+└── Keyword ("SKU-12345")
+    └── Exact match → BM25
+```
+
+### Cost-Quality Optimization
+
+```
+Objective: Maximize quality subject to cost constraint
+
+Or: Minimize cost subject to quality threshold
+
+Routing achieves this by:
+- Cheap strategies for simple queries
+- Expensive strategies only when needed
+```
+
+### Adaptive Routing
+
+Learn from feedback:
+
+```
+Feedback loop:
+1. Route query with strategy S
+2. Measure result quality (user feedback, relevance scores)
+3. Update routing model: if quality low, try different S
+4. Over time, learn optimal routing
+```
+
+## Production Considerations
+
+### Latency Budget
+
+Routing must be fast (<10ms):
+
+```
+Total latency = Routing + Retrieval + Generation
+              = 5ms + 50ms + 1000ms
+              = 1055ms
+```
+
+Use lightweight classifiers (regex, heuristics, small models).
+
+### Fallback Strategy
+
+When uncertain:
+
+```typescript
+if (confidence < 0.6) {
+  // Use robust default
+  return strategies.hybrid;
+}
+```
+
+### Explainability
+
+Log routing decisions:
+
+```typescript
+interface RoutingDecision {
+  query: string;
+  intent: string;
+  confidence: number;
+  selectedStrategy: string;
+  reasoning: string;
+}
+```
+
+## Your Task
+
+Implement a query router:
+
+```typescript
+type QueryIntent = 'keyword' | 'semantic' | 'comparison' | 'factual' | 'ambiguous';
+
+type RetrievalStrategy = 'bm25' | 'dense' | 'hybrid' | 'none';
+
+interface RoutingResult {
+  intent: QueryIntent;
+  strategy: RetrievalStrategy;
+  confidence: number;
+  reasoning: string;
+}
+
+interface RouterConfig {
+  confidenceThreshold?: number;  // Default: 0.6
+  defaultStrategy?: RetrievalStrategy;  // Default: 'hybrid'
+  customRules?: Array<{
+    pattern: RegExp;
+    strategy: RetrievalStrategy;
+  }>;
+}
+
+class QueryRouter {
+  constructor(private config: RouterConfig = {}) {}
+
+  route(query: string): RoutingResult {
+    /**
+     * Route query to appropriate retrieval strategy.
+     * 
+     * Args:
+     *   query: User search query
+     * 
+     * Returns:
+     *   RoutingResult with intent, strategy, and confidence
+     * 
+     * Detection heuristics:
+     *   - Keyword: Contains product codes, IDs, technical terms
+     *   - Semantic: Natural language questions
+     *   - Comparison: Contains "vs", "compare", "difference"
+     *   - Factual: "What is", "Who is", "When did"
+     *   - Ambiguous: Short, unclear intent
+     * 
+     * Strategy mapping:
+     *   - keyword → bm25
+     *   - semantic → dense
+     *   - comparison → hybrid
+     *   - factual → dense (or none for direct LLM)
+     *   - ambiguous → hybrid (default)
+     * 
+     * Edge Cases:
+     *   - Empty query: return ambiguous, no strategy
+     *   - Low confidence: use default strategy
+     *   - Custom rules override heuristics
+     */
+  }
+
+  detectIntent(query: string): { intent: QueryIntent; confidence: number } {
+    /**
+     * Detect query intent using heuristics.
+     * 
+     * Returns intent and confidence (0-1).
+     */
+  }
+
+  private detectKeywordQuery(query: string): number {
+    /**
+     * Score likelihood of keyword query.
+     * Look for: product codes, IDs, all caps, special patterns.
+     */
+  }
+
+  private detectComparisonQuery(query: string): number {
+    /**
+     * Score likelihood of comparison query.
+     * Look for: "vs", "compare", "difference", "or".
+     */
+  }
+
+  private applyCustomRules(query: string): RetrievalStrategy | null {
+    /**
+     * Check custom regex rules.
+     * Return matching strategy or null.
+     */
+  }
+}
+
+// Convenience function
+function routeQuery(
+  query: string,
+  config?: Partial<RouterConfig>
+): RoutingResult {
+  const router = new QueryRouter(config);
+  return router.route(query);
+}
+```
+
+### Validation Checklist
+
+- [ ] Keyword queries routed to BM25
+- [ ] Semantic questions routed to dense
+- [ ] Comparisons routed to hybrid
+- [ ] Confidence calculated correctly
+- [ ] Low confidence uses default strategy
+- [ ] Custom rules applied
+- [ ] Empty query handled gracefully
+- [ ] Reasoning provided for decisions
+
+## Common Pitfalls
+
+- **Over-routing to expensive strategies**: Default to cheaper options
+- **Not having a default for ambiguous queries**: Always have fallback
+- **Too many custom rules**: Hard to maintain
+- **Not logging decisions**: Can't debug routing issues
+- **Ignoring query length**: Short queries often need different handling
+
+## After You Pass
+
+Integrate routing into a multi-retriever RAG pipeline, or implement adaptive routing that learns from feedback.
+
+## Resources
+
+### Documentation
+- [LangChain Router Chains](https://js.langchain.com/docs/modules/chains/foundational/llm_router_chain) - Routing implementation
+- [LlamaIndex Router Query Engine](https://docs.llamaindex.ai/en/stable/examples/query_engine/RouterQueryEngine.html) - Query routing
+
+### Tutorials
+- ["Query Routing for RAG"](https://blog.langchain.dev/query-routing/) - LangChain blog
+- ["Intent Classification"](https://www.pinecone.io/learn/intent-classification/) - Pinecone guide
+
+### Research
+- ["Routing in Retrieval-Augmented Generation"](https://arxiv.org/abs/2407.01231) - Adaptive routing strategies

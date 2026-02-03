@@ -1,25 +1,209 @@
+---
+title: "Dot Product (TypeScript)"
+description: "Implement the dot product in TypeScript — the fundamental operation for embedding similarity."
+language: "typescript"
+difficulty: "beginner"
+category: "fundamentals"
+prerequisites: []
+related: ["dot-product", "ts-cosine-similarity", "euclidean-distance"]
+tags: ["dot-product", "vector-math", "embeddings", "fundamentals"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Implement the dot product in TypeScript — the fundamental operation for embedding similarity.
+  Implement the dot product in TypeScript — the fundamental operation behind every embedding similarity computation.
 </Callout>
 
-## Why this matters in production
+## Why Dot Product Matters in Production
 
-The dot product is the core operation behind every embedding similarity computation. When you use OpenAI embeddings or any vector database, dot products power the similarity scores.
+The dot product is the core operation behind every embedding similarity computation. When you use OpenAI embeddings or any vector database, dot products power the similarity scores. This TypeScript version helps you understand the algorithm in a language commonly used for RAG API development.
 
-This TypeScript version helps you understand the algorithm in a language commonly used for RAG API development.
+### Real-World Scenario
 
-## What you're implementing
+Every vector search involves thousands or millions of dot products:
 
-- Validate equal vector lengths (throw Error if not).
-- Handle empty vectors (`dot([], []) === 0`).
-- Return a number representing the sum of element-wise products.
+```
+Query: "machine learning tutorials"
+Query embedding: [0.1, -0.3, 0.5, ...] (1536 dimensions)
 
-## Common pitfalls
+Documents:
+- Doc 1: [0.2, -0.2, 0.4, ...] → dot = 0.42
+- Doc 2: [-0.1, 0.5, -0.2, ...] → dot = -0.23
+- Doc 3: [0.15, -0.25, 0.45, ...] → dot = 0.38
 
-- Forgetting to check for length mismatch before computing.
-- Off-by-one errors when iterating.
+Ranking: Doc 1 > Doc 3 > Doc 2
+```
 
-## After you pass
+For normalized embeddings, dot product equals cosine similarity — a crucial optimization.
 
-Move on to **Cosine Similarity (TypeScript)**, then try **Top-K Search**.
+## The Mathematical Foundation
 
+### Dot Product Formula
+
+For vectors $A = [a_1, a_2, ..., a_n]$ and $B = [b_1, b_2, ..., b_n]$:
+
+$$A \cdot B = \sum_{i=1}^{n} a_i b_i = a_1b_1 + a_2b_2 + ... + a_nb_n$$
+
+### Properties
+
+| Property | Description |
+|----------|-------------|
+| **Commutative** | $A \cdot B = B \cdot A$ |
+| **Distributive** | $A \cdot (B + C) = A \cdot B + A \cdot C$ |
+| **Scalar multiplication** | $(cA) \cdot B = c(A \cdot B)$ |
+| **Geometric meaning** | $A \cdot B = ||A|| \times ||B|| \times \cos(\theta)$ |
+
+### Computational Complexity
+
+- **Time**: O(n) for n-dimensional vectors
+- **Space**: O(1) additional space
+
+For 1536-dim embeddings: 1536 multiplications and additions.
+
+## Theoretical Deep Dive
+
+### Connection to Similarity
+
+The dot product relates to cosine similarity:
+
+$$\text{dot\_product}(A, B) = ||A|| \times ||B|| \times \cos(\theta)$$
+
+When vectors are normalized ($||A|| = ||B|| = 1$):
+
+$$\text{dot\_product}(A, B) = \cos(\theta) = \text{cosine\_similarity}(A, B)$$
+
+This is why normalized embeddings enable fast similarity search.
+
+### Matrix Multiplication
+
+Dot products are the building blocks of matrix multiplication:
+
+```
+C[i][j] = dot_product(row i of A, column j of B)
+```
+
+Modern hardware (GPUs, TPUs) is optimized for massive parallel dot products.
+
+### SIMD Optimization
+
+Production implementations use SIMD (Single Instruction, Multiple Data):
+
+```
+// Process 4 elements at once with AVX
+_mm256_mul_ps(a_vec, b_vec)  // Multiply 4 floats
+_mm256_add_ps(sum, product)  // Accumulate
+```
+
+This achieves 4-16x speedup over scalar code.
+
+## Production Considerations
+
+### Numerical Precision
+
+```typescript
+// Float32 is standard for embeddings
+const embedding: Float32Array = new Float32Array(1536);
+
+// For accumulation, use higher precision to avoid error
+let sum = 0; // JavaScript number is float64
+for (let i = 0; i < n; i++) {
+  sum += a[i] * b[i]; // Promoted to float64
+}
+```
+
+### Batch Processing
+
+Process multiple dot products efficiently:
+
+```typescript
+function batchDotProduct(
+  query: number[],
+  documents: number[][]
+): number[] {
+  return documents.map(doc => dotProduct(query, doc));
+}
+```
+
+### Hardware Acceleration
+
+| Platform | Acceleration | Speedup |
+|----------|--------------|---------|
+| CPU (AVX) | 256-bit SIMD | 8x |
+| GPU (CUDA) | Thousands of cores | 100x+ |
+| TPU | Matrix units | 1000x+ |
+
+## Your Task
+
+Implement the dot product:
+
+```typescript
+function dotProduct(a: number[], b: number[]): number {
+  /**
+   * Compute the dot product of two vectors.
+   * 
+   * Args:
+   *   a: First vector
+   *   b: Second vector
+   * 
+   * Returns:
+   *   Dot product (sum of element-wise products)
+   *   Returns 0 for empty vectors
+   * 
+   * Throws:
+   *   Error if vectors have different lengths
+   * 
+   * Formula:
+   *   result = Σ(a[i] * b[i]) for i = 0 to n-1
+   * 
+   * Edge Cases:
+   *   - Empty vectors: return 0
+   *   - Different lengths: throw Error
+   *   - Single element: return a[0] * b[0]
+   */
+}
+
+// Alternative implementation with explicit validation
+function dotProductSafe(a: number[], b: number[]): { 
+  result: number; 
+  error?: string;
+} {
+  /**
+   * Safe version that returns error message instead of throwing.
+   * Useful for validation pipelines.
+   */
+}
+```
+
+### Validation Checklist
+
+- [ ] Basic case: [1, 2, 3] · [4, 5, 6] = 32
+- [ ] Empty vectors: [] · [] = 0
+- [ ] Single element: [5] · [3] = 15
+- [ ] Negative numbers: [-1, 2] · [3, -4] = -11
+- [ ] Different lengths throw Error
+- [ ] Result is commutative: a·b === b·a
+- [ ] Zero vectors: [0, 0] · [1, 2] = 0
+
+## Common Pitfalls
+
+- **Forgetting to check for length mismatch**: Silent errors or NaN results
+- **Off-by-one errors when iterating**: Check loop bounds carefully
+- **Integer overflow**: Use floating-point for large vectors
+- **Not handling empty vectors**: Define behavior (return 0 vs throw)
+
+## After You Pass
+
+Move on to **Cosine Similarity (TypeScript)**, then try **Top-K Search** to build a complete retrieval system.
+
+## Resources
+
+### Documentation
+- [MDN Array Operations](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array) - JavaScript array methods
+- [NumPy Dot](https://numpy.org/doc/stable/reference/generated/numpy.dot.html) - Reference implementation
+
+### Tutorials
+- ["Linear Algebra for ML"](https://www.youtube.com/playlist?list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab) - 3Blue1Brown
+- ["Vector Operations Explained"](https://www.khanacademy.org/math/linear-algebra/vectors-and-spaces) - Khan Academy
+
+### Libraries
+- [BLAS](http://www.netlib.org/blas/) - Standard linear algebra routines
+- [TensorFlow.js](https://js.tensorflow.org/) - Optimized tensor operations

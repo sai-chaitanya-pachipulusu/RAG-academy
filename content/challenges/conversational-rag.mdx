@@ -3,6 +3,19 @@
   and conversation-aware retrieval.
 </Callout>
 
+---
+
+title: "Conversational RAG"
+description: "Build multi-turn RAG systems with conversation memory and context-aware retrieval"
+difficulty: "advanced"
+timeEstimate: "50-60 min"
+xpReward: 150
+topics: ["agentic-rag", "conversational-ai", "context-management"]
+prerequisites: ["conversation-buffer-memory", "conversational-query-rewrite"]
+related: ["self-rag", "entity-memory"]
+next: ["multi-step-reasoning"]
+---
+
 ## The Conversational Challenge
 
 Single-turn RAG:
@@ -17,53 +30,67 @@ Multi-turn RAG:
 ```
 User: "What is the refund policy?"
 → Retrieve → Generate
-User: "How long do I have?"
-→ Need to remember we're talking about refunds!
+User: "How long do I have?"  ← Need to remember we're talking about refunds!
+→ Retrieve (with context) → Generate
 ```
 
-## Conversation Context Management
+## Why Conversational RAG Matters
 
-### Conversation State
+| Aspect | Single-Turn | Multi-Turn |
+|--------|-------------|------------|
+| Context | None | Full conversation history |
+| Pronouns | Fail | Resolved |
+| Follow-ups | Treated independently | Connected |
+| User Experience | Robotic | Natural |
+
+## Conversation State Management
 
 ```python
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import List, Optional, Dict
+import time
 
 @dataclass
 class Message:
     role: str  # "user" or "assistant"
     content: str
     timestamp: float = field(default_factory=time.time)
+    retrieved_docs: List[str] = field(default_factory=list)
 
 @dataclass
 class Conversation:
     id: str
-    messages: list[Message] = field(default_factory=list)
-    retrieved_docs: list[dict] = field(default_factory=list)
-    metadata: dict = field(default_factory=dict)
-
+    messages: List[Message] = field(default_factory=list)
+    metadata: Dict = field(default_factory=dict)
+    
     def add_user_message(self, content: str):
         self.messages.append(Message(role="user", content=content))
-
-    def add_assistant_message(self, content: str):
-        self.messages.append(Message(role="assistant", content=content))
-
+    
+    def add_assistant_message(self, content: str, docs: List[str] = None):
+        self.messages.append(Message(
+            role="assistant", 
+            content=content,
+            retrieved_docs=docs or []
+        ))
+    
     def get_history(self, n_turns: int = 5) -> str:
         """Get recent conversation history as string."""
         recent = self.messages[-n_turns*2:]  # n turns = 2n messages
         return "\n".join([f"{m.role}: {m.content}" for m in recent])
 ```
 
-### Context Carryover
+## Context Carryover
+
+### Query Rewriting with Context
 
 ```python
 def build_contextualized_query(query: str, conversation: Conversation) -> str:
     """Rewrite query to include conversational context."""
     if len(conversation.messages) == 0:
         return query  # First message, no context needed
-
+    
     history = conversation.get_history(n_turns=3)
-
+    
     prompt = f"""Given this conversation:
 {history}
 
@@ -73,7 +100,7 @@ Rewrite the query to be self-contained (include references from conversation).
 If it references previous topics, make those explicit.
 
 Rewritten query:"""
-
+    
     return llm.generate(prompt)
 
 # Example:
@@ -88,270 +115,292 @@ Rewritten query:"""
 
 ```python
 class ConversationalRetriever:
-    def __init__(self, base_retriever):
+    def __init__(self, base_retriever, llm):
         self.retriever = base_retriever
-        self.conversations = {}
-
-    def retrieve(self, query: str, conversation_id: str) -> list[dict]:
+        self.llm = llm
+        self.conversations: Dict[str, Conversation] = {}
+    
+    def retrieve(self, query: str, conversation_id: str) -> List[dict]:
+        """Retrieve with conversation context."""
         conv = self.conversations.get(conversation_id, Conversation(id=conversation_id))
-
+        
         # Rewrite query with context
-        contextualized = build_contextualized_query(query, conv)
-
-        # Retrieve with rewritten query
+        contextualized = self.rewrite_query(query, conv)
+        
+        # Retrieve using contextualized query
         docs = self.retriever.search(contextualized)
-
+        
+        # Also retrieve for original query (for disambiguation)
+        if contextualized != query:
+            original_docs = self.retriever.search(query)
+            docs = self.merge_results(docs, original_docs)
+        
         return docs
-```
+    
+    def rewrite_query(self, query: str, conversation: Conversation) -> str:
+        """Rewrite query using conversation history."""
+        if len(conversation.messages) < 2:
+            return query
+        
+        history = conversation.get_history(n_turns=3)
+        
+        prompt = f"""Rewrite this follow-up question to be self-contained.
 
-### Strategy 2: History-Augmented Retrieval
-
-```python
-def retrieve_with_history(query: str, history: list[str], retriever) -> list[dict]:
-    """Retrieve using both current query and conversation history."""
-    # Combine current query with history for richer context
-    combined = f"Previous topics: {' '.join(history[-3:])}. Current question: {query}"
-
-    # Get embeddings
-    query_emb = embed(combined)
-
-    # Retrieve
-    return retriever.search(query_emb)
-```
-
-### Strategy 3: Conversation Memory Index
-
-```python
-class ConversationMemoryRetriever:
-    """Maintain a per-conversation memory index."""
-
-    def __init__(self, base_retriever):
-        self.base_retriever = base_retriever
-        self.conv_memories = {}  # conversation_id -> list of indexed docs
-
-    def retrieve(self, query: str, conv_id: str) -> list[dict]:
-        # Get from base knowledge base
-        base_docs = self.base_retriever.search(query)
-
-        # Get from conversation memory
-        conv_docs = []
-        if conv_id in self.conv_memories:
-            conv_docs = self.search_conv_memory(query, conv_id)
-
-        # Merge (conversation memory takes priority)
-        return self.merge_results(conv_docs, base_docs)
-
-    def add_to_memory(self, conv_id: str, doc: dict):
-        """Add a document to conversation memory."""
-        if conv_id not in self.conv_memories:
-            self.conv_memories[conv_id] = []
-        self.conv_memories[conv_id].append(doc)
-```
-
-## Multi-Turn Prompt Design
-
-### Context-Aware Generation
-
-```python
-CONVERSATIONAL_RAG_PROMPT = """You are a helpful assistant engaged in a conversation.
-
-Previous conversation:
+Conversation history:
 {history}
 
-Relevant information from our knowledge base:
-{context}
+Follow-up: "{query}"
 
-Current user message: {query}
-
-Instructions:
-1. Use the conversation history to understand context
-2. Answer based on the retrieved information
-3. Reference previous topics when relevant
-4. If clarification is needed, ask
-
-Response:"""
-
-def generate_response(query: str, docs: list[dict], conversation: Conversation) -> str:
-    history = conversation.get_history(n_turns=5)
-    context = format_documents(docs)
-
-    prompt = CONVERSATIONAL_RAG_PROMPT.format(
-        history=history,
-        context=context,
-        query=query
-    )
-
-    return llm.generate(prompt)
+Rewrite (make references explicit):"""
+        
+        rewritten = self.llm.generate(prompt, max_tokens=100)
+        return rewritten.strip() or query
 ```
 
-### Follow-up Detection
+### Strategy 2: Contextualized Embeddings
 
 ```python
-def is_followup(query: str, conversation: Conversation) -> bool:
-    """Detect if query is a follow-up to previous turn."""
-    indicators = [
-        "that",
-        "it",
-        "this",
-        "those",
-        "them",
-        "the same",
-        "more about",
-        "also",
-        "and",
-        "what about",
-    ]
-
-    query_lower = query.lower()
-
-    # Has pronoun reference
-    has_reference = any(ind in query_lower for ind in indicators)
-
-    # Is short (likely follow-up)
-    is_short = len(query.split()) < 10
-
-    return has_reference or (is_short and len(conversation.messages) > 0)
+class ContextualizedEmbedder:
+    """Create embeddings that include conversation context."""
+    
+    def __init__(self, base_embedder):
+        self.embedder = base_embedder
+    
+    def embed_query(self, query: str, conversation: Conversation) -> List[float]:
+        """Embed query with conversation context."""
+        # Get conversation summary
+        summary = self.summarize_conversation(conversation)
+        
+        # Combine with query
+        contextualized = f"Context: {summary}\nQuery: {query}"
+        
+        return self.embedder.encode(contextualized)
+    
+    def summarize_conversation(self, conversation: Conversation) -> str:
+        """Extract key topics from conversation."""
+        if len(conversation.messages) < 2:
+            return ""
+        
+        # Simple extraction: use last user message
+        user_messages = [m for m in conversation.messages if m.role == "user"]
+        if user_messages:
+            return user_messages[-1].content[:100]
+        return ""
 ```
 
-## Full Conversational RAG Pipeline
+### Strategy 3: Multi-Query Fusion
+
+```python
+class MultiQueryConversationalRetriever:
+    """Generate multiple queries from conversation context."""
+    
+    def retrieve(self, query: str, conversation: Conversation) -> List[dict]:
+        """Retrieve using multiple generated queries."""
+        # Generate variations
+        variations = self.generate_query_variations(query, conversation)
+        
+        # Retrieve for each
+        all_results = []
+        for var in variations:
+            results = self.retriever.search(var)
+            all_results.extend(results)
+        
+        # Deduplicate and rerank
+        return self.deduplicate_and_rerank(all_results, query)
+    
+    def generate_query_variations(
+        self, 
+        query: str, 
+        conversation: Conversation
+    ) -> List[str]:
+        """Generate query variations based on context."""
+        variations = [query]  # Always include original
+        
+        # Add rewritten version
+        rewritten = self.rewrite_query(query, conversation)
+        if rewritten != query:
+            variations.append(rewritten)
+        
+        # Add entity-focused variations
+        entities = self.extract_entities(conversation)
+        for entity in entities[:2]:
+            variations.append(f"{query} {entity}")
+        
+        return variations[:4]  # Limit to avoid too many calls
+```
+
+## Conversation Memory Integration
 
 ```python
 class ConversationalRAG:
-    def __init__(self, retriever, generator):
+    """Full conversational RAG system."""
+    
+    def __init__(self, retriever, llm, memory_store):
         self.retriever = retriever
-        self.generator = generator
-        self.conversations = {}
-
-    def chat(self, user_message: str, conversation_id: str) -> str:
-        # Get or create conversation
-        if conversation_id not in self.conversations:
-            self.conversations[conversation_id] = Conversation(id=conversation_id)
-
-        conv = self.conversations[conversation_id]
-        conv.add_user_message(user_message)
-
-        # Contextualize query if follow-up
-        if is_followup(user_message, conv):
-            query = build_contextualized_query(user_message, conv)
-        else:
-            query = user_message
-
-        # Retrieve
-        docs = self.retriever.search(query)
-        conv.retrieved_docs.extend(docs)
-
-        # Generate
-        response = self.generator.generate(
-            query=user_message,  # Use original for response
-            context=docs,
-            history=conv.get_history()
+        self.llm = llm
+        self.memory = memory_store
+    
+    def chat(self, query: str, conversation_id: str) -> dict:
+        """Process a conversational query."""
+        # Load or create conversation
+        conversation = self.memory.load(conversation_id)
+        
+        # Add user message
+        conversation.add_user_message(query)
+        
+        # Retrieve with context
+        docs = self.retrieve_with_context(query, conversation)
+        
+        # Generate response
+        response = self.generate_response(query, docs, conversation)
+        
+        # Add assistant message
+        conversation.add_assistant_message(
+            response, 
+            docs=[d["id"] for d in docs]
         )
+        
+        # Save conversation
+        self.memory.save(conversation)
+        
+        return {
+            "response": response,
+            "conversation_id": conversation_id,
+            "documents_used": [d["id"] for d in docs]
+        }
+    
+    def retrieve_with_context(
+        self, 
+        query: str, 
+        conversation: Conversation
+    ) -> List[dict]:
+        """Retrieve documents using conversation context."""
+        # Rewrite query
+        rewritten = self.rewrite_query(query, conversation)
+        
+        # Retrieve
+        docs = self.retriever.search(rewritten)
+        
+        # Filter by conversation context
+        docs = self.filter_by_context(docs, conversation)
+        
+        return docs
+    
+    def generate_response(
+        self, 
+        query: str, 
+        docs: List[dict], 
+        conversation: Conversation
+    ) -> str:
+        """Generate response with conversation context."""
+        # Build full context
+        history = conversation.get_history(n_turns=3)
+        doc_context = self.format_documents(docs)
+        
+        prompt = f"""You are a helpful assistant. Use the conversation history and retrieved documents to answer.
 
-        conv.add_assistant_message(response)
+Conversation History:
+{history}
 
-        return response
+Retrieved Information:
+{doc_context}
 
-    def clear_conversation(self, conversation_id: str):
-        """Clear conversation history."""
-        if conversation_id in self.conversations:
-            del self.conversations[conversation_id]
+User: {query}
+Assistant:"""
+        
+        return self.llm.generate(prompt)
 ```
 
 ## Handling Edge Cases
 
-### Topic Switches
+### Topic Switch Detection
 
 ```python
-def detect_topic_switch(current_query: str, conversation: Conversation) -> bool:
-    """Detect if user switched to a completely new topic."""
+def detect_topic_switch(query: str, conversation: Conversation) -> bool:
+    """Detect if user is switching topics."""
     if len(conversation.messages) < 2:
         return False
-
-    # Get embedding of current query
-    current_emb = embed(current_query)
-
-    # Get embedding of recent history
-    history = conversation.get_history(n_turns=2)
-    history_emb = embed(history)
-
-    # Low similarity = topic switch
-    similarity = cosine_similarity(current_emb, history_emb)
-
-    return similarity < 0.3
-
-# Usage: Reset context if topic switched
-if detect_topic_switch(query, conv):
-    # Don't use conversation history for retrieval
-    docs = retriever.search(query)  # No contextualization
+    
+    # Get previous topic (simplified)
+    prev_query = conversation.messages[-2].content
+    
+    # Compare embeddings
+    query_emb = embed(query)
+    prev_emb = embed(prev_query)
+    
+    similarity = cosine_similarity(query_emb, prev_emb)
+    
+    return similarity < 0.5  # Threshold for topic switch
 ```
 
-### Clarification Requests
+### Clarification Handling
 
 ```python
-def needs_clarification(query: str, docs: list[dict], conversation: Conversation) -> tuple[bool, str]:
-    """Check if we need to ask for clarification."""
-    # Ambiguous reference?
-    ambiguous_refs = ["which one", "that thing", "what you mentioned"]
-    if any(ref in query.lower() for ref in ambiguous_refs):
-        return True, "Could you clarify which item you're referring to?"
-
-    # No relevant docs found?
-    if not docs or docs[0]["score"] < 0.3:
-        return True, "I couldn't find information about that. Could you rephrase or provide more context?"
-
-    return False, ""
+def needs_clarification(query: str, conversation: Conversation) -> bool:
+    """Check if query needs clarification."""
+    # Ambiguous pronouns without clear referent
+    ambiguous_pronouns = ["it", "they", "them", "this", "that"]
+    
+    has_ambiguous_pronoun = any(
+        pronoun in query.lower() for pronoun in ambiguous_pronouns
+    )
+    
+    if not has_ambiguous_pronoun:
+        return False
+    
+    # Check if we can resolve from context
+    referent = resolve_pronoun(query, conversation)
+    
+    return referent is None
 ```
 
-## Session Management
+## Performance Metrics
 
-```python
-class ConversationManager:
-    def __init__(self, ttl_minutes: int = 30):
-        self.conversations = {}
-        self.ttl = ttl_minutes * 60
+| Metric | Target | Measurement |
+|--------|--------|-------------|
+| Context Retention | >90% | Correct pronoun resolution |
+| Topic Coherence | >85% | Consistent responses |
+| Latency | <1s | End-to-end response time |
+| User Satisfaction | >4.0/5 | Post-conversation rating |
 
-    def get_or_create(self, session_id: str) -> Conversation:
-        if session_id in self.conversations:
-            conv = self.conversations[session_id]
-            # Check TTL
-            if time.time() - conv.messages[-1].timestamp > self.ttl:
-                # Expired, create new
-                conv = Conversation(id=session_id)
-                self.conversations[session_id] = conv
-            return conv
+## Real-World Applications
 
-        conv = Conversation(id=session_id)
-        self.conversations[session_id] = conv
-        return conv
+| Company | Implementation |
+|---------|---------------|
+| **ChatGPT** | Multi-turn with conversation memory |
+| **Claude** | Extended context conversations |
+| **Perplexity** | Threaded research conversations |
+| **Character.AI** | Persistent character memory |
 
-    def cleanup_expired(self):
-        """Remove expired conversations."""
-        now = time.time()
-        expired = [
-            sid for sid, conv in self.conversations.items()
-            if conv.messages and now - conv.messages[-1].timestamp > self.ttl
-        ]
-        for sid in expired:
-            del self.conversations[sid]
-```
+## Best Practices
 
-## Metrics
+1. **Keep recent context**: Last 3-5 turns are most important
+2. **Summarize older turns**: Compress distant history
+3. **Track entities**: Resolve pronouns and references
+4. **Detect topic switches**: Reset context when needed
+5. **Handle clarifications**: Ask when uncertain
 
-| Metric                | What it Measures                         | Target |
-| --------------------- | ---------------------------------------- | ------ |
-| Context Utilization   | % of follow-ups correctly contextualized | >90%   |
-| Topic Switch Accuracy | Correctly detected topic changes         | >85%   |
-| Retrieval Consistency | Same topic gets consistent docs          | >80%   |
-| Session Length        | Avg turns per conversation               | 3-5    |
+## Resources
 
-## Production Checklist
+### Papers
+- [Conversational AI with RAG](https://arxiv.org/abs/2306.11900)
+- [Multi-Turn Response Selection](https://arxiv.org/abs/2004.12744)
 
-- [ ] Implement conversation state management
-- [ ] Add query rewriting for follow-ups
-- [ ] Handle topic switches gracefully
-- [ ] Set session timeouts
-- [ ] Store conversation history (optional)
-- [ ] Monitor conversation metrics
-- [ ] Add clarification handling
-- [ ] Test multi-turn scenarios
+### Documentation
+- [LangChain Conversation Memory](https://python.langchain.com/docs/modules/memory/)
+- [LlamaIndex Chat Engine](https://docs.llamaindex.ai/en/stable/module_guides/deploying/chat_engines/)
 
+### Tools
+- **LangChain**: Conversation buffer memory
+- **LlamaIndex**: Chat engine with RAG
+- **Chroma**: Conversation persistence
+
+## Related Challenges
+
+- **Prerequisites**: [conversation-buffer-memory](conversation-buffer-memory), [conversational-query-rewrite](conversational-query-rewrite)
+- **Next**: [multi-step-reasoning](multi-step-reasoning)
+- **Related**: [self-rag](self-rag), [entity-memory](entity-memory)
+
+---
+
+**💬 Conversational Mastery:** Conversational RAG transforms isolated queries into natural, flowing dialogues—master context management to build truly intelligent assistants!

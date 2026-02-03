@@ -1,23 +1,302 @@
+---
+title: "Sliding Window Chunker (TypeScript)"
+description: "Implement sliding window chunking for long documents."
+language: "typescript"
+difficulty: "intermediate"
+category: "chunking"
+prerequisites: ["ts-fixed-size-chunker"]
+related: ["sliding-window-chunking", "sentence-window-retrieval", "ts-sentence-chunker"]
+tags: ["chunking", "sliding-window", "long-documents", "context"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Implement sliding window retrieval for long documents.
+  Implement sliding window chunking for processing long documents with overlapping context.
 </Callout>
 
-## Why this matters in production
+## Why Sliding Window Matters in Production
 
-Documents longer than context limits need to be processed in chunks. Sliding window with overlap ensures no information is lost at boundaries.
+Documents longer than context limits need to be processed in chunks. Sliding window with overlap ensures no information is lost at boundaries. This is essential for:
 
-## What you're implementing
+- **Long documents**: Books, research papers, legal contracts
+- **Streaming text**: Chat logs, transcripts, logs
+- **Boundary preservation**: Context at chunk edges maintained
+- **Comprehensive coverage**: Every character included in at least one chunk
 
-- Create overlapping windows across the document.
-- Process each window independently.
-- Aggregate results across windows.
+### Real-World Scenario
 
-## Common pitfalls
+Processing a 100-page legal contract:
 
-- Missing content at window boundaries.
-- Too much overlap wastes compute.
+**Without overlap:**
+```
+Chunk 1: "...the party of the first part shall..."
+Chunk 2: "...be responsible for all damages..."
+```
+Problem: Context lost at boundary; "shall be" relationship unclear.
 
-## After you pass
+**With sliding window (50% overlap):**
+```
+Chunk 1: "...the party of the first part shall..."
+Chunk 2: "...the first part shall be responsible..."
+Chunk 3: "...shall be responsible for all damages..."
+```
+Each boundary appears in multiple chunks for context continuity.
 
-Combine with aggregation strategies for final answer synthesis.
+## The Mathematical Foundation
 
+### Window Parameters
+
+```
+Window size (W): Characters per chunk
+Step size (S): Characters to advance between chunks
+Overlap (O) = W - S
+
+Example:
+- W = 1000 characters
+- S = 500 characters
+- O = 500 characters (50% overlap)
+```
+
+### Number of Windows
+
+```
+For text of length L:
+Number of chunks = ceil((L - W) / S) + 1
+
+Example:
+- L = 10000, W = 1000, S = 500
+- Chunks = ceil((10000 - 1000) / 500) + 1 = 19 chunks
+```
+
+### Coverage Analysis
+
+| Position | Covered by chunks | Redundancy |
+|----------|-------------------|------------|
+| Start | Chunk 1 only | 1× |
+| Middle | Multiple chunks | 2× (with 50% overlap) |
+| End | Last chunk only | 1× |
+
+## Theoretical Deep Dive
+
+### Overlap Trade-offs
+
+| Overlap | Pros | Cons |
+|---------|------|------|
+| 0% | No redundancy | Boundary loss |
+| 25% | Some continuity | Some boundary risk |
+| 50% | Good continuity | 2× processing |
+| 75% | High continuity | 4× processing |
+
+### Sentence-Aware Sliding Window
+
+Combine with sentence boundaries:
+
+```
+1. Find window start (character position)
+2. Adjust to nearest sentence start
+3. Find window end
+4. Adjust to nearest sentence end
+5. Advance by step size
+```
+
+### Hierarchical Sliding
+
+Multiple levels of granularity:
+
+```
+Level 1: Paragraph-level windows
+Level 2: Sentence-level within paragraphs
+Level 3: Token-level within sentences
+```
+
+## Production Considerations
+
+### Memory Efficiency
+
+For very large documents:
+
+```typescript
+// Stream instead of loading all chunks
+async function* slidingWindowStream(
+  fileStream: ReadableStream,
+  windowSize: number,
+  stepSize: number
+): AsyncGenerator<Chunk> {
+  let buffer = '';
+  for await (const chunk of fileStream) {
+    buffer += chunk;
+    while (buffer.length >= windowSize) {
+      yield createChunk(buffer.slice(0, windowSize));
+      buffer = buffer.slice(stepSize);
+    }
+  }
+}
+```
+
+### Token-Aware Windows
+
+Character counts ≠ token counts:
+
+```typescript
+function estimateTokens(text: string): number {
+  // ~4 characters per token (approximate)
+  return Math.ceil(text.length / 4);
+}
+
+// Adjust window to token budget
+const charWindow = tokenBudget * 4;
+```
+
+### Aggregation Strategies
+
+When processing overlapping chunks:
+
+```typescript
+// Strategy 1: Deduplicate
+const uniqueResults = [...new Set(allResults)];
+
+// Strategy 2: Vote
+const votes = countOccurrences(allResults);
+const best = maxBy(votes);
+
+// Strategy 3: Merge
+const merged = mergeOverlapping(results);
+```
+
+## Your Task
+
+Implement a sliding window chunker:
+
+```typescript
+interface SlidingWindowChunk {
+  text: string;
+  startIndex: number;
+  endIndex: number;
+  windowIndex: number;
+}
+
+interface SlidingWindowConfig {
+  windowSize: number;    // Characters per window
+  stepSize: number;      // Characters to advance
+  respectSentences?: boolean;  // Adjust to sentence boundaries
+}
+
+class SlidingWindowChunker {
+  constructor(private config: SlidingWindowConfig) {
+    if (config.stepSize > config.windowSize) {
+      throw new Error('stepSize must be <= windowSize');
+    }
+  }
+
+  chunk(text: string): SlidingWindowChunk[] {
+    /**
+     * Create sliding window chunks from text.
+     * 
+     * Args:
+     *   text: Input text to process
+     * 
+     * Returns:
+     *   Array of overlapping chunks
+     * 
+     * Algorithm:
+     *   1. Validate stepSize <= windowSize
+     *   2. Starting at position 0:
+     *      a. Extract window of windowSize characters
+     *      b. If respectSentences: adjust to sentence boundaries
+     *      c. Record chunk with positions
+     *      d. Advance by stepSize
+     *   3. Continue until end of text
+     *   4. Ensure final chunk includes text end
+     * 
+     * Edge Cases:
+     *   - Text shorter than window: return single chunk
+     *   - stepSize = windowSize: no overlap
+     *   - stepSize = 0: infinite loop (prevent)
+     *   - Empty text: return empty array
+     */
+  }
+
+  private findSentenceBoundary(
+    text: string,
+    position: number,
+    direction: 'forward' | 'backward'
+  ): number {
+    /**
+     * Find nearest sentence boundary.
+     * 
+     * direction 'forward': find next sentence start
+     * direction 'backward': find previous sentence end
+     */
+  }
+
+  private createChunk(
+    text: string,
+    startIndex: number,
+    endIndex: number,
+    windowIndex: number
+  ): SlidingWindowChunk {
+    /**
+     * Create chunk object with metadata.
+     */
+  }
+
+  getOverlapPercentage(): number {
+    /**
+     * Calculate overlap percentage.
+     * overlap = (windowSize - stepSize) / windowSize × 100
+     */
+  }
+
+  estimateChunkCount(textLength: number): number {
+    /**
+     * Estimate number of chunks for given text length.
+     */
+  }
+}
+
+// Convenience function
+function createSlidingWindowChunks(
+  text: string,
+  windowSize: number,
+  stepSize: number
+): SlidingWindowChunk[] {
+  const chunker = new SlidingWindowChunker({ windowSize, stepSize });
+  return chunker.chunk(text);
+}
+```
+
+### Validation Checklist
+
+- [ ] stepSize <= windowSize enforced
+- [ ] Overlap calculated correctly
+- [ ] All text covered by at least one chunk
+- [ ] Adjacent chunks have correct overlap
+- [ ] Final chunk includes text end
+- [ ] Character positions tracked correctly
+- [ ] Empty text returns empty array
+- [ ] Short text returns single chunk
+
+## Common Pitfalls
+
+- **Missing content at window boundaries**: Ensure overlap covers boundaries
+- **Too much overlap wastes compute**: Balance coverage vs efficiency
+- **Not handling final chunk**: May be shorter than window size
+- **Off-by-one in position tracking**: Verify start/end indices
+- **Infinite loop with stepSize = 0**: Validate inputs
+
+## After You Pass
+
+Combine with aggregation strategies for final answer synthesis, or implement hierarchical sliding windows for multi-scale processing.
+
+## Resources
+
+### Documentation
+- [LangChain Text Splitters](https://js.langchain.com/docs/modules/data_connection/document_transformers/) - Window strategies
+- [Hugging Face Chunking](https://huggingface.co/docs/transformers/main_classes/tokenizer#transformers.PreTrainedTokenizer.__call__) - Token-based windows
+
+### Tutorials
+- ["Sliding Window for Time Series"](https://www.youtube.com/watch?v=Zx3JVOwwAhA) - General concept
+- ["Text Processing Windows"](https://towardsdatascience.com/sliding-windows-in-nlp-72d8cda058d6) - NLP applications
+
+### Libraries
+- [window-slider](https://github.com/rxaviers/window-slider) - JavaScript sliding window
+- [numpy stride tricks](https://numpy.org/doc/stable/reference/generated/numpy.lib.stride_tricks.sliding_window_view.html) - Efficient windowing

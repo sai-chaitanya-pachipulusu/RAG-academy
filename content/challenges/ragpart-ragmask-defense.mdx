@@ -1,32 +1,394 @@
 ---
 title: "RAGPart RAGMask Defense"
-description: "Implement partition-based defense against retrieval attacks"
+description: "Implement partition-based defense against retrieval attacks with sensitivity classification and access control"
+difficulty: "hard"
+xpReward: 150
+topics: ["security", "privacy", "access-control", "data-protection"]
+prerequisites: ["document-access-control", "pii-filtering"]
 ---
 
 # RAGPart RAGMask Defense
 
-Implement a defense mechanism that partitions and masks sensitive content in the retrieval pipeline.
+## Overview
 
-## Requirements
+RAG systems can inadvertently expose sensitive information through clever prompting or retrieval manipulation. This challenge implements a defense mechanism that partitions documents by sensitivity and masks content based on user permissions.
 
-1. Partition documents by sensitivity level
-2. Mask sensitive entities in retrieved chunks
-3. Validate user permissions before unmasking
-4. Log access for audit
+## Why This Matters
 
-## Starter Code
+- **Data Leakage Prevention**: Block PII exposure through RAG
+- **Compliance**: GDPR, HIPAA require data protection
+- **Insider Threats**: Limit access to need-to-know basis
+- **Audit Requirements**: Track who accessed what
+
+## Key Concepts
+
+- **Sensitivity Classification**: Auto-label content by risk level
+- **Content Masking**: Replace sensitive entities with tokens
+- **Permission Validation**: Check access before unmasking
+- **Audit Logging**: Record all access attempts
+
+## Real-World Applications
+
+Financial services, healthcare, and government agencies use similar systems to protect sensitive data in AI systems.
+
+## Sensitivity Levels
+
+| Level | Description | Examples | Access Required |
+|-------|-------------|----------|-----------------|
+| **Public** | No restriction | Marketing materials | Any user |
+| **Internal** | Company-only | Strategy docs | Employee |
+| **Confidential** | Limited access | Financial data | Manager+ |
+| **Restricted** | Strict need-to-know | M&A, PII | Executive+ |
+
+## The Challenge
+
+### Part 1: Sensitivity Classifier
 
 ```python
-class RAGMaskDefense:
-    def __init__(self, sensitivity_classifier):
-        self.classifier = sensitivity_classifier
-        self.partitions = {}
+from enum import Enum
+from typing import List, Dict, Set
+from dataclasses import dataclass
+
+class SensitivityLevel(Enum):
+    PUBLIC = 1
+    INTERNAL = 2
+    CONFIDENTIAL = 3
+    RESTRICTED = 4
+
+@dataclass
+class SensitivityLabel:
+    """Label for a document or section."""
+    level: SensitivityLevel
+    confidence: float
+    reasons: List[str]
+    entities_detected: List[str]
+
+class SensitivityClassifier:
+    """Classify content by sensitivity level."""
     
-    def partition_document(self, doc: str, doc_id: str):
-        """Partition document by sensitivity level."""
-        pass
+    def __init__(self):
+        # Patterns for sensitive content
+        self.patterns = {
+            SensitivityLevel.RESTRICTED: {
+                'pii': [
+                    r'\b\d{3}-\d{2}-\d{4}\b',  # SSN
+                    r'\b4\d{3}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b',  # Credit card
+                    r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',  # Email
+                ],
+                'keywords': [
+                    'acquisition', 'merger', 'layoff', 'bankruptcy',
+                    'patient record', 'medical history'
+                ]
+            },
+            SensitivityLevel.CONFIDENTIAL: {
+                'keywords': [
+                    'revenue', 'profit margin', 'quarterly results',
+                    'unreleased', 'roadmap', 'strategy'
+                ]
+            },
+            SensitivityLevel.INTERNAL: {
+                'keywords': [
+                    'internal use only', 'not for distribution',
+                    'company confidential'
+                ]
+            }
+        }
     
-    def retrieve_with_mask(self, query: str, user_permissions: list[str]) -> list[dict]:
-        """Retrieve chunks with appropriate masking."""
-        pass
+    def classify(self, text: str) -> SensitivityLabel:
+        """Classify text sensitivity."""
+        detected_entities = []
+        reasons = []
+        max_level = SensitivityLevel.PUBLIC
+        
+        # Check each sensitivity level
+        for level in sorted(SensitivityLevel, key=lambda x: x.value, reverse=True):
+            if level == SensitivityLevel.PUBLIC:
+                continue
+            
+            patterns = self.patterns.get(level, {})
+            
+            # Check regex patterns
+            for pattern in patterns.get('pii', []):
+                matches = re.findall(pattern, text, re.IGNORECASE)
+                if matches:
+                    detected_entities.extend(matches)
+                    reasons.append(f"Detected PII: {len(matches)} matches")
+                    max_level = max(max_level, level)
+            
+            # Check keywords
+            text_lower = text.lower()
+            for keyword in patterns.get('keywords', []):
+                if keyword in text_lower:
+                    reasons.append(f"Keyword detected: '{keyword}'")
+                    max_level = max(max_level, level)
+        
+        # Calculate confidence based on detection strength
+        confidence = min(0.5 + len(reasons) * 0.1, 1.0)
+        
+        return SensitivityLabel(
+            level=max_level,
+            confidence=confidence,
+            reasons=reasons,
+            entities_detected=detected_entities
+        )
 ```
+
+### Part 2: Content Masking
+
+```python
+@dataclass
+class MaskedContent:
+    """Content with sensitive information masked."""
+    text: str
+    masks: Dict[str, str]  # token -> original
+    sensitivity: SensitivityLevel
+
+class ContentMasker:
+    """Mask sensitive content with reversible tokens."""
+    
+    def __init__(self):
+        self.mask_prefix = "[MASKED_"
+        self.mask_suffix = "]"
+        self.mask_counter = 0
+        self.entity_types = {
+            'EMAIL': r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
+            'PHONE': r'\b\d{3}-\d{3}-\d{4}\b',
+            'SSN': r'\b\d{3}-\d{2}-\d{4}\b',
+            'CREDIT_CARD': r'\b4\d{3}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b',
+            'NAME': r'\b[A-Z][a-z]+ [A-Z][a-z]+\b',  # Simplified
+        }
+    
+    def mask(self, text: str, level: SensitivityLevel) -> MaskedContent:
+        """Mask sensitive content based on level."""
+        masks = {}
+        masked_text = text
+        
+        # Determine which entities to mask based on level
+        entities_to_mask = self._get_entities_for_level(level)
+        
+        for entity_type in entities_to_mask:
+            pattern = self.entity_types.get(entity_type)
+            if not pattern:
+                continue
+            
+            matches = re.finditer(pattern, masked_text)
+            for match in matches:
+                original = match.group()
+                token = self._generate_token(entity_type)
+                masks[token] = original
+                masked_text = masked_text.replace(original, token, 1)
+        
+        return MaskedContent(
+            text=masked_text,
+            masks=masks,
+            sensitivity=level
+        )
+    
+    def unmask(
+        self,
+        masked_content: MaskedContent,
+        user_permissions: Set[SensitivityLevel]
+    ) -> str:
+        """Unmask content if user has permission."""
+        if masked_content.sensitivity not in user_permissions:
+            # Return masked version
+            return masked_content.text
+        
+        # Unmask all tokens
+        text = masked_content.text
+        for token, original in masked_content.masks.items():
+            text = text.replace(token, original)
+        
+        return text
+    
+    def _generate_token(self, entity_type: str) -> str:
+        """Generate unique mask token."""
+        self.mask_counter += 1
+        return f"{self.mask_prefix}{entity_type}_{self.mask_counter}{self.mask_suffix}"
+    
+    def _get_entities_for_level(self, level: SensitivityLevel) -> List[str]:
+        """Get entity types to mask for sensitivity level."""
+        mapping = {
+            SensitivityLevel.PUBLIC: [],
+            SensitivityLevel.INTERNAL: ['EMAIL'],
+            SensitivityLevel.CONFIDENTIAL: ['EMAIL', 'PHONE', 'NAME'],
+            SensitivityLevel.RESTRICTED: ['EMAIL', 'PHONE', 'SSN', 'CREDIT_CARD', 'NAME']
+        }
+        return mapping.get(level, [])
+```
+
+### Part 3: Partitioned RAG System
+
+```python
+@dataclass
+class UserPermissions:
+    """User's access permissions."""
+    user_id: str
+    roles: List[str]
+    max_sensitivity: SensitivityLevel
+    allowed_topics: Set[str]
+
+class RAGMaskDefense:
+    """RAG system with sensitivity-based access control."""
+    
+    def __init__(
+        self,
+        classifier: SensitivityClassifier,
+        masker: ContentMasker,
+        vector_store: VectorStore
+    ):
+        self.classifier = classifier
+        self.masker = masker
+        self.store = vector_store
+        self.audit_log = []
+    
+    def partition_document(
+        self,
+        doc_id: str,
+        content: str,
+        metadata: Dict
+    ) -> List[DocumentPartition]:
+        """Partition document by sensitivity sections."""
+        # Split into sections (paragraphs or semantic chunks)
+        sections = self._split_into_sections(content)
+        
+        partitions = []
+        for i, section in enumerate(sections):
+            # Classify each section
+            label = self.classifier.classify(section)
+            
+            # Mask content
+            masked = self.masker.mask(section, label.level)
+            
+            partition = DocumentPartition(
+                doc_id=doc_id,
+                section_id=f"{doc_id}_sec_{i}",
+                content=masked.text,
+                masks=masked.masks,
+                sensitivity=label.level,
+                confidence=label.confidence,
+                metadata={
+                    **metadata,
+                    'sensitivity_reasons': label.reasons,
+                    'entities_detected': label.entities_detected
+                }
+            )
+            
+            partitions.append(partition)
+            
+            # Index masked content
+            self.store.add_document(
+                content=masked.text,
+                metadata={
+                    'doc_id': doc_id,
+                    'section_id': partition.section_id,
+                    'sensitivity': label.level.name,
+                    'original_sensitivity': label.level.value
+                }
+            )
+        
+        return partitions
+    
+    def retrieve_with_mask(
+        self,
+        query: str,
+        user_permissions: UserPermissions,
+        top_k: int = 5
+    ) -> List[RetrievedChunk]:
+        """Retrieve chunks with appropriate masking."""
+        # Log access attempt
+        self._log_access(user_permissions.user_id, query, "RETRIEVE")
+        
+        # Retrieve from vector store (all masked content)
+        results = self.store.search(query, k=top_k * 2)
+        
+        filtered_results = []
+        for result in results:
+            # Get original partition info
+            sensitivity = SensitivityLevel[
+                result.metadata['sensitivity']
+            ]
+            
+            # Check permission
+            if sensitivity.value > user_permissions.max_sensitivity.value:
+                # Skip or redact further
+                if sensitivity == SensitivityLevel.RESTRICTED:
+                    continue  # Don't show at all
+                else:
+                    # Show with additional masking
+                    result.content = self._redact_further(result.content)
+            
+            # Try to unmask if permitted
+            partition = self._get_partition(result.metadata['section_id'])
+            if partition:
+                result.content = self.masker.unmask(
+                    MaskedContent(
+                        text=partition.content,
+                        masks=partition.masks,
+                        sensitivity=partition.sensitivity
+                    ),
+                    {user_permissions.max_sensitivity}
+                )
+            
+            filtered_results.append(result)
+            
+            if len(filtered_results) >= top_k:
+                break
+        
+        return filtered_results
+    
+    def _log_access(
+        self,
+        user_id: str,
+        query: str,
+        action: str
+    ):
+        """Log access for audit."""
+        self.audit_log.append({
+            'timestamp': datetime.utcnow().isoformat(),
+            'user_id': user_id,
+            'action': action,
+            'query_hash': hashlib.sha256(query.encode()).hexdigest()[:16]
+        })
+```
+
+## Audit and Compliance
+
+```python
+class AuditReporter:
+    """Generate audit reports for compliance."""
+    
+    def generate_report(
+        self,
+        logs: List[Dict],
+        start_date: datetime,
+        end_date: datetime
+    ) -> Dict:
+        """Generate compliance audit report."""
+        filtered_logs = [
+            log for log in logs
+            if start_date <= datetime.fromisoformat(log['timestamp']) <= end_date
+        ]
+        
+        return {
+            'period': {
+                'start': start_date.isoformat(),
+                'end': end_date.isoformat()
+            },
+            'total_accesses': len(filtered_logs),
+            'unique_users': len(set(log['user_id'] for log in filtered_logs)),
+            'actions': self._count_by_action(filtered_logs),
+            'sensitivity_access': self._count_by_sensitivity(filtered_logs),
+            'potential_violations': self._detect_violations(filtered_logs)
+        }
+```
+
+## Evaluation Criteria
+
+Your solution will be evaluated on:
+
+1. **Classification Accuracy**: Correct sensitivity detection
+2. **Masking Quality**: Sensitive content properly hidden
+3. **Access Control**: No unauthorized unmasking
+4. **Audit Completeness**: All access logged
+5. **Performance**: Minimal retrieval latency

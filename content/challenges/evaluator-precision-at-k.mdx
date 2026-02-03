@@ -1,4 +1,15 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "Precision@K Evaluator"
+description: "Implement Precision@K to measure the proportion of relevant documents in your top-K results"
+difficulty: "beginner"
+estimatedMinutes: 15
+xpReward: 25
+prerequisites: ["evaluator-recall-at-k"]
+related: ["evaluator-recall-at-k", "evaluator-f1-score", "retrieval-metrics"]
+next: "evaluator-f1-score"
+---
+
+<Callout title="Goal" variant="info">
   Implement Precision@K to measure the proportion of relevant documents in your
   top-K results.
 </Callout>
@@ -30,6 +41,49 @@ You retrieve 5 documents, 3 are relevant:
 - **Precision@5 = 3/5 = 0.60**
 
 This demonstrates why reranking + filtering improves RAG: fewer, better documents = higher precision.
+
+## The Algorithm
+
+```python
+def precision_at_k(
+    retrieved: list[str],
+    relevant: set[str],
+    k: int
+) -> float:
+    """
+    Compute Precision@K for retrieval evaluation.
+    
+    Time Complexity: O(K) where K = cutoff
+    Space Complexity: O(1) additional
+    
+    Args:
+        retrieved: Ordered list of retrieved document IDs
+        relevant: Set of ground-truth relevant document IDs
+        k: Cutoff position (top-K)
+    
+    Returns:
+        Precision@K score between 0.0 and 1.0
+        
+    Edge cases:
+        - k <= 0: returns 0.0
+        - Empty retrieved: returns 0.0
+    """
+    if k <= 0 or not retrieved:
+        return 0.0
+    
+    top_k = retrieved[:k]
+    relevant_found = len(set(top_k) & relevant)
+    
+    return relevant_found / k
+```
+
+## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity |
+|-----------|-----------------|------------------|
+| Precision@K computation | O(K) | O(1) |
+
+Precision@K requires iterating through the top-K retrieved documents and counting relevant ones, which is O(K) time with O(1) additional space.
 
 ## Edge Cases to Handle
 
@@ -71,33 +125,35 @@ As K increases:
 - Recall generally increases (more chances to find relevant docs)
 - Precision generally decreases (more irrelevant docs included)
 
-## Production Tip
+## Real-World Context
 
-Track **Precision@5** after reranking — this is what actually goes into your LLM context. If Precision@5 < 0.6, your RAG answers will likely hallucinate.
+| Company | Use Case | Precision Focus |
+|---------|----------|-----------------|
+| **OpenAI** | GPT-4 retrieval | Precision@5 for context window |
+| **Anthropic** | Claude citations | Precision@10 for source quality |
+| **Perplexity** | Answer generation | Precision@3 for concise answers |
+| **Pinecone** | Vector search | Precision@20 for hybrid search |
 
-## Implementation Notes
+## Learning Outcomes
 
-```python
-def precision_at_k(retrieved: List[str], relevant: Set[str], k: int) -> float:
-    """
-    Args:
-        retrieved: Ordered list of retrieved doc IDs
-        relevant: Set of ground-truth relevant doc IDs
-        k: Cutoff position
+After completing this challenge, you will:
+- Understand the accuracy metric for retrieval
+- Be able to measure context quality in RAG systems
+- Know when to optimize for precision vs. recall
 
-    Returns:
-        Precision@K score (0.0 to 1.0)
+## Resources
 
-    Edge cases:
-        - k <= 0: return 0.0
-        - empty retrieved: return 0.0
-        - k > len(retrieved): use len(retrieved)
-    """
-    if k <= 0 or not retrieved:
-        return 0.0
+### Documentation
+- [Precision and Recall](https://en.wikipedia.org/wiki/Precision_and_recall)
+- [ML Crash Course - Precision](https://developers.google.com/machine-learning/crash-course/classification/precision-and-recall)
 
-    top_k = retrieved[:k]
-    relevant_in_top_k = sum(1 for doc in top_k if doc in relevant)
-    return relevant_in_top_k / len(top_k)
-```
+### Tools
+- **scikit-learn**: `precision_score()`
+- **ir-measures**: Comprehensive IR metrics
+- **pytrec_eval**: TREC evaluation framework
 
+## Related Challenges
+
+- [evaluator-recall-at-k](evaluator-recall-at-k) - Completeness metric
+- [evaluator-f1-score](evaluator-f1-score) - Balanced metric
+- [retrieval-metrics](retrieval-metrics) - Full metrics suite

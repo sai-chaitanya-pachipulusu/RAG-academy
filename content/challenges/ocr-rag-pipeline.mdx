@@ -1,30 +1,535 @@
 ﻿---
 title: "OCR + RAG Pipeline"
-description: "Extract text from images using OCR for RAG indexing"
+description: "Extract text from images using OCR for RAG indexing with quality gating"
 difficulty: "medium"
 xpReward: 100
+estimatedMinutes: 40
+stage: "advanced-retrieval"
+track: "multimodal"
+tags: ["multimodal", "ocr", "document-processing", "pdf", "text-extraction"]
+prerequisites: ["document-parsing-guide", "image-embedding-rag"]
+relatedChallenges: ["pdf-layout-detector", "pdf-table-extraction", "multimodal-rag-guide"]
+nextChallenges: ["multimodal-retrieval"]
+theory:
+  overview: |
+    OCR (Optical Character Recognition) enables RAG systems to process scanned 
+    documents, embedded images, and PDFs that contain visual text. Modern OCR 
+    pipelines combine text detection, recognition, and structured field parsing 
+    to extract searchable content from visual documents.
+  keyFormulas:
+    - name: "OCR Confidence Score"
+      formula: "C = (Σ char_confidence) / n where n = number of characters"
+    - name: "Text Quality Score"
+      formula: "Q = α × C + (1-α) × L where L = language model perplexity"
+    - name: "Layout Preservation"
+      formula: "IoU = |predicted_bbox ∩ true_bbox| / |predicted_bbox ∪ true_bbox|"
+    - name: "Extraction Accuracy"
+      formula: "Acc = 1 - (Levenshtein_distance / max_len)"
+  visualIntuition: |
+    OCR Pipeline Flow:
+    
+    ```
+    Input Image (Scanned Document)
+           ↓
+    ┌─────────────────────┐
+    │  Text Detection     │ → Finds text regions (bounding boxes)
+    │  (DB/EAST/CRAFT)    │
+    └─────────────────────┘
+           ↓
+    ┌─────────────────────┐
+    │  Text Recognition   │ → Converts regions to text
+    │  (CRNN/TrOCR/Paddle)│
+    └─────────────────────┘
+           ↓
+    ┌─────────────────────┐
+    │  Post-Processing    │ → Spell check, formatting
+    │  & Quality Scoring  │
+    └─────────────────────┘
+           ↓
+    Structured Output + Confidence
+    ```
+  whyItMatters: |
+    OCR integration enables:
+    1. **Legacy document processing**: Scanned contracts, invoices, forms
+    2. **PDF image extraction**: Many PDFs are image-based
+    3. **Handwritten content**: Notes, forms, historical documents
+    4. **Mixed document handling**: Text + images in single pipeline
+  commonMistakes:
+    - "Not validating OCR confidence before indexing"
+    - "Ignoring document layout (reading order)"
+    - "Not handling skewed or rotated text"
+    - "Missing structured field extraction"
+  interviewTips:
+    - "Compare cloud OCR vs on-premise solutions"
+    - "Discuss handling of poor quality scans"
+    - "Mention layout analysis for tables/forms"
+    - "Explain confidence threshold selection"
+realWorld:
+  description: |
+    AWS Textract and Google Document AI power enterprise document processing. 
+    LlamaParse and Unstructured.io provide open-source alternatives. Financial 
+    services use OCR for invoice processing, legal for contract analysis, and 
+    healthcare for medical record digitization.
+  companies: ["AWS", "Google", "Microsoft", "LlamaParse", "Unstructured"]
+  useCases:
+    - "Invoice and receipt processing"
+    - "Contract and legal document analysis"
+    - "Medical record digitization"
+    - "Form data extraction"
+    - "Historical document archiving"
+complexity:
+  time: "O(n × h × w) where n = images, h × w = image dimensions"
+  space: "O(n × t) where t = extracted text length"
+  latency: "100-500ms per page (cloud), 1-5s (on-premise)"
+resources:
+  papers:
+    - title: "Real-Time Scene Text Detection with Differentiable Binarization"
+      url: "https://arxiv.org/abs/1911.08947"
+      authors: "Liao et al."
+      year: 2020
+    - title: "TrOCR: Transformer-based OCR"
+      url: "https://arxiv.org/abs/2109.10282"
+      authors: "Li et al., Microsoft"
+      year: 2021
+    - title: "PaddleOCR: Ultra Lightweight OCR System"
+      url: "https://arxiv.org/abs/2009.09941"
+      authors: "Du et al."
+      year: 2020
+  documentation:
+    - title: "AWS Textract"
+      url: "https://docs.aws.amazon.com/textract/"
+    - title: "Google Document AI"
+      url: "https://cloud.google.com/document-ai/docs"
+    - title: "PaddleOCR"
+      url: "https://github.com/PaddlePaddle/PaddleOCR"
+    - title: "Tesseract OCR"
+      url: "https://github.com/tesseract-ocr/tesseract"
+  tutorials:
+    - title: "Building OCR Pipelines for RAG"
+      url: "https://blog.langchain.dev/ocr-rag/"
+    - title: "Document Processing with LlamaParse"
+      url: "https://docs.cloud.llamaindex.ai/"
+  tools:
+    - name: "AWS Textract"
+      description: "Managed OCR with table/form extraction"
+      url: "https://aws.amazon.com/textract/"
+    - name: "PaddleOCR"
+      description: "Open-source multilingual OCR"
+      url: "https://github.com/PaddlePaddle/PaddleOCR"
+    - name: "Tesseract"
+      description: "Open-source OCR engine"
+      url: "https://github.com/tesseract-ocr/tesseract"
+    - name: "LlamaParse"
+      description: "Document parsing for RAG"
+      url: "https://docs.cloud.llamaindex.ai/"
+    - name: "EasyOCR"
+      description: "Ready-to-use OCR with 80+ languages"
+      url: "https://github.com/JaidedAI/EasyOCR"
 ---
 
 # OCR + RAG Pipeline
 
-## Overview
+Integrate OCR text extraction into your RAG pipeline to process scanned documents, PDF images, and visual text content.
 
-Scanned documents and embedded images need OCR to become searchable. This challenge teaches you to integrate OCR into your RAG pipeline.
+## The Problem
 
-## Why This Matters
+Many documents contain text as images:
+- **Scanned contracts** and legal documents
+- **PDFs** that are just image scans
+- **Handwritten notes** and forms
+- **Screenshots** and embedded images
 
-- **Legacy Documents**: Scanned contracts, invoices, forms
-- **PDF Images**: Many PDFs are just image scans
-- **Handwritten Notes**: Unlock handwritten content
+Without OCR, this content is invisible to RAG systems.
 
-## Key Concepts
+## Your Task
 
-- OCR extraction with confidence scores
-- Structured field parsing (key: value)
-- Pipeline integration for image ingestion
-- Quality-gated indexing
+Implement an `OCRPipeline` class:
 
-## Real-World Applications
+```python
+class OCRPipeline:
+    def __init__(self, 
+                 ocr_engine: str = "paddle",
+                 confidence_threshold: float = 0.7,
+                 language: str = "en"):
+        """
+        Initialize OCR pipeline.
+        
+        Args:
+            ocr_engine: OCR backend (paddle, tesseract, easyocr)
+            confidence_threshold: Minimum confidence to accept text
+            language: Language code for OCR
+        """
+        pass
+    
+    def extract_text(self, image: Union[str, Image.Image]) -> dict:
+        """
+        Extract text from image with confidence scores.
+        
+        Args:
+            image: Image path or PIL Image
+            
+        Returns:
+            {
+                "text": str,
+                "confidence": float,
+                "blocks": [
+                    {
+                        "text": str,
+                        "confidence": float,
+                        "bbox": [x1, y1, x2, y2],
+                        "page": int
+                    }
+                ],
+                "word_count": int
+            }
+        """
+        pass
+    
+    def extract_structured(self, image: Union[str, Image.Image],
+                          schema: dict = None) -> dict:
+        """
+        Extract structured data (key-value pairs, tables).
+        
+        Args:
+            image: Input image
+            schema: Optional field schema for extraction
+            
+        Returns:
+            {
+                "fields": {field_name: value},
+                "tables": [table_data],
+                "confidence": float
+            }
+        """
+        pass
+    
+    def process_pdf(self, pdf_path: str, 
+                   extract_images: bool = True) -> list[dict]:
+        """
+        Process PDF with OCR for image-based pages.
+        
+        Args:
+            pdf_path: Path to PDF file
+            extract_images: Also extract embedded images
+            
+        Returns:
+            List of page results
+        """
+        pass
+    
+    def quality_check(self, extraction: dict) -> dict:
+        """
+        Validate extraction quality.
+        
+        Args:
+            extraction: OCR extraction result
+            
+        Returns:
+            {
+                "passed": bool,
+                "issues": list[str],
+                "suggestions": list[str]
+            }
+        """
+        pass
+    
+    def to_chunks(self, extraction: dict, 
+                  chunk_size: int = 500) -> list[dict]:
+        """
+        Convert OCR output to RAG-ready chunks.
+        
+        Args:
+            extraction: OCR extraction result
+            chunk_size: Target chunk size in characters
+            
+        Returns:
+            List of chunks with metadata
+        """
+        pass
+```
 
-AWS Textract, Google Document AI, and LlamaParse power enterprise document processing.
+## Example
 
+```python
+# Initialize pipeline
+ocr = OCRPipeline(
+    ocr_engine="paddle",
+    confidence_threshold=0.7
+)
+
+# Process scanned document
+result = ocr.extract_text("scanned_contract.pdf")
+
+print(f"Extracted {result['word_count']} words")
+print(f"Confidence: {result['confidence']:.2%}")
+print(f"Text preview: {result['text'][:200]}...")
+
+# Quality check
+quality = ocr.quality_check(result)
+if not quality["passed"]:
+    print("Issues:", quality["issues"])
+    print("Suggestions:", quality["suggestions"])
+
+# Convert to RAG chunks
+chunks = ocr.to_chunks(result, chunk_size=500)
+for chunk in chunks:
+    print(f"Chunk {chunk['index']}: {chunk['text'][:100]}...")
+
+# Structured extraction (invoice)
+invoice_schema = {
+    "invoice_number": "string",
+    "date": "date",
+    "total": "currency",
+    "vendor": "string"
+}
+
+invoice_data = ocr.extract_structured("invoice.jpg", schema=invoice_schema)
+print(invoice_data["fields"])
+# {"invoice_number": "INV-001", "date": "2024-01-15", ...}
+```
+
+## Algorithm Details
+
+### OCR with PaddleOCR
+
+```python
+def extract_text(self, image: Union[str, Image.Image]) -> dict:
+    """Extract text using PaddleOCR."""
+    from paddleocr import PaddleOCR
+    
+    if self.ocr is None:
+        self.ocr = PaddleOCR(
+            use_angle_cls=True,
+            lang=self.language,
+            show_log=False
+        )
+    
+    # Load image
+    if isinstance(image, str):
+        img_path = image
+    else:
+        # Save temp file
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
+            image.save(f.name)
+            img_path = f.name
+    
+    # Run OCR
+    result = self.ocr.ocr(img_path, cls=True)
+    
+    # Parse results
+    blocks = []
+    all_text = []
+    total_confidence = 0
+    num_blocks = 0
+    
+    for line in result[0]:
+        if line:
+            bbox = line[0]  # Bounding box
+            text = line[1][0]  # Text content
+            confidence = line[1][1]  # Confidence score
+            
+            blocks.append({
+                "text": text,
+                "confidence": confidence,
+                "bbox": bbox,
+                "page": 1
+            })
+            
+            all_text.append(text)
+            total_confidence += confidence
+            num_blocks += 1
+    
+    full_text = " ".join(all_text)
+    avg_confidence = total_confidence / num_blocks if num_blocks > 0 else 0
+    
+    return {
+        "text": full_text,
+        "confidence": avg_confidence,
+        "blocks": blocks,
+        "word_count": len(full_text.split())
+    }
+```
+
+### Quality Checking
+
+```python
+def quality_check(self, extraction: dict) -> dict:
+    """Validate OCR extraction quality."""
+    issues = []
+    suggestions = []
+    
+    # Check overall confidence
+    if extraction["confidence"] < self.confidence_threshold:
+        issues.append(f"Low confidence: {extraction['confidence']:.2%}")
+        suggestions.append("Consider image preprocessing (denoising, deskewing)")
+    
+    # Check for garbage text patterns
+    text = extraction["text"]
+    garbage_patterns = [r'[^\w\s]{5,}', r'\d{10,}']  # 5+ special chars, 10+ digits
+    for pattern in garbage_patterns:
+        if re.search(pattern, text):
+            issues.append("Possible garbage text detected")
+            suggestions.append("Review and clean extracted text manually")
+            break
+    
+    # Check word count
+    if extraction["word_count"] < 5:
+        issues.append("Very short extraction")
+        suggestions.append("Verify image contains text")
+    
+    # Check block confidence distribution
+    low_conf_blocks = [b for b in extraction["blocks"] 
+                      if b["confidence"] < 0.5]
+    if len(low_conf_blocks) > len(extraction["blocks"]) * 0.3:
+        issues.append(f"{len(low_conf_blocks)} blocks have low confidence")
+        suggestions.append("Consider using a different OCR engine")
+    
+    return {
+        "passed": len(issues) == 0,
+        "issues": issues,
+        "suggestions": suggestions
+    }
+```
+
+### PDF Processing
+
+```python
+def process_pdf(self, pdf_path: str, 
+               extract_images: bool = True) -> list[dict]:
+    """Process PDF with OCR for image-based pages."""
+    from pdf2image import convert_from_path
+    import fitz  # PyMuPDF
+    
+    results = []
+    
+    # Convert PDF to images
+    doc = fitz.open(pdf_path)
+    
+    for page_num in range(len(doc)):
+        page = doc[page_num]
+        
+        # First try to extract text directly
+        text = page.get_text()
+        
+        if text.strip():
+            # Page has extractable text
+            results.append({
+                "page": page_num + 1,
+                "text": text,
+                "source": "native",
+                "confidence": 1.0
+            })
+        else:
+            # Page is image-based, use OCR
+            pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))  # 2x zoom for better OCR
+            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+            
+            ocr_result = self.extract_text(img)
+            ocr_result["page"] = page_num + 1
+            ocr_result["source"] = "ocr"
+            results.append(ocr_result)
+    
+    doc.close()
+    return results
+```
+
+## OCR Engine Comparison
+
+| Engine | Speed | Accuracy | Languages | Setup |
+|--------|-------|----------|-----------|-------|
+| Tesseract | Medium | Good | 100+ | Easy |
+| PaddleOCR | Fast | Very Good | 80+ | Medium |
+| EasyOCR | Medium | Good | 80+ | Easy |
+| TrOCR | Slow | Excellent | 10+ | Hard |
+| Cloud APIs | Fast | Excellent | 50+ | API Key |
+
+## Evaluation Criteria
+
+1. **Text Accuracy**: High character/word accuracy
+2. **Confidence Scoring**: Reliable confidence estimates
+3. **Layout Preservation**: Correct reading order
+4. **Quality Gating**: Rejects poor extractions
+
+## Test Cases
+
+```python
+def test_text_extraction():
+    """Test basic OCR extraction."""
+    ocr = OCRPipeline(ocr_engine="paddle")
+    
+    result = ocr.extract_text("test_image.png")
+    
+    assert result["text"] != ""
+    assert result["confidence"] > 0
+    assert result["word_count"] > 0
+
+def test_quality_check():
+    """Test quality validation."""
+    ocr = OCRPipeline(confidence_threshold=0.8)
+    
+    # Low confidence extraction
+    poor_extraction = {
+        "text": "abc123!!!###",
+        "confidence": 0.3,
+        "blocks": [],
+        "word_count": 1
+    }
+    
+    quality = ocr.quality_check(poor_extraction)
+    assert not quality["passed"]
+    assert len(quality["issues"]) > 0
+
+def test_pdf_processing():
+    """Test PDF with mixed text and image pages."""
+    ocr = OCRPipeline()
+    
+    results = ocr.process_pdf("mixed_document.pdf")
+    
+    assert len(results) > 0
+    assert all("page" in r for r in results)
+    assert all("source" in r for r in results)
+```
+
+## Integration with RAG
+
+```python
+class OCRRAGPipeline:
+    def __init__(self):
+        self.ocr = OCRPipeline()
+        self.embedder = TextEmbedder()
+        self.vector_store = VectorStore()
+    
+    def index_document(self, file_path: str, metadata: dict = None):
+        """Index document with OCR support."""
+        if file_path.endswith('.pdf'):
+            pages = self.ocr.process_pdf(file_path)
+        else:
+            extraction = self.ocr.extract_text(file_path)
+            pages = [extraction]
+        
+        for page in pages:
+            # Quality filter
+            quality = self.ocr.quality_check(page)
+            if not quality["passed"]:
+                print(f"Skipping page {page.get('page', 0)}: {quality['issues']}")
+                continue
+            
+            # Chunk and index
+            chunks = self.ocr.to_chunks(page)
+            for chunk in chunks:
+                embedding = self.embedder.embed(chunk["text"])
+                self.vector_store.add(embedding, {
+                    "text": chunk["text"],
+                    "source": file_path,
+                    "page": page.get("page", 1),
+                    "ocr_confidence": page["confidence"],
+                    **(metadata or {})
+                })
+```
+
+## Further Reading
+
+- [PaddleOCR Documentation](https://github.com/PaddlePaddle/PaddleOCR)
+- [AWS Textract Developer Guide](https://docs.aws.amazon.com/textract/)
+- [Document AI Best Practices](https://cloud.google.com/document-ai/docs/best-practices)

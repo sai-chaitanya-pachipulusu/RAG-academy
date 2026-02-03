@@ -1,7 +1,45 @@
-﻿<Callout title="Goal" variant="info">
-  Build a RAG cost estimator — because "it's just an API call" can become "we
-  spent $50K this month."
-</Callout>
+﻿---
+title: "RAG Cost Calculator"
+description: |
+  Build a comprehensive RAG cost estimator to predict API costs before deployment. Model embedding, retrieval, reranking, and generation costs with configurable parameters.
+difficulty: intermediate
+xp: 120
+estimatedMinutes: 25
+prerequisites:
+  - rag-usage-dashboard
+  - embedding-cache
+topics:
+  - cost
+  - estimation
+  - planning
+  - production
+language: python
+related:
+  - rag-cost-tracker
+  - rag-usage-dashboard
+  - cost-aware-router
+next:
+  - rag-cost-tracker
+resources:
+  papers:
+    - title: "The Cost of AI Training and Inference"
+      url: "https://arxiv.org/abs/2312.00586"
+  docs:
+    - title: "OpenAI Pricing Calculator"
+      url: "https://openai.com/pricing"
+    - title: "Anthropic Pricing"
+      url: "https://www.anthropic.com/pricing"
+    - title: "Cohere Rerank Pricing"
+      url: "https://cohere.com/pricing"
+  tools:
+    - OpenAI Pricing API
+    - Helicone
+    - Langfuse
+---
+
+# RAG Cost Calculator
+
+Build a RAG cost estimator — because "it's just an API call" can become "we spent $50K this month."
 
 ## Why Cost Modeling Matters
 
@@ -14,126 +52,404 @@ A typical RAG query involves:
 
 At 100K queries/day, that's **$1K-$50K/month** just for the LLM.
 
+### Real-World Cost Scenarios
+
+| Company Size | Queries/Day | Monthly Cost Range |
+|--------------|-------------|-------------------|
+| Startup | 1,000 | $100-$500 |
+| SMB | 10,000 | $1,000-$5,000 |
+| Enterprise | 100,000 | $10,000-$50,000 |
+| Scale | 1,000,000 | $100,000-$500,000 |
+
 ## Cost Components Breakdown
 
 ### 1. Embedding Costs
 
-| Stage                    | Per 1K tokens   | Notes          |
-| ------------------------ | --------------- | -------------- |
-| Query embedding          | $0.00002        | ~20 tokens avg |
-| Doc embedding (indexing) | $0.02/1M tokens | One-time cost  |
-| Re-embedding (updates)   | $0.02/1M tokens | Ongoing        |
+| Stage | Per 1K tokens | Notes |
+|-------|---------------|-------|
+| Query embedding | $0.00002 | ~20 tokens avg |
+| Doc embedding (indexing) | $0.02/1M tokens | One-time cost |
+| Re-embedding (updates) | $0.02/1M tokens | Ongoing |
 
 ### 2. LLM Generation Costs (Dec 2024 pricing)
 
-| Model                | Input/1K tokens | Output/1K tokens | Typical Query Cost |
-| -------------------- | --------------- | ---------------- | ------------------ |
-| GPT-4o               | $2.50           | $10.00           | $0.05-0.15         |
-| GPT-4o-mini          | $0.15           | $0.60            | $0.003-0.01        |
-| Claude 3.5 Sonnet    | $3.00           | $15.00           | $0.06-0.20         |
-| Claude 3.5 Haiku     | $0.25           | $1.25            | $0.005-0.02        |
-| Gemini 1.5 Pro       | $1.25           | $5.00            | $0.03-0.08         |
-| Gemini 1.5 Flash     | $0.075          | $0.30            | $0.002-0.005       |
-| Llama 3.1 70B (Groq) | $0.59           | $0.79            | $0.01-0.02         |
-| Llama 3.1 8B (Groq)  | $0.05           | $0.08            | $0.001-0.003       |
+| Model | Input/1K tokens | Output/1K tokens | Typical Query Cost |
+|-------|-----------------|------------------|-------------------|
+| GPT-4o | $2.50 | $10.00 | $0.05-0.15 |
+| GPT-4o-mini | $0.15 | $0.60 | $0.003-0.01 |
+| Claude 3.5 Sonnet | $3.00 | $15.00 | $0.06-0.20 |
+| Claude 3.5 Haiku | $0.25 | $1.25 | $0.005-0.02 |
+| Gemini 1.5 Pro | $1.25 | $5.00 | $0.03-0.08 |
+| Gemini 1.5 Flash | $0.075 | $0.30 | $0.002-0.005 |
+| Llama 3.1 70B (Groq) | $0.59 | $0.79 | $0.01-0.02 |
+| Llama 3.1 8B (Groq) | $0.05 | $0.08 | $0.001-0.003 |
 
 ### 3. Reranker Costs
 
-| Provider    | Model         | Cost per 1K docs |
-| ----------- | ------------- | ---------------- |
-| Cohere      | rerank-v3     | $2.00            |
-| Voyage      | rerank-2      | $0.05            |
-| Self-hosted | cross-encoder | GPU cost only    |
+| Provider | Model | Cost per 1K docs |
+|----------|-------|------------------|
+| Cohere | rerank-v3 | $2.00 |
+| Voyage | rerank-2 | $0.05 |
+| Self-hosted | cross-encoder | GPU cost only |
 
 ### 4. Vector DB Costs (monthly)
 
-| Provider       | Tier       | Vectors   | Monthly      |
-| -------------- | ---------- | --------- | ------------ |
-| Pinecone       | Starter    | 100K      | Free         |
-| Pinecone       | Standard   | 1M        | $70          |
-| Pinecone       | Enterprise | 10M+      | $700+        |
-| Qdrant Cloud   | Free       | 1M        | Free         |
-| Qdrant Cloud   | Pro        | 10M       | $160         |
-| Weaviate Cloud | Sandbox    | 100K      | Free         |
-| Weaviate Cloud | Standard   | 5M        | $135         |
-| Self-hosted    | -          | Unlimited | Compute cost |
+| Provider | Tier | Vectors | Monthly |
+|----------|------|---------|---------|
+| Pinecone | Starter | 100K | Free |
+| Pinecone | Standard | 1M | $70 |
+| Pinecone | Enterprise | 10M+ | $700+ |
+| Qdrant Cloud | Free | 1M | Free |
+| Qdrant Cloud | Pro | 10M | $160 |
+| Weaviate Cloud | Sandbox | 100K | Free |
+| Weaviate Cloud | Standard | 5M | $135 |
+| Self-hosted | - | Unlimited | Compute cost |
 
-## Cost Calculator Implementation
+## Setup
 
 ```python
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Dict
+from enum import Enum
+
+class ModelTier(Enum):
+    """Model tiers for cost estimation."""
+    ECONOMY = "economy"      # GPT-4o-mini, Haiku
+    BALANCED = "balanced"    # GPT-4o, Sonnet
+    PREMIUM = "premium"      # GPT-4, Opus
 
 @dataclass
 class RAGCostConfig:
+    """Configuration for RAG cost estimation."""
+    
     # Embedding costs (per 1M tokens)
     embedding_cost_per_1m: float = 0.02  # text-embedding-3-small
-
+    
     # LLM costs (per 1K tokens)
     llm_input_cost_per_1k: float = 0.15  # GPT-4o-mini
     llm_output_cost_per_1k: float = 0.60
-
+    
     # Reranker costs (per 1K docs)
     reranker_cost_per_1k: float = 0.05  # Voyage rerank
-
+    
     # Average query/response sizes (tokens)
     avg_query_tokens: int = 25
     avg_context_tokens: int = 2000  # 4-5 chunks
     avg_response_tokens: int = 250
-
+    
     # Retrieval config
     retrieve_k: int = 20
     rerank_enabled: bool = True
+    
+    # Usage
+    queries_per_day: int = 10000
+    
+    # Vector DB
+    vector_db_monthly_cost: float = 70.0  # Pinecone Standard
 
+# Preset configurations
+CONFIG_PRESETS = {
+    "economy": RAGCostConfig(
+        embedding_cost_per_1m=0.02,
+        llm_input_cost_per_1k=0.15,
+        llm_output_cost_per_1k=0.60,
+        reranker_cost_per_1k=0.0,  # No reranking
+        rerank_enabled=False,
+        vector_db_monthly_cost=0.0  # Free tier
+    ),
+    "balanced": RAGCostConfig(
+        embedding_cost_per_1m=0.02,
+        llm_input_cost_per_1k=2.50,
+        llm_output_cost_per_1k=10.00,
+        reranker_cost_per_1k=0.05,
+        rerank_enabled=True,
+        vector_db_monthly_cost=70.0
+    ),
+    "premium": RAGCostConfig(
+        embedding_cost_per_1m=0.13,  # text-embedding-3-large
+        llm_input_cost_per_1k=3.00,  # Claude 3.5 Sonnet
+        llm_output_cost_per_1k=15.00,
+        reranker_cost_per_1k=2.00,  # Cohere
+        rerank_enabled=True,
+        vector_db_monthly_cost=700.0
+    )
+}
+```
 
-def estimate_query_cost(config: RAGCostConfig) -> float:
-    """Estimate cost per RAG query."""
+## Your Task
 
-    # 1. Query embedding
-    embedding_cost = (config.avg_query_tokens / 1_000_000) * config.embedding_cost_per_1m
+Implement the `RAGCostCalculator` class:
 
-    # 2. Reranking (if enabled)
-    rerank_cost = 0
-    if config.rerank_enabled:
-        rerank_cost = (config.retrieve_k / 1000) * config.reranker_cost_per_1k
+```python
+class RAGCostCalculator:
+    """
+    Calculate estimated costs for RAG operations.
+    
+    Provides:
+    - Per-query cost estimation
+    - Monthly cost projection
+    - Cost breakdown by component
+    - Scenario comparison
+    """
+    
+    def __init__(self, config: RAGCostConfig = None):
+        """
+        Initialize calculator with configuration.
+        
+        Args:
+            config: Cost configuration (uses default if None)
+        """
+        self.config = config or RAGCostConfig()
+    
+    def estimate_query_cost(self) -> Dict[str, float]:
+        """
+        Estimate cost for a single RAG query.
+        
+        Returns:
+            Dict with cost breakdown:
+            {
+                "embedding": float,
+                "reranking": float,
+                "llm_input": float,
+                "llm_output": float,
+                "total": float
+            }
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def estimate_monthly_cost(self) -> Dict[str, float]:
+        """
+        Estimate monthly costs based on query volume.
+        
+        Returns:
+            Dict with cost breakdown:
+            {
+                "embedding": float,
+                "reranking": float,
+                "llm": float,
+                "vector_db": float,
+                "total": float,
+                "per_query_avg": float
+            }
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def estimate_indexing_cost(
+        self,
+        num_documents: int,
+        avg_doc_tokens: int
+    ) -> float:
+        """
+        Estimate one-time indexing cost.
+        
+        Args:
+            num_documents: Number of documents to index
+            avg_doc_tokens: Average tokens per document
+            
+        Returns:
+            Estimated cost in USD
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def compare_scenarios(
+        self,
+        scenarios: Dict[str, RAGCostConfig]
+    ) -> Dict[str, Dict]:
+        """
+        Compare costs across multiple configurations.
+        
+        Args:
+            scenarios: Dict mapping scenario name to config
+            
+        Returns:
+            Dict mapping scenario name to cost breakdown
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def find_break_even_point(
+        self,
+        config_a: RAGCostConfig,
+        config_b: RAGCostConfig
+    ) -> Optional[int]:
+        """
+        Find query volume where two configs have equal cost.
+        
+        Args:
+            config_a: First configuration
+            config_b: Second configuration
+            
+        Returns:
+            Break-even query volume, or None if no intersection
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def optimize_for_budget(
+        self,
+        monthly_budget: float,
+        queries_per_day: int
+    ) -> RAGCostConfig:
+        """
+        Suggest optimal configuration for given budget.
+        
+        Args:
+            monthly_budget: Target monthly spend
+            queries_per_day: Expected query volume
+            
+        Returns:
+            Recommended configuration
+        """
+        # YOUR CODE HERE
+        pass
+    
+    def generate_report(self) -> str:
+        """
+        Generate human-readable cost report.
+        
+        Returns:
+            Formatted cost report string
+        """
+        # YOUR CODE HERE
+        pass
+```
 
-    # 3. LLM generation
-    total_input_tokens = config.avg_query_tokens + config.avg_context_tokens
-    llm_input_cost = (total_input_tokens / 1000) * config.llm_input_cost_per_1k
-    llm_output_cost = (config.avg_response_tokens / 1000) * config.llm_output_cost_per_1k
+## Requirements
 
-    total = embedding_cost + rerank_cost + llm_input_cost + llm_output_cost
-    return total
+1. **Per-Query Estimation**: Break down costs by component
+2. **Monthly Projection**: Scale to daily query volume
+3. **Indexing Cost**: One-time document embedding costs
+4. **Scenario Comparison**: Compare multiple configurations
+5. **Budget Optimization**: Recommend config for budget
 
+## Example Usage
 
-def estimate_monthly_cost(
-    queries_per_day: int,
-    config: RAGCostConfig
-) -> dict:
-    """Estimate monthly RAG costs."""
+```python
+# Basic estimation
+calculator = RAGCostCalculator()
+costs = calculator.estimate_query_cost()
+print(f"Per query: ${costs['total']:.4f}")
 
-    per_query = estimate_query_cost(config)
-    monthly_queries = queries_per_day * 30
+monthly = calculator.estimate_monthly_cost()
+print(f"Monthly total: ${monthly['total']:.2f}")
 
-    return {
-        "per_query": per_query,
-        "daily": per_query * queries_per_day,
-        "monthly": per_query * monthly_queries,
-        "yearly": per_query * monthly_queries * 12,
-    }
+# Compare scenarios
+comparison = calculator.compare_scenarios(CONFIG_PRESETS)
+for name, costs in comparison.items():
+    print(f"{name}: ${costs['total']:.2f}/month")
 
-
-# Example usage
-config = RAGCostConfig(
-    embedding_cost_per_1m=0.02,  # text-embedding-3-small
-    llm_input_cost_per_1k=0.15,  # GPT-4o-mini
-    llm_output_cost_per_1k=0.60,
-    reranker_cost_per_1k=0.05,  # Voyage
+# Find break-even
+break_even = calculator.find_break_even_point(
+    CONFIG_PRESETS["economy"],
+    CONFIG_PRESETS["balanced"]
 )
+print(f"Economy vs Balanced break-even: {break_even} queries/day")
 
-costs = estimate_monthly_cost(10_000, config)  # 10K queries/day
-print(f"Per query: ${costs['per_query']:.4f}")
-print(f"Monthly: ${costs['monthly']:.2f}")
+# Optimize for budget
+optimal = calculator.optimize_for_budget(
+    monthly_budget=5000.0,
+    queries_per_day=50000
+)
+print(f"Recommended: {optimal.llm_input_cost_per_1k}/1K input tokens")
+
+# Generate report
+print(calculator.generate_report())
+```
+
+## Hints
+
+<details>
+<summary>Hint 1: Query Cost Calculation</summary>
+
+```python
+def estimate_query_cost(self):
+    config = self.config
+    
+    # Embedding cost
+    embedding = (config.avg_query_tokens / 1_000_000) * config.embedding_cost_per_1m
+    
+    # Reranking cost
+    reranking = 0
+    if config.rerank_enabled:
+        reranking = (config.retrieve_k / 1000) * config.reranker_cost_per_1k
+    
+    # LLM costs
+    total_input = config.avg_query_tokens + config.avg_context_tokens
+    llm_input = (total_input / 1000) * config.llm_input_cost_per_1k
+    llm_output = (config.avg_response_tokens / 1000) * config.llm_output_cost_per_1k
+    
+    return {
+        "embedding": embedding,
+        "reranking": reranking,
+        "llm_input": llm_input,
+        "llm_output": llm_output,
+        "total": embedding + reranking + llm_input + llm_output
+    }
+```
+
+</details>
+
+<details>
+<summary>Hint 2: Monthly Projection</summary>
+
+```python
+def estimate_monthly_cost(self):
+    per_query = self.estimate_query_cost()
+    monthly_queries = self.config.queries_per_day * 30
+    
+    return {
+        "embedding": per_query["embedding"] * monthly_queries,
+        "reranking": per_query["reranking"] * monthly_queries,
+        "llm": (per_query["llm_input"] + per_query["llm_output"]) * monthly_queries,
+        "vector_db": self.config.vector_db_monthly_cost,
+        "total": per_query["total"] * monthly_queries + self.config.vector_db_monthly_cost,
+        "per_query_avg": per_query["total"]
+    }
+```
+
+</details>
+
+## Test Your Solution
+
+```python
+def test_cost_calculator():
+    # Test basic calculation
+    config = RAGCostConfig(
+        queries_per_day=1000,
+        llm_input_cost_per_1k=0.15,
+        llm_output_cost_per_1k=0.60,
+        rerank_enabled=False
+    )
+    
+    calc = RAGCostCalculator(config)
+    
+    # Test per-query cost
+    query_cost = calc.estimate_query_cost()
+    assert query_cost["total"] > 0
+    assert query_cost["embedding"] > 0
+    assert query_cost["reranking"] == 0  # Disabled
+    
+    # Test monthly cost
+    monthly = calc.estimate_monthly_cost()
+    assert monthly["total"] > monthly["llm"]  # Includes vector DB
+    
+    # Test indexing cost
+    indexing = calc.estimate_indexing_cost(1000, 500)
+    assert indexing > 0
+    
+    # Test comparison
+    comparison = calc.compare_scenarios({
+        "cheap": CONFIG_PRESETS["economy"],
+        "expensive": CONFIG_PRESETS["premium"]
+    })
+    assert comparison["cheap"]["total"] < comparison["expensive"]["total"]
+    
+    print("✅ All tests passed!")
+
+test_cost_calculator()
 ```
 
 ## Cost Optimization Strategies
@@ -153,63 +469,31 @@ def route_query(query: str, retrieved_confidence: float) -> str:
 
 ### 2. Caching (Huge Savings)
 
-| Cache Type             | Hit Rate | Savings             |
-| ---------------------- | -------- | ------------------- |
-| Embedding cache        | 90%+     | 90% embedding costs |
-| Semantic query cache   | 20-50%   | 20-50% LLM costs    |
-| Response cache (exact) | 5-15%    | 5-15% total costs   |
+| Cache Type | Hit Rate | Savings |
+|------------|----------|---------|
+| Embedding cache | 90%+ | 90% embedding costs |
+| Semantic query cache | 20-50% | 20-50% LLM costs |
+| Response cache (exact) | 5-15% | 5-15% total costs |
 
 ### 3. Context Compression
 
-| Technique            | Token Reduction | Quality Impact |
-| -------------------- | --------------- | -------------- |
-| Extractive summary   | 40-60%          | Low            |
-| LLMLingua-2          | 50-70%          | Low-Medium     |
-| Fewer chunks (5 → 3) | 40%             | Medium         |
-| Shorter chunks       | 20-30%          | Low            |
+| Technique | Token Reduction | Quality Impact |
+|-----------|-----------------|----------------|
+| Extractive summary | 40-60% | Low |
+| LLMLingua-2 | 50-70% | Low-Medium |
+| Fewer chunks (5 → 3) | 40% | Medium |
+| Shorter chunks | 20-30% | Low |
 
-### 4. Batch Processing
+## Related Challenges
 
-- Batch embeddings (save on API overhead)
-- Batch reranking (Cohere supports batches)
-- Async processing for non-urgent queries
+- [RAG Cost Tracker](challenges/rag-cost-tracker) - Real-time cost monitoring
+- [RAG Usage Dashboard](challenges/rag-usage-dashboard) - Visualize usage
+- [Cost-Aware Router](challenges/cost-aware-router) - Route by cost constraints
+- [Semantic Cache](challenges/semantic-cache) - Reduce redundant queries
 
-## Example: 10K Queries/Day Cost Comparison
+## Resources
 
-| Configuration                                            | Per Query | Monthly |
-| -------------------------------------------------------- | --------- | ------- |
-| **Expensive**: GPT-4o + Cohere rerank + voyage-3         | $0.18     | $54,000 |
-| **Balanced**: GPT-4o-mini + Voyage rerank + text-3-small | $0.012    | $3,600  |
-| **Budget**: Llama 3.1 8B + no rerank + open-source embed | $0.002    | $600    |
-| **Hybrid routing** (80% cheap, 20% expensive)            | $0.04     | $12,000 |
-
-## Edge Cases to Handle
-
-1. **Token counting precision**: Use tiktoken for exact counts, not estimates
-2. **Retry costs**: Failed requests still cost money (input tokens)
-3. **Streaming overhead**: Streaming may have different pricing
-4. **Hidden costs**: Logging, monitoring, egress fees
-5. **Rate limit delays**: Time is money — factor in SLA costs
-
-## Production Monitoring
-
-Track these metrics:
-
-```python
-RAG_COST_METRICS = {
-    "embedding_tokens_total": Counter(),
-    "llm_input_tokens_total": Counter(),
-    "llm_output_tokens_total": Counter(),
-    "rerank_docs_total": Counter(),
-    "cache_hits": Counter(),
-    "cache_misses": Counter(),
-    "model_usage": Counter(labels=["model"]),
-}
-```
-
-Set alerts for:
-
-- Daily spend > 120% of budget
-- Average query cost > threshold
-- Cache hit rate < expected
-
+- [OpenAI Pricing](https://openai.com/pricing)
+- [Anthropic Pricing](https://www.anthropic.com/pricing)
+- [Cohere Pricing](https://cohere.com/pricing)
+- [Voyage AI Pricing](https://www.voyageai.com/pricing)

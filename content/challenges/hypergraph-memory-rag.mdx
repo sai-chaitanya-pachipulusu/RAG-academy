@@ -1,32 +1,437 @@
 ---
 title: "Hypergraph Memory RAG"
-description: "Implement a hypergraph-based memory system for complex RAG"
+description: "Implement a hypergraph-based memory system where edges connect multiple nodes for complex relationship modeling"
+difficulty: "expert"
+xpReward: 200
+topics: ["hypergraphs", "knowledge-representation", "memory-systems", "graph-rag"]
+prerequisites: ["graphrag-knowledge-graph", "knowledge-graph-extraction", "entity-memory"]
 ---
 
 # Hypergraph Memory RAG
 
-Implement a hypergraph-based memory system where edges can connect multiple nodes, enabling richer semantic relationships.
+## Overview
 
-## Requirements
+Traditional graphs connect exactly two nodes with an edge. Hypergraphs generalize this by allowing edges (hyperedges) to connect any number of nodes, enabling richer representation of complex relationships like "Alice, Bob, and Carol founded a company together."
 
-1. Build hypergraph structure from documents
-2. Implement hyperedge traversal
-3. Query using hypergraph patterns
-4. Aggregate context from connected hyperedges
+## Why This Matters
 
-## Starter Code
+- **Multi-Party Relationships**: Capture n-ary relationships (meetings, collaborations)
+- **Context Preservation**: Maintain group context better than pairwise edges
+- **Complex Queries**: Answer questions about group dynamics
+- **Emergent Patterns**: Discover higher-order connections
+
+## Key Concepts
+
+- **Hyperedges**: Connect multiple nodes (entities)
+- **Incidence**: Relationship between nodes and hyperedges
+- **Hypergraph traversal**: Navigate through multi-node connections
+- **Pattern matching**: Find complex structural patterns
+
+## Real-World Applications
+
+Social network analysis, biological pathway modeling, and collaborative filtering all use hypergraphs for complex relationship modeling.
+
+## Hypergraph Structure
+
+```
+Traditional Graph Edge: (A) --[friend]--> (B)
+
+Hypergraph Hyperedge: [meeting_1] connects (Alice, Bob, Carol, Room_101)
+                      [paper_42] connects (Author_A, Author_B, Author_C, Topic_X)
+```
+
+## The Challenge
+
+### Part 1: Hypergraph Data Structure
 
 ```python
+from typing import List, Dict, Set, Tuple, Any
+from dataclasses import dataclass, field
+from collections import defaultdict
+
+@dataclass
+class Hyperedge:
+    """A hyperedge connecting multiple nodes."""
+    id: str
+    node_ids: Set[str]
+    relation: str
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    weight: float = 1.0
+    
+    def __post_init__(self):
+        # Ensure at least 2 nodes
+        if len(self.node_ids) < 2:
+            raise ValueError("Hyperedge must connect at least 2 nodes")
+    
+    def has_node(self, node_id: str) -> bool:
+        """Check if hyperedge includes a node."""
+        return node_id in self.node_ids
+    
+    def intersection(self, other: 'Hyperedge') -> Set[str]:
+        """Find common nodes between two hyperedges."""
+        return self.node_ids & other.node_ids
+    
+    def union(self, other: 'Hyperedge') -> Set[str]:
+        """Find all nodes from both hyperedges."""
+        return self.node_ids | other.node_ids
+
+@dataclass
+class Node:
+    """A node in the hypergraph."""
+    id: str
+    label: str
+    embedding: List[float] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
 class HypergraphMemory:
+    """In-memory hypergraph for RAG."""
+    
     def __init__(self):
-        self.nodes = {}  # entity -> embedding
-        self.hyperedges = []  # [(node_ids, relation, metadata)]
+        self.nodes: Dict[str, Node] = {}
+        self.hyperedges: Dict[str, Hyperedge] = {}
+        # Index: node_id -> set of hyperedge_ids
+        self.node_to_hyperedges: Dict[str, Set[str]] = defaultdict(set)
     
-    def add_document(self, doc: str):
-        """Extract entities and hyperedges from document."""
-        pass
+    def add_node(self, node: Node) -> str:
+        """Add a node to the hypergraph."""
+        self.nodes[node.id] = node
+        return node.id
     
-    def query(self, query: str, max_hops: int = 2) -> list[dict]:
-        """Find relevant hypergraph patterns for the query."""
-        pass
+    def add_hyperedge(self, hyperedge: Hyperedge) -> str:
+        """Add a hyperedge connecting multiple nodes."""
+        # Verify all nodes exist
+        for node_id in hyperedge.node_ids:
+            if node_id not in self.nodes:
+                raise ValueError(f"Node {node_id} does not exist")
+        
+        self.hyperedges[hyperedge.id] = hyperedge
+        
+        # Update index
+        for node_id in hyperedge.node_ids:
+            self.node_to_hyperedges[node_id].add(hyperedge.id)
+        
+        return hyperedge.id
+    
+    def get_node_hyperedges(self, node_id: str) -> List[Hyperedge]:
+        """Get all hyperedges containing a node."""
+        hyperedge_ids = self.node_to_hyperedges.get(node_id, set())
+        return [self.hyperedges[hid] for hid in hyperedge_ids]
+    
+    def get_neighbors(self, node_id: str) -> Set[str]:
+        """Get all nodes connected via hyperedges."""
+        neighbors = set()
+        for hyperedge in self.get_node_hyperedges(node_id):
+            neighbors.update(hyperedge.node_ids)
+        neighbors.discard(node_id)  # Remove self
+        return neighbors
 ```
+
+### Part 2: Document to Hypergraph Conversion
+
+```python
+class DocumentHypergraphBuilder:
+    """Convert documents to hypergraph structure."""
+    
+    def __init__(self, entity_extractor, relation_extractor):
+        self.entity_extractor = entity_extractor
+        self.relation_extractor = relation_extractor
+    
+    def add_document(self, doc_id: str, text: str, hypergraph: HypergraphMemory):
+        """Extract entities and hyperedges from document."""
+        # Extract entities
+        entities = self.entity_extractor.extract(text)
+        
+        # Create nodes for entities
+        entity_nodes = {}
+        for entity in entities:
+            node_id = f"{doc_id}_{entity.label}_{entity.start}"
+            node = Node(
+                id=node_id,
+                label=entity.text,
+                metadata={
+                    'type': entity.label,
+                    'doc_id': doc_id,
+                    'position': (entity.start, entity.end)
+                }
+            )
+            hypergraph.add_node(node)
+            entity_nodes[entity.text] = node_id
+        
+        # Extract relationships (may involve multiple entities)
+        relations = self.relation_extractor.extract(text, entities)
+        
+        for relation in relations:
+            # Handle n-ary relationships
+            if len(relation.entities) >= 2:
+                node_ids = {
+                    entity_nodes[e] for e in relation.entities
+                    if e in entity_nodes
+                }
+                
+                if len(node_ids) >= 2:
+                    hyperedge = Hyperedge(
+                        id=f"{doc_id}_rel_{relation.id}",
+                        node_ids=node_ids,
+                        relation=relation.type,
+                        metadata={
+                            'doc_id': doc_id,
+                            'sentence': relation.sentence,
+                            'confidence': relation.confidence
+                        }
+                    )
+                    hypergraph.add_hyperedge(hyperedge)
+        
+        # Create document-level hyperedge (all entities in doc)
+        if len(entity_nodes) >= 2:
+            doc_hyperedge = Hyperedge(
+                id=f"{doc_id}_document",
+                node_ids=set(entity_nodes.values()),
+                relation="co_occurs_in",
+                metadata={'doc_id': doc_id, 'text': text[:500]}
+            )
+            hypergraph.add_hyperedge(doc_hyperedge)
+```
+
+### Part 3: Hypergraph Traversal
+
+```python
+@dataclass
+class TraversalResult:
+    """Result of hypergraph traversal."""
+    nodes: Set[str]
+    hyperedges: Set[str]
+    paths: List[List[str]]  # Paths taken
+
+class HypergraphTraversal:
+    """Traverse hypergraph for context retrieval."""
+    
+    def __init__(self, hypergraph: HypergraphMemory):
+        self.hypergraph = hypergraph
+    
+    def traverse_from_node(
+        self,
+        start_node: str,
+        max_hops: int = 2,
+        min_hyperedge_weight: float = 0.0
+    ) -> TraversalResult:
+        """Traverse hypergraph from starting node."""
+        visited_nodes = {start_node}
+        visited_hyperedges = set()
+        paths = [[start_node]]
+        
+        current_level = {start_node}
+        
+        for hop in range(max_hops):
+            next_level = set()
+            new_paths = []
+            
+            for node in current_level:
+                # Get hyperedges for this node
+                hyperedges = self.hypergraph.get_node_hyperedges(node)
+                
+                for hyperedge in hyperedges:
+                    if hyperedge.weight < min_hyperedge_weight:
+                        continue
+                    
+                    visited_hyperedges.add(hyperedge.id)
+                    
+                    # Add all nodes from this hyperedge
+                    for connected_node in hyperedge.node_ids:
+                        if connected_node not in visited_nodes:
+                            visited_nodes.add(connected_node)
+                            next_level.add(connected_node)
+                            
+                            # Build path
+                            for path in paths:
+                                if path[-1] == node:
+                                    new_paths.append(
+                                        path + [hyperedge.id, connected_node]
+                                    )
+            
+            current_level = next_level
+            if new_paths:
+                paths.extend(new_paths)
+        
+        return TraversalResult(
+            nodes=visited_nodes,
+            hyperedges=visited_hyperedges,
+            paths=paths
+        )
+    
+    def find_hyperedge_patterns(
+        self,
+        pattern: Dict[str, Any]
+    ) -> List[Hyperedge]:
+        """Find hyperedges matching a pattern."""
+        matches = []
+        
+        for hyperedge in self.hypergraph.hyperedges.values():
+            match = True
+            
+            # Check relation type
+            if 'relation' in pattern:
+                if hyperedge.relation != pattern['relation']:
+                    match = False
+            
+            # Check node count
+            if 'min_nodes' in pattern:
+                if len(hyperedge.node_ids) < pattern['min_nodes']:
+                    match = False
+            
+            # Check specific nodes
+            if 'contains_nodes' in pattern:
+                if not all(
+                    n in hyperedge.node_ids
+                    for n in pattern['contains_nodes']
+                ):
+                    match = False
+            
+            if match:
+                matches.append(hyperedge)
+        
+        return matches
+```
+
+### Part 4: Query Processing
+
+```python
+class HypergraphRAGQuery:
+    """Query hypergraph for RAG context."""
+    
+    def __init__(
+        self,
+        hypergraph: HypergraphMemory,
+        embedding_model: Any,
+        traversal: HypergraphTraversal
+    ):
+        self.hypergraph = hypergraph
+        self.embedder = embedding_model
+        self.traversal = traversal
+    
+    def query(
+        self,
+        query_text: str,
+        top_k_nodes: int = 5,
+        max_hops: int = 2
+    ) -> Dict[str, Any]:
+        """Query hypergraph and retrieve relevant context."""
+        # Embed query
+        query_embedding = self.embedder.embed(query_text)
+        
+        # Find similar nodes
+        similar_nodes = self._find_similar_nodes(
+            query_embedding,
+            top_k=top_k_nodes
+        )
+        
+        # Traverse from each similar node
+        all_context = []
+        for node_id, similarity in similar_nodes:
+            traversal_result = self.traversal.traverse_from_node(
+                node_id,
+                max_hops=max_hops
+            )
+            
+            # Collect context from traversed hyperedges
+            context = self._collect_context(traversal_result)
+            all_context.append({
+                'seed_node': node_id,
+                'similarity': similarity,
+                'context': context,
+                'nodes_found': len(traversal_result.nodes),
+                'hyperedges_found': len(traversal_result.hyperedges)
+            })
+        
+        return {
+            'query': query_text,
+            'context_groups': all_context,
+            'total_nodes': sum(
+                g['nodes_found'] for g in all_context
+            ),
+            'total_hyperedges': sum(
+                g['hyperedges_found'] for g in all_context
+            )
+        }
+    
+    def _find_similar_nodes(
+        self,
+        query_embedding: List[float],
+        top_k: int
+    ) -> List[Tuple[str, float]]:
+        """Find nodes similar to query embedding."""
+        similarities = []
+        
+        for node_id, node in self.hypergraph.nodes.items():
+            if node.embedding:
+                sim = cosine_similarity(query_embedding, node.embedding)
+                similarities.append((node_id, sim))
+        
+        # Return top-k
+        similarities.sort(key=lambda x: x[1], reverse=True)
+        return similarities[:top_k]
+    
+    def _collect_context(self, traversal: TraversalResult) -> List[Dict]:
+        """Collect readable context from traversal."""
+        context = []
+        
+        for hyperedge_id in traversal.hyperedges:
+            hyperedge = self.hypergraph.hyperedges[hyperedge_id]
+            
+            # Get node labels
+            node_labels = [
+                self.hypergraph.nodes[nid].label
+                for nid in hyperedge.node_ids
+            ]
+            
+            context.append({
+                'relation': hyperedge.relation,
+                'entities': node_labels,
+                'metadata': hyperedge.metadata
+            })
+        
+        return context
+```
+
+## Advanced Operations
+
+### Hypergraph Projection
+
+```python
+def project_to_graph(
+    hypergraph: HypergraphMemory,
+    projection_type: str = "clique"
+) -> Dict[Tuple[str, str], List[str]]:
+    """Project hypergraph to regular graph.
+    
+    Clique projection: Each hyperedge becomes a clique
+    Star projection: Each hyperedge becomes a star with virtual center
+    """
+    edges = defaultdict(list)
+    
+    if projection_type == "clique":
+        for hyperedge in hypergraph.hyperedges.values():
+            nodes = list(hyperedge.node_ids)
+            for i in range(len(nodes)):
+                for j in range(i + 1, len(nodes)):
+                    edge_key = tuple(sorted([nodes[i], nodes[j]]))
+                    edges[edge_key].append(hyperedge.id)
+    
+    elif projection_type == "star":
+        for hyperedge in hypergraph.hyperedges.values():
+            center = f"center_{hyperedge.id}"
+            for node in hyperedge.node_ids:
+                edge_key = tuple(sorted([center, node]))
+                edges[edge_key].append(hyperedge.id)
+    
+    return dict(edges)
+```
+
+## Evaluation Criteria
+
+Your solution will be evaluated on:
+
+1. **Structure**: Correct hypergraph implementation
+2. **Traversal**: Effective multi-hop navigation
+3. **Query Results**: Relevant context retrieval
+4. **Pattern Matching**: Complex query support
+5. **Performance**: Efficient for large graphs

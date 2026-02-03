@@ -1,13 +1,21 @@
 ﻿---
 title: "Evaluation Dataset Curator"
-description: "Design a diverse evaluation set with stratified sampling."
+description: "Design a diverse evaluation set with stratified sampling — biased eval = false confidence → production failures."
+difficulty: "medium"
+estimatedMinutes: 40
+prerequisites: ["custom-eval-dataset"]
+related: ["custom-eval-dataset", "beir-evaluation-setup", "llm-as-judge"]
+next: "llm-as-judge"
+xpReward: 90
 ---
 
-# Evaluation Dataset Curator
+<Callout title="Goal" variant="info">
+  Design a diverse evaluation set with stratified sampling.
+</Callout>
+
+## The Problem
 
 A biased evaluation set gives misleading metrics. If all your test questions are easy, your RAG looks great—until it fails in production.
-
-### The Problem
 
 ```
 Eval Set: 100 questions about "API key rotation"
@@ -15,26 +23,335 @@ Result: 95% accuracy!
 Reality: Model fails on 70% of other topics.
 ```
 
-### Stratified Sampling
+## Stratified Sampling
 
 Sample equally from each category:
 
-- Topics: Tech, Finance, HR, Legal...
-- Difficulty: Easy, Medium, Hard.
-- Format: Factoid, Multi-hop, Comparison...
+- **Topics**: Tech, Finance, HR, Legal...
+- **Difficulty**: Easy, Medium, Hard.
+- **Format**: Factoid, Multi-hop, Comparison...
 
-### Diversity Measurement
+## Diversity Measurement
 
 **Type-Token Ratio**: `unique_words / total_words`
 
 A diverse eval set has many unique words; a repetitive one doesn't.
 
-### Your Task
+## Complexity Analysis
 
-1. Implement stratified sampling by category.
-2. Measure lexical diversity of the sample.
+| Operation | Time Complexity | Space Complexity |
+|-----------|-----------------|------------------|
+| Stratified sampling | O(N) | O(N) |
+| Diversity calculation | O(T) | O(U) |
+| Coverage analysis | O(N × C) | O(C) |
 
-### Why It Matters
+Where N = samples, T = total tokens, U = unique tokens, C = categories
+
+## Real-World Context
+
+| Company | Challenge | Solution |
+|---------|-----------|----------|
+| **Google** | Search quality | Stratified by query intent |
+| **Amazon** | Product search | Balanced by product category |
+| **Microsoft** | Enterprise search | Stratified by department |
+| **Netflix** | Content rec | Balanced by genre and popularity |
+
+## Resources
+
+### Papers
+- **"Stratified Sampling for Evaluation"** - Statistical methodology
+- **"Diversity in Information Retrieval Evaluation"** - IR-specific approaches
+
+### Tools
+- **RAGAS**: Automated test set generation with diversity
+- **Argilla**: Data curation and labeling
+- **LangSmith**: Dataset management
+
+## Implementation
+
+```python
+from typing import List, Dict, Any
+from collections import defaultdict
+import random
+
+class DatasetCurator:
+    """Curate diverse evaluation datasets."""
+    
+    def __init__(self, items: List[Dict[str, Any]]):
+        """
+        Initialize with candidate items.
+        
+        Args:
+            items: List of dicts with 'category', 'difficulty', etc.
+        """
+        self.items = items
+    
+    def stratified_sample(
+        self,
+        n_per_stratum: int,
+        stratify_by: str = "category"
+    ) -> List[Dict[str, Any]]:
+        """
+        Sample equally from each stratum.
+        
+        Args:
+            n_per_stratum: Number of samples per stratum
+            stratify_by: Key to stratify by
+        
+        Returns:
+            Stratified sample
+        """
+        # Group by stratum
+        strata = defaultdict(list)
+        for item in self.items:
+            key = item.get(stratify_by, "unknown")
+            strata[key].append(item)
+        
+        # Sample from each stratum
+        sampled = []
+        for stratum, items in strata.items():
+            n = min(n_per_stratum, len(items))
+            sampled.extend(random.sample(items, n))
+        
+        return sampled
+    
+    def compute_diversity(self, text_key: str = "text") -> Dict[str, float]:
+        """
+        Compute lexical diversity metrics.
+        
+        Returns:
+            Dict with type-token ratio and other metrics
+        """
+        all_words = []
+        for item in self.items:
+            text = item.get(text_key, "")
+            words = text.lower().split()
+            all_words.extend(words)
+        
+        total_tokens = len(all_words)
+        unique_tokens = len(set(all_words))
+        
+        return {
+            "type_token_ratio": unique_tokens / total_tokens if total_tokens else 0,
+            "total_tokens": total_tokens,
+            "unique_tokens": unique_tokens
+        }
+    
+    def analyze_coverage(self, key: str = "category") -> Dict[str, int]:
+        """
+        Analyze coverage across categories.
+        
+        Returns:
+            Dict mapping category to count
+        """
+        coverage = defaultdict(int)
+        for item in self.items:
+            category = item.get(key, "unknown")
+            coverage[category] += 1
+        return dict(coverage)
+    
+    def balance_dataset(
+        self,
+        target_per_category: int,
+        category_key: str = "category"
+    ) -> List[Dict[str, Any]]:
+        """
+        Balance dataset by oversampling or undersampling.
+        
+        Args:
+            target_per_category: Target samples per category
+            category_key: Key for category
+        
+        Returns:
+            Balanced dataset
+        """
+        # Group by category
+        by_category = defaultdict(list)
+        for item in self.items:
+            cat = item.get(category_key, "unknown")
+            by_category[cat].append(item)
+        
+        balanced = []
+        for cat, items in by_category.items():
+            if len(items) >= target_per_category:
+                # Undersample
+                balanced.extend(random.sample(items, target_per_category))
+            else:
+                # Oversample with replacement
+                balanced.extend(
+                    random.choices(items, k=target_per_category)
+                )
+        
+        return balanced
+```
+
+## Challenge: Implement Dataset Curator
+
+### Requirements
+
+1. Implement `stratified_sample()` for balanced sampling
+2. Implement `compute_diversity()` for lexical diversity
+3. Implement `analyze_coverage()` for category distribution
+4. Implement `balance_dataset()` for oversampling/undersampling
+
+### Starter Code
+
+```python
+from typing import List, Dict, Any
+from collections import defaultdict
+import random
+
+class DatasetCurator:
+    """Curate diverse evaluation datasets."""
+    
+    def __init__(self, items: List[Dict[str, Any]]):
+        self.items = items
+    
+    def stratified_sample(
+        self,
+        n_per_stratum: int,
+        stratify_by: str = "category"
+    ) -> List[Dict[str, Any]]:
+        """Sample equally from each stratum."""
+        # TODO: Implement stratified sampling
+        pass
+    
+    def compute_diversity(self, text_key: str = "text") -> Dict[str, float]:
+        """Compute lexical diversity metrics."""
+        # TODO: Implement diversity calculation
+        pass
+    
+    def analyze_coverage(self, key: str = "category") -> Dict[str, int]:
+        """Analyze coverage across categories."""
+        # TODO: Implement coverage analysis
+        pass
+
+
+# Test your implementation
+def test_dataset_curator():
+    # Sample data
+    items = [
+        {"query": "What is Python?", "category": "tech", "difficulty": "easy"},
+        {"query": "Explain decorators", "category": "tech", "difficulty": "hard"},
+        {"query": "What is a 401k?", "category": "finance", "difficulty": "easy"},
+        {"query": "Explain derivatives", "category": "finance", "difficulty": "hard"},
+        {"query": "What is PTO?", "category": "hr", "difficulty": "easy"},
+        {"query": "Explain vesting", "category": "hr", "difficulty": "medium"},
+    ]
+    
+    curator = DatasetCurator(items)
+    
+    # Test stratified sampling
+    sample = curator.stratified_sample(n_per_stratum=1, stratify_by="category")
+    assert len(sample) == 3  # One from each category
+    
+    # Test coverage analysis
+    coverage = curator.analyze_coverage("category")
+    assert coverage["tech"] == 2
+    assert coverage["finance"] == 2
+    assert coverage["hr"] == 2
+    
+    # Test diversity
+    diversity = curator.compute_diversity("query")
+    assert diversity["type_token_ratio"] > 0
+    
+    print(f"Coverage: {coverage}")
+    print(f"Diversity: {diversity}")
+    print("All tests passed!")
+
+test_dataset_curator()
+```
+
+### Solution
+
+<details>
+<summary>Click to reveal solution</summary>
+
+```python
+from typing import List, Dict, Any
+from collections import defaultdict
+import random
+
+class DatasetCurator:
+    """Curate diverse evaluation datasets."""
+    
+    def __init__(self, items: List[Dict[str, Any]]):
+        self.items = items
+    
+    def stratified_sample(
+        self,
+        n_per_stratum: int,
+        stratify_by: str = "category"
+    ) -> List[Dict[str, Any]]:
+        """Sample equally from each stratum."""
+        strata = defaultdict(list)
+        for item in self.items:
+            key = item.get(stratify_by, "unknown")
+            strata[key].append(item)
+        
+        sampled = []
+        for stratum, items in strata.items():
+            n = min(n_per_stratum, len(items))
+            sampled.extend(random.sample(items, n))
+        
+        return sampled
+    
+    def compute_diversity(self, text_key: str = "text") -> Dict[str, float]:
+        """Compute lexical diversity metrics."""
+        all_words = []
+        for item in self.items:
+            text = item.get(text_key, "")
+            words = text.lower().split()
+            all_words.extend(words)
+        
+        total_tokens = len(all_words)
+        unique_tokens = len(set(all_words))
+        
+        return {
+            "type_token_ratio": unique_tokens / total_tokens if total_tokens else 0,
+            "total_tokens": total_tokens,
+            "unique_tokens": unique_tokens
+        }
+    
+    def analyze_coverage(self, key: str = "category") -> Dict[str, int]:
+        """Analyze coverage across categories."""
+        coverage = defaultdict(int)
+        for item in self.items:
+            category = item.get(key, "unknown")
+            coverage[category] += 1
+        return dict(coverage)
+    
+    def balance_dataset(
+        self,
+        target_per_category: int,
+        category_key: str = "category"
+    ) -> List[Dict[str, Any]]:
+        """Balance dataset by oversampling or undersampling."""
+        by_category = defaultdict(list)
+        for item in self.items:
+            cat = item.get(category_key, "unknown")
+            by_category[cat].append(item)
+        
+        balanced = []
+        for cat, items in by_category.items():
+            if len(items) >= target_per_category:
+                balanced.extend(random.sample(items, target_per_category))
+            else:
+                balanced.extend(random.choices(items, k=target_per_category))
+        
+        return balanced
+```
+
+</details>
+
+## Why It Matters
 
 Biased eval = false confidence → production failures → unhappy users.
 
+### Best Practices
+
+1. **Define strata upfront**: Know your categories before sampling
+2. **Monitor diversity**: Track type-token ratio over time
+3. **Validate coverage**: Ensure all categories represented
+4. **Review edge cases**: Include hard examples intentionally
+5. **Iterate**: Update eval set based on production failures

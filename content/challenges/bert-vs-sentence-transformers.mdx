@@ -98,178 +98,288 @@ Task: Are these consecutive sentences? (Yes/No)
 ### Sentence Transformer Training
 
 ```
-Input: ("A dog is running", "A canine is jogging")
-Task: These should have HIGH similarity (0.9+)
+Input: ("Paris is in France", "France's capital is Paris", 0.9)
+Task: Learn embeddings where similar sentences are close
 
-Input: ("A dog is running", "The stock market crashed")
-Task: These should have LOW similarity (0.1-)
+Input: ("Paris is in France", "The cat sat on the mat", 0.1)
+Task: Learn embeddings where different sentences are far
 ```
 
-## Your Task
+## Mathematical Foundation
 
-Implement both approaches and compare their effectiveness for retrieval:
+### Embedding Space Properties
+
+**BERT Token Embeddings:**
+- Dimension: 768 (BERT-base) or 1024 (BERT-large)
+- Space: Contextual token representations
+- Similarity: Tokens in similar contexts have similar embeddings
+
+**Sentence Transformer Embeddings:**
+- Dimension: 384 (MiniLM) to 768 (MPNet)
+- Space: Semantic sentence representations
+- Similarity: Semantically similar sentences cluster together
+
+### Similarity Metrics
+
+For RAG, we typically use cosine similarity:
+
+$$
+\text{cosine\_similarity}(a, b) = \frac{a \cdot b}{\|a\| \|b\|}
+$$
+
+Sentence Transformers are trained to maximize this for similar pairs and minimize for dissimilar pairs.
+
+### Contrastive Loss
+
+Sentence Transformers use contrastive loss during training:
+
+$$
+\mathcal{L} = \frac{1}{N} \sum_{i=1}^{N} \left( \underbrace{(1 - y_i) \cdot d_i^2}_{\text{push apart}} + \underbrace{y_i \cdot \max(0, m - d_i)^2}_{\text{pull together}} \right)
+$$
+
+Where:
+- $y_i$ = 1 if similar, 0 if dissimilar
+- $d_i$ = distance between embeddings
+- $m$ = margin hyperparameter
+
+## Complexity Analysis
+
+| Operation | BERT | Sentence Transformers |
+|-----------|------|----------------------|
+| Forward pass | O(n² × d) | O(n² × d) |
+| Embedding extraction | O(n × d) | O(d) |
+| Similarity computation | O(d) | O(d) |
+| Memory per sentence | O(n × d) | O(d) |
+
+Where:
+- n = sequence length
+- d = embedding dimension
+
+## Common Pitfalls
+
+1. **Using BERT [CLS] token directly**: Poor similarity performance
+2. **Wrong pooling strategy**: Max pooling can lose important information
+3. **Not normalizing**: Cosine similarity requires normalized vectors
+4. **Domain mismatch**: Using general model for specialized domain
+5. **Ignoring context window**: BERT limited to 512 tokens
+
+## Model Selection Guide
+
+### When to Use BERT
+
+- Token-level tasks (NER, POS tagging)
+- Question answering (extractive)
+- Fine-tuning for specific downstream tasks
+- When you need contextual token representations
+
+### When to Use Sentence Transformers
+
+- Semantic search
+- Document clustering
+- RAG retrieval
+- Duplicate detection
+- Semantic similarity tasks
+
+## Popular Sentence Transformer Models
+
+| Model | Dimensions | Speed | Quality | Best For |
+|-------|------------|-------|---------|----------|
+| all-MiniLM-L6-v2 | 384 | Fast | Good | General purpose, speed-critical |
+| all-mpnet-base-v2 | 768 | Medium | Best | High-quality retrieval |
+| multi-qa-MiniLM | 384 | Fast | Good | Question-answering |
+| all-distilroberta-v1 | 768 | Medium | Good | Balanced speed/quality |
+| sentence-t5-xxl | 768 | Slow | Excellent | Maximum quality (batch) |
+
+## Advanced Techniques
+
+### Domain Adaptation
 
 ```python
-from transformers import AutoModel, AutoTokenizer
+from sentence_transformers import SentenceTransformer, InputExample, losses
+from torch.utils.data import DataLoader
+
+# Load base model
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+# Prepare domain-specific training data
+train_examples = [
+    InputExample(texts=["medical term A", "medical term A synonym"], label=0.9),
+    InputExample(texts=["medical term A", "unrelated term"], label=0.1),
+    # ... more examples
+]
+
+train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=16)
+train_loss = losses.CosineSimilarityLoss(model)
+
+# Fine-tune
+model.fit(train_objectives=[(train_dataloader, train_loss)], epochs=3)
+```
+
+### Quantization for Speed
+
+```python
 from sentence_transformers import SentenceTransformer
-import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
+import torch
 
-class EmbeddingComparison:
-    """Compare BERT vs Sentence Transformers for retrieval."""
+model = SentenceTransformer('all-MiniLM-L6-v2')
 
-    def __init__(self):
-        # Load BERT
-        self.bert_tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
-        self.bert_model = AutoModel.from_pretrained('bert-base-uncased')
-
-        # Load Sentence Transformer
-        self.sbert = SentenceTransformer('all-MiniLM-L6-v2')
-
-    def bert_embed(self, text: str) -> np.ndarray:
-        """
-        Get sentence embedding from BERT using mean pooling.
-
-        TODO: Implement mean pooling over token embeddings.
-        """
-        # YOUR CODE HERE
-        pass
-
-    def sbert_embed(self, text: str) -> np.ndarray:
-        """
-        Get sentence embedding from Sentence Transformers.
-
-        TODO: Use the encode method.
-        """
-        # YOUR CODE HERE
-        pass
-
-    def retrieve_top_k(
-        self,
-        query: str,
-        documents: list[str],
-        method: str = "sbert",
-        k: int = 3
-    ) -> list[tuple[str, float]]:
-        """
-        Retrieve top-k documents for a query.
-
-        Args:
-            query: Search query
-            documents: List of documents to search
-            method: "bert" or "sbert"
-            k: Number of results to return
-
-        Returns:
-            List of (document, similarity_score) tuples
-        """
-        # Choose embedding method
-        embed_fn = self.bert_embed if method == "bert" else self.sbert_embed
-
-        # TODO: Embed query and all documents
-        # TODO: Calculate similarities
-        # TODO: Return top-k with scores
-
-        # YOUR CODE HERE
-        pass
-
-    def compare_methods(
-        self,
-        queries: list[str],
-        documents: list[str],
-        relevant_doc_indices: list[list[int]]
-    ) -> dict:
-        """
-        Compare BERT vs Sentence Transformers on retrieval task.
-
-        Returns recall@k for both methods.
-        """
-        results = {"bert": [], "sbert": []}
-
-        for query, relevant_indices in zip(queries, relevant_doc_indices):
-            for method in ["bert", "sbert"]:
-                retrieved = self.retrieve_top_k(query, documents, method, k=3)
-                retrieved_indices = [documents.index(doc) for doc, _ in retrieved]
-
-                # Calculate recall
-                hits = len(set(retrieved_indices) & set(relevant_indices))
-                recall = hits / len(relevant_indices)
-                results[method].append(recall)
-
-        return {
-            "bert_recall@3": np.mean(results["bert"]),
-            "sbert_recall@3": np.mean(results["sbert"]),
-        }
-
-
-# Test case
-def test_comparison():
-    comp = EmbeddingComparison()
-
-    # Test documents and queries
-    documents = [
-        "Paris is the capital of France, known for the Eiffel Tower.",
-        "London is the capital of the United Kingdom.",
-        "The weather in Tokyo is humid in summer.",
-        "Machine learning is a subset of artificial intelligence.",
-        "Python is a popular programming language for data science.",
-    ]
-
-    queries = [
-        "What is the capital of France?",
-        "Tell me about AI and machine learning",
-    ]
-
-    relevant = [
-        [0],  # First query → first document
-        [3],  # Second query → fourth document
-    ]
-
-    # Compare methods
-    results = comp.compare_methods(queries, documents, relevant)
-
-    print(f"BERT Recall@3: {results['bert_recall@3']:.2f}")
-    print(f"SBERT Recall@3: {results['sbert_recall@3']:.2f}")
-
-    # Sentence Transformers should outperform raw BERT
-    assert results['sbert_recall@3'] >= results['bert_recall@3'], \
-        "Sentence Transformers should perform at least as well as BERT"
-
-    print("✅ Test passed!")
-
-if __name__ == "__main__":
-    test_comparison()
+# Quantize to int8 for faster inference
+model.eval()
+quantized_model = torch.quantization.quantize_dynamic(
+    model, {torch.nn.Linear}, dtype=torch.qint8
+)
 ```
 
-## Expected Results
+### Multi-Vector Representations (ColBERT)
+
+```python
+# ColBERT uses token-level embeddings for late interaction
+from colbert import ColBERT
+
+model = ColBERT.from_pretrained('colbert-ir/colbertv2.0')
+
+# Each token has its own embedding
+# Similarity computed via MaxSim operation
+```
+
+## Visual Diagram: Embedding Comparison
 
 ```
-BERT Recall@3: 0.50
-SBERT Recall@3: 1.00
-✅ Test passed!
+BERT Token-Level Embeddings:
+┌─────────────────────────────────────────────────────────────┐
+│  Input: "Paris is the capital of France"                     │
+│                                                              │
+│  Embeddings:                                                 │
+│  [Paris] ──→ [0.2, -0.5, 0.8, ...]  (768-dim)               │
+│  [is]    ──→ [0.1, 0.3, -0.2, ...]  (768-dim)               │
+│  [the]   ──→ [-0.4, 0.1, 0.5, ...] (768-dim)                │
+│  ...                                                         │
+│                                                              │
+│  Aggregation needed: mean([CLS], token1, token2, ...)        │
+│  Result: Poor similarity performance                         │
+└─────────────────────────────────────────────────────────────┘
+
+                              vs
+
+Sentence Transformer Embeddings:
+┌─────────────────────────────────────────────────────────────┐
+│  Input: "Paris is the capital of France"                     │
+│                                                              │
+│  Direct encoding:                                            │
+│  "Paris is..." ──→ [0.5, -0.2, 0.7, ...]  (384-dim)         │
+│                                                              │
+│  Single vector optimized for semantic similarity             │
+│  Trained on sentence pairs with similarity labels            │
+│  Result: Excellent retrieval performance                     │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-Sentence Transformers typically outperform raw BERT for retrieval by **20-50%** on standard benchmarks.
+## Performance Benchmarks
 
-## When to Use Each
+### Retrieval Accuracy (nDCG@10)
 
-| Use Case                     | Recommendation        | Why                      |
-| ---------------------------- | --------------------- | ------------------------ |
-| **RAG retrieval**            | Sentence Transformers | Optimized for similarity |
-| **Named Entity Recognition** | BERT                  | Token-level task         |
-| **Question Answering**       | BERT (fine-tuned)     | Span extraction          |
-| **Semantic search**          | Sentence Transformers | Sentence-level matching  |
-| **Document clustering**      | Sentence Transformers | Need document vectors    |
+| Model | MS MARCO | NQ | HotpotQA |
+|-------|----------|-----|----------|
+| BERT (mean pooling) | 0.312 | 0.428 | 0.356 |
+| BERT (CLS) | 0.298 | 0.401 | 0.334 |
+| all-MiniLM-L6-v2 | 0.456 | 0.512 | 0.487 |
+| all-mpnet-base-v2 | 0.512 | 0.568 | 0.534 |
+| OpenAI text-embedding-3-small | 0.548 | 0.601 | 0.578 |
 
-## Key Takeaways
+### Inference Speed (sentences/sec, CPU)
 
-1. **BERT** = token-level, not designed for sentence similarity
-2. **Sentence Transformers** = sentence-level, trained for similarity
-3. For RAG, **always prefer Sentence Transformers** or similar embedding models
-4. Popular choices: `all-MiniLM-L6-v2`, `all-mpnet-base-v2`, OpenAI `text-embedding-3-small`
+| Model | Batch=1 | Batch=32 | Batch=128 |
+|-------|---------|----------|-----------|
+| BERT-base | 45 | 180 | 220 |
+| all-MiniLM-L6-v2 | 120 | 850 | 1200 |
+| all-mpnet-base-v2 | 65 | 420 | 580 |
+
+## Interview Questions
+
+**Q1: Why does mean pooling of BERT tokens not work well for sentence similarity?**
+
+*Answer:*
+- BERT is trained for token-level predictions, not sentence similarity
+- Token embeddings contain positional and contextual information that doesn't aggregate well
+- No training signal to make sentence-level representations meaningful
+- Stop words and punctuation dilute the semantic signal
+
+**Q2: When would you choose a larger model (e.g., 768-dim) over a smaller one (384-dim)?**
+
+*Answer:*
+- Larger model when: Quality is critical, batch processing, sufficient compute
+- Smaller model when: Latency-sensitive, edge deployment, high throughput
+- Consider: Quality vs speed tradeoff, downstream task requirements, infrastructure constraints
+
+**Q3: How would you evaluate if an embedding model is suitable for your RAG use case?**
+
+*Answer:*
+- Create domain-specific evaluation set
+- Measure retrieval metrics: MRR, nDCG, Recall@K
+- Test end-to-end RAG quality
+- Compare against baseline (e.g., BM25)
+- Consider latency and cost constraints
+
+## Resources
+
+### Papers
+- **"BERT: Pre-training of Deep Bidirectional Transformers"** - Devlin et al.
+- **"Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks"** - Reimers & Gurevych
+- **"Making Monolingual Sentence Embeddings Multilingual using Knowledge Distillation"**
+
+### Documentation
+- [Sentence Transformers Documentation](https://www.sbert.net/)
+- [Hugging Face Transformers](https://huggingface.co/docs/transformers/index)
+- [MTEB Leaderboard](https://huggingface.co/spaces/mteb/leaderboard)
+
+### Tools
+- **Sentence Transformers**: Primary library
+- **Hugging Face**: Model hub and inference
+- **FlagEmbedding**: Advanced embedding techniques
+- **Instructor**: Instruction-finetuned embeddings
+
+### Tutorials
+- "Fine-tuning Sentence Transformers for Domain-Specific RAG"
+- "Evaluating Embedding Models with MTEB"
+- "Optimizing Embedding Inference Speed"
+
+## Testing Your Implementation
+
+```python
+def test_embedding_models():
+    from sentence_transformers import SentenceTransformer
+    from sklearn.metrics.pairwise import cosine_similarity
+    
+    model = SentenceTransformer('all-MiniLM-L6-v2')
+    
+    # Test 1: Basic similarity
+    emb1 = model.encode("Paris is in France")
+    emb2 = model.encode("France's capital is Paris")
+    emb3 = model.encode("The cat sat on the mat")
+    
+    sim_12 = cosine_similarity([emb1], [emb2])[0][0]
+    sim_13 = cosine_similarity([emb1], [emb3])[0][0]
+    
+    assert sim_12 > 0.7  # Similar sentences
+    assert sim_13 < 0.5  # Dissimilar sentences
+    
+    # Test 2: Encoding consistency
+    emb1_repeat = model.encode("Paris is in France")
+    assert np.allclose(emb1, emb1_repeat)
+    
+    # Test 3: Batch encoding
+    sentences = ["Sentence A", "Sentence B", "Sentence C"]
+    embeddings = model.encode(sentences)
+    assert embeddings.shape == (3, 384)
+```
 
 ## Related Challenges
 
-- [Embedding Fundamentals](/challenges/embedding-fundamentals)
-- [Cosine Similarity](/challenges/cosine-similarity)
-- [MTEB Evaluation](/challenges/mteb-evaluation)
+- [embedding-model-selection](embedding-model-selection) - Choosing the right model
+- [embedding-finetuning](embedding-finetuning) - Domain adaptation
+- [colbert-late-interaction](colbert-late-interaction) - Multi-vector embeddings
+- [mteb-evaluation](mteb-evaluation) - Benchmarking embeddings
+
+---
+
+*Choosing the right embedding model is crucial for RAG performance. Sentence Transformers are almost always the right choice for retrieval tasks.*

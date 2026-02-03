@@ -1,23 +1,299 @@
+---
+title: "Tool Router (TypeScript)"
+description: "Implement a tool router for agentic RAG — decide which tool to call based on query."
+language: "typescript"
+difficulty: "intermediate"
+category: "agents"
+prerequisites: ["ts-query-router", "ts-react-loop"]
+related: ["tool-orchestration", "agentic-rag-workflows", "ts-react-loop"]
+tags: ["tool-routing", "agents", "function-calling", "orchestration"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Implement a tool router for agentic RAG — decide which tool to call based on query.
+  Implement a tool router for agentic RAG — decide which tool to call based on query intent.
 </Callout>
 
-## Why this matters in production
+## Why Tool Routing Matters in Production
 
-Agentic RAG systems need to decide: search documents? Calculate something? Search the web? Tool routing is the first step in every agent loop.
+Agentic RAG systems need to decide: search documents? Calculate something? Search the web? Tool routing is the first step in every agent loop. Good routing:
 
-## What you're implementing
+- **Optimizes latency**: Skip unnecessary tools
+- **Reduces costs**: Avoid expensive API calls
+- **Improves accuracy**: Use right tool for the job
+- **Enables autonomy**: Agent decides actions
 
-- Match query against tool descriptions and keywords.
-- Return the best-matching tool with confidence.
-- Provide reasoning for the routing decision.
+### Real-World Scenario
 
-## Common pitfalls
+User queries and optimal tools:
 
-- Over-matching on common words.
-- Not having a default/fallback tool.
+| Query | Tool | Why |
+|-------|------|-----|
+| "What is RAG?" | document_search | Knowledge question |
+| "Calculate 15% of $85" | calculator | Math operation |
+| "What's the weather in Paris?" | weather_api | Real-time data |
+| "Search for recent AI papers" | web_search | Current information |
+| "Compare Python and JavaScript" | document_search + web_search | Hybrid |
 
-## After you pass
+**Without routing**: Try all tools sequentially → slow, expensive
+**With routing**: Select best tool(s) → fast, targeted
 
-Build a full **ReAct Loop** using this router.
+## The Mathematical Foundation
 
+### Tool Selection as Classification
+
+```
+Query Features → Classifier → Tool Probability Distribution
+
+Features:
+- Keywords (calculate, search, compare)
+- Question type (what, how, when)
+- Entities (numbers, locations, dates)
+- Intent patterns
+```
+
+### Confidence Scoring
+
+```
+tool_score = keyword_match × 0.4 + 
+             pattern_match × 0.3 + 
+             embedding_similarity × 0.3
+
+Select tool with highest score above threshold.
+```
+
+### Multi-Tool Selection
+
+```
+Single tool: argmax(tool_scores)
+Multiple tools: tools where score > threshold
+```
+
+## Theoretical Deep Dive
+
+### Intent-to-Tool Mapping
+
+| Intent | Tools | Example Query |
+|--------|-------|---------------|
+| **Factual lookup** | document_search | "What is..." |
+| **Calculation** | calculator | "Calculate..." |
+| **Current info** | web_search, weather_api | "What's the latest..." |
+| **Comparison** | document_search | "Compare A and B" |
+| **Procedure** | document_search | "How do I..." |
+
+### Fallback Strategy
+
+When confidence is low:
+
+```typescript
+if (maxConfidence < threshold) {
+  // Options:
+  1. Ask user for clarification
+  2. Use default tool (document_search)
+  3. Try multiple tools in parallel
+  4. Escalate to human
+}
+```
+
+### Tool Chaining
+
+Some queries need multiple tools:
+
+```
+"Weather in the capital of France"
+→ 1. search("capital of France") → Paris
+→ 2. weather("Paris") → result
+```
+
+## Production Considerations
+
+### Latency Budget
+
+Routing must be fast (<5ms):
+
+```
+Total: Routing (5ms) + Tool execution (100ms) = 105ms
+vs: Sequential tools (400ms)
+```
+
+Use lightweight methods (regex, heuristics) not LLM-based routing.
+
+### Tool Descriptions
+
+Clear descriptions improve routing:
+
+```typescript
+interface Tool {
+  name: string;
+  description: string;
+  keywords: string[];
+  examples: string[];
+}
+
+const calculator: Tool = {
+  name: 'calculator',
+  description: 'Perform mathematical calculations',
+  keywords: ['calculate', 'compute', 'sum', 'multiply', '%'],
+  examples: ['What is 15% of 100?', 'Calculate 2+2']
+};
+```
+
+### Learning from Feedback
+
+```typescript
+interface RoutingFeedback {
+  query: string;
+  selectedTool: string;
+  wasCorrect: boolean;
+  correctTool?: string;
+}
+
+// Update routing model based on feedback
+function improveRouting(feedback: RoutingFeedback[]): void {
+  // Adjust keyword weights, add patterns
+}
+```
+
+## Your Task
+
+Implement a tool router:
+
+```typescript
+interface Tool {
+  name: string;
+  description: string;
+  keywords: string[];
+  execute: (args: any) => Promise<any>;
+}
+
+interface RoutingResult {
+  selectedTools: string[];
+  confidence: number;
+  reasoning: string;
+}
+
+interface RouterConfig {
+  confidenceThreshold?: number;  // Default: 0.6
+  maxTools?: number;             // Default: 1
+  allowMultiple?: boolean;       // Default: false
+}
+
+class ToolRouter {
+  private tools: Map<string, Tool>;
+
+  constructor() {
+    this.tools = new Map();
+  }
+
+  registerTool(tool: Tool): void {
+    /**
+     * Register a tool for routing.
+     */
+    this.tools.set(tool.name, tool);
+  }
+
+  route(query: string, config?: RouterConfig): RoutingResult {
+    /**
+     * Route query to appropriate tool(s).
+     * 
+     * Args:
+     *   query: User query
+     *   config: Routing configuration
+     * 
+     * Returns:
+     *   RoutingResult with selected tools and confidence
+     * 
+     * Algorithm:
+     *   1. Score each tool based on keyword matches
+     *   2. Score based on description similarity
+     *   3. Combine scores
+     *   4. Select top tool(s) above threshold
+     *   5. Return with reasoning
+     * 
+     * Scoring:
+     *   - Keyword match: +0.3 per matching keyword
+     *   - Pattern match: +0.5 for strong patterns
+     *   - Description similarity: embedding cosine sim × 0.4
+     * 
+     * Edge Cases:
+     *   - No tools registered: return empty
+     *   - No tool above threshold: return default or ask
+     *   - Multiple high-confidence: return all if allowMultiple
+     */
+  }
+
+  private scoreTool(query: string, tool: Tool): number {
+    /**
+     * Calculate routing score for a tool.
+     * 
+     * Factors:
+     *   - Keyword matches in query
+     *   - Query type patterns
+     *   - Description relevance
+     */
+  }
+
+  private extractQueryFeatures(query: string): {
+    hasNumbers: boolean;
+    hasQuestion: boolean;
+    keywords: string[];
+    queryType: string;
+  } {
+    /**
+     * Extract features from query for scoring.
+     */
+  }
+
+  async execute(query: string, config?: RouterConfig): Promise<any> {
+    /**
+     * Route and execute the selected tool.
+     * 
+     * Returns tool execution result.
+     */
+  }
+}
+
+// Convenience function
+function createToolRouter(tools: Tool[]): ToolRouter {
+  const router = new ToolRouter();
+  tools.forEach(t => router.registerTool(t));
+  return router;
+}
+```
+
+### Validation Checklist
+
+- [ ] Tools scored based on keywords
+- [ ] Highest scoring tool(s) selected
+- [ ] Confidence threshold applied
+- [ ] Multiple tools supported when configured
+- [ ] Reasoning provided for decisions
+- [ ] No matching tool handled gracefully
+- [ ] Tool execution works correctly
+- [ ] Empty tool list handled
+
+## Common Pitfalls
+
+- **Over-matching on common words**: "the", "a" shouldn't match
+- **Not having a default/fallback tool**: Always have backup
+- **Too many tools returned**: Limit to most relevant
+- **Ignoring tool dependencies**: Some tools need others first
+- **Not caching routing decisions**: Same query → same tool
+
+## After You Pass
+
+Build a full **ReAct Loop** using this router, or implement multi-step tool chaining for complex queries.
+
+## Resources
+
+### Documentation
+- [OpenAI Function Calling](https://platform.openai.com/docs/guides/function-calling) - Tool use
+- [LangChain Tools](https://js.langchain.com/docs/modules/agents/tools/) - Tool ecosystem
+- [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) - Standard tool interface
+
+### Tutorials
+- ["Building Tool-Using Agents"](https://blog.langchain.dev/tool-use-agents/) - LangChain blog
+- ["Function Calling Patterns"](https://www.promptingguide.ai/techniques/function_calling) - Prompting guide
+
+### Research
+- ["Toolformer: Language Models Can Teach Themselves to Use Tools"](https://arxiv.org/abs/2302.04761) - Schick et al.
+- ["Gorilla: Large Language Model Connected with Massive APIs"](https://arxiv.org/abs/2305.15334) - Patil et al.

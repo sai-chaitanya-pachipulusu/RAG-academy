@@ -1,4 +1,15 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "MAP (Mean Average Precision) Evaluator"
+description: "Implement Mean Average Precision (MAP) — the gold standard for multi-relevant-document retrieval evaluation"
+difficulty: "intermediate"
+estimatedMinutes: 30
+xpReward: 50
+prerequisites: ["evaluator-precision-at-k", "evaluator-recall-at-k"]
+related: ["evaluator-ndcg", "evaluator-mrr", "beir-evaluation-setup"]
+next: "evaluator-mrr"
+---
+
+<Callout title="Goal" variant="info">
   Implement Mean Average Precision (MAP) — the gold standard for
   multi-relevant-document retrieval evaluation.
 </Callout>
@@ -32,6 +43,72 @@ Where:
 MAP = (1/|Q|) × Σⱼ AP(qⱼ)
 ```
 
+## The Algorithm
+
+```python
+def average_precision(
+    retrieved: list[str],
+    relevant: set[str]
+) -> float:
+    """
+    Compute Average Precision for a single query.
+    
+    Time Complexity: O(N) where N = number retrieved
+    Space Complexity: O(1) additional
+    
+    Args:
+        retrieved: Ordered list of retrieved document IDs
+        relevant: Set of ground-truth relevant document IDs
+    
+    Returns:
+        AP score between 0.0 and 1.0
+    """
+    if not relevant:
+        return 0.0
+    
+    relevant_found = 0
+    precision_sum = 0.0
+    
+    for i, doc_id in enumerate(retrieved, start=1):
+        if doc_id in relevant:
+            relevant_found += 1
+            precision_at_i = relevant_found / i
+            precision_sum += precision_at_i
+    
+    return precision_sum / len(relevant)
+
+
+def mean_average_precision(
+    queries: list[tuple[list[str], set[str]]]
+) -> float:
+    """
+    Compute Mean Average Precision across multiple queries.
+    
+    Time Complexity: O(Q × N) where Q = queries, N = retrieved per query
+    Space Complexity: O(1) additional
+    
+    Args:
+        queries: List of (retrieved_docs, relevant_docs) tuples
+    
+    Returns:
+        MAP score between 0.0 and 1.0
+    """
+    if not queries:
+        return 0.0
+    
+    ap_scores = [average_precision(r, rel) for r, rel in queries]
+    return sum(ap_scores) / len(ap_scores)
+```
+
+## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity |
+|-----------|-----------------|------------------|
+| AP computation | O(N) | O(1) |
+| MAP computation | O(Q × N) | O(1) |
+
+Where N is the number of retrieved documents and Q is the number of queries.
+
 ## Worked Example
 
 **Query**: "HNSW algorithm complexity"
@@ -59,6 +136,15 @@ MAP = (1/|Q|) × Σⱼ AP(qⱼ)
 | All retrieved docs relevant      | AP = 1.0                            |
 | Relevant docs at end of list     | Low AP (penalized for late ranking) |
 
+## Real-World Context
+
+| Company | Use Case | MAP Application |
+|---------|----------|-----------------|
+| **Google** | Search ranking | MAP for result ordering evaluation |
+| **Amazon** | Product search | MAP for relevance ranking |
+| **Spotify** | Music recommendation | MAP for playlist quality |
+| **LinkedIn** | Job recommendations | MAP for job-candidate matching |
+
 ## MAP vs Other Metrics
 
 | Metric      | Multi-relevant? | Position-aware? | Best for                          |
@@ -69,70 +155,25 @@ MAP = (1/|Q|) × Σⱼ AP(qⱼ)
 | nDCG        | ✅ (graded)     | ✅              | Graded relevance                  |
 | **MAP**     | ✅ (binary)     | ✅              | Binary relevance, ranking quality |
 
-## When to Use MAP in RAG
+## Learning Outcomes
 
-1. **Reranker evaluation**: Does the reranker put all relevant chunks near the top?
-2. **Embedding model comparison**: Which model finds more relevant chunks earlier?
-3. **Chunk size experiments**: Does smaller/larger chunks improve relevance ranking?
+After completing this challenge, you will:
+- Master the gold standard metric for retrieval evaluation
+- Understand how MAP rewards early ranking of relevant docs
+- Be able to evaluate multi-relevant-document retrieval
 
-## Implementation
+## Resources
 
-```python
-def average_precision(retrieved: List[str], relevant: Set[str]) -> float:
-    """
-    Compute Average Precision for a single query.
+### Papers
+- **"A Theory of Evaluation Metrics"** - Manning et al.
+- **"Evaluation in Information Retrieval"** - IR textbook chapter
 
-    Args:
-        retrieved: Ordered list of retrieved doc IDs
-        relevant: Set of relevant doc IDs
+### Tools
+- **ir-measures**: Comprehensive IR metrics including MAP
+- **pytrec_eval**: TREC evaluation with MAP support
 
-    Returns:
-        AP score (0.0 to 1.0)
-    """
-    if not relevant:
-        return 0.0
+## Related Challenges
 
-    score = 0.0
-    relevant_count = 0
-
-    for i, doc_id in enumerate(retrieved, start=1):
-        if doc_id in relevant:
-            relevant_count += 1
-            precision_at_i = relevant_count / i
-            score += precision_at_i
-
-    return score / len(relevant)
-
-
-def mean_average_precision(queries: List[Tuple[List[str], Set[str]]]) -> float:
-    """
-    Compute MAP across multiple queries.
-
-    Args:
-        queries: List of (retrieved_docs, relevant_docs) tuples
-
-    Returns:
-        MAP score (0.0 to 1.0)
-    """
-    if not queries:
-        return 0.0
-
-    return sum(average_precision(r, rel) for r, rel in queries) / len(queries)
-```
-
-## Production Benchmarks
-
-| System            | MAP on MS MARCO | Notes                |
-| ----------------- | --------------- | -------------------- |
-| BM25 baseline     | ~0.18           | Lexical only         |
-| Dense (DPR)       | ~0.31           | Semantic             |
-| Hybrid + rerank   | ~0.38-0.42      | Production default   |
-| ColBERT v2        | ~0.40           | Late interaction     |
-| Fine-tuned domain | ~0.45-0.55      | Domain-specific data |
-
-## Common Mistakes
-
-1. **Forgetting unjudged docs**: In real evals, some docs are "unjudged" — handle them consistently
-2. **Truncating before all relevant found**: If you cut off at K, unfound relevant docs still count against you
-3. **Confusing with R-Precision**: R-Precision is Precision@R where R = number of relevant docs
-
+- [evaluator-mrr](evaluator-mrr) - First-relevant rank metric
+- [evaluator-ndcg](evaluator-ndcg) - Graded relevance metric
+- [beir-evaluation-setup](beir-evaluation-setup) - Benchmark evaluation

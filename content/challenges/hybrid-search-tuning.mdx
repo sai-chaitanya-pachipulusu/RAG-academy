@@ -1,30 +1,237 @@
 ﻿---
-title: "Hybrid Search Weight Optimization"
-description: "Tune the balance between BM25 and dense retrieval for optimal results"
-difficulty: "medium"
-xpReward: 100
+title: "Hybrid Search Tuning"
+description: "Tune hybrid search parameters combining BM25 and vector similarity for optimal document retrieval"
+difficulty: "advanced"
+estimatedMinutes: 90
+xpReward: 150
+prerequisites: ["bm25-from-scratch", "rrf-fusion"]
+related: ["rerank-cascade", "multi-query-fusion", "query-routing"]
+next: "rerank-cascade"
 ---
 
-# Hybrid Search Weight Optimization
+# Hybrid Search Tuning
 
-## Overview
+**Difficulty**: Tier 3 - Advanced Retrieval  
+**Prerequisites**: Chunking, Embedding basics, Basic Retrieval, BM25 Implementation  
+**Time Estimate**: 4-6 hours
 
-Hybrid search combines keyword (BM25) and semantic (dense) retrieval. The optimal balance varies significantly by domain—legal docs might need 70% BM25, while conversational queries might need 70% dense.
+## Objective
 
-## Why This Matters
+Tune hybrid search parameters combining BM25 and vector similarity for optimal document retrieval, achieving better recall and precision than either approach alone.
 
-- **Domain Optimization**: One size doesn't fit all
-- **Quality Improvement**: 10-30% recall gains with proper tuning
-- **A/B Testing**: Data-driven approach to search quality
+## Purpose
 
-## Key Concepts
+Hybrid search combines lexical and semantic retrieval to capture both exact keyword matches and conceptual similarity. Learning to tune these systems is essential for production RAG applications where queries vary in their need for keyword precision versus semantic understanding.
 
-- Grid search for weight optimization
-- Evaluation metrics (recall, MRR, NDCG)
-- Domain-specific tuning strategies
-- Bayesian optimization for large search spaces
+### Real-World Impact
+- **E-commerce**: Product searches requiring exact SKUs + semantic similarity
+- **Legal research**: Citation matching (exact) + case law relevance (semantic)
+- **Technical support**: Error codes (exact) + symptom descriptions (semantic)
+- **News search**: Entity names (exact) + topic relevance (semantic)
 
-## Real-World Applications
+## The Problem
 
-Pinecone, Weaviate, and Elasticsearch all provide hybrid search. Tuning is essential for production quality.
+Most production RAG systems use either pure vector search or pure keyword search. Pure vector search misses exact keyword matches, while pure keyword search misses semantic relationships. Hybrid search combines both but requires careful tuning of:
+- Weight balance between lexical and semantic components (α parameter)
+- Score normalization across different scales
+- Fusion algorithm selection and parameters
+- Query-specific adaptation strategies
 
+### Production Pain Points
+- **Score scale mismatch**: BM25 scores (0-∞) vs cosine similarity [-1, 1]
+- **Query drift**: Same α doesn't work for all query types
+- **Latency overhead**: Two retrievers = 2x base latency
+- **Index synchronization**: Keeping BM25 and vector indices in sync
+
+## Theory
+
+### Score Normalization
+
+Before combining scores, normalize to common scale [0, 1]:
+
+**Min-Max Normalization**:
+```
+normalized_score = (score - min_score) / (max_score - min_score)
+```
+
+**Sigmoid Normalization** (for unbounded scores):
+```
+normalized_score = 1 / (1 + exp(-(score - μ) / σ))
+```
+
+**Rank-based Normalization** (RRF):
+```
+rrf_score = 1 / (k + rank)
+```
+
+### Linear Combination Formula
+
+```
+final_score = α × norm_vector_score + (1-α) × norm_bm25_score
+```
+
+Where α ∈ [0, 1]:
+- α = 0: Pure BM25
+- α = 1: Pure vector search
+- α = 0.5: Equal weight (default)
+
+### Query-Type Classification
+
+Different query types favor different α values:
+
+| Query Type | Description | Optimal α | Example |
+|------------|-------------|-----------|---------|
+| Entity | Named entities, IDs | 0.2-0.3 | "GPT-4 API pricing" |
+| Factual | Specific facts | 0.4-0.5 | "What is attention mechanism?" |
+| Conceptual | Abstract concepts | 0.6-0.8 | "Explain transformer architecture" |
+| Ambiguous | Open-ended | 0.7-0.9 | "Best practices for ML" |
+
+## The Algorithm
+
+```python
+def hybrid_search(
+    query: str,
+    bm25_index: BM25Index,
+    vector_index: VectorIndex,
+    alpha: float = 0.5,
+    k: int = 10,
+    fusion_method: str = "linear"
+) -> list[tuple[int, float]]:
+    """
+    Hybrid search combining BM25 and vector retrieval.
+    
+    Time Complexity: O(BM25_search + Vector_search + fusion)
+    Space Complexity: O(|BM25_results| + |Vector_results|)
+    
+    Args:
+        query: Search query
+        bm25_index: BM25 sparse index
+        vector_index: Dense vector index
+        alpha: Weight for vector score (1-alpha for BM25)
+        k: Number of results
+        fusion_method: "linear", "rrf", or "weighted"
+        
+    Returns:
+        Fused ranked list
+    """
+    # Get results from both retrievers
+    bm25_results = bm25_index.search(query, k=k*2)  # [(doc_id, score), ...]
+    vector_results = vector_index.search(query, k=k*2)
+    
+    if fusion_method == "linear":
+        return _linear_fusion(bm25_results, vector_results, alpha, k)
+    elif fusion_method == "rrf":
+        return _rrf_fusion(bm25_results, vector_results, k)
+    else:
+        raise ValueError(f"Unknown fusion method: {fusion_method}")
+
+
+def _linear_fusion(
+    bm25_results: list[tuple[int, float]],
+    vector_results: list[tuple[int, float]],
+    alpha: float,
+    k: int
+) -> list[tuple[int, float]]:
+    """Linear combination with score normalization."""
+    from collections import defaultdict
+    
+    # Normalize scores to [0, 1]
+    bm25_scores = {doc_id: score for doc_id, score in bm25_results}
+    vector_scores = {doc_id: score for doc_id, score in vector_results}
+    
+    if bm25_scores:
+        bm25_min, bm25_max = min(bm25_scores.values()), max(bm25_scores.values())
+        bm25_range = bm25_max - bm25_min if bm25_max != bm25_min else 1
+    else:
+        bm25_min, bm25_range = 0, 1
+    
+    if vector_scores:
+        vec_min, vec_max = min(vector_scores.values()), max(vector_scores.values())
+        vec_range = vec_max - vec_min if vec_max != vec_min else 1
+    else:
+        vec_min, vec_range = 0, 1
+    
+    # Combine scores
+    all_docs = set(bm25_scores.keys()) | set(vector_scores.keys())
+    fused_scores = {}
+    
+    for doc_id in all_docs:
+        bm25_norm = (bm25_scores.get(doc_id, 0) - bm25_min) / bm25_range
+        vec_norm = (vector_scores.get(doc_id, 0) - vec_min) / vec_range
+        fused_scores[doc_id] = alpha * vec_norm + (1 - alpha) * bm25_norm
+    
+    return sorted(fused_scores.items(), key=lambda x: x[1], reverse=True)[:k]
+
+
+def _rrf_fusion(
+    bm25_results: list[tuple[int, float]],
+    vector_results: list[tuple[int, float]],
+    k: int,
+    rrf_k: int = 60
+) -> list[tuple[int, float]]:
+    """Reciprocal Rank Fusion."""
+    from collections import defaultdict
+    
+    rrf_scores = defaultdict(float)
+    
+    # Process BM25 ranks
+    for rank, (doc_id, _) in enumerate(bm25_results, start=1):
+        rrf_scores[doc_id] += 1.0 / (rrf_k + rank)
+    
+    # Process vector ranks
+    for rank, (doc_id, _) in enumerate(vector_results, start=1):
+        rrf_scores[doc_id] += 1.0 / (rrf_k + rank)
+    
+    return sorted(rrf_scores.items(), key=lambda x: x[1], reverse=True)[:k]
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| BM25 search | O(\|Q\| × D) | Query terms × doc freq |
+| Vector search | O(N × d) or O(log N) | Depends on index |
+| Fusion | O(R) | R = results to fuse |
+| Total | O(BM25 + Vector) | Parallelizable |
+
+## Setup
+
+You have:
+- A vector store with 1000 documents indexed (768-dim embeddings)
+- BM25 index over the same documents (k1=1.5, b=0.75)
+- A set of 50 test queries with relevance judgments (graded 0-3)
+- A baseline RRF fusion pipeline with default weights
+- Query classification training data (200 labeled queries)
+
+## Challenges
+
+### Challenge 1: Weight Optimization
+
+Given the test queries, find the optimal α (alpha) weight for combining scores:
+
+final_score = α × normalized_vector_score + (1-α) × normalized_bm25_score
+
+Experiment with α values from 0.0 to 1.0 in 0.1 increments.
+
+**Acceptance Criteria:**
+- Find α value achieving highest nDCG@10 (target: > 0.65)
+- Document the trade-off as α changes
+- Handle edge cases where one retriever returns no results
+
+## Resources
+
+### Papers
+- **"Comparing Fusion Methods"** - Research on hybrid retrieval
+- **"Learning to Rank for Hybrid Search"** - ML-based fusion
+
+### Tools
+- **Elasticsearch**: Built-in hybrid search
+- **Pinecone**: Hybrid search with alpha tuning
+- **Weaviate**: GraphQL-based hybrid queries
+
+## Related Challenges
+
+- [rrf-fusion](rrf-fusion) - Rank-based fusion
+- [rerank-cascade](rerank-cascade) - Multi-stage ranking
+- [multi-query-fusion](multi-query-fusion) - Multiple query variants
+- [query-routing](query-routing) - Route to best retriever

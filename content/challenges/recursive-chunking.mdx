@@ -1,10 +1,12 @@
 ﻿---
 title: "Recursive Chunking: The Production Standard"
 description: "The industry-standard algorithm that balances size consistency with semantic preservation"
-difficulty: "hard"
-timeEstimate: "40-50 min"
+difficulty: "intermediate"
+estimatedMinutes: 45
 xpReward: 100
 prerequisites: ["paragraph-based-chunking"]
+related: ["section-based-chunking", "semantic-chunking", "hierarchical-chunking"]
+next: "section-based-chunking"
 ---
 
 # Recursive Chunking: The Production Standard
@@ -35,18 +37,24 @@ Documents have **hierarchy**: Sections > Paragraphs > Sentences > Words
 ```python
 def recursive_chunk(text, size, separators=['\n\n', '\n', '. ', ' ', '']):
     """
+    Recursively chunk text using hierarchical separators.
+    
+    Time Complexity: O(N × S) where N = text length, S = separators
+    Space Complexity: O(N) for recursion stack and output
+    
+    Algorithm:
     1. Try first separator (paragraphs)
     2. If any piece > size, recursively split with next separator
     3. Continue until using character splits as last resort
     """
     sep = separators[0]
     remaining = separators[1:]
-
+    
     pieces = text.split(sep) if sep else list(text)
-
+    
     chunks = []
     current = ""
-
+    
     for piece in pieces:
         if len(current) + len(piece) < size:
             current += piece + sep
@@ -58,7 +66,7 @@ def recursive_chunk(text, size, separators=['\n\n', '\n', '. ', ' ', '']):
                 chunks.extend(recursive_chunk(piece, size, remaining))
             else:
                 current = piece
-
+    
     return chunks
 ```
 
@@ -154,6 +162,23 @@ If you're not sure which chunking to use, use recursive.
 
 ---
 
+## Resources
+
+### Documentation
+- [LangChain RecursiveCharacterTextSplitter](https://python.langchain.com/docs/how_to/recursive_text_splitter/)
+- [LlamaIndex SentenceSplitter](https://docs.llamaindex.ai/en/stable/api_reference/node_parsers/sentence/)
+
+### Tutorials
+- [Production Chunking Guide](https://www.pinecone.io/learn/chunking-strategies/)
+- [LangChain Text Splitters Deep Dive](https://python.langchain.com/docs/concepts/text_splitters/)
+
+### Tools
+- **LangChain**: `RecursiveCharacterTextSplitter`
+- **LlamaIndex**: `SentenceSplitter`
+- **Unstructured**: `RecursiveChunker`
+
+---
+
 ## Key Insight
 
 Recursive chunking teaches us:
@@ -166,7 +191,6 @@ Start with the best option, fall back systematically.
 
 ## Related Challenges
 
-- `section-based-chunking` - When you have explicit structure
-- `semantic-chunking` - When you need AI-detected boundaries
-- `hierarchical-chunking` - When you need multiple resolutions
-
+- [section-based-chunking](section-based-chunking) - When you have explicit structure
+- [semantic-chunking](semantic-chunking) - When you need AI-detected boundaries
+- [hierarchical-chunking](hierarchical-chunking) - When you need multiple resolutions

@@ -1,42 +1,277 @@
 ---
 title: "RAG Audit Logging"
 description: "Implement comprehensive audit logging for RAG"
+difficulty: intermediate
+xpReward: 120
+estimatedMinutes: 30
+topics: ["logging", "audit", "compliance", "debugging", "production"]
+language: python
+prerequisites:
+  - basic-retrieval
+  - rag-usage-dashboard
+xp: 140
+related:
+  - rag-observability
+  - rag-failure-diagnosis
+  - rag-cost-tracker
+next:
+  - rag-observability
+  - rag-failure-diagnosis
 ---
 
 # RAG Audit Logging
 
-Implement an audit logging system that tracks all RAG operations for compliance and debugging.
+Implement an audit logging system that tracks all RAG operations for compliance, debugging, and quality analysis.
 
-## Requirements
+## Why This Matters
 
-1. Log all queries and retrievals
-2. Log generation inputs and outputs
-3. Track latency per stage
-4. Store in searchable format
+Audit logs are critical for:
+- **Compliance**: GDPR, HIPAA, SOC 2 require data access tracking
+- **Debugging**: Reconstruct what happened for failed queries
+- **Quality Analysis**: Understand retrieval vs generation issues
+- **Security**: Detect unauthorized access or prompt injection
+- **Cost Attribution**: Track usage by user/team/feature
 
-## Starter Code
+## Real-World Application
+
+**Companies:** Fintech, Healthcare, Enterprise SaaS
+**Regulations:** GDPR Article 30, HIPAA 164.308, SOC 2 CC7.2
+**Use Cases:**
+- Customer support ticket auditing
+- Financial advice compliance
+- Healthcare data access tracking
+- Security incident investigation
+
+## Key Concepts
+
+### The Four Ws of Audit Logging
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| **Who** | Identity requesting | `user_id: "user_123"` |
+| **What** | Action performed | `action: "rag_query"` |
+| **When** | Timestamp with timezone | `timestamp: "2024-01-15T10:30:00Z"` |
+| **Why** | Context/justification | `session_id: "sess_456"` |
+
+### Log Levels
+
+```python
+from enum import Enum
+
+class AuditLevel(Enum):
+    """Audit log severity levels."""
+    DEBUG = "debug"      # Detailed tracing
+    INFO = "info"        # Normal operations
+    WARNING = "warning"  # Suspicious patterns
+    ERROR = "error"      # Failures
+    CRITICAL = "critical"  # Security events
+```
+
+### PII Handling
+
+```python
+import hashlib
+from typing import Optional
+
+def hash_pii(value: str, salt: str = "") -> str:
+    """Hash personally identifiable information."""
+    return hashlib.sha256(f"{value}{salt}".encode()).hexdigest()[:16]
+
+def redact_sensitive(query: str) -> str:
+    """Redact sensitive patterns (emails, SSNs, etc.)."""
+    import re
+    # Redact emails
+    query = re.sub(r'\S+@\S+\.\S+', '[EMAIL_REDACTED]', query)
+    # Redact SSNs
+    query = re.sub(r'\d{3}-\d{2}-\d{4}', '[SSN_REDACTED]', query)
+    return query
+```
+
+## Audit Log Schema
+
+```python
+from dataclasses import dataclass, field
+from typing import List, Dict, Optional
+from datetime import datetime
+import uuid
+
+@dataclass
+class AuditLogEntry:
+    """Complete audit record for a RAG operation."""
+    
+    # Identification
+    log_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    timestamp: datetime = field(default_factory=datetime.utcnow)
+    
+    # Actor
+    user_id: Optional[str] = None
+    session_id: Optional[str] = None
+    api_key_id: Optional[str] = None
+    ip_address: Optional[str] = None
+    
+    # Action
+    action: str = ""  # "rag_query", "index_update", "feedback"
+    
+    # Query details
+    query: str = ""
+    query_hash: str = ""  # For deduplication
+    
+    # Retrieval details
+    retrieved_doc_ids: List[str] = field(default_factory=list)
+    retrieval_scores: List[float] = field(default_factory=list)
+    num_docs_retrieved: int = 0
+    
+    # Generation details
+    context_used: str = ""
+    response: str = ""
+    response_hash: str = ""
+    model_used: str = ""
+    
+    # Performance
+    latency_ms: float = 0.0
+    tokens_in: int = 0
+    tokens_out: int = 0
+    
+    # Metadata
+    metadata: Dict = field(default_factory=dict)
+    tags: List[str] = field(default_factory=list)
+    
+    # Quality
+    user_feedback: Optional[str] = None  # "thumbs_up", "thumbs_down"
+    
+    # Status
+    success: bool = True
+    error_message: Optional[str] = None
+```
+
+## Resources
+
+### Documentation
+- [OWASP Logging Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html)
+- [GDPR Article 30](https://gdpr.eu/article-30-records-of-processing/)
+- [ISO 27001 Audit Requirements](https://www.iso.org/standard/27001)
+
+### Tools
+- **ELK Stack**: Elasticsearch, Logstash, Kibana
+- **Splunk**: Enterprise log analysis
+- **Datadog Logs**: Cloud log management
+- **Papertrail**: Simple log aggregation
+
+### Storage Backends
+
+```python
+from abc import ABC, abstractmethod
+from typing import List
+
+class AuditStorage(ABC):
+    """Abstract storage backend for audit logs."""
+    
+    @abstractmethod
+    def write(self, entry: AuditLogEntry):
+        """Write a log entry."""
+        pass
+    
+    @abstractmethod
+    def query(self, filters: Dict, limit: int = 100) -> List[AuditLogEntry]:
+        """Query log entries."""
+        pass
+
+class FileAuditStorage(AuditStorage):
+    """Simple file-based storage."""
+    
+    def __init__(self, filepath: str):
+        self.filepath = filepath
+    
+    def write(self, entry: AuditLogEntry):
+        import json
+        with open(self.filepath, 'a') as f:
+            f.write(json.dumps(entry.__dict__, default=str) + '\n')
+
+class S3AuditStorage(AuditStorage):
+    """S3-based storage for scalability."""
+    
+    def __init__(self, bucket: str, prefix: str = "audit/"):
+        self.bucket = bucket
+        self.prefix = prefix
+```
+
+## Challenge Linking
+
+**Prerequisites:**
+- Complete [Basic Retrieval](/challenges/basic-retrieval) for RAG fundamentals
+- Complete [RAG Usage Dashboard](/challenges/rag-usage-dashboard) for metrics basics
+
+**Next Steps:**
+- [RAG Observability](/challenges/rag-observability) - Full observability stack
+- [RAG Failure Diagnosis](/challenges/rag-failure-diagnosis) - Debug with audit logs
+
+## Your Task
+
+Implement a `RAGAuditLogger` class that:
+
+1. Logs all queries and retrievals with structured data
+2. Logs generation inputs and outputs (with PII handling)
+3. Tracks latency per stage
+4. Stores in searchable format
+5. Supports querying and aggregation
+
+### Requirements
+
+1. **Structured logging**: JSON format with consistent schema
+2. **PII handling**: Hash or redact sensitive data
+3. **Immutability**: Append-only logs, no modifications
+4. **Searchability**: Query by user, time range, tags
+5. **Retention**: Configurable log retention policies
 
 ```python
 import json
 from datetime import datetime
+from typing import List, Optional, Dict
+import hashlib
 
 class RAGAuditLogger:
-    def __init__(self, storage_backend):
+    def __init__(self, storage_backend, pii_salt: str = ""):
+        """
+        Initialize audit logger.
+        
+        Args:
+            storage_backend: Where to store logs
+            pii_salt: Salt for hashing PII
+        """
         self.storage = storage_backend
+        self.pii_salt = pii_salt
     
     def log_query(self, query_id: str, user_id: str, query: str):
         """Log incoming query."""
-        pass
+        pass  # TODO: Implement
     
     def log_retrieval(self, query_id: str, chunks: list[dict], latency_ms: float):
         """Log retrieval results."""
-        pass
+        pass  # TODO: Implement
     
     def log_generation(self, query_id: str, context: str, response: str, latency_ms: float):
         """Log generation."""
-        pass
+        pass  # TODO: Implement
     
     def get_audit_trail(self, query_id: str) -> dict:
         """Get complete audit trail for a query."""
-        pass
+        pass  # TODO: Implement
+```
+
+### Example Output
+
+```json
+{
+  "log_id": "550e8400-e29b-41d4-a716-446655440000",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "user_id": "user_123",
+  "action": "rag_query",
+  "query_hash": "a3f5c8e9d2b1",
+  "retrieved_doc_ids": ["doc_1", "doc_2", "doc_3"],
+  "num_docs_retrieved": 3,
+  "latency_ms": 450.5,
+  "tokens_in": 2500,
+  "tokens_out": 180,
+  "success": true
+}
 ```

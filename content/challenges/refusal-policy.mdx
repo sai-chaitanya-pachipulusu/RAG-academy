@@ -1,23 +1,474 @@
-﻿<Callout title="Goal" variant="warning">
+﻿---
+title: "Refusal Policy"
+description: |
+  Decide when to answer vs refuse when context is insufficient. Implement calibrated
+  refusal mechanisms to prevent hallucinations and maintain user trust.
+difficulty: beginner
+estimatedMinutes: 20
+topics: ["safety", "refusal", "hallucination-prevention", "calibration"]
+language: python
+prerequisites:
+  - basic-retrieval
+  - output-safety-filter
+related:
+  - hallucination-detection
+  - faithfulness-judge
+  - citation-range-validator
+next:
+  - hallucination-detection
+  - faithfulness-judge
+xp: 60
+---
+
+# Refusal Policy
+
+<Callout title="Goal" variant="warning">
   Decide when to answer vs refuse when context is insufficient.
+  A refusal policy is your safety valve against confident hallucinations.
 </Callout>
 
-## Why this matters in production
+## Why Refusal Matters
 
-The most dangerous failure mode is confident hallucination.
+The most dangerous failure mode in RAG is **confident hallucination** — when the model makes up information because retrieval failed, but presents it as fact.
 
 A refusal policy is a **safety valve**:
 
-- if retrieval fails, you refuse or ask a follow-up question
-- you don’t “fill in the gaps” from model priors
+- If retrieval fails → refuse or ask a follow-up question
+- If confidence is low → admit uncertainty
+- If context is irrelevant → don't "fill in the gaps" from model priors
 
-This lab uses a simple overlap gate to teach the concept.
+### The Cost of Wrong Answers vs Refusals
 
-## Production extensions (optional)
+| Scenario | User Impact | Business Impact |
+|----------|-------------|-----------------|
+| Wrong answer | Misinformation, bad decisions | Liability, trust loss |
+| Refusal | Mild frustration | Opportunity to improve |
+| Uncertain answer | Confusion | Support tickets |
 
-- use calibrated retrieval thresholds
-- add a “need more info” follow-up question generator
-- log refusal rates and investigate spikes (retrieval regressions)
+**Rule of thumb**: A good refusal is better than a bad answer.
 
+## The Theory
 
+### When to Refuse
 
+```python
+# Decision matrix
+REFUSAL_TRIGGERS = {
+    "no_documents": "No relevant documents retrieved",
+    "low_similarity": "Top document similarity below threshold",
+    "query_mismatch": "Retrieved docs don't match query intent",
+    "insufficient_coverage": "Answer would require information not in context",
+    "conflicting_sources": "Retrieved documents contradict each other",
+    "out_of_scope": "Query outside system's knowledge domain"
+}
+```
+
+### Calibrated Refusal
+
+$$\text{Should Answer} = \begin{cases} \text{Yes} & \text{if } S_{\text{retrieval}} > \theta_1 \text{ and } C_{\text{coverage}} > \theta_2 \\ \text{No} & \text{otherwise} \end{cases}$$
+
+Where:
+- $S_{\text{retrieval}}$ = Retrieval similarity score
+- $C_{\text{coverage}}$ = Query coverage by retrieved docs
+- $\theta_1, \theta_2$ = Calibrated thresholds
+
+## Your Task
+
+Implement a calibrated refusal policy:
+
+```python
+from typing import List, Dict, Optional, Tuple
+from dataclasses import dataclass
+from enum import Enum
+
+class RefusalReason(Enum):
+    """Reasons for refusing to answer."""
+    NO_DOCUMENTS = "no_documents"
+    LOW_RELEVANCE = "low_relevance"
+    INSUFFICIENT_CONTEXT = "insufficient_context"
+    CONFLICTING_SOURCES = "conflicting_sources"
+    OUT_OF_SCOPE = "out_of_scope"
+    UNCERTAIN = "uncertain"
+
+@dataclass
+class RefusalDecision:
+    """Decision to answer or refuse."""
+    should_answer: bool
+    reason: Optional[RefusalReason]
+    confidence: float
+    explanation: str
+    follow_up_question: Optional[str] = None
+
+class RefusalPolicy:
+    """
+    Calibrated refusal policy for RAG systems.
+    
+    Usage:
+        >>> policy = RefusalPolicy(
+        ...     min_similarity=0.5,
+        ...     min_coverage=0.3
+        ... )
+        >>> decision = policy.should_answer(
+        ...     query="What is X?",
+        ...     documents=[],
+        ...     similarities=[]
+        ... )
+        >>> decision.should_answer
+        False
+    """
+    
+    def __init__(
+        self,
+        min_similarity: float = 0.5,
+        min_coverage: float = 0.3,
+        max_conflict_score: float = 0.8,
+        enable_follow_up: bool = True
+    ):
+        """
+        Initialize refusal policy.
+        
+        Args:
+            min_similarity: Minimum similarity score for top document
+            min_coverage: Minimum query term coverage in retrieved docs
+            max_conflict_score: Maximum allowed contradiction between sources
+            enable_follow_up: Suggest follow-up questions when refusing
+        """
+        self.min_similarity = min_similarity
+        self.min_coverage = min_coverage
+        self.max_conflict_score = max_conflict_score
+        self.enable_follow_up = enable_follow_up
+    
+    def calculate_coverage(
+        self, 
+        query: str, 
+        documents: List[str]
+    ) -> float:
+        """
+        Calculate what fraction of query terms appear in retrieved documents.
+        
+        Args:
+            query: User query
+            documents: Retrieved documents
+            
+        Returns:
+            Coverage ratio 0-1
+        """
+        query_terms = set(query.lower().split())
+        if not query_terms:
+            return 0.0
+        
+        doc_text = " ".join(documents).lower()
+        covered_terms = sum(1 for term in query_terms if term in doc_text)
+        
+        return covered_terms / len(query_terms)
+    
+    def detect_conflicts(self, documents: List[str]) -> float:
+        """
+        Detect contradictions between retrieved documents.
+        
+        Returns conflict score 0-1 (higher = more conflict).
+        """
+        # Simplified: check for negation words near shared terms
+        # In production, use NLI models
+        if len(documents) < 2:
+            return 0.0
+        
+        conflict_indicators = 0
+        total_checks = 0
+        
+        for i, doc1 in enumerate(documents):
+            for doc2 in documents[i+1:]:
+                # Check for negation patterns
+                if ("not " in doc1 and "not " not in doc2) or \
+                   ("not " in doc2 and "not " not in doc1):
+                    conflict_indicators += 1
+                total_checks += 1
+        
+        return conflict_indicators / total_checks if total_checks > 0 else 0.0
+    
+    def should_answer(
+        self,
+        query: str,
+        documents: List[str],
+        similarities: List[float]
+    ) -> RefusalDecision:
+        """
+        Decide whether to answer or refuse.
+        
+        Args:
+            query: User query
+            documents: Retrieved documents
+            similarities: Similarity scores for documents
+            
+        Returns:
+            RefusalDecision with reasoning
+        """
+        # Check 1: No documents retrieved
+        if not documents or not similarities:
+            return RefusalDecision(
+                should_answer=False,
+                reason=RefusalReason.NO_DOCUMENTS,
+                confidence=1.0,
+                explanation="No relevant documents were found for your query.",
+                follow_up_question="Could you rephrase your question?" if self.enable_follow_up else None
+            )
+        
+        # Check 2: Low relevance
+        top_similarity = max(similarities)
+        if top_similarity < self.min_similarity:
+            return RefusalDecision(
+                should_answer=False,
+                reason=RefusalReason.LOW_RELEVANCE,
+                confidence=1.0 - top_similarity,
+                explanation=f"The most relevant document has a similarity of {top_similarity:.2f}, which is below our threshold.",
+                follow_up_question="Can you provide more specific details?" if self.enable_follow_up else None
+            )
+        
+        # Check 3: Insufficient coverage
+        coverage = self.calculate_coverage(query, documents)
+        if coverage < self.min_coverage:
+            return RefusalDecision(
+                should_answer=False,
+                reason=RefusalReason.INSUFFICIENT_CONTEXT,
+                confidence=1.0 - coverage,
+                explanation="The retrieved documents don't cover all aspects of your question.",
+                follow_up_question="Which specific aspect are you most interested in?" if self.enable_follow_up else None
+            )
+        
+        # Check 4: Conflicting sources
+        conflict_score = self.detect_conflicts(documents)
+        if conflict_score > self.max_conflict_score:
+            return RefusalDecision(
+                should_answer=False,
+                reason=RefusalReason.CONFLICTING_SOURCES,
+                confidence=conflict_score,
+                explanation="The retrieved documents contain conflicting information.",
+                follow_up_question="Would you like me to present both viewpoints?" if self.enable_follow_up else None
+            )
+        
+        # All checks passed
+        confidence = (top_similarity + coverage) / 2
+        return RefusalDecision(
+            should_answer=True,
+            reason=None,
+            confidence=confidence,
+            explanation="Retrieved documents appear sufficient to answer the query."
+        )
+    
+    def generate_refusal_response(self, decision: RefusalDecision) -> str:
+        """Generate a polite, helpful refusal message."""
+        
+        base_message = f"I don't have enough information to answer that question confidently. {decision.explanation}"
+        
+        if decision.follow_up_question:
+            base_message += f"\n\n{decision.follow_up_question}"
+        
+        return base_message
+
+# Pre-configured policies for different use cases
+STRICT_POLICY = RefusalPolicy(
+    min_similarity=0.7,
+    min_coverage=0.5,
+    max_conflict_score=0.5
+)
+
+BALANCED_POLICY = RefusalPolicy(
+    min_similarity=0.5,
+    min_coverage=0.3,
+    max_conflict_score=0.8
+)
+
+PERMISSIVE_POLICY = RefusalPolicy(
+    min_similarity=0.3,
+    min_coverage=0.1,
+    max_conflict_score=0.9
+)
+```
+
+## Example Usage
+
+```python
+# Initialize policy
+policy = RefusalPolicy(min_similarity=0.5, min_coverage=0.3)
+
+# Test scenarios
+scenarios = [
+    {
+        "query": "What is the company's revenue?",
+        "documents": ["Q3 revenue was $15.2M, up 25% from Q2."],
+        "similarities": [0.85]
+    },
+    {
+        "query": "What are the CEO's hobbies?",
+        "documents": [],
+        "similarities": []
+    },
+    {
+        "query": "Tell me about product X",
+        "documents": ["Product Y is our flagship..."],
+        "similarities": [0.3]
+    }
+]
+
+for scenario in scenarios:
+    decision = policy.should_answer(
+        scenario["query"],
+        scenario["documents"],
+        scenario["similarities"]
+    )
+    
+    print(f"Query: {scenario['query']}")
+    print(f"Decision: {'ANSWER' if decision.should_answer else 'REFUSE'}")
+    print(f"Reason: {decision.reason.value if decision.reason else 'N/A'}")
+    print(f"Confidence: {decision.confidence:.2f}")
+    
+    if not decision.should_answer:
+        print(f"Response: {policy.generate_refusal_response(decision)}")
+    print()
+```
+
+## Testing
+
+```python
+def test_refusal_policy():
+    policy = RefusalPolicy(min_similarity=0.5, min_coverage=0.3)
+    
+    # Test 1: Good retrieval → Answer
+    decision = policy.should_answer(
+        "What is the revenue?",
+        ["Revenue was $10M"],
+        [0.8]
+    )
+    assert decision.should_answer is True
+    print("✓ Good retrieval: Answer")
+    
+    # Test 2: No documents → Refuse
+    decision = policy.should_answer(
+        "What is the revenue?",
+        [],
+        []
+    )
+    assert decision.should_answer is False
+    assert decision.reason == RefusalReason.NO_DOCUMENTS
+    print("✓ No documents: Refuse")
+    
+    # Test 3: Low similarity → Refuse
+    decision = policy.should_answer(
+        "What is the revenue?",
+        ["Something unrelated"],
+        [0.2]
+    )
+    assert decision.should_answer is False
+    assert decision.reason == RefusalReason.LOW_RELEVANCE
+    print("✓ Low similarity: Refuse")
+    
+    # Test 4: Low coverage → Refuse
+    decision = policy.should_answer(
+        "What is the revenue and profit margin?",
+        ["Revenue was $10M"],  # Missing profit margin
+        [0.9]
+    )
+    assert decision.should_answer is False
+    assert decision.reason == RefusalReason.INSUFFICIENT_CONTEXT
+    print("✓ Low coverage: Refuse")
+    
+    # Test 5: Refusal message generation
+    decision = policy.should_answer("Test", [], [])
+    message = policy.generate_refusal_response(decision)
+    assert "don't have enough information" in message
+    print("✓ Refusal message generated")
+    
+    print("\n✓ All refusal policy tests passed!")
+
+test_refusal_policy()
+```
+
+## Production Considerations
+
+### Threshold Calibration
+
+```python
+def calibrate_thresholds(
+    validation_data: List[dict],
+    target_recall: float = 0.95
+) -> Tuple[float, float]:
+    """
+    Calibrate refusal thresholds on labeled validation data.
+    
+    Args:
+        validation_data: List of {
+            "query": str,
+            "documents": List[str],
+            "similarities": List[float],
+            "should_answer": bool  # Ground truth
+        }
+        target_recall: Target recall for correct refusals
+    
+    Returns:
+        (min_similarity, min_coverage) thresholds
+    """
+    # Grid search for optimal thresholds
+    best_thresholds = (0.5, 0.3)
+    best_score = 0
+    
+    for sim_thresh in [0.3, 0.4, 0.5, 0.6, 0.7]:
+        for cov_thresh in [0.1, 0.2, 0.3, 0.4, 0.5]:
+            policy = RefusalPolicy(sim_thresh, cov_thresh)
+            
+            correct = 0
+            for item in validation_data:
+                decision = policy.should_answer(
+                    item["query"],
+                    item["documents"],
+                    item["similarities"]
+                )
+                if decision.should_answer == item["should_answer"]:
+                    correct += 1
+            
+            score = correct / len(validation_data)
+            if score > best_score:
+                best_score = score
+                best_thresholds = (sim_thresh, cov_thresh)
+    
+    return best_thresholds
+```
+
+### Monitoring Refusal Rates
+
+| Metric | Target | Alert Threshold |
+|--------|--------|-----------------|
+| Refusal rate | 5-15% | >25% |
+| False refusal rate | <5% | >10% |
+| User satisfaction | >80% | <70% |
+
+## Company Examples
+
+| Company | Approach | Result |
+|---------|----------|--------|
+| **Perplexity** | Calibrated thresholds | 8% refusal rate |
+| **ChatGPT** | Multi-factor scoring | Context-aware refusals |
+| **Claude** | Constitutional AI | Transparent reasoning |
+| **Bing Chat** | Real-time calibration | Dynamic thresholds |
+
+## Resources
+
+### Papers
+- [Calibrating AI Models](https://arxiv.org/abs/2006.07990) - Uncertainty calibration
+- [When to Trust LLMs](https://arxiv.org/abs/2308.04416) - Confidence estimation
+- [RAG Faithfulness](https://arxiv.org/abs/2312.10997) - Measuring RAG reliability
+
+### Tools
+- [RAGAS](https://github.com/explodinggradients/ragas) - RAG evaluation including refusal metrics
+- [TruLens](https://github.com/truera/trulens) - LLM evaluation with feedback
+
+## Related Challenges
+
+- [hallucination-detection](/challenges/hallucination-detection) - Detect fabricated content
+- [faithfulness-judge](/challenges/faithfulness-judge) - Evaluate answer grounding
+- [citation-range-validator](/challenges/citation-range-validator) - Verify citations
+- [output-safety-filter](/challenges/output-safety-filter) - Content safety
+
+## Next Steps
+
+- [hallucination-detection](/challenges/hallucination-detection) - Detect when models make things up
+- [faithfulness-judge](/challenges/faithfulness-judge) - Evaluate answer accuracy

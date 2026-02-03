@@ -1,21 +1,532 @@
-﻿<Callout title="Goal" variant="info">
-  Implement **weighted Reciprocal Rank Fusion (RRF)** to bias hybrid fusion toward the retriever you trust more.
+﻿---
+title: "Weighted RRF Fusion"
+description: "Implement weighted Reciprocal Rank Fusion to bias hybrid fusion toward the retriever you trust more"
+difficulty: "intermediate"
+xpReward: 120
+prerequisites: ["rrf-fusion", "hybrid-search-tuning"]
+---
+
+# Weighted RRF Fusion
+
+<Callout title="Goal" variant="info">
+  Implement weighted Reciprocal Rank Fusion (RRF) to bias hybrid fusion toward the retriever you trust more.
 </Callout>
 
-## Why this matters
+## Why This Matters
 
-Plain RRF is a great default because it’s hard to break.
+Plain RRF is a great default because it's hard to break.
 
 But sometimes you have evidence that one retriever should dominate:
 
-- Keyword-heavy corpora (IDs, error codes) → sparse/BM25 should weigh more.
-- Paraphrase-heavy queries → dense should weigh more.
+- **Keyword-heavy corpora** (IDs, error codes) → sparse/BM25 should weigh more
+- **Paraphrase-heavy queries** → dense should weigh more
+- **Domain-specific content** → one retriever may be more reliable
 
-Weighted RRF is a simple step toward “tunable hybrid” without dealing with score normalization.
+Weighted RRF is a simple step toward "tunable hybrid" without dealing with score normalization.
 
-## Warning (production reality)
+## Real-World Applications
+
+**Use Cases:**
+- Legal document search (precise terminology → BM25)
+- Technical support (error codes → BM25, descriptions → dense)
+- E-commerce (product IDs → BM25, descriptions → dense)
+- Academic search (citations → BM25, abstracts → dense)
+
+## Key Concepts
+
+### Standard RRF Formula
+
+```
+RRF_score(d) = Σ 1 / (k + rank_i(d))
+```
+
+Where `k` is a constant (typically 60) and `rank_i(d)` is the rank of document `d` in retriever `i`.
+
+### Weighted RRF Formula
+
+```
+Weighted_RRF_score(d) = Σ w_i / (k + rank_i(d))
+```
+
+Where `w_i` is the weight for retriever `i`.
+
+### Weight Selection
+
+| Scenario | Dense Weight | Sparse Weight | Rationale |
+|----------|-------------|---------------|-----------|
+| General QA | 0.5 | 0.5 | Balanced approach |
+| Error codes | 0.3 | 0.7 | Keywords matter more |
+| Semantic search | 0.7 | 0.3 | Meaning matters more |
+| Product search | 0.4 | 0.6 | SKUs and names matter |
+
+## Implementation
+
+### Weighted RRF Class
+
+```python
+from typing import List, Dict, Tuple, Optional
+from dataclasses import dataclass
+import numpy as np
+
+@dataclass
+class RankedResult:
+    """A document with its rank from a retriever."""
+    doc_id: str
+    score: float
+    rank: int
+
+class WeightedRRFFusion:
+    """
+    Weighted Reciprocal Rank Fusion for hybrid retrieval.
+    
+    Allows biasing the fusion toward specific retrievers
+    based on domain knowledge or empirical evidence.
+    """
+    
+    def __init__(
+        self,
+        k: int = 60,
+        weights: Optional[Dict[str, float]] = None
+    ):
+        """
+        Initialize weighted RRF fusion.
+        
+        Args:
+            k: RRF constant (typically 60)
+            weights: Dictionary mapping retriever name to weight.
+                    If None, equal weights are used.
+        """
+        self.k = k
+        self.weights = weights or {}
+    
+    def fuse(
+        self,
+        results: Dict[str, List[RankedResult]],
+        top_k: int = 10
+    ) -> List[Tuple[str, float]]:
+        """
+        Fuse ranked results from multiple retrievers.
+        
+        Args:
+            results: Dictionary mapping retriever name to list of RankedResult
+            top_k: Number of final results to return
+            
+        Returns:
+            List of (doc_id, fused_score) tuples sorted by score
+        """
+        # Collect all document IDs
+        all_doc_ids = set()
+        for retriever_results in results.values():
+            all_doc_ids.update(r.doc_id for r in retriever_results)
+        
+        # Calculate weighted RRF scores
+        fused_scores = {}
+        
+        for doc_id in all_doc_ids:
+            score = 0.0
+            
+            for retriever_name, retriever_results in results.items():
+                # Find rank of this document in this retriever
+                rank = None
+                for r in retriever_results:
+                    if r.doc_id == doc_id:
+                        rank = r.rank
+                        break
+                
+                if rank is not None:
+                    # Get weight for this retriever (default to 1.0)
+                    weight = self.weights.get(retriever_name, 1.0)
+                    
+                    # Add weighted RRF component
+                    score += weight / (self.k + rank)
+            
+            fused_scores[doc_id] = score
+        
+        # Sort by score and return top-k
+        sorted_results = sorted(
+            fused_scores.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )
+        
+        return sorted_results[:top_k]
+    
+    def fuse_with_scores(
+        self,
+        results: Dict[str, List[RankedResult]],
+        top_k: int = 10
+    ) -> List[Dict]:
+        """
+        Fuse with detailed scoring information.
+        
+        Returns:
+            List of dictionaries with doc_id, score, and contributions
+        """
+        # Collect all document IDs
+        all_doc_ids = set()
+        for retriever_results in results.values():
+            all_doc_ids.update(r.doc_id for r in retriever_results)
+        
+        # Calculate weighted RRF scores with contributions
+        fused_results = []
+        
+        for doc_id in all_doc_ids:
+            contributions = {}
+            total_score = 0.0
+            
+            for retriever_name, retriever_results in results.items():
+                rank = None
+                original_score = None
+                
+                for r in retriever_results:
+                    if r.doc_id == doc_id:
+                        rank = r.rank
+                        original_score = r.score
+                        break
+                
+                if rank is not None:
+                    weight = self.weights.get(retriever_name, 1.0)
+                    contribution = weight / (self.k + rank)
+                    total_score += contribution
+                    
+                    contributions[retriever_name] = {
+                        "rank": rank,
+                        "original_score": original_score,
+                        "weight": weight,
+                        "contribution": contribution
+                    }
+            
+            fused_results.append({
+                "doc_id": doc_id,
+                "fused_score": total_score,
+                "contributions": contributions
+            })
+        
+        # Sort by fused score
+        fused_results.sort(key=lambda x: x["fused_score"], reverse=True)
+        
+        return fused_results[:top_k]
+    
+    def set_weight(self, retriever_name: str, weight: float):
+        """
+        Set weight for a specific retriever.
+        
+        Args:
+            retriever_name: Name of the retriever
+            weight: Weight value (higher = more important)
+        """
+        self.weights[retriever_name] = weight
+    
+    def normalize_weights(self):
+        """Normalize weights to sum to 1.0."""
+        total = sum(self.weights.values())
+        if total > 0:
+            self.weights = {
+                k: v / total
+                for k, v in self.weights.items()
+            }
+
+class AdaptiveWeightedRRF(WeightedRRFFusion):
+    """
+    Adaptive weighted RRF that adjusts weights based on query type.
+    """
+    
+    def __init__(self, k: int = 60):
+        super().__init__(k=k)
+        self.query_patterns = {
+            "keyword_heavy": {
+                "patterns": [r"\b[A-Z]{2,}\b", r"\d{4,}", r"error\s+\w+"],
+                "weights": {"dense": 0.3, "sparse": 0.7}
+            },
+            "semantic": {
+                "patterns": [r"how\s+to", r"what\s+is", r"explain"],
+                "weights": {"dense": 0.7, "sparse": 0.3}
+            }
+        }
+    
+    def classify_query(self, query: str) -> str:
+        """Classify query type to determine optimal weights."""
+        import re
+        
+        for query_type, config in self.query_patterns.items():
+            for pattern in config["patterns"]:
+                if re.search(pattern, query, re.IGNORECASE):
+                    return query_type
+        
+        return "balanced"
+    
+    def fuse_for_query(
+        self,
+        query: str,
+        results: Dict[str, List[RankedResult]],
+        top_k: int = 10
+    ) -> List[Tuple[str, float]]:
+        """
+        Fuse with weights adapted to query type.
+        
+        Args:
+            query: User query
+            results: Results from each retriever
+            top_k: Number of results to return
+            
+        Returns:
+            Fused results
+        """
+        query_type = self.classify_query(query)
+        
+        # Set weights based on query type
+        if query_type in self.query_patterns:
+            self.weights = self.query_patterns[query_type]["weights"]
+        else:
+            self.weights = {"dense": 0.5, "sparse": 0.5}
+        
+        return self.fuse(results, top_k)
+```
+
+### Usage Example
+
+```python
+# Sample results from different retrievers
+dense_results = [
+    RankedResult("doc1", 0.95, 1),
+    RankedResult("doc2", 0.87, 2),
+    RankedResult("doc3", 0.82, 3),
+    RankedResult("doc4", 0.78, 4),
+]
+
+sparse_results = [
+    RankedResult("doc2", 0.92, 1),
+    RankedResult("doc5", 0.88, 2),
+    RankedResult("doc1", 0.85, 3),
+    RankedResult("doc6", 0.80, 4),
+]
+
+# Standard RRF (equal weights)
+standard_rrf = WeightedRRFFusion(k=60)
+standard_results = standard_rrf.fuse(
+    {"dense": dense_results, "sparse": sparse_results},
+    top_k=5
+)
+
+print("Standard RRF:")
+for doc_id, score in standard_results:
+    print(f"  {doc_id}: {score:.4f}")
+
+# Weighted RRF (favor sparse for keyword-heavy queries)
+weighted_rrf = WeightedRRFFusion(
+    k=60,
+    weights={"dense": 0.3, "sparse": 0.7}
+)
+weighted_results = weighted_rrf.fuse(
+    {"dense": dense_results, "sparse": sparse_results},
+    top_k=5
+)
+
+print("\nWeighted RRF (favor sparse):")
+for doc_id, score in weighted_results:
+    print(f"  {doc_id}: {score:.4f}")
+
+# With detailed scoring
+detailed_results = weighted_rrf.fuse_with_scores(
+    {"dense": dense_results, "sparse": sparse_results},
+    top_k=3
+)
+
+print("\nDetailed Scoring:")
+for result in detailed_results:
+    print(f"\n{result['doc_id']}: {result['fused_score']:.4f}")
+    for retriever, contrib in result['contributions'].items():
+        print(f"  {retriever}: rank={contrib['rank']}, "
+              f"weight={contrib['weight']}, "
+              f"contribution={contrib['contribution']:.4f}")
+```
+
+## Weight Tuning
+
+### Grid Search
+
+```python
+def tune_weights(
+    fusion: WeightedRRFFusion,
+    queries: List[str],
+    ground_truth: Dict[str, List[str]],
+    dense_retriever,
+    sparse_retriever
+) -> Dict[str, float]:
+    """
+    Tune weights using grid search.
+    
+    Args:
+        fusion: WeightedRRFFusion instance
+        queries: List of test queries
+        ground_truth: Mapping from query to relevant doc IDs
+        dense_retriever: Dense retrieval function
+        sparse_retriever: Sparse retrieval function
+        
+    Returns:
+        Optimal weights
+    """
+    best_weights = None
+    best_score = 0.0
+    
+    # Grid search over weight combinations
+    for dense_weight in np.arange(0.1, 1.0, 0.1):
+        sparse_weight = 1.0 - dense_weight
+        
+        fusion.weights = {"dense": dense_weight, "sparse": sparse_weight}
+        
+        # Evaluate on queries
+        total_score = 0.0
+        
+        for query in queries:
+            # Get results
+            dense_results = dense_retriever(query)
+            sparse_results = sparse_retriever(query)
+            
+            # Fuse
+            fused = fusion.fuse(
+                {"dense": dense_results, "sparse": sparse_results},
+                top_k=10
+            )
+            
+            # Calculate recall
+            relevant = set(ground_truth.get(query, []))
+            retrieved = set(doc_id for doc_id, _ in fused)
+            
+            if relevant:
+                recall = len(relevant & retrieved) / len(relevant)
+                total_score += recall
+        
+        avg_score = total_score / len(queries)
+        
+        if avg_score > best_score:
+            best_score = avg_score
+            best_weights = {"dense": dense_weight, "sparse": sparse_weight}
+    
+    return best_weights
+```
+
+### Cross-Validation
+
+```python
+from sklearn.model_selection import KFold
+
+def cross_validate_weights(
+    queries: List[str],
+    ground_truth: Dict[str, List[str]],
+    n_splits: int = 5
+) -> Dict[str, float]:
+    """
+    Cross-validate weight tuning.
+    
+    Warning: Weights are easy to overfit. Only tune them against
+    a labeled set (Recall@k / nDCG), not intuition.
+    """
+    kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
+    
+    all_weights = []
+    
+    for train_idx, val_idx in kf.split(queries):
+        train_queries = [queries[i] for i in train_idx]
+        val_queries = [queries[i] for i in val_idx]
+        
+        # Tune on training set
+        fusion = WeightedRRFFusion()
+        optimal = tune_weights(fusion, train_queries, ground_truth)
+        
+        # Validate on validation set
+        fusion.weights = optimal
+        val_score = evaluate(fusion, val_queries, ground_truth)
+        
+        all_weights.append((optimal, val_score))
+    
+    # Select weights with best average validation score
+    best = max(all_weights, key=lambda x: x[1])
+    return best[0]
+```
+
+## Best Practices
+
+### ⚠️ Warning (Production Reality)
 
 Weights are easy to **overfit**. Only tune them against a labeled set (Recall@k / nDCG), not intuition.
 
+### Guidelines
 
+1. **Start with equal weights** (0.5, 0.5) as baseline
+2. **Use domain knowledge** to set initial weights
+3. **Tune on held-out validation set**, not training data
+4. **Monitor for overfitting** - weights shouldn't change dramatically
+5. **Document rationale** for weight choices
+6. **A/B test** weighted vs. unweighted in production
 
+### When to Use Weighted RRF
+
+✅ **Use when:**
+- You have labeled evaluation data
+- Domain clearly favors one retriever type
+- Query classification is reliable
+- You can continuously monitor performance
+
+❌ **Avoid when:**
+- No evaluation data available
+- Query types are highly variable
+- You need interpretability
+- Computational budget is tight
+
+## Evaluation
+
+### Metrics
+
+```python
+def evaluate_weighted_rrf(
+    fusion: WeightedRRFFusion,
+    queries: List[str],
+    ground_truth: Dict[str, List[str]],
+    retrievers: Dict[str, callable]
+) -> Dict[str, float]:
+    """Evaluate weighted RRF performance."""
+    
+    recalls = []
+    ndcgs = []
+    
+    for query in queries:
+        # Get results from all retrievers
+        results = {
+            name: retriever(query)
+            for name, retriever in retrievers.items()
+        }
+        
+        # Fuse
+        fused = fusion.fuse(results, top_k=10)
+        
+        # Calculate metrics
+        relevant = set(ground_truth.get(query, []))
+        retrieved = [doc_id for doc_id, _ in fused]
+        
+        # Recall@10
+        recall = len(relevant & set(retrieved)) / len(relevant) if relevant else 0
+        recalls.append(recall)
+        
+        # nDCG@10 (simplified)
+        dcg = sum(
+            1.0 / np.log2(i + 2)
+            for i, doc_id in enumerate(retrieved)
+            if doc_id in relevant
+        )
+        ideal_dcg = sum(1.0 / np.log2(i + 2) for i in range(min(len(relevant), 10)))
+        ndcg = dcg / ideal_dcg if ideal_dcg > 0 else 0
+        ndcgs.append(ndcg)
+    
+    return {
+        "recall@10": np.mean(recalls),
+        "ndcg@10": np.mean(ndcgs)
+    }
+```
+
+## Resources
+
+- [Reciprocal Rank Fusion Paper](https://plg.uwaterloo.ca/~gvcormac/cormacksigir09-rrf.pdf)
+- [Hybrid Search Guide](https://www.pinecone.io/learn/hybrid-search/)
+- [BM25 vs Dense Retrieval](https://arxiv.org/abs/2109.00022)
+- [Learning to Rank](https://en.wikipedia.org/wiki/Learning_to_rank)

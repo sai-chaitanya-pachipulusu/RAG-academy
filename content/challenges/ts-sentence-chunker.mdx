@@ -1,23 +1,277 @@
+---
+title: "Sentence-Aware Chunker (TypeScript)"
+description: "Implement a sentence-aware chunker that respects sentence boundaries."
+language: "typescript"
+difficulty: "intermediate"
+category: "chunking"
+prerequisites: ["ts-fixed-size-chunker"]
+related: ["sentence-based-chunking", "ts-sliding-window", "semantic-chunking"]
+tags: ["chunking", "sentences", "nlp", "text-processing"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Implement a sentence-aware chunker that respects sentence boundaries.
+  Implement a sentence-aware chunker that respects sentence boundaries for more semantically coherent chunks.
 </Callout>
 
-## Why this matters in production
+## Why Sentence-Aware Chunking Matters in Production
 
-Cutting text mid-sentence creates chunks with incomplete ideas. Sentence-aware chunking produces more coherent chunks that embed better and retrieve more accurately.
+Cutting text mid-sentence creates chunks with incomplete ideas. Sentence-aware chunking produces more coherent chunks that embed better and retrieve more accurately. This leads to:
 
-## What you're implementing
+- **Better embeddings**: Complete thoughts capture meaning
+- **Improved retrieval**: Chunks match queries more precisely
+- **Higher quality answers**: LLM receives complete context
+- **Better citations**: Sentence boundaries are natural quote boundaries
 
-- Split text into sentences (by `.`, `!`, `?`).
-- Group sentences into chunks of `maxSentences`.
-- Support sentence-level overlap for context.
+### Real-World Scenario
 
-## Common pitfalls
+**Fixed-size chunking (bad):**
+```
+Chunk 1: "Machine learning is a subset of artificial intelligence that enables systems to learn from data. Deep learning is"
+Chunk 2: "a type of machine learning that uses neural networks with multiple layers."
+```
+Problem: "Deep learning is" is incomplete; meaning split across chunks.
 
-- Splitting on `.` inside abbreviations (e.g., "Dr. Smith").
-- Creating single-sentence chunks that are too small.
+**Sentence-aware chunking (good):**
+```
+Chunk 1: "Machine learning is a subset of artificial intelligence that enables systems to learn from data."
+Chunk 2: "Deep learning is a type of machine learning that uses neural networks with multiple layers."
+```
+Each chunk is a complete, coherent unit.
 
-## After you pass
+## The Mathematical Foundation
 
-Explore semantic chunking, which groups by meaning rather than sentence count.
+### Sentence Boundary Detection
 
+```
+Sentences end with: . ! ?
+But not in:
+- Abbreviations: "Dr.", "Mr.", "Inc.", "e.g.", "i.e."
+- Decimal numbers: "3.14"
+- Ellipses: "..."
+- URLs: "example.com"
+```
+
+### Chunking Algorithm
+
+```
+1. Split text into sentences
+2. Group sentences into chunks of maxSentences
+3. Support sentence-level overlap for context
+4. Track positions for citations
+```
+
+### Overlap Strategies
+
+| Strategy | Description | Use Case |
+|----------|-------------|----------|
+| **No overlap** | Distinct sentences | Maximum efficiency |
+| **1 sentence** | Last sentence of prev = first of next | Context continuity |
+| **Sliding window** | Overlap of N sentences | Maximum context |
+
+## Theoretical Deep Dive
+
+### Sentence Tokenization Challenges
+
+| Challenge | Example | Solution |
+|-----------|---------|----------|
+| **Abbreviations** | "Dr. Smith arrived." | Abbreviation list |
+| **Decimal numbers** | "The value is 3.14." | Regex for numbers |
+| **Quotes** | 'He said "Hello."' | Track quote state |
+| **URLs/Emails** | "Visit example.com." | Special handling |
+
+### Semantic Coherence
+
+Sentence boundaries often align with semantic boundaries:
+
+```
+Sentence: Complete proposition or idea
+Paragraph: Collection of related sentences
+Document: Collection of paragraphs
+
+Chunking at sentence boundaries preserves semantic units.
+```
+
+### Comparison with Fixed-Size
+
+| Aspect | Fixed-Size | Sentence-Aware |
+|--------|-----------|----------------|
+| **Speed** | Faster | Slower (parsing) |
+| **Coherence** | May split ideas | Preserves ideas |
+| **Size variance** | Fixed | Variable |
+| **Token efficiency** | Predictable | May waste space |
+
+## Production Considerations
+
+### Token Budget Management
+
+Sentences vary in length:
+
+```typescript
+// Strategy: Target token count, adjust sentence count
+function getSentencesForBudget(
+  sentences: string[],
+  targetTokens: number
+): string[] {
+  let totalTokens = 0;
+  const selected = [];
+  
+  for (const sentence of sentences) {
+    const tokens = estimateTokens(sentence);
+    if (totalTokens + tokens > targetTokens) break;
+    selected.push(sentence);
+    totalTokens += tokens;
+  }
+  
+  return selected;
+}
+```
+
+### Handling Very Long Sentences
+
+Some sentences exceed chunk size:
+
+```typescript
+if (sentenceTokens > maxChunkTokens) {
+  // Option 1: Split at clause boundaries
+  // Option 2: Use fixed-size on this sentence only
+  // Option 3: Make exception, allow oversized chunk
+}
+```
+
+### Multi-language Support
+
+Different languages have different sentence rules:
+
+```typescript
+const sentenceRules = {
+  en: { endChars: ['.', '!', '?'], abbreviations: ['Dr', 'Mr', 'Mrs'] },
+  de: { endChars: ['.', '!', '?'], abbreviations: ['Dr', 'Prof'] },
+  ja: { endChars: ['。', '！', '？'], abbreviations: [] },
+};
+```
+
+## Your Task
+
+Implement a sentence-aware chunker:
+
+```typescript
+interface SentenceChunk {
+  text: string;
+  sentences: string[];
+  startIndex: number;
+  endIndex: number;
+}
+
+interface SentenceChunkerConfig {
+  maxSentences: number;      // Target sentences per chunk
+  overlapSentences?: number; // Sentences to overlap (default: 0)
+  maxTokens?: number;        // Optional token limit
+}
+
+class SentenceChunker {
+  constructor(private config: SentenceChunkerConfig) {}
+
+  chunk(text: string): SentenceChunk[] {
+    /**
+     * Split text into sentence-aware chunks.
+     * 
+     * Args:
+     *   text: Input text to chunk
+     * 
+     * Returns:
+     *   Array of chunks with sentence metadata
+     * 
+     * Algorithm:
+     *   1. Split text into sentences
+     *   2. Group sentences into chunks of maxSentences
+     *   3. Apply overlap if configured
+     *   4. Track character positions
+     *   5. Return chunks
+     * 
+     * Sentence splitting:
+     *   - Split on . ! ?
+     *   - Don't split on abbreviations (Dr., Mr., etc.)
+     *   - Don't split on decimal numbers
+     *   - Handle quotes correctly
+     * 
+     * Edge Cases:
+     *   - Text with no sentence endings: return as single chunk
+     *   - Very long sentences: may exceed maxSentences = 1
+     *   - Empty text: return empty array
+     *   - Whitespace only: trim or return empty
+     */
+  }
+
+  private splitIntoSentences(text: string): string[] {
+    /**
+     * Split text into sentences.
+     * 
+     * Handle:
+     *   - Standard endings: . ! ?
+     *   - Abbreviations: Dr., Mr., Mrs., Inc., etc.
+     *   - Decimal numbers: 3.14
+     *   - Ellipses: ...
+     *   - Quotes: "Hello."
+     */
+  }
+
+  private isAbbreviation(text: string, position: number): boolean {
+    /**
+     * Check if period at position is part of abbreviation.
+     */
+  }
+
+  private groupIntoChunks(sentences: string[]): SentenceChunk[] {
+    /**
+     * Group sentences into chunks with overlap.
+     */
+  }
+}
+
+// Convenience function
+function createSentenceChunks(
+  text: string,
+  config: SentenceChunkerConfig
+): SentenceChunk[] {
+  const chunker = new SentenceChunker(config);
+  return chunker.chunk(text);
+}
+```
+
+### Validation Checklist
+
+- [ ] Sentences split on . ! ?
+- [ ] Abbreviations not split (Dr., Mr., etc.)
+- [ ] Decimal numbers not split
+- [ ] Chunks contain complete sentences only
+- [ ] Overlap sentences included correctly
+- [ ] Character positions tracked accurately
+- [ ] Empty text returns empty array
+- [ ] Single sentence handled correctly
+
+## Common Pitfalls
+
+- **Splitting on `.` inside abbreviations**: "Dr. Smith" → wrong split
+- **Creating single-sentence chunks that are too small**: Balance size vs coherence
+- **Not handling quotes**: `"He said." She replied.`
+- **Unicode sentence endings**: Different languages use different characters
+- **Losing whitespace**: Preserve original spacing
+
+## After You Pass
+
+Explore semantic chunking, which groups by meaning rather than sentence count, or implement hierarchical chunking with paragraph awareness.
+
+## Resources
+
+### Libraries
+- [compromise](https://github.com/spencermountain/compromise) - NLP library with sentence parsing
+- [natural](https://github.com/NaturalNode/natural) - Node.js NLP
+- [spaCy](https://spacy.io/) (via Python) - Industrial-strength NLP
+
+### Documentation
+- [Unicode Text Segmentation](https://unicode.org/reports/tr29/) - Standard for sentence boundaries
+- [NLTK Sentence Tokenization](https://www.nltk.org/api/nltk.tokenize.html) - Reference implementation
+
+### Tutorials
+- ["Sentence Tokenization"](https://towardsdatascience.com/sentence-tokenization-in-natural-language-processing-nlp-1b92c2232629) - NLP guide
+- ["Chunking Strategies"](https://www.pinecone.io/learn/chunking-strategies/) - Pinecone guide

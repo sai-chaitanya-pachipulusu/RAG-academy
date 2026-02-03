@@ -1,4 +1,15 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "Product Quantization"
+description: "Implement Product Quantization (PQ) to compress high-dimensional vectors and optimize memory usage"
+difficulty: "advanced"
+estimatedMinutes: 60
+xpReward: 150
+prerequisites: ["naive-flat-index"]
+related: ["ivf-pq-index", "quantization-deep-dive", "index-sharding"]
+next: "ivf-pq-index"
+---
+
+<Callout title="Goal" variant="info">
   Implement Product Quantization (PQ) to compress high-dimensional vectors and
   optimize memory usage.
 </Callout>
@@ -13,7 +24,180 @@ A single 768-dimensional float32 vector takes about 3KB. If you have 100 million
 2.  Mapping each sub-vector to its nearest "centroid" from a pre-trained codebook.
 3.  Replacing the original floats with the integer indices (codes) of those centroids.
 
+## The Algorithm
+
+```python
+import numpy as np
+from typing import List, Tuple
+from sklearn.cluster import KMeans
+
+class ProductQuantization:
+    """
+    Product Quantization for vector compression.
+    
+    Time Complexity:
+    - Training: O(N × M × k × sub_dim × iter) for k-means on each subspace
+    - Encoding: O(N × M × k × sub_dim) to find nearest centroids
+    - Distance: O(M) using precomputed lookup tables
+    
+    Space Complexity: O(M × k × sub_dim) for codebooks + O(N × M) for codes
+    """
+    
+    def __init__(self, dim: int, m: int = 8, k: int = 256):
+        """
+        Args:
+            dim: Vector dimension
+            m: Number of subquantizers (subspaces)
+            k: Number of centroids per subspace (usually 256 for 1 byte)
+        """
+        assert dim % m == 0, "dim must be divisible by m"
+        
+        self.dim = dim
+        self.m = m  # Number of subspaces
+        self.k = k  # Centroids per subspace
+        self.sub_dim = dim // m
+        
+        self.codebooks = None  # m codebooks, each k × sub_dim
+    
+    def train(self, vectors: np.ndarray):
+        """
+        Train PQ codebooks on training vectors.
+        
+        Time Complexity: O(N × M × k × sub_dim × iter)
+        """
+        n = vectors.shape[0]
+        self.codebooks = []
+        
+        # Train a k-means for each subspace
+        for i in range(self.m):
+            # Extract subspace
+            sub_vectors = vectors[:, i * self.sub_dim:(i + 1) * self.sub_dim]
+            
+            # K-means clustering
+            kmeans = KMeans(n_clusters=self.k, random_state=42, n_init=10)
+            kmeans.fit(sub_vectors)
+            
+            self.codebooks.append(kmeans.cluster_centers_)
+        
+        self.codebooks = np.array(self.codebooks)  # Shape: (m, k, sub_dim)
+    
+    def encode(self, vector: np.ndarray) -> List[int]:
+        """
+        Encode a vector to PQ codes.
+        
+        Time Complexity: O(M × k × sub_dim)
+        Space: M bytes per vector (vs 4×dim bytes original)
+        """
+        codes = []
+        
+        for i in range(self.m):
+            # Extract subspace
+            sub_vec = vector[i * self.sub_dim:(i + 1) * self.sub_dim]
+            
+            # Find nearest centroid
+            distances = np.linalg.norm(self.codebooks[i] - sub_vec, axis=1)
+            codes.append(int(np.argmin(distances)))
+        
+        return codes
+    
+    def decode(self, codes: List[int]) -> np.ndarray:
+        """
+        Decode PQ codes back to approximate vector.
+        
+        Time Complexity: O(M × sub_dim)
+        """
+        sub_vectors = []
+        
+        for i, code in enumerate(codes):
+            sub_vectors.append(self.codebooks[i][code])
+        
+        return np.concatenate(sub_vectors)
+    
+    def compute_distance(
+        self, 
+        query: np.ndarray, 
+        codes: List[int], 
+        metric: str = "l2"
+    ) -> float:
+        """
+        Compute distance between query and encoded vector.
+        
+        Time Complexity: O(M) with lookup tables
+        """
+        distance = 0.0
+        
+        for i, code in enumerate(codes):
+            sub_query = query[i * self.sub_dim:(i + 1) * self.sub_dim]
+            centroid = self.codebooks[i][code]
+            
+            if metric == "l2":
+                distance += np.sum((sub_query - centroid) ** 2)
+            elif metric == "dot":
+                distance -= np.dot(sub_query, centroid)  # Negative for max
+        
+        return distance ** 0.5 if metric == "l2" else distance
+    
+    def precompute_distances(self, query: np.ndarray) -> np.ndarray:
+        """
+        Precompute distances for all centroids (for fast lookup).
+        
+        Returns lookup table of shape (m, k).
+        Time to compute: O(M × k × sub_dim)
+        Time per distance: O(M)
+        """
+        lookup_tables = np.zeros((self.m, self.k))
+        
+        for i in range(self.m):
+            sub_query = query[i * self.sub_dim:(i + 1) * self.sub_dim]
+            
+            for j in range(self.k):
+                centroid = self.codebooks[i][j]
+                lookup_tables[i, j] = np.sum((sub_query - centroid) ** 2)
+        
+        return lookup_tables
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Training | O(N × M × k × sub_dim × iter) | K-means per subspace |
+| Encoding | O(N × M × k × sub_dim) | Find nearest centroids |
+| Distance (with lookup) | O(M) | Very fast! |
+| Space | O(M × k × sub_dim + N × M) | Codebooks + codes |
+| Compression | 4×dim / M bytes | ~16-32x for typical settings |
+
+## Compression Ratio
+
+| Original | PQ (m=8, k=256) | Compression |
+|----------|-----------------|-------------|
+| 768 dims × 4 bytes = 3KB | 8 bytes | 384x |
+| 1536 dims × 4 bytes = 6KB | 8 bytes | 768x |
+
+## Tradeoffs
+
+| Aspect | Effect |
+|--------|--------|
+| More subspaces (m) | Better accuracy, less compression |
+| More centroids (k) | Better accuracy, more memory |
+| Larger sub_dim | Better accuracy, slower encoding |
+
+## Resources
+
+### Papers
+- **"Product Quantization for Nearest Neighbor Search"** - Jegou et al. (2011)
+- **"Optimized Product Quantization"** - Ge et al. (2013)
+
+### Tools
+- **FAISS**: `IndexPQ`, `IndexIVFPQ`
+- **Scikit-learn**: `KMeans` for codebook training
+
+## Related Challenges
+
+- [ivf-pq-index](ivf-pq-index) - IVF + PQ combined
+- [quantization-deep-dive](quantization-deep-dive) - Advanced quantization
+- [index-sharding](index-sharding) - Distribute large indexes
+
 ## Task
 
 Implement a simple quantization step that finds the nearest centroid for a given vector, effectively "compressing" it into a single integer code.
-

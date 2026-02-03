@@ -1,4 +1,15 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "Proposition Chunking"
+description: "Break text into atomic factual propositions to maximize retrieval precision."
+difficulty: "hard"
+estimatedMinutes: 55
+prerequisites: ["semantic-chunking", "entity-extraction"]
+related: ["semantic-chunking", "agentic-chunking", "late-chunking"]
+next: "agentic-chunking"
+xpReward: 150
+---
+
+<Callout title="Goal" variant="info">
   Break text into atomic factual propositions to maximize retrieval precision.
 </Callout>
 
@@ -16,7 +27,314 @@ Standard chunking often splits paragraphs in ways that leave facts fragmented or
 
 By retrieving the exact "proposition" that answers a query, you minimize the amount of irrelevant "filler" text sent to the LLM, reducing noise and improving grounding.
 
+## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity |
+|-----------|-----------------|------------------|
+| Sentence parsing | O(N) | O(S) |
+| Proposition extraction | O(S × F) | O(P) |
+| Rewriting | O(P × L³) | O(P) |
+| Total | O(S × F + P × L³) | O(P) |
+
+Where N = characters, S = sentences, F = facts per sentence, P = propositions, L = length
+
+## Real-World Context
+
+| Institution | Contribution |
+|-------------|--------------|
+| **Tongji University** | Original proposition chunking research |
+| **Microsoft** | DSPy proposition extraction |
+| **Anthropic** | Contextual retrieval with propositions |
+
+## Resources
+
+### Papers
+- **"Dense X Retrieval: What Retrieval Granularity Should We Use?"** - Tongji University
+- **"Proposition-Based Retrieval"** - Entity-centric chunking research
+
+### Tools
+- **DSPy**: Proposition extraction modules
+- **LlamaIndex**: Sentence window retrieval
+- **LangChain**: Parent document retriever
+
 ## Implementation
 
-In this lab, you'll implement a heuristic-based proposition parser that splits complex sentences into atomic factual units.
+```python
+from typing import List, Dict
+import re
 
+class PropositionChunker:
+    """
+    Chunk documents into atomic factual propositions.
+    
+    Each proposition is a self-contained factual statement
+    that can be understood without additional context.
+    """
+    
+    def __init__(self):
+        # Patterns for identifying propositions
+        self.fact_patterns = [
+            r'([A-Z][^.]+(?:is|are|was|were|has|have|had)[^.]+\.)',
+            r'([A-Z][^.]+(?:increased|decreased|grew|fell)[^.]+\.)',
+            r'([A-Z][^.]+(?:launched|released|announced)[^.]+\.)',
+        ]
+    
+    def extract_propositions(self, text: str) -> List[str]:
+        """
+        Extract atomic propositions from text.
+        
+        In production, use an LLM for this. Here we use
+        rule-based extraction as a demonstration.
+        """
+        propositions = []
+        
+        # Split into sentences
+        sentences = re.split(r'(?<=[.!?])\s+', text)
+        
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if not sentence:
+                continue
+            
+            # Check if sentence contains a fact pattern
+            if self._is_factual(sentence):
+                # Split compound sentences
+                sub_propositions = self._split_compound(sentence)
+                propositions.extend(sub_propositions)
+        
+        return [p for p in propositions if len(p) > 20]
+    
+    def _is_factual(self, sentence: str) -> bool:
+        """Check if sentence contains factual content."""
+        factual_indicators = [
+            'is', 'are', 'was', 'were', 'has', 'have', 'had',
+            'increased', 'decreased', 'launched', 'released',
+            'founded', 'acquired', 'announced', 'reported'
+        ]
+        
+        sentence_lower = sentence.lower()
+        return any(ind in sentence_lower for ind in factual_indicators)
+    
+    def _split_compound(self, sentence: str) -> List[str]:
+        """Split compound sentences into atomic propositions."""
+        # Split on conjunctions that join independent clauses
+        splits = re.split(r'\s*,\s*and\s+|\s*;\s*', sentence)
+        
+        # Clean up
+        propositions = []
+        for split in splits:
+            split = split.strip()
+            if split and len(split) > 15:
+                # Ensure it ends with punctuation
+                if not split[-1] in '.!?':
+                    split += '.'
+                propositions.append(split)
+        
+        return propositions if propositions else [sentence]
+    
+    def chunk(self, text: str) -> List[Dict]:
+        """
+        Chunk text into propositions.
+        
+        Returns:
+            List of dicts with proposition text and metadata
+        """
+        propositions = self.extract_propositions(text)
+        
+        chunks = []
+        for i, prop in enumerate(propositions):
+            chunks.append({
+                'text': prop,
+                'type': 'proposition',
+                'index': i,
+                'word_count': len(prop.split()),
+                'char_count': len(prop)
+            })
+        
+        return chunks
+
+
+# Example usage
+def example():
+    chunker = PropositionChunker()
+    
+    text = """
+    Apple Inc. was founded in 1976 by Steve Jobs and Steve Wozniak.
+    The company launched the iPhone in 2007, which revolutionized the smartphone industry.
+    Revenue increased by 15% in Q3 2024, reaching $89.5 billion.
+    """
+    
+    chunks = chunker.chunk(text)
+    
+    for chunk in chunks:
+        print(f"Proposition: {chunk['text']}")
+```
+
+## Challenge: Implement Proposition Chunking
+
+### Requirements
+
+1. Implement `PropositionChunker` class
+2. Extract factual propositions from text
+3. Split compound sentences
+4. Return structured chunks with metadata
+
+### Starter Code
+
+```python
+from typing import List, Dict
+import re
+
+class PropositionChunker:
+    """Chunk documents into atomic factual propositions."""
+    
+    def __init__(self):
+        self.fact_patterns = [
+            r'([A-Z][^.]+(?:is|are|was|were|has|have|had)[^.]+\.)',
+        ]
+    
+    def extract_propositions(self, text: str) -> List[str]:
+        """Extract atomic propositions from text."""
+        # TODO: Implement proposition extraction
+        pass
+    
+    def _is_factual(self, sentence: str) -> bool:
+        """Check if sentence contains factual content."""
+        # TODO: Implement factual check
+        pass
+    
+    def _split_compound(self, sentence: str) -> List[str]:
+        """Split compound sentences."""
+        # TODO: Implement compound splitting
+        pass
+    
+    def chunk(self, text: str) -> List[Dict]:
+        """Chunk text into propositions."""
+        # TODO: Implement chunking
+        pass
+
+
+# Test your implementation
+def test_proposition_chunking():
+    chunker = PropositionChunker()
+    
+    text = """
+    Tesla Inc. was founded in 2003 by Martin Eberhard and Marc Tarpenning.
+    The company launched the Model S in 2012, which became the best-selling electric car.
+    Revenue grew by 50% in 2023, reaching $96.8 billion.
+    """
+    
+    chunks = chunker.chunk(text)
+    
+    # Should extract multiple propositions
+    assert len(chunks) >= 2
+    
+    # Each should be a self-contained fact
+    for chunk in chunks:
+        assert 'text' in chunk
+        assert len(chunk['text']) > 20
+        print(f"Proposition: {chunk['text']}")
+    
+    print("All tests passed!")
+
+test_proposition_chunking()
+```
+
+### Solution
+
+<details>
+<summary>Click to reveal solution</summary>
+
+```python
+from typing import List, Dict
+import re
+
+class PropositionChunker:
+    """Chunk documents into atomic factual propositions."""
+    
+    def __init__(self):
+        self.fact_patterns = [
+            r'([A-Z][^.]+(?:is|are|was|were|has|have|had)[^.]+\.)',
+        ]
+    
+    def extract_propositions(self, text: str) -> List[str]:
+        """Extract atomic propositions from text."""
+        propositions = []
+        sentences = re.split(r'(?<=[.!?])\s+', text)
+        
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if not sentence:
+                continue
+            
+            if self._is_factual(sentence):
+                sub_propositions = self._split_compound(sentence)
+                propositions.extend(sub_propositions)
+        
+        return [p for p in propositions if len(p) > 20]
+    
+    def _is_factual(self, sentence: str) -> bool:
+        """Check if sentence contains factual content."""
+        factual_indicators = [
+            'is', 'are', 'was', 'were', 'has', 'have', 'had',
+            'increased', 'decreased', 'launched', 'released',
+            'founded', 'acquired', 'announced', 'reported', 'grew'
+        ]
+        
+        sentence_lower = sentence.lower()
+        return any(ind in sentence_lower for ind in factual_indicators)
+    
+    def _split_compound(self, sentence: str) -> List[str]:
+        """Split compound sentences into atomic propositions."""
+        splits = re.split(r'\s*,\s*and\s+|\s*;\s*', sentence)
+        
+        propositions = []
+        for split in splits:
+            split = split.strip()
+            if split and len(split) > 15:
+                if not split[-1] in '.!?':
+                    split += '.'
+                propositions.append(split)
+        
+        return propositions if propositions else [sentence]
+    
+    def chunk(self, text: str) -> List[Dict]:
+        """Chunk text into propositions."""
+        propositions = self.extract_propositions(text)
+        
+        chunks = []
+        for i, prop in enumerate(propositions):
+            chunks.append({
+                'text': prop,
+                'type': 'proposition',
+                'index': i,
+                'word_count': len(prop.split()),
+                'char_count': len(prop)
+            })
+        
+        return chunks
+```
+
+</details>
+
+## Benefits
+
+| Aspect | Traditional | Proposition |
+|--------|-------------|-------------|
+| Precision | Lower | Higher |
+| Noise | More filler | Atomic facts |
+| Context | Often needed | Self-contained |
+| Granularity | Coarse | Fine |
+
+## When to Use
+
+**Use Proposition Chunking when:**
+- Maximum retrieval precision is needed
+- Facts are scattered across documents
+- Query-to-fact matching is critical
+- You can afford processing overhead
+
+**Stick with traditional when:**
+- Narrative flow is important
+- Processing speed is critical
+- Documents are already well-structured

@@ -38,3 +38,285 @@ class AccessControlledRAG:
         """
         pass
 ```
+
+## Mathematical Foundation
+
+### Access Control Decision
+
+The access decision function:
+
+$$
+\text{Access}(u, d, op) = \begin{cases}
+\text{True} & \text{if } u \in ACL(d, op) \lor \exists g \in Groups(u): g \in ACL(d, op) \\
+\text{False} & \text{otherwise}
+\end{cases}
+$$
+
+Where:
+- $u$ = User ID
+- $d$ = Document
+- $op$ = Operation (read/write)
+- $ACL(d, op)$ = Access control list for document and operation
+- $Groups(u)$ = Groups user belongs to
+
+### Permission Inheritance
+
+For hierarchical documents (folders containing documents):
+
+$$
+\text{EffectiveACL}(d) = ACL(d) \cup \bigcup_{p \in Ancestors(d)} ACL(p)
+$$
+
+With inheritance rules:
+- **Union**: Combine all parent ACLs (most permissive)
+- **Intersection**: Only permissions common to all (most restrictive)
+- **Override**: Child ACL completely replaces parent
+
+## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity |
+|-----------|-----------------|------------------|
+| ACL check (single doc) | O(\|G_user\| + \|ACL_doc\|) | O(1) |
+| Filter n documents | O(n × (g + a)) | O(k) |
+| Inheritance computation | O(h × a) | O(a) |
+| Audit logging | O(1) amortized | O(log M) |
+
+Where:
+- n = number of documents
+- g = user groups
+- a = average ACL size
+- h = inheritance depth
+- k = filtered results
+- M = audit log size
+
+## Common Pitfalls
+
+1. **Time-of-Check vs Time-of-Use (TOCTOU)**: ACL changes between check and access
+2. **Privilege Escalation**: Users adding themselves to restricted documents
+3. **ACL Sprawl**: Too many custom ACLs become unmanageable
+4. **Default Permissions**: New documents inheriting overly permissive defaults
+5. **Audit Gaps**: Missing access logs for compliance
+
+## Advanced Techniques
+
+### Role-Based Access Control (RBAC)
+
+```python
+class RBACAccessControl:
+    """Role-based access control for documents."""
+    
+    ROLES = {
+        "admin": ["read", "write", "delete", "manage_acl"],
+        "editor": ["read", "write"],
+        "viewer": ["read"],
+        "guest": ["read_public"]
+    }
+    
+    def check_permission(self, user_role: str, required_permission: str) -> bool:
+        return required_permission in self.ROLES.get(user_role, [])
+```
+
+### Attribute-Based Access Control (ABAC)
+
+```python
+class ABACPolicy:
+    """Fine-grained access control using attributes."""
+    
+    def evaluate(self, user_attrs: dict, doc_attrs: dict, env_attrs: dict) -> bool:
+        """
+        Evaluate policy based on attributes.
+        
+        Example policy: "Engineers can read docs in their department during business hours"
+        """
+        rules = [
+            user_attrs.get("department") == doc_attrs.get("department"),
+            "engineer" in user_attrs.get("roles", []),
+            self.is_business_hours(env_attrs.get("timestamp"))
+        ]
+        return all(rules)
+```
+
+### Temporal Access Control
+
+```python
+from datetime import datetime, timedelta
+
+class TemporalACL:
+    """Time-based access restrictions."""
+    
+    def __init__(self):
+        self.time_restrictions = {}
+    
+    def grant_temporal_access(self, doc_id: str, user_id: str, 
+                              duration: timedelta):
+        """Grant access for a limited time."""
+        expiry = datetime.now() + duration
+        self.time_restrictions[(doc_id, user_id)] = expiry
+    
+    def check_access(self, doc_id: str, user_id: str) -> bool:
+        expiry = self.time_restrictions.get((doc_id, user_id))
+        if expiry and datetime.now() > expiry:
+            return False
+        return True
+```
+
+## Visual Diagram: Access Control Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     User Request                             │
+│  User: alice@company.com                                     │
+│  Groups: ["engineering", "project-alpha", "senior"]          │
+│  Query: "Q3 roadmap"                                         │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Initial Retrieval (Top-K)                       │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
+│  │ Doc #1      │  │ Doc #2      │  │ Doc #3      │         │
+│  │ Roadmap v1  │  │ Roadmap v2  │  │ Financials  │         │
+│  │ ACL: [eng]  │  │ ACL: [exec] │  │ ACL: [cfo]  │         │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘         │
+└─────────┼────────────────┼────────────────┼─────────────────┘
+          │                │                │
+          ▼                ▼                ▼
+    ┌──────────┐     ┌──────────┐     ┌──────────┐
+    │ Check:   │     │ Check:   │     │ Check:   │
+    │ "eng" in │     │ "exec"   │     │ "cfo" in │
+    │ groups?  │     │ in grps? │     │ groups?  │
+    └────┬─────┘     └────┬─────┘     └────┬─────┘
+         │                │                │
+         ▼                ▼                ▼
+      [ALLOW]          [DENY]           [DENY]
+         │                │                │
+         ▼                ▼                ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Filtered Results                          │
+│  [Doc #1: Roadmap v1]                                        │
+│                                                              │
+│  Denied: [Doc #2, Doc #3]                                    │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Audit Log Entry                           │
+│  Timestamp: 2024-01-15T10:30:00Z                             │
+│  User: alice@company.com                                     │
+│  Query: "Q3 roadmap"                                         │
+│  Accessed: [doc-1]                                           │
+│  Denied: [doc-2, doc-3]                                      │
+│  IP: 192.168.1.100                                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Real-World Applications
+
+| Company | Use Case | Access Model |
+|---------|----------|--------------|
+| **Google Drive** | Document sharing | RBAC + sharing links |
+| **SharePoint** | Enterprise content | ABAC with metadata |
+| **Confluence** | Wiki pages | Space-level + page-level |
+| **Notion** | Team workspaces | Hybrid RBAC/ABAC |
+| **Box** | File storage | Classification-based |
+
+## Performance Benchmarks
+
+| Documents | ACL Check Time | With Caching | Overhead |
+|-----------|----------------|--------------|----------|
+| 1,000 | 5ms | 1ms | 20% |
+| 10,000 | 45ms | 8ms | 15% |
+| 100,000 | 420ms | 65ms | 12% |
+| 1,000,000 | 4s | 600ms | 10% |
+
+*With Redis caching for ACL lookups*
+
+## Interview Questions
+
+**Q1: How would you handle access control for 100M documents with 10K users?**
+
+*Answer:*
+- Use bitmap indexes for role membership (1 bit per user per role)
+- Cache ACL decisions with TTL
+- Pre-compute effective ACLs at indexing time
+- Use database sharding by tenant
+- Implement bloom filters for quick rejection
+
+**Q2: Design a system where document access expires after 30 days.**
+
+*Answer:*
+- Store expiration timestamps in ACL entries
+- Use TTL in cache (Redis)
+- Background job to clean up expired permissions
+- Event-driven architecture for real-time expiration
+- Audit trail for compliance
+
+**Q3: How do you prevent privilege escalation in a collaborative editing system?**
+
+*Answer:*
+- Principle of least privilege
+- Separate permission to edit content vs edit ACL
+- Approval workflows for sensitive permission changes
+- Immutable audit logs
+- Regular access reviews
+
+## Resources
+
+### Papers
+- **"Role-Based Access Control"** (Ferraiolo & Kuhn, 1992)
+- **"Attribute-Based Access Control"** - NIST Standard
+- **"Access Control for Enterprise Document Management"** - ACM CCS
+
+### Documentation
+- [AWS IAM Best Practices](https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html)
+- [Google Cloud IAM](https://cloud.google.com/iam/docs/overview)
+- [Azure RBAC](https://docs.microsoft.com/en-us/azure/role-based-access-control/)
+
+### Tools
+- **OpenFGA**: Fine-grained authorization
+- **Casbin**: Access control library
+- **OPA**: Open Policy Agent
+- **Keycloak**: Identity and access management
+
+### Tutorials
+- "Implementing RBAC in Python"
+- "Zero Trust Architecture for Document Systems"
+- "GDPR Compliance for Access Control"
+
+## Testing Your Implementation
+
+```python
+def test_access_control():
+    rag = AccessControlledRAG(mock_retriever)
+    
+    # Setup
+    rag.set_document_acl("doc1", read_users=["alice", "bob"], write_users=["alice"])
+    rag.set_document_acl("doc2", read_users=["executives"], write_users=[])
+    
+    # Test 1: Allow read
+    results = rag.retrieve_with_acl("query", user_id="alice", user_groups=[])
+    assert any(r["id"] == "doc1" for r in results)
+    
+    # Test 2: Deny access
+    results = rag.retrieve_with_acl("query", user_id="charlie", user_groups=[])
+    assert not any(r["id"] == "doc1" for r in results)
+    
+    # Test 3: Group-based access
+    results = rag.retrieve_with_acl("query", user_id="eve", user_groups=["executives"])
+    assert any(r["id"] == "doc2" for r in results)
+    
+    # Test 4: Audit logging
+    rag.retrieve_with_acl("query", user_id="alice", user_groups=[])
+    assert len(rag.audit_log) > 0
+```
+
+## Related Challenges
+
+- [acl-filter-enforcement](acl-filter-enforcement) - Chunk-level ACL filtering
+- [multi-tenancy-rag](multi-tenancy-rag) - Tenant isolation
+- [audit-logger](audit-logger) - Comprehensive audit logging
+- [ragpart-ragmask-defense](ragpart-ragmask-defense) - Advanced security
+
+---
+
+*Access control is the foundation of secure RAG systems. Always fail closed and audit everything.*

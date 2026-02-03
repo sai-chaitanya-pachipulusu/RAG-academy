@@ -1,13 +1,27 @@
 ﻿---
 title: "Metadata Bitmap Indexing"
-description: "Implement a bitmap index for ultra-fast boolean filtering on document metadata."
+description: "Implement a bitmap index for ultra-fast boolean filtering on document metadata"
+difficulty: "hard"
+estimatedMinutes: 40
+xpReward: 85
+prerequisites: ["metadata-filtering"]
+related: ["metadata-filtering", "partitioned-storage", "inverted-index"]
 ---
 
 # Metadata Bitmap Indexing
 
 When you have millions of documents, filtering them by metadata (e.g., `department='HR'`) using standard loops is too slow. **Bitmap Indexing** provides a way to perform these filters using bitwise operations, which are extremely fast and CPU-efficient.
 
-### How it Works
+## Why This Matters in Production
+
+| Filtering Method | Time Complexity | Best For |
+|-----------------|-----------------|----------|
+| **Linear Scan** | O(N) | Small datasets |
+| **B-Tree Index** | O(log N) | Range queries |
+| **Bitmap Index** | O(1) | Boolean filters, low cardinality |
+| **Inverted Index** | O(D) | High cardinality text fields |
+
+## How it Works
 
 Imagine you have 4 documents and a "Department" field:
 
@@ -20,12 +34,377 @@ A bitmap for `department='HR'` would be `1010` (1 at indices 0 and 2).
 
 To find documents that are in `HR` **AND** are `Public`, you just perform a bitwise `AND` between the two bitmaps.
 
-### Your Task
+## What You're Implementing
 
 1.  **Create Bitmap**: Write a function that takes a list of metadata values and a target value, and returns an integer representing the bitmap.
 2.  **Filter**: Write a function that uses this bitmap to filter a list of document indices.
 
-### Why this matters
+## The Bitmap Index Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Bitmap Index                              │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  Documents: [Doc0, Doc1, Doc2, Doc3, Doc4, Doc5]            │
+│                                                              │
+│  department='HR':     1 0 1 0 0 0  →  0b101000              │
+│  department='Eng':    0 1 0 1 0 0  →  0b010100              │
+│  status='Public':     1 1 1 0 1 0  →  0b111010              │
+│  status='Private':    0 0 0 1 0 1  →  0b000101              │
+│                                                              │
+│  Query: department='HR' AND status='Public'                 │
+│  Operation: 0b101000 & 0b111010 = 0b101000                  │
+│  Result: Doc0, Doc2                                          │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Mathematical Foundations
+
+### Bitmap Representation
+
+```
+Bitmap = Σ(b_i × 2^i) where b_i ∈ {0, 1}
+
+b_i = 1 if document i has the property
+b_i = 0 otherwise
+```
+
+### Boolean Operations
+
+```
+AND:  Documents with both properties
+      bitmap_a & bitmap_b
+
+OR:   Documents with either property
+      bitmap_a | bitmap_b
+
+NOT:  Documents without property
+      ~bitmap_a & mask
+
+XOR:  Documents with exactly one property
+      bitmap_a ^ bitmap_b
+```
+
+### Compression (Roaring Bitmaps)
+
+```
+Run-length encoding for sparse bitmaps:
+- Store runs of consecutive 1s as (start, length) pairs
+- Reduces space from O(N) to O(N × selectivity)
+```
+
+## Implementation Example
+
+```python
+from typing import List, Dict, Set, Optional, Tuple
+from dataclasses import dataclass
+from collections import defaultdict
+
+@dataclass
+class Bitmap:
+    """Represents a bitmap for a specific metadata value."""
+    value: int  # The bitmap as an integer
+    num_docs: int
+    
+    def __and__(self, other: 'Bitmap') -> 'Bitmap':
+        """Bitwise AND operation."""
+        return Bitmap(
+            value=self.value & other.value,
+            num_docs=max(self.num_docs, other.num_docs)
+        )
+    
+    def __or__(self, other: 'Bitmap') -> 'Bitmap':
+        """Bitwise OR operation."""
+        return Bitmap(
+            value=self.value | other.value,
+            num_docs=max(self.num_docs, other.num_docs)
+        )
+    
+    def __invert__(self) -> 'Bitmap':
+        """Bitwise NOT operation (within document range)."""
+        mask = (1 << self.num_docs) - 1
+        return Bitmap(
+            value=(~self.value) & mask,
+            num_docs=self.num_docs
+        )
+    
+    def get_indices(self) -> List[int]:
+        """Get list of document indices where bit is set."""
+        indices = []
+        value = self.value
+        idx = 0
+        while value:
+            if value & 1:
+                indices.append(idx)
+            value >>= 1
+            idx += 1
+        return indices
+    
+    def count(self) -> int:
+        """Count number of set bits (population count)."""
+        return bin(self.value).count('1')
+
+class BitmapIndex:
+    """Bitmap index for fast metadata filtering."""
+    
+    def __init__(self):
+        """Initialize empty bitmap index."""
+        self.num_docs = 0
+        # field -> value -> bitmap
+        self.index: Dict[str, Dict[str, Bitmap]] = defaultdict(dict)
+        self.doc_metadata: List[Dict[str, str]] = []
+    
+    def add_document(self, metadata: Dict[str, str]) -> int:
+        """
+        Add a document to the index.
+        
+        Time Complexity: O(F) where F = number of metadata fields
+        Space Complexity: O(F) for index updates
+        
+        Args:
+            metadata: Document metadata dictionary
+            
+        Returns:
+            Document ID (index)
+        """
+        doc_id = self.num_docs
+        self.doc_metadata.append(metadata)
+        
+        # Update bitmaps for each field
+        for field, value in metadata.items():
+            if value not in self.index[field]:
+                # Create new bitmap
+                self.index[field][value] = Bitmap(value=0, num_docs=0)
+            
+            # Set bit for this document
+            bitmap = self.index[field][value]
+            bitmap.value |= (1 << doc_id)
+            bitmap.num_docs = max(bitmap.num_docs, doc_id + 1)
+        
+        self.num_docs += 1
+        return doc_id
+    
+    def query(
+        self,
+        filters: Dict[str, str],
+        operation: str = "AND"
+    ) -> List[int]:
+        """
+        Query documents matching metadata filters.
+        
+        Time Complexity: O(F) where F = number of filter fields
+        Space Complexity: O(1) for bitmap operations
+        
+        Args:
+            filters: Field -> value mappings to match
+            operation: "AND" or "OR" for combining filters
+            
+        Returns:
+            List of matching document indices
+            
+        Example:
+            >>> index = BitmapIndex()
+            >>> index.add_document({"dept": "HR", "status": "active"})
+            >>> index.add_document({"dept": "Eng", "status": "active"})
+            >>> index.query({"dept": "HR"})
+            [0]
+            >>> index.query({"status": "active"})
+            [0, 1]
+        """
+        if not filters:
+            return list(range(self.num_docs))
+        
+        bitmaps = []
+        for field, value in filters.items():
+            if field in self.index and value in self.index[field]:
+                bitmaps.append(self.index[field][value])
+            else:
+                # Field or value doesn't exist, return empty
+                return []
+        
+        if not bitmaps:
+            return []
+        
+        # Combine bitmaps
+        if operation == "AND":
+            result = bitmaps[0]
+            for b in bitmaps[1:]:
+                result = result & b
+        else:  # OR
+            result = bitmaps[0]
+            for b in bitmaps[1:]:
+                result = result | b
+        
+        return result.get_indices()
+    
+    def query_complex(
+        self,
+        expression: List[Tuple[str, str, str]]
+    ) -> List[int]:
+        """
+        Query with complex boolean expression.
+        
+        Args:
+            expression: List of (field, value, operator) tuples
+                       Operators: "AND", "OR", "NOT"
+                       
+        Example:
+            >>> expression = [
+            ...     ("dept", "HR", "AND"),
+            ...     ("status", "active", "AND"),
+            ...     ("region", "EU", "NOT")
+            ... ]
+            >>> index.query_complex(expression)
+        """
+        if not expression:
+            return list(range(self.num_docs))
+        
+        result = None
+        
+        for field, value, op in expression:
+            if field not in self.index or value not in self.index[field]:
+                bitmap = Bitmap(value=0, num_docs=self.num_docs)
+            else:
+                bitmap = self.index[field][value]
+            
+            if op == "NOT":
+                bitmap = ~bitmap
+            
+            if result is None:
+                result = bitmap
+            elif op == "AND":
+                result = result & bitmap
+            elif op == "OR":
+                result = result | bitmap
+        
+        return result.get_indices() if result else []
+    
+    def get_stats(self) -> Dict[str, any]:
+        """Get index statistics."""
+        total_bitmaps = sum(len(v) for v in self.index.values())
+        
+        return {
+            "num_documents": self.num_docs,
+            "num_fields": len(self.index),
+            "num_bitmaps": total_bitmaps,
+            "fields": list(self.index.keys())
+        }
+
+# Usage Example
+index = BitmapIndex()
+
+# Add documents
+docs = [
+    {"dept": "HR", "status": "active", "region": "US"},
+    {"dept": "Eng", "status": "active", "region": "EU"},
+    {"dept": "HR", "status": "inactive", "region": "US"},
+    {"dept": "Sales", "status": "active", "region": "APAC"},
+    {"dept": "Eng", "status": "active", "region": "US"},
+]
+
+for doc in docs:
+    index.add_document(doc)
+
+# Query: Active HR employees
+results = index.query({"dept": "HR", "status": "active"})
+print(f"Active HR: {results}")  # [0]
+
+# Query: All active employees
+results = index.query({"status": "active"})
+print(f"All active: {results}")  # [0, 1, 3, 4]
+
+# Complex query: Active employees NOT in EU
+expression = [
+    ("status", "active", "AND"),
+    ("region", "EU", "NOT")
+]
+results = index.query_complex(expression)
+print(f"Active, not EU: {results}")  # [0, 3, 4]
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Add Document | O(F) | F = metadata fields |
+| Query (single field) | O(1) | Bitmap lookup |
+| Query (multiple fields) | O(F) | F = filter fields |
+| Space | O(F × V × N) | F fields, V values, N docs |
+| With compression | O(F × V × N × s) | s = selectivity |
+
+## Learning Outcomes
+
+After completing this challenge, you will:
+- Understand bitmap indexing for metadata filtering
+- Be able to implement fast boolean queries
+- Know when bitmaps outperform other index types
+
+## Real-World Applications
+
+| Database | Bitmap Index Usage |
+|----------|-------------------|
+| **ClickHouse** | Primary indexing mechanism |
+| **Elasticsearch** | Filter caching with bitsets |
+| **Oracle** | Bitmap index option |
+| **Druid** | Columnar storage with bitmaps |
+
+## Common Pitfalls
+
+- **High cardinality fields**: Bitmaps become sparse and inefficient
+- **No compression**: Memory explosion with many documents
+- **Missing updates**: Bitmaps not updated on document changes
+- **Integer overflow**: Python handles big ints, but other languages need care
+- **Range queries**: Bitmaps are poor for ranges (use B-trees)
+
+## Production Extensions (Optional)
+
+- **Roaring Bitmaps**: Compressed bitmap implementation
+- **Range Encoding**: Encode ranges as bitmap sets
+- **Bitmap Caching**: Cache frequently used bitmaps
+- **Incremental Updates**: Handle document additions/deletions
+- **Parallel Operations**: SIMD-optimized bitmap operations
+
+## Resources
+
+### Documentation
+- [Roaring Bitmaps](https://roaringbitmap.org/)
+- [ClickHouse Bitmap Index](https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/mergetree#projections)
+- [Elasticsearch Bitsets](https://www.elastic.co/guide/en/elasticsearch/reference/current/query-filter-context.html)
+
+### Tools
+- **PyRoaringBitmap**: Python roaring bitmaps
+- **CRoaring**: C roaring bitmaps
+- **Apache Druid**: Bitmap-based column store
+
+### Papers
+- "Bitmap Index Design Choices and Their Performance Implications" (Wu et al., 2001)
+- "Better Bitmap Performance with Roaring Bitmaps" (Lemire et al., 2016)
+- "Sorting Improves Word-Aligned Bitmap Indexes" (Pinar et al., 2005)
+
+## Interview Questions
+
+1. **When are bitmap indexes better than B-trees?**
+   - Low cardinality fields, boolean queries, read-heavy workloads
+
+2. **How do you handle high cardinality fields with bitmaps?**
+   - Use compression (Roaring), or fall back to B-trees/inverted indexes
+
+3. **What's the space complexity of a bitmap index?**
+   - O(N × V) where N = documents, V = distinct values; compression helps
+
+## After You Pass
+
+Build complete indexing systems:
+- [metadata-filtering](metadata-filtering) - Use bitmaps for filtering
+- [partitioned-storage](partitioned-storage) - Combine with partitioning
+- [inverted-index](inverted-index) - Text search indexing
+
+---
+
+**⚡ Lightning Fast:** Bitmap indexes turn complex boolean queries into single CPU instructions!
+
+## Why this matters
 
 Bitmap indexing is the secret sauce behind ultra-fast filtering in databases like **Clickhouse** and **Elasticsearch**. In RAG, it's used to handle high-scale multi-tenancy and complex metadata predicates.
-

@@ -1,11 +1,22 @@
-﻿<Callout title="Goal" variant="info">
-  Prepend document-level context to every chunk to prevent "semantic drift"
-  during retrieval.
+﻿---
+title: "Contextual Chunk Headers"
+description: "Prepend document-level context to every chunk to prevent 'semantic drift' during retrieval"
+difficulty: "intermediate"
+estimatedMinutes: 35
+xpReward: 75
+prerequisites: ["metadata-aware-chunking"]
+related: ["contextual-retrieval", "metadata-tagging", "section-based-chunking"]
+next: "contextual-retrieval"
+---
+
+<Callout title="Goal" variant="info">
+  Prepend document-level context to every chunk to prevent "semantic drift" during retrieval.
 </Callout>
 
 ## The "Context Blindness" Problem
 
 When you split a document into 50 chunks, **Chunk #23** might say: _"The revenue grew by 20%."_
+
 Without knowing that Chunk #23 belongs to the _"2024 Apple Inc. Annual Report"_, a search for _"Apple revenue 2024"_ might completely miss this chunk because the words "Apple" and "2024" only appeared in the document title, not in Chunk #23.
 
 ## The Anthropic Solution
@@ -19,7 +30,120 @@ Anthropic's "Contextual Retrieval" technique solves this by prepending a structu
 The revenue grew by 20%...
 ```
 
+## The Algorithm
+
+```python
+def add_contextual_headers(chunks: list[dict], document_context: dict) -> list[dict]:
+    """
+    Prepend contextual headers to chunks for better retrieval.
+    
+    Time Complexity: O(C) where C = number of chunks
+    Space Complexity: O(C) for modified chunks
+    
+    Args:
+        chunks: List of chunk dicts with 'text' field
+        document_context: Dict with document-level metadata
+        
+    Returns:
+        Chunks with contextual headers prepended
+    """
+    header_template = """[Document: {doc_title}]
+[Source: {source}]
+[Date: {date}]
+---
+"""
+    
+    header = header_template.format(
+        doc_title=document_context.get('title', 'Unknown'),
+        source=document_context.get('source', 'Unknown'),
+        date=document_context.get('date', 'Unknown')
+    )
+    
+    enriched_chunks = []
+    for chunk in chunks:
+        enriched = {
+            **chunk,
+            'original_text': chunk['text'],
+            'text': header + chunk['text'],
+            'has_context_header': True
+        }
+        enriched_chunks.append(enriched)
+    
+    return enriched_chunks
+```
+
+## Why It Works
+
+**Before contextual headers:**
+- Query: "Apple revenue 2024"
+- Chunk #23: "The revenue grew by 20%" ❌ No match
+
+**After contextual headers:**
+- Query: "Apple revenue 2024"
+- Chunk #23: "[Document: 2024 Apple Annual Report]... The revenue grew by 20%" ✅ Match!
+
+## Implementation Details
+
+### What to Include in Headers
+
+| Field | Example | When to Include |
+|-------|---------|-----------------|
+| Document title | "Q4 2024 Earnings Report" | Always |
+| Section | "Revenue Analysis" | For long docs |
+| Source | "SEC Filing 10-K" | For citations |
+| Date | "2024-12-31" | For time-sensitive |
+| Author | "Finance Team" | For attribution |
+
+### Storage Considerations
+
+```python
+# Store both versions
+chunk = {
+    'text_for_embedding': header + content,  # With context for search
+    'text_for_llm': content,                  # Without context for generation
+    'header': header                          # Separate for flexibility
+}
+```
+
+## ⚖️ Tradeoffs
+
+### Pros
+
+- ✅ Better retrieval for document-specific queries
+- ✅ Reduces "lost context" problems
+- ✅ Simple to implement
+
+### Cons
+
+- ❌ Increases chunk size (more tokens)
+- ❌ May dilute specific content signals
+- ❌ Header design requires tuning
+
+## Real-World Impact
+
+Anthropic's research shows:
+
+- **49% reduction** in retrieval failures
+- **67% improvement** on document-specific queries
+- Works best with: Financial reports, legal docs, technical manuals
+
+## Resources
+
+### Papers
+- **"Contextual Retrieval"** - Anthropic (2024)
+- **"Improving RAG with Contextual Embeddings"** - Research on header enrichment
+
+### Tools
+- **Anthropic**: Contextual retrieval cookbook
+- **LangChain**: Contextual compression
+- **LlamaIndex**: Node postprocessors
+
+## Related Challenges
+
+- [contextual-retrieval](contextual-retrieval) - Full contextual retrieval system
+- [metadata-tagging](metadata-tagging) - Adding metadata to chunks
+- [section-based-chunking](section-based-chunking) - Structure-aware chunking
+
 ## Task
 
 Implement a template-based header injector that wraps raw chunks in a structured document context.
-

@@ -1,23 +1,241 @@
+---
+title: "MMR Diversity Reranking (TypeScript)"
+description: "Implement Maximal Marginal Relevance for result diversification."
+language: "typescript"
+difficulty: "intermediate"
+category: "retrieval"
+prerequisites: ["ts-cosine-similarity", "ts-top-k-search"]
+related: ["mmr-diversity", "ts-chunk-deduplicator", "ts-context-builder"]
+tags: ["mmr", "diversity", "reranking", "redundancy-reduction"]
+---
+
 <Callout title="TypeScript Challenge" variant="info">
-  Implement Maximal Marginal Relevance for result diversification.
+  Implement Maximal Marginal Relevance (MMR) for result diversification — balance relevance with diversity.
 </Callout>
 
-## Why this matters in production
+## Why MMR Matters in Production
 
-Top-k results often contain redundant information. MMR balances relevance with diversity to give users more complete coverage of a topic.
+Top-k results often contain redundant information. MMR balances relevance with diversity to give users more complete coverage of a topic. Without diversity:
 
-## What you're implementing
+- Users see 10 versions of the same information
+- Important alternative perspectives are buried
+- Context window wasted on redundancy
+- LLM answers lack comprehensiveness
 
-- MMR score = λ * relevance - (1-λ) * max_similarity_to_selected.
-- Greedily select documents with highest MMR.
-- Balance with λ parameter (1 = pure relevance, 0 = max diversity).
+### Real-World Scenario
 
-## Common pitfalls
+Query: "benefits of exercise"
 
-- Computing similarity to all documents instead of just selected.
-- Not pre-computing query similarities.
+**Without MMR (top-5 by relevance):**
+1. "Exercise improves cardiovascular health..." (score: 0.95)
+2. "Exercise improves cardiovascular health..." (score: 0.94) - redundant!
+3. "Exercise improves cardiovascular health..." (score: 0.93) - redundant!
+4. "Cardio exercise strengthens the heart..." (score: 0.88) - somewhat redundant
+5. "Exercise improves cardiovascular health..." (score: 0.87) - redundant!
 
-## After you pass
+**With MMR (λ=0.5):**
+1. "Exercise improves cardiovascular health..." (score: 0.95)
+2. "Exercise reduces stress and anxiety..." (score: 0.85, diverse)
+3. "Strength training builds muscle mass..." (score: 0.82, diverse)
+4. "Exercise improves sleep quality..." (score: 0.78, diverse)
+5. "Regular exercise increases longevity..." (score: 0.75, diverse)
 
-Apply MMR to your RAG context selection for better answer coverage.
+## The Mathematical Foundation
 
+### MMR Formula
+
+$$\text{MMR} = \arg\max_{D_i \in R \setminus S} \left[ \lambda \cdot \text{Sim}_1(D_i, Q) - (1-\lambda) \cdot \max_{D_j \in S} \text{Sim}_2(D_i, D_j) \right]$$
+
+Where:
+- $Q$ = Query
+- $R$ = Retrieved documents
+- $S$ = Selected documents
+- $\lambda$ = Trade-off parameter (0 = pure diversity, 1 = pure relevance)
+- $\text{Sim}_1$ = Query-document similarity
+- $\text{Sim}_2$ = Document-document similarity
+
+### Lambda Parameter
+
+| λ Value | Behavior | Best For |
+|---------|----------|----------|
+| 1.0 | Pure relevance | Specific queries |
+| 0.7 | Balanced | General RAG |
+| 0.5 | Equal weight | Exploratory search |
+| 0.3 | Diversity heavy | Broad topics |
+| 0.0 | Pure diversity | Maximum coverage |
+
+### Greedy Selection
+
+```
+1. Start with most relevant document
+2. For remaining documents, compute MMR score
+3. Select document with highest MMR score
+4. Repeat until k documents selected
+```
+
+## Theoretical Deep Dive
+
+### Relevance vs Redundancy Trade-off
+
+```
+Total Value = Relevance - Redundancy Penalty
+
+Where:
+- Relevance = Sim(query, document)
+- Redundancy = max similarity to already selected documents
+```
+
+### Submodularity
+
+MMR provides a constant-factor approximation to the maximum coverage problem, which is submodular:
+
+```
+Marginal gain decreases as set grows:
+  Value({A}) - Value({}) > Value({A,B}) - Value({B})
+```
+
+This property guarantees the greedy algorithm achieves at least (1-1/e) ≈ 63% of optimal.
+
+### Similarity Metrics
+
+| Metric | Use Case | Range |
+|--------|----------|-------|
+| **Cosine** | Text embeddings | [-1, 1] |
+| **Jaccard** | Set overlap | [0, 1] |
+| **Euclidean** | Dense vectors | [0, ∞) |
+
+## Production Considerations
+
+### Computational Complexity
+
+Naive MMR: O(k × n²) for k selections from n documents
+
+Optimizations:
+- Precompute query similarities: O(n)
+- Use approximate nearest neighbors: O(n log n)
+- Batch similarity computations: GPU acceleration
+
+### Adaptive Lambda
+
+Adjust λ based on query:
+
+```typescript
+function getLambda(query: string): number {
+  if (isSpecificQuery(query)) return 0.8;
+  if (isBroadQuery(query)) return 0.4;
+  return 0.5;
+}
+```
+
+### Hybrid with Deduplication
+
+Combine MMR with explicit deduplication:
+
+```
+1. Deduplicate near-identical documents
+2. Apply MMR for diversity
+3. Result: No exact duplicates + maximum diversity
+```
+
+## Your Task
+
+Implement MMR reranking:
+
+```typescript
+interface Document {
+  id: string;
+  text: string;
+  embedding: number[];
+  score: number;  // Initial relevance score
+}
+
+interface MMRConfig {
+  lambda: number;  // Trade-off parameter [0, 1]
+  topK: number;    // Number of documents to select
+}
+
+interface MMRResult {
+  selected: Document[];
+  scores: number[];  // MMR scores for selected documents
+}
+
+function mmrRerank(
+  query: string,
+  queryEmbedding: number[],
+  documents: Document[],
+  config: MMRConfig
+): MMRResult {
+  /**
+   * Rerank documents using Maximal Marginal Relevance.
+   * 
+   * Args:
+   *   query: Original search query
+   *   queryEmbedding: Embedding of the query
+   *   documents: Retrieved documents with embeddings
+   *   config: MMR parameters
+   * 
+   * Returns:
+   *   MMRResult with selected documents and their scores
+   * 
+   * Algorithm:
+   *   1. Initialize selected set S = {}
+   *   2. While |S| < topK:
+   *      a. For each document not in S:
+   *         - Compute relevance = sim(doc, query)
+   *         - Compute max_sim = max(sim(doc, s) for s in S)
+   *         - MMR score = λ * relevance - (1-λ) * max_sim
+   *      b. Select document with highest MMR score
+   *      c. Add to S
+   *   3. Return selected documents
+   * 
+   * Edge Cases:
+   *   - Empty documents: return empty
+   *   - topK > documents.length: return all
+   *   - lambda = 1: pure relevance ranking
+   *   - lambda = 0: maximum diversity (avoid similarity to query too)
+   */
+}
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  /**
+   * Compute cosine similarity between two vectors.
+   * (Assumes vectors are normalized or compute full formula)
+   */
+}
+```
+
+### Validation Checklist
+
+- [ ] First document is most relevant (highest query similarity)
+- [ ] Lambda = 1 returns documents sorted by relevance
+- [ ] Lambda = 0 maximizes diversity from selected set
+- [ ] MMR score formula correct: λ*rel - (1-λ)*max_sim
+- [ ] Selected documents in order of selection
+- [ ] Empty input handled gracefully
+- [ ] topK > length returns all documents
+
+## Common Pitfalls
+
+- **Computing similarity to all documents instead of just selected**: O(n²) vs O(n×k)
+- **Not pre-computing query similarities**: Redundant calculations
+- **Wrong lambda interpretation**: 1 = relevance, 0 = diversity
+- **Not handling negative similarities**: Clamp to [0,1] or handle properly
+- **Forgetting to normalize embeddings**: Affects similarity computation
+
+## After You Pass
+
+Apply MMR to your RAG context selection for better answer coverage, or combine with cascade reranking for efficient diversity-aware retrieval.
+
+## Resources
+
+### Academic Papers
+- ["The Use of MMR, Diversity-Based Reranking for Reordering Documents and Producing Summaries"](https://www.cs.cmu.edu/~jgc/publication/The_Use_of_MMR_Diversity_Based_LTMIR_1998.pdf) - Carbonell & Goldstein (Original MMR)
+- ["Maximal Marginal Relevance in Greedy Algorithm"](https://en.wikipedia.org/wiki/Maximal_marginal_relevance) - Wikipedia overview
+
+### Documentation
+- [Hugging Face MMR](https://huggingface.co/docs/transformers/internal/generation_utils#transformers.TFLogitsProcessor) - Generation diversity
+- [LangChain MMR](https://python.langchain.com/docs/modules/data_connection/retrievers/vectorstore#maximum-marginal-relevance) - Retrieval diversity
+
+### Tutorials
+- ["Diversity in Search Results"](https://www.microsoft.com/en-us/research/publication/improving-diversity-in-web-search/) - Microsoft Research
+- ["MMR Explained"](https://medium.com/@sasi24v/rag-maximal-marginal-relevance-mmr-5aba7bf44f77) - Medium article

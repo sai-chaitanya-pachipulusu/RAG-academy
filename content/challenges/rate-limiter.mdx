@@ -1,33 +1,286 @@
 ﻿---
 title: "Rate Limiter (Token Bucket)"
-description: "Implement a token bucket rate limiter to protect your RAG endpoint."
+description: "Implement a token bucket rate limiter to protect your RAG endpoint from abuse and runaway costs."
+prerequisites: ["contextual-compression-llm"]
+related: ["audit-logger", "rag-cost-tracker"]
+next: ["audit-logger"]
 ---
 
-# Rate Limiter (Token Bucket)
+<Callout title="Goal" variant="info">
+  Master token bucket rate limiting — the essential production pattern that protects your API from abuse, ensures fair usage, and prevents runaway costs.
+</Callout>
 
-LLM APIs are expensive. One bad actor—or one buggy script—can drain your monthly budget in minutes.
+## The Problem
 
-### How Token Bucket Works
+LLM APIs are expensive. One bad actor — or one buggy script — can drain your monthly budget in minutes:
 
-1. **Bucket** starts full of tokens (e.g., 100 tokens).
-2. Each request **consumes** a token.
-3. Tokens **refill** over time (e.g., 10 tokens/sec).
-4. If bucket is empty, request is **rejected** (HTTP 429).
+```python
+# Without rate limiting:
+while True:
+    response = rag_api.query(user_input)  # $0.01 per call
+    # 6000 calls/minute = $360/hour = $8,640/day!
+```
+
+**Real-world impact**: Production RAG systems need rate limiting to:
+- Prevent abuse and DDoS attacks
+- Ensure fair resource allocation
+- Control costs and prevent billing surprises
+- Maintain service stability
+
+## How Token Bucket Works
+
+### The Algorithm
+
+1. **Bucket** starts full of tokens (e.g., 100 tokens)
+2. Each request **consumes** a token
+3. Tokens **refill** over time (e.g., 10 tokens/sec)
+4. If bucket is empty, request is **rejected** (HTTP 429)
+
+### Visual Representation
+
+```
+Time →
+
+Bucket: [██████████] 100 tokens (full)
+Request 1: [████████░] 90 tokens (-10)
+Request 2: [███████░░] 80 tokens (-10)
+... (time passes, refills) ...
+Refill: [██████████] 100 tokens (+20 over 2 sec)
+Burst: [░░░░░░░░░░] 0 tokens (10 rapid requests)
+Reject: HTTP 429 Too Many Requests
+```
 
 ### Why Token Bucket?
 
-- **Allows bursts**: A user can make 100 quick requests if they haven't hit the API recently.
-- **Sustainable rate**: Over time, rate is limited to refill_rate.
-- **Simple to implement**: No complex windowing logic.
+| Algorithm | Burst Handling | Smooth Rate | Implementation |
+|-----------|---------------|-------------|----------------|
+| **Token Bucket** | ✅ Excellent | ✅ Smooth | ✅ Simple |
+| Fixed Window | ❌ Poor | ❌ Jagged | ✅ Simple |
+| Sliding Window | ⚠️ Good | ✅ Smooth | ❌ Complex |
+| Leaky Bucket | ❌ None | ✅ Smooth | ⚠️ Moderate |
 
-### Your Task
+**Token bucket is the industry standard** for APIs that need to allow bursts while maintaining sustainable average rates.
 
-Implement a `TokenBucket` class with:
+## Theoretical Foundation
 
-- `__init__(capacity, refill_rate)`
-- `consume(tokens) -> bool` (True if allowed, False if rate limited)
+### Mathematical Model
 
-### Production Use
+The token bucket is a **leaky bucket with a faucet**:
 
-Every major API (Stripe, OpenAI, AWS) uses rate limiting. Your RAG service should too.
+$$\text{tokens}(t) = \min(C, \text{tokens}(t_0) + r \cdot (t - t_0) - \sum_{\text{requests}} c_i)$$
 
+Where:
+- $C$ = bucket capacity (max burst)
+- $r$ = refill rate (tokens/second)
+- $c_i$ = cost of request $i$
+
+### Rate Limiting Strategies
+
+| Strategy | Bucket Size | Refill Rate | Use Case |
+|----------|-------------|-------------|----------|
+| **Conservative** | 10 | 1/sec | Critical endpoints |
+| **Standard** | 100 | 10/sec | General API |
+| **Generous** | 1000 | 100/sec | Internal services |
+| **Burst-friendly** | 1000 | 10/sec | Batch operations |
+
+### Cost-Based Rate Limiting
+
+Different operations have different costs:
+
+```python
+COSTS = {
+    "query": 1,           # 1 token
+    "generate": 10,       # 10 tokens (uses LLM)
+    "embed": 5,           # 5 tokens (embedding API)
+    "index": 20,          # 20 tokens (write operation)
+}
+
+def consume_for_operation(bucket: TokenBucket, operation: str) -> bool:
+    cost = COSTS.get(operation, 1)
+    return bucket.consume(cost)
+```
+
+## Production Considerations
+
+### Distributed Rate Limiting
+
+Single-server token buckets don't work in distributed systems:
+
+```python
+# Redis-based distributed rate limiting
+import redis
+
+class DistributedTokenBucket:
+    def __init__(self, redis_client: redis.Redis, key: str, capacity: int, refill_rate: float):
+        self.redis = redis_client
+        self.key = key
+        self.capacity = capacity
+        self.refill_rate = refill_rate
+    
+    def consume(self, tokens: int = 1) -> bool:
+        # Lua script for atomic operation
+        script = """
+            local key = KEYS[1]
+            local capacity = tonumber(ARGV[1])
+            local refill_rate = tonumber(ARGV[2])
+            local requested = tonumber(ARGV[3])
+            local now = tonumber(ARGV[4])
+            
+            local bucket = redis.call('HMGET', key, 'tokens', 'last_refill')
+            local current_tokens = tonumber(bucket[1]) or capacity
+            local last_refill = tonumber(bucket[2]) or now
+            
+            -- Calculate refill
+            local delta = now - last_refill
+            local new_tokens = math.min(capacity, current_tokens + delta * refill_rate)
+            
+            -- Check and deduct
+            if new_tokens >= requested then
+                new_tokens = new_tokens - requested
+                redis.call('HMSET', key, 'tokens', new_tokens, 'last_refill', now)
+                return 1
+            else
+                redis.call('HSET', key, 'last_refill', now)
+                return 0
+            end
+        """
+        now = time.time()
+        result = self.redis.eval(script, 1, self.key, self.capacity, 
+                                 self.refill_rate, tokens, now)
+        return bool(result)
+```
+
+### Per-User Rate Limiting
+
+```python
+class UserRateLimiter:
+    def __init__(self):
+        self.buckets: dict[str, TokenBucket] = {}
+    
+    def get_bucket(self, user_id: str) -> TokenBucket:
+        if user_id not in self.buckets:
+            self.buckets[user_id] = TokenBucket(
+                capacity=100,
+                refill_rate=10
+            )
+        return self.buckets[user_id]
+    
+    def allow_request(self, user_id: str) -> bool:
+        bucket = self.get_bucket(user_id)
+        return bucket.consume(1)
+```
+
+### HTTP Response Headers
+
+Standard headers for rate limit communication:
+
+```python
+@app.get("/query")
+def query(request: Request):
+    bucket = get_user_bucket(request.user_id)
+    
+    if not bucket.consume(1):
+        raise HTTPException(
+            status_code=429,
+            headers={
+                "X-RateLimit-Limit": str(bucket.capacity),
+                "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": str(int(time.time() + bucket.time_until_refill())),
+                "Retry-After": str(int(bucket.time_until_refill())),
+            }
+        )
+    
+    # Process request...
+```
+
+## Your Task
+
+Implement token bucket rate limiting:
+
+```python
+import time
+from typing import Optional
+
+class TokenBucket:
+    def __init__(self, capacity: int, refill_rate: float):
+        """
+        Initialize token bucket.
+        
+        Args:
+            capacity: Maximum tokens in bucket (burst size)
+            refill_rate: Tokens added per second
+        """
+        self.capacity = capacity
+        self.tokens = float(capacity)
+        self.refill_rate = refill_rate
+        self.last_refill = time.time()
+    
+    def _refill(self):
+        """Add tokens based on time elapsed."""
+        now = time.time()
+        elapsed = now - self.last_refill
+        added = elapsed * self.refill_rate
+        self.tokens = min(self.capacity, self.tokens + added)
+        self.last_refill = now
+    
+    def consume(self, tokens: int = 1) -> bool:
+        """
+        Try to consume 'tokens' from the bucket.
+        
+        Args:
+            tokens: Number of tokens to consume
+            
+        Returns:
+            True if successful, False if rate limited
+            
+        Note:
+            Always call _refill() first to update token count
+        """
+        pass
+    
+    def time_until_refill(self, tokens: int = 1) -> float:
+        """
+        Calculate time until enough tokens are available.
+        
+        Args:
+            tokens: Tokens needed
+            
+        Returns:
+            Seconds until tokens will be available (0 if already available)
+        """
+        pass
+```
+
+### Validation Checklist
+
+- [ ] Bucket starts full
+- [ ] First N requests allowed (where N = capacity)
+- [ ] Request N+1 rejected when no refill
+- [ ] Tokens refill over time
+- [ ] Refilled tokens allow more requests
+- [ ] Never exceeds capacity (no overflow)
+
+## Resources
+
+### Documentation
+- [Stripe Rate Limits](https://stripe.com/docs/rate-limits) - Production API patterns
+- [GitHub API Rate Limiting](https://docs.github.com/en/rest/overview/rate-limits-for-the-rest-api) - Best practices
+- [AWS API Gateway Throttling](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-request-throttling.html) - Cloud patterns
+
+### Tutorials
+- ["Rate Limiting: A Comprehensive Guide"](https://blog.bytebytego.com/p/rate-limiting-fundamentals) - ByteByteGo
+- ["Token Bucket Algorithm Explained"](https://www.geeksforgeeks.org/token-bucket-algorithm/) - GeeksforGeeks
+- ["Building Rate Limiters"](https://medium.com/@sahilgulati007/building-rate-limiters-4f6d20f4db08) - Medium
+
+### Tools
+- [Redis Cell](https://github.com/brandur/redis-cell) - Redis rate limiting module
+- [Flask-Limiter](https://flask-limiter.readthedocs.io/) - Flask extension
+- [Slowapi](https://slowapi.readthedocs.io/) - FastAPI rate limiting
+- [limiter](https://github.com/ulule/limiter) - Go rate limiting
+
+## Next Steps
+
+After mastering rate limiting:
+- **Audit Logger**: Track all requests for compliance
+- **RAG Cost Tracker**: Monitor and optimize API spending
+- **Circuit Breaker**: Handle cascading failures

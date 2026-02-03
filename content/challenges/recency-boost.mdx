@@ -1,34 +1,215 @@
 ﻿---
 title: "Recency Boosting"
-description: "Boost retrieval scores based on document recency."
+description: "Boost retrieval scores based on document recency to ensure temporal relevance in RAG systems."
+prerequisites: ["similarity-threshold", "basic-retrieval"]
+related: ["metadata-filtering", "recency-boost"]
+next: ["llm-reranker"]
 ---
 
-# Recency Boosting
+<Callout title="Goal" variant="info">
+  Master recency boosting — the technique that ensures fresh information takes precedence over outdated content in time-sensitive RAG applications.
+</Callout>
 
-Semantic similarity alone isn't enough. A **2019 revenue report** shouldn't outrank a **2024 revenue report** just because it has slightly better keyword overlap.
+## The Problem
 
-### The Formula
+Semantic similarity alone isn't enough. A **2019 revenue report** shouldn't outrank a **2024 revenue report** just because it has slightly better keyword overlap:
 
-Use **time decay** to boost recent documents:
-
+```python
+# Without recency boost:
+results = [
+    ("Q3 2019 Revenue Report", score=0.92, date=2019-09-30),
+    ("Q3 2024 Revenue Report", score=0.88, date=2024-09-30),
+]
+# ❌ Old report wins despite being outdated!
 ```
-age_days = (now - doc_timestamp) / 86400
+
+**Real-world impact**: Financial analysts, news aggregators, and policy researchers need the latest information, not the most semantically similar.
+
+## The Solution: Time Decay
+
+Use **exponential time decay** to boost recent documents:
+
+```python
+age_days = (reference_time - doc_timestamp) / 86400
 boost = 1 / (1 + decay_factor * age_days)
 new_score = original_score * boost
 ```
 
+## Theoretical Foundation
+
+### Decay Functions
+
+| Function | Formula | Characteristics |
+|----------|---------|-----------------|
+| **Exponential** | $e^{-\lambda t}$ | Smooth, memoryless |
+| **Hyperbolic** | $\frac{1}{1 + \lambda t}$ | Slower initial decay |
+| **Step** | $1$ if $t < T$ else $0$ | Binary cutoff |
+| **Gaussian** | $e^{-(t/\sigma)^2}$ | Bell-shaped decay |
+
+### Hyperbolic Decay (Recommended)
+
+$$\text{boost}(t) = \frac{1}{1 + \lambda t}$$
+
+Where:
+- $t$ = age in days
+- $\lambda$ = decay factor (tuning parameter)
+
+**Properties**:
+- At $t = 0$: boost = 1.0 (no reduction)
+- At $t = 1/\lambda$: boost = 0.5 (50% reduction)
+- As $t \to \infty$: boost $\to$ 0 (complete decay)
+
 ### Tuning the Decay Factor
 
-- **0.01**: Very slow decay (1-year-old doc keeps 97% score)
-- **0.1**: Moderate decay (1-year-old doc keeps 73% score)
-- **1.0**: Aggressive decay (1-year-old doc keeps 0.3% score)
+| Decay Factor (λ) | 1-day decay | 30-day decay | 1-year decay | Use Case |
+|-----------------|-------------|--------------|--------------|----------|
+| **0.01** | 99% | 77% | 21% | Academic papers, slow-changing docs |
+| **0.1** | 91% | 25% | 0.03% | News, financial reports |
+| **0.5** | 67% | 6% | ~0% | Real-time data, stock prices |
+| **1.0** | 50% | 3% | ~0% | Breaking news, alerts |
 
-### Your Task
+## Production Considerations
 
-Implement a boosting function that takes `(doc_id, score, timestamp)` tuples and returns boosted scores sorted by the new relevance.
+### Metadata Requirements
 
-### Use Cases
+Documents must have reliable timestamps:
 
-- **News RAG**: Yesterday's news is stale; today's is valuable.
-- **Financial RAG**: Q3 2024 report overrides Q3 2023 report.
+```python
+class Document:
+    id: str
+    content: str
+    embedding: list[float]
+    metadata: {
+        "created_at": "2024-01-15T10:30:00Z",  # ISO 8601
+        "updated_at": "2024-06-20T14:45:00Z",
+        "published_at": "2024-01-16T09:00:00Z",
+    }
+```
 
+**Which timestamp to use?**
+- **News**: `published_at`
+- **Docs**: `updated_at` (if available) else `created_at`
+- **Financial**: `reporting_period_end`
+
+### Combining with Other Signals
+
+```python
+def combined_score(
+    semantic_score: float,
+    recency_boost: float,
+    popularity_boost: float = 1.0,
+    authority_boost: float = 1.0,
+) -> float:
+    """
+    Combine multiple ranking signals.
+    
+    All boosts are multiplicative:
+    final_score = semantic * recency * popularity * authority
+    """
+    return semantic_score * recency_boost * popularity_boost * authority_boost
+```
+
+### Query-Dependent Recency
+
+Not all queries need recency:
+
+```python
+RECENCY_SENSITIVE_QUERIES = [
+    "latest", "recent", "news", "update",
+    "2024", "this year", "last month",
+    "current", "today", "now",
+]
+
+def needs_recency_boost(query: str) -> bool:
+    """Detect if query is time-sensitive."""
+    query_lower = query.lower()
+    return any(term in query_lower for term in RECENCY_SENSITIVE_QUERIES)
+```
+
+## Your Task
+
+Implement recency boosting:
+
+```python
+from typing import List, Tuple
+import time
+
+def boost_by_recency(
+    results: List[Tuple[int, float, int]],  # (doc_id, score, timestamp)
+    decay_factor: float = 0.5,
+    reference_time: int = None,
+) -> List[Tuple[int, float]]:
+    """
+    Boost scores based on recency using hyperbolic decay.
+    
+    Formula:
+    - age_days = (reference_time - timestamp) / 86400
+    - boost = 1 / (1 + decay_factor * age_days)
+    - new_score = score * boost
+    
+    Args:
+        results: List of (doc_id, score, timestamp) tuples
+        decay_factor: Lambda parameter for decay (higher = faster decay)
+        reference_time: Unix timestamp for "now" (None = current time)
+        
+    Returns:
+        List of (doc_id, new_score) sorted by new_score descending
+        
+    Edge Cases:
+        - Future timestamps: treat as reference_time (no boost penalty)
+        - Very old documents: score approaches 0
+        - Same timestamp: preserve original ordering
+    """
+    pass
+
+def calculate_decay_factor(half_life_days: float) -> float:
+    """
+    Calculate decay factor from desired half-life.
+    
+    Half-life: time for boost to reach 0.5
+    
+    Args:
+        half_life_days: Desired half-life in days
+        
+    Returns:
+        Decay factor lambda
+    """
+    pass
+```
+
+### Validation Checklist
+
+- [ ] Fresh documents (timestamp = now) get boost ≈ 1.0
+- [ ] Old documents get reduced scores
+- [ ] Results sorted by boosted score descending
+- [ ] Handles future timestamps gracefully
+- [ ] Half-life calculation correct: λ = 1 / half_life
+
+## Resources
+
+### Academic Papers
+- ["Time-Aware Language Models"](https://arxiv.org/abs/2202.03510) - Temporal reasoning in LLMs
+- ["Dynamic Information Retrieval"](https://arxiv.org/abs/2105.01633) - Time-sensitive ranking
+- ["Recency Ranking in Web Search"](https://www.cs.cmu.edu/~qyj/papers/RecencyRanking.pdf) - Yahoo Research
+
+### Documentation
+- [Elasticsearch Function Score](https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-function-score-query.html) - Decay functions
+- [Solr Date Math](https://solr.apache.org/guide/solr/latest/query-guide/function-queries.html#date-math) - Time-based scoring
+- [Vespa Ranking](https://docs.vespa.ai/en/ranking.html) - Native recency support
+
+### Tutorials
+- ["Time-Based Ranking in Search"](https://www.elastic.co/blog/found-function-scoring) - Elastic
+- ["Building News Search"](https://www.pinecone.io/learn/series/vector-databases-in-production-for-busy-engineers/news-search/) - Pinecone
+- ["Temporal RAG Systems"](https://blog.vespa.ai/temporal-rag/) - Vespa
+
+### Tools
+- [dateutil](https://dateutil.readthedocs.io/) - Python datetime utilities
+- [pandas.to_datetime](https://pandas.pydata.org/docs/reference/api/pandas.to_datetime.html) - Timestamp parsing
+- [Arrow](https://arrow.readthedocs.io/) - Better dates/times for Python
+
+## Next Steps
+
+After mastering recency boosting:
+- **LLM Reranker**: Advanced reranking with LLM judgment
+- **Metadata Filtering**: Combine recency with other metadata
+- **Hybrid Search Tuning**: Balance semantic and lexical signals

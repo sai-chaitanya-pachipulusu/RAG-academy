@@ -1,10 +1,12 @@
 ﻿---
 title: "Section-Based Chunking: Document Structure"
 description: "Leverage explicit document structure (headers) for intelligent chunking"
-difficulty: "hard"
-timeEstimate: "35-45 min"
+difficulty: "intermediate"
+estimatedMinutes: 40
 xpReward: 100
 prerequisites: ["recursive-chunking"]
+related: ["markdown-header-chunking", "hierarchical-chunking", "metadata-aware-chunking"]
+next: "markdown-header-chunking"
 ---
 
 # Section-Based Chunking: Respecting Document Structure
@@ -39,10 +41,22 @@ This metadata improves both retrieval and reranking.
 
 ```python
 def section_chunk(markdown):
+    """
+    Chunk markdown by section headers with breadcrumb tracking.
+    
+    Time Complexity: O(L) where L = number of lines
+    Space Complexity: O(N) for output
+    
+    Args:
+        markdown: Markdown text with headers
+        
+    Returns:
+        List of chunks with metadata including breadcrumbs
+    """
     chunks = []
     header_stack = []  # Track nested headers
     current_content = []
-
+    
     for line in markdown.split('\n'):
         if line.startswith('#'):
             # Flush previous section
@@ -52,20 +66,20 @@ def section_chunk(markdown):
                     'header': header_stack[-1] if header_stack else 'Document',
                     'breadcrumb': ' > '.join(header_stack)
                 })
-
+            
             # Update header tracking
             level = len(line) - len(line.lstrip('#'))
             title = line.lstrip('# ').strip()
-
+            
             # Pop headers of same or higher level
             while header_stack and get_level(header_stack[-1]) >= level:
                 header_stack.pop()
             header_stack.append(title)
-
+            
             current_content = [line]
         else:
             current_content.append(line)
-
+    
     return chunks
 ```
 
@@ -154,6 +168,19 @@ Or structured formats like DOCX, PDF chapters, etc.
 
 ---
 
+## Resources
+
+### Documentation
+- [Markdown Specification](https://commonmark.org/)
+- [HTML5 Sectioning Elements](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/heading_elements)
+
+### Tools
+- **BeautifulSoup**: HTML parsing
+- **markdown-it**: Markdown parsing
+- **python-docx**: DOCX section extraction
+
+---
+
 ## Key Insight
 
 Section chunking teaches us:
@@ -166,7 +193,7 @@ The document author already organized content logically.
 
 ## Related Challenges
 
-- `hierarchical-chunking` - Create parent-child relationships
-- `metadata-aware-chunking` - Add more metadata dimensions
-- `recursive-chunking` - Fallback for unstructured parts
-
+- [markdown-header-chunking](markdown-header-chunking) - Markdown-specific implementation
+- [hierarchical-chunking](hierarchical-chunking) - Create parent-child relationships
+- [metadata-aware-chunking](metadata-aware-chunking) - Add more metadata dimensions
+- [recursive-chunking](recursive-chunking) - Fallback for unstructured parts

@@ -1,7 +1,124 @@
-﻿<Callout title="Goal" variant="info">
-  Fine-tune embedding models for your domain — improve retrieval quality by
-  5-20% with domain-specific training.
-</Callout>
+﻿---
+title: "Fine-Tuning Embeddings Guide"
+description: "Complete guide to fine-tuning embedding models for domain-specific retrieval with 5-20% quality improvement"
+difficulty: "hard"
+xpReward: 200
+estimatedMinutes: 60
+stage: "advanced-retrieval"
+track: "fine-tuning"
+tags: ["fine-tuning", "embeddings", "domain-adaptation", "training", "evaluation"]
+prerequisites: ["embedding-finetuning", "lora-adapter"]
+relatedChallenges: ["embedding-finetuning", "lora-adapter", "ranker-distillation", "mteb-evaluation"]
+nextChallenges: ["lora-adapter"]
+theory:
+  overview: |
+    Fine-tuning embedding models adapts pre-trained models to specific domains and 
+    tasks, typically improving retrieval quality by 5-20%. This guide covers data 
+    preparation, training strategies, evaluation, and deployment of fine-tuned 
+    embedding models for production RAG systems.
+  keyFormulas:
+    - name: "Domain Adaptation Gain"
+      formula: "Gain = (Retrieval_finetuned - Retrieval_base) / Retrieval_base"
+    - name: "Training Sample Efficiency"
+      formula: "Efficiency = ΔQuality / n_samples"
+    - name: "Hard Negative Ratio"
+      formula: "r_hard = n_hard / (n_hard + n_easy)"
+    - name: "Matryoshka Dimensions"
+      formula: "D = {d_1, d_2, ..., d_n} where d_1 > d_2 > ... > d_n"
+  visualIntuition: |
+    Fine-tuning Process:
+    
+    ```
+    Base Model (General Domain)
+           ↓
+    [Domain Data Collection]
+           ↓
+    [Hard Negative Mining]
+           ↓
+    [Contrastive Training]
+           ↓
+    Fine-tuned Model (Domain-Specific)
+           ↓
+    [Evaluation on Test Set]
+           ↓
+    Deploy if Improvement > Threshold
+    ```
+  whyItMatters: |
+    Fine-tuning enables:
+    1. **Domain expertise**: Understand specialized vocabulary
+    2. **Task alignment**: Optimize for specific retrieval patterns  
+    3. **Quality gains**: 5-20% improvement typical
+    4. **Cost reduction**: Smaller models match larger general models
+  commonMistakes:
+    - "Insufficient training data (< 1000 pairs)"
+    - "Not using hard negatives"
+    - "Overfitting to small domain"
+    - "Ignoring evaluation on held-out test set"
+  interviewTips:
+    - "Discuss when fine-tuning is worth the effort"
+    - "Explain hard negative mining strategies"
+    - "Compare full fine-tuning vs LoRA"
+    - "Mention Matryoshka embeddings for flexibility"
+realWorld:
+  description: |
+    Bloomberg fine-tunes embeddings for financial terminology. PubMed adapts models 
+    to biomedical literature. GitHub trains code-specific embeddings. E-commerce 
+    platforms optimize for product catalogs. Legal tech companies specialize for 
+    case law and contracts.
+  companies: ["Bloomberg", "PubMed", "GitHub", "Shopify", "LexisNexis"]
+  useCases:
+    - "Financial document search"
+    - "Medical literature retrieval"
+    - "Code documentation search"
+    - "Product catalog discovery"
+    - "Legal case law retrieval"
+complexity:
+  time: "O(n × e × b) where n = samples, e = epochs, b = batch size"
+  space: "O(p) where p = model parameters (or O(p × r) with LoRA)"
+  latency: "Training: hours to days; Inference: same as base model"
+resources:
+  papers:
+    - title: "Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks"
+      url: "https://arxiv.org/abs/1908.10084"
+      authors: "Reimers & Gurevych"
+      year: 2019
+    - title: "Making Monolingual Sentence Embeddings Multilingual"
+      url: "https://arxiv.org/abs/2004.09813"
+      authors: "Reimers & Gurevych"
+      year: 2020
+    - title: "Matryoshka Representation Learning"
+      url: "https://arxiv.org/abs/2205.13147"
+      authors: "Kusupati et al."
+      year: 2022
+  documentation:
+    - title: "Sentence Transformers Training"
+      url: "https://www.sbert.net/docs/training/overview.html"
+    - title: "PEFT Documentation"
+      url: "https://huggingface.co/docs/peft/"
+    - title: "MTEB Leaderboard"
+      url: "https://huggingface.co/spaces/mteb/leaderboard"
+  tutorials:
+    - title: "Fine-tuning Embeddings for RAG"
+      url: "https://blog.langchain.dev/fine-tuning-embeddings/"
+    - title: "Domain Adaptation Guide"
+      url: "https://www.pinecone.io/learn/fine-tune-embeddings/"
+    - title: "Training Custom Embeddings"
+      url: "https://huggingface.co/blog/train-sentence-transformers"
+  tools:
+    - name: "Sentence Transformers"
+      description: "Framework for training sentence embeddings"
+      url: "https://www.sbert.net/"
+    - name: "PEFT"
+      description: "Parameter-efficient fine-tuning"
+      url: "https://github.com/huggingface/peft"
+    - name: "MTEB"
+      description: "Massive Text Embedding Benchmark"
+      url: "https://github.com/embeddings-benchmark/mteb"
+---
+
+# Fine-Tuning Embeddings Guide
+
+Complete guide to fine-tuning embedding models for domain-specific retrieval with 5-20% quality improvement.
 
 ## When to Fine-tune Embeddings
 
@@ -300,45 +417,86 @@ def evaluate_embeddings(model, test_pairs: list[tuple], corpus: list[str]) -> di
     }
 ```
 
-## Before/After Comparison
+## Your Task
 
-| Metric    | Base Model | Fine-tuned | Improvement |
-| --------- | ---------- | ---------- | ----------- |
-| Recall@1  | 45%        | 52%        | +7%         |
-| Recall@10 | 78%        | 88%        | +10%        |
-| MRR       | 0.58       | 0.67       | +15%        |
+Implement a complete fine-tuning pipeline:
 
-## Cost Analysis
-
-| Approach            | Data Needed  | Compute        | Time    |
-| ------------------- | ------------ | -------------- | ------- |
-| Contrastive (small) | 10K pairs    | 1 GPU-hour     | 1 day   |
-| Hard negatives      | 50K triplets | 4 GPU-hours    | 2 days  |
-| LoRA (large model)  | 100K pairs   | 8 GPU-hours    | 3 days  |
-| Full fine-tune      | 500K+ pairs  | 100+ GPU-hours | 1+ week |
+```python
+class EmbeddingFineTuner:
+    def __init__(self, base_model: str = "BAAI/bge-base-en-v1.5"):
+        """Initialize fine-tuner with base model."""
+        pass
+    
+    def prepare_data(self, 
+                    training_pairs: list[tuple],
+                    hard_negative_mining: bool = True) -> DataLoader:
+        """
+        Prepare training data with optional hard negative mining.
+        
+        Args:
+            training_pairs: List of (query, positive) tuples
+            hard_negative_mining: Whether to mine hard negatives
+            
+        Returns:
+            DataLoader for training
+        """
+        pass
+    
+    def train(self,
+             dataloader: DataLoader,
+             epochs: int = 3,
+             learning_rate: float = 2e-5,
+             warmup_steps: int = 100,
+             evaluation_pairs: list[tuple] = None) -> dict:
+        """
+        Fine-tune the embedding model.
+        
+        Args:
+            dataloader: Training data loader
+            epochs: Number of training epochs
+            learning_rate: Learning rate
+            warmup_steps: Warmup steps for scheduler
+            evaluation_pairs: Optional evaluation data
+            
+        Returns:
+            Training metrics
+        """
+        pass
+    
+    def evaluate(self, test_pairs: list[tuple], corpus: list[str]) -> dict:
+        """
+        Evaluate fine-tuned model.
+        
+        Args:
+            test_pairs: Test query-positive pairs
+            corpus: Full document corpus
+            
+        Returns:
+            Evaluation metrics
+        """
+        pass
+    
+    def save(self, output_path: str):
+        """Save fine-tuned model."""
+        pass
+```
 
 ## Production Deployment
 
 ```python
-# Save fine-tuned model
-model.save("./finetuned-embeddings")
+# Save and load fine-tuned model
+model.save("./finetuned-model")
 
-# Load and use
+# Load for inference
 from sentence_transformers import SentenceTransformer
-model = SentenceTransformer("./finetuned-embeddings")
+model = SentenceTransformer("./finetuned-model")
 
-# Or push to HuggingFace
-model.save_to_hub("your-org/domain-embeddings")
+# Use in RAG pipeline
+embeddings = model.encode(documents)
 ```
 
-## Checklist
+## Further Reading
 
-- [ ] Collect diverse query-document pairs
-- [ ] Mine hard negatives for better training
-- [ ] Split data: 80% train, 10% val, 10% test
-- [ ] Start with small model, scale up if needed
-- [ ] Evaluate on held-out test set
-- [ ] Compare to base model on same test
-- [ ] A/B test in production
-- [ ] Monitor for domain drift over time
-
+- [Sentence-BERT Paper](https://arxiv.org/abs/1908.10084)
+- [Matryoshka Embeddings](https://arxiv.org/abs/2205.13147)
+- [Sentence Transformers Training](https://www.sbert.net/docs/training/overview.html)

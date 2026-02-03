@@ -1,40 +1,386 @@
-﻿<Callout title="Goal" variant="info">
-  Implement stable chunk IDs + hashes — the backbone of production traceability (citations, dedup, safe re-indexing).
-</Callout>
+﻿---
+title: "Stable Chunk IDs"
+description: "Implement stable chunk IDs and hashes for production traceability, deduplication, and safe re-indexing"
+difficulty: "medium"
+xpReward: 100
+topics: ["chunking", "hashing", "traceability", "deduplication"]
+prerequisites: ["fixed-size-chunking-fundamentals"]
+---
 
-## Why this matters in production
+# Stable Chunk IDs
 
-If you can’t reliably identify a chunk, you can’t:
+## Overview
 
-- **Debug**: “why did the model cite this?” becomes impossible.
-- **Deduplicate**: you’ll embed the same content repeatedly (cost + noise).
-- **Invalidate caches safely**: semantic cache and retrieval caches need versioning.
-- **Prove grounding**: citations must map to stable chunk identifiers.
+If you can't reliably identify a chunk, you can't debug ("why did the model cite this?"), deduplicate (you'll embed the same content repeatedly), invalidate caches safely, or prove grounding. Stable chunk IDs are the backbone of production traceability.
 
-## Offline vs online
+## Why This Matters
 
-- **Offline (ingestion)**:
-  - chunk the doc
-  - compute **content hash** for each chunk
-  - assign a stable `chunk_id`
-  - store metadata (`doc_id`, `chunk_index`, `chunk_id`, hashes, offsets)
-- **Online (query time)**:
-  - retrieval returns `chunk_id`s
-  - generation cites `chunk_id`s
-  - tracing logs `chunk_id`s so you can reproduce failures
+- **Debugging**: Trace why specific chunks were retrieved
+- **Deduplication**: Avoid re-embedding identical content
+- **Cache Invalidation**: Version chunks for cache management
+- **Citations**: Map citations to exact content
+- **Re-indexing**: Only process changed chunks
 
-## What the tests enforce
+## Key Concepts
 
-- **Deterministic IDs**: same input → same output across runs.
-- **No `hash()`**: Python’s built-in `hash()` is salted per process (not stable).
-- **IDs include** `doc_id` and `chunk_index`.
-- **IDs change** if `chunk_text` changes.
+- **Content hashing**: Hash determines identity
+- **Stable IDs**: Same content → same ID
+- **Metadata tracking**: Store offsets, hashes, versions
+- **Diff indexing**: Only re-index changed chunks
 
-## Production extensions (optional)
+## Real-World Applications
 
-- Add `start` / `end` offsets so you can highlight exact passages.
-- Add `doc_hash` + `index_version` for safe re-ingestion.
-- Add `chunk_type` (`markdown_header`, `table`, `code_block`) for routing strategies.
+| Problem | Solution with Stable IDs |
+|---------|-------------------------|
+| **Duplicate content** | Same hash = same chunk, skip re-embedding |
+| **Re-indexing** | Only process changed chunks (diff by hash) |
+| **Citation verification** | `chunk_id` maps to exact content |
+| **Cache invalidation** | Hash change triggers cache refresh |
+| **Audit trails** | Immutable chunk IDs for compliance |
 
+## The Hash Chain
 
+```
+Document → Chunks → Hash each chunk → Stable ID (doc_id + index + hash_prefix)
+                          ↓
+                     content_sha1: "a3f7b2..."
+                     chunk_id: "doc_001:0:a3f7b2"
+```
 
+## The Challenge
+
+### Part 1: Chunk Hasher
+
+```python
+import hashlib
+from typing import List, Dict
+from dataclasses import dataclass
+
+@dataclass
+class ChunkHash:
+    """Hash information for a chunk."""
+    content_hash: str  # Full hash of content
+    hash_prefix: str   # First 8 chars for ID
+    chunk_id: str      # Stable identifier
+
+class ChunkHasher:
+    """Generate stable hashes and IDs for chunks."""
+    
+    def __init__(self, algorithm: str = "sha256", prefix_length: int = 8):
+        self.algorithm = algorithm
+        self.prefix_length = prefix_length
+    
+    def hash_chunk(
+        self,
+        content: str,
+        doc_id: str,
+        chunk_index: int
+    ) -> ChunkHash:
+        """Generate stable hash and ID for chunk."""
+        # Normalize content for consistent hashing
+        normalized = self._normalize_content(content)
+        
+        # Compute hash
+        hasher = hashlib.new(self.algorithm)
+        hasher.update(normalized.encode('utf-8'))
+        full_hash = hasher.hexdigest()
+        
+        # Create prefix for ID
+        hash_prefix = full_hash[:self.prefix_length]
+        
+        # Build stable ID
+        chunk_id = f"{doc_id}:{chunk_index}:{hash_prefix}"
+        
+        return ChunkHash(
+            content_hash=full_hash,
+            hash_prefix=hash_prefix,
+            chunk_id=chunk_id
+        )
+    
+    def _normalize_content(self, content: str) -> str:
+        """Normalize content for consistent hashing."""
+        # Remove extra whitespace
+        normalized = ' '.join(content.split())
+        # Normalize unicode
+        normalized = normalized.strip().lower()
+        return normalized
+    
+    def verify_chunk(
+        self,
+        content: str,
+        expected_hash: str
+    ) -> bool:
+        """Verify content matches expected hash."""
+        normalized = self._normalize_content(content)
+        
+        hasher = hashlib.new(self.algorithm)
+        hasher.update(normalized.encode('utf-8'))
+        computed_hash = hasher.hexdigest()
+        
+        return computed_hash == expected_hash
+```
+
+### Part 2: Deduplication Index
+
+```python
+from typing import Set, Optional
+
+class DeduplicationIndex:
+    """Track chunk hashes to prevent duplicates."""
+    
+    def __init__(self):
+        self.seen_hashes: Set[str] = set()
+        self.hash_to_chunk_id: Dict[str, str] = {}
+    
+    def is_duplicate(self, content_hash: str) -> bool:
+        """Check if hash has been seen before."""
+        return content_hash in self.seen_hashes
+    
+    def add(self, content_hash: str, chunk_id: str) -> bool:
+        """Add hash to index. Returns True if new, False if duplicate."""
+        if content_hash in self.seen_hashes:
+            return False
+        
+        self.seen_hashes.add(content_hash)
+        self.hash_to_chunk_id[content_hash] = chunk_id
+        return True
+    
+    def get_existing_id(self, content_hash: str) -> Optional[str]:
+        """Get existing chunk ID for hash."""
+        return self.hash_to_chunk_id.get(content_hash)
+    
+    def get_stats(self) -> Dict[str, int]:
+        """Get deduplication statistics."""
+        return {
+            'unique_chunks': len(self.seen_hashes),
+            'total_hashes_tracked': len(self.hash_to_chunk_id)
+        }
+```
+
+### Part 3: Versioned Chunk Store
+
+```python
+from datetime import datetime
+from typing import List, Optional
+
+@dataclass
+class VersionedChunk:
+    """Chunk with versioning information."""
+    chunk_id: str
+    content: str
+    content_hash: str
+    doc_id: str
+    chunk_index: int
+    version: int
+    created_at: str
+    updated_at: str
+    metadata: Dict
+
+class VersionedChunkStore:
+    """Store chunks with versioning for safe re-indexing."""
+    
+    def __init__(self, hasher: ChunkHasher = None):
+        self.hasher = hasher or ChunkHasher()
+        self.chunks: Dict[str, VersionedChunk] = {}
+        self.doc_chunks: Dict[str, List[str]] = {}  # doc_id -> chunk_ids
+    
+    def store_chunk(
+        self,
+        content: str,
+        doc_id: str,
+        chunk_index: int,
+        metadata: Dict = None
+    ) -> VersionedChunk:
+        """Store or update a chunk."""
+        # Generate hash and ID
+        chunk_hash = self.hasher.hash_chunk(
+            content, doc_id, chunk_index
+        )
+        
+        # Check if chunk exists
+        existing = self.chunks.get(chunk_hash.chunk_id)
+        
+        if existing:
+            # Verify content hasn't changed
+            if existing.content_hash == chunk_hash.content_hash:
+                # No change, return existing
+                return existing
+            else:
+                # Content changed, create new version
+                version = existing.version + 1
+        else:
+            version = 1
+        
+        now = datetime.utcnow().isoformat()
+        
+        chunk = VersionedChunk(
+            chunk_id=chunk_hash.chunk_id,
+            content=content,
+            content_hash=chunk_hash.content_hash,
+            doc_id=doc_id,
+            chunk_index=chunk_index,
+            version=version,
+            created_at=existing.created_at if existing else now,
+            updated_at=now,
+            metadata=metadata or {}
+        )
+        
+        # Store
+        self.chunks[chunk_hash.chunk_id] = chunk
+        
+        # Track in doc index
+        if doc_id not in self.doc_chunks:
+            self.doc_chunks[doc_id] = []
+        if chunk_hash.chunk_id not in self.doc_chunks[doc_id]:
+            self.doc_chunks[doc_id].append(chunk_hash.chunk_id)
+        
+        return chunk
+    
+    def get_chunk(self, chunk_id: str) -> Optional[VersionedChunk]:
+        """Retrieve chunk by ID."""
+        return self.chunks.get(chunk_id)
+    
+    def get_doc_chunks(self, doc_id: str) -> List[VersionedChunk]:
+        """Get all chunks for a document."""
+        chunk_ids = self.doc_chunks.get(doc_id, [])
+        return [self.chunks[cid] for cid in chunk_ids if cid in self.chunks]
+    
+    def get_changed_chunks(
+        self,
+        doc_id: str,
+        new_chunks: List[str]
+    ) -> List[int]:
+        """Get indices of changed chunks for re-indexing."""
+        existing = self.get_doc_chunks(doc_id)
+        existing_hashes = {c.chunk_index: c.content_hash for c in existing}
+        
+        changed = []
+        for i, content in enumerate(new_chunks):
+            chunk_hash = self.hasher.hash_chunk(content, doc_id, i)
+            
+            if i not in existing_hashes:
+                # New chunk
+                changed.append(i)
+            elif existing_hashes[i] != chunk_hash.content_hash:
+                # Changed chunk
+                changed.append(i)
+        
+        return changed
+```
+
+### Part 4: Chunk ID Manager
+
+```python
+class ChunkIDManager:
+    """Manage chunk IDs across the RAG pipeline."""
+    
+    def __init__(
+        self,
+        hasher: ChunkHasher = None,
+        dedup_index: DeduplicationIndex = None
+    ):
+        self.hasher = hasher or ChunkHasher()
+        self.dedup = dedup_index or DeduplicationIndex()
+    
+    def process_document(
+        self,
+        doc_id: str,
+        chunks: List[str],
+        metadata: Dict = None
+    ) -> List[Dict]:
+        """Process document chunks with deduplication."""
+        results = []
+        
+        for i, content in enumerate(chunks):
+            # Generate hash and ID
+            chunk_hash = self.hasher.hash_chunk(content, doc_id, i)
+            
+            # Check for duplicates
+            if self.dedup.is_duplicate(chunk_hash.content_hash):
+                existing_id = self.dedup.get_existing_id(
+                    chunk_hash.content_hash
+                )
+                results.append({
+                    'chunk_id': chunk_hash.chunk_id,
+                    'content_hash': chunk_hash.content_hash,
+                    'status': 'duplicate',
+                    'references': existing_id
+                })
+            else:
+                # New chunk
+                self.dedup.add(
+                    chunk_hash.content_hash,
+                    chunk_hash.chunk_id
+                )
+                
+                results.append({
+                    'chunk_id': chunk_hash.chunk_id,
+                    'content_hash': chunk_hash.content_hash,
+                    'content': content,
+                    'status': 'new',
+                    'index': i,
+                    'metadata': {
+                        **(metadata or {}),
+                        'doc_id': doc_id,
+                        'chunk_index': i
+                    }
+                })
+        
+        return results
+    
+    def verify_citation(
+        self,
+        chunk_id: str,
+        expected_content: str
+    ) -> bool:
+        """Verify that citation matches expected content."""
+        # Parse chunk_id
+        parts = chunk_id.split(':')
+        if len(parts) != 3:
+            return False
+        
+        doc_id, index, hash_prefix = parts
+        
+        # Verify hash
+        chunk_hash = self.hasher.hash_chunk(
+            expected_content, doc_id, int(index)
+        )
+        
+        return chunk_hash.hash_prefix == hash_prefix
+```
+
+## Example Usage
+
+```python
+# Create components
+hasher = ChunkHasher()
+dedup = DeduplicationIndex()
+manager = ChunkIDManager(hasher, dedup)
+
+# Process document
+chunks = [
+    "This is the first chunk.",
+    "This is the second chunk.",
+    "This is the first chunk."  # Duplicate
+]
+
+results = manager.process_document("doc_001", chunks)
+
+for r in results:
+    print(f"{r['chunk_id']}: {r['status']}")
+
+# Output:
+# doc_001:0:a1b2c3d4: new
+# doc_001:1:e5f6g7h8: new
+# doc_001:2:a1b2c3d4: duplicate (references doc_001:0:a1b2c3d4)
+```
+
+## Evaluation Criteria
+
+Your solution will be evaluated on:
+
+1. **Stability**: Same content → same ID
+2. **Deduplication**: Duplicates correctly identified
+3. **Versioning**: Changes tracked properly
+4. **Verification**: Can verify content from ID
+5. **Efficiency**: Fast hash computation

@@ -10,7 +10,7 @@ import { typescriptExec } from "@/lib/typescript/executor";
 import { RetrievalVisualizer } from "./visualizers/RetrievalVisualizer";
 import { Leaderboard } from "./arena/Leaderboard";
 import { LearnMoreSection } from "@/components/resources/LearnMore";
-import { AICodeReview, CodeReviewButton } from "./AICodeReview";
+import { AICodeReview, CodeReviewButton, InlineCodeReview } from "./AICodeReview";
 import { InterviewTimer, InterviewModeToggle, getInterviewDuration } from "./InterviewTimer";
 import { TheoryTab, CHALLENGE_THEORY } from "./TheoryTab";
 import { MicroTaskView, MicroTaskToggle } from "./MicroTaskView";
@@ -34,7 +34,14 @@ import { upsertChallengeProgressFromLocal, upsertProfileFromLocal } from "@/lib/
 import { deepClone } from "@/lib/utils/deepClone";
 import { CURRICULUM_STAGE_LABELS } from "@/lib/curriculum/stages";
 import { isPythonTraceback, formatTestFailure, parsePythonError, formatErrorForDisplay } from "@/lib/pyodide/errorParser";
+import { isTypeScriptError, formatTypeScriptTestFailure, parseTypeScriptError, formatTypeScriptErrorForDisplay } from "@/lib/typescript/errorParser"; 
 import { saveSubmission } from "@/lib/supabase/submissions";
+import { useToast } from "@/components/ui/Toast";
+import type { CodeReviewFeedback } from "@/lib/ai/types";
+import { loadReviewPreferences } from "@/lib/ai/client";
+import { useDevice } from "@/hooks/useDevice";
+import { MobileIDE } from "./MobileIDE";
+import { TouchButton } from "@/components/ui/TouchButton";
 
 type Neighbor = Pick<Challenge, "slug" | "title" | "group">;
 
@@ -55,23 +62,10 @@ type Props = {
 export function ChallengeIDE({ challenge, children, prev, next }: Props) {
   const { state, setState } = useLocalProgress();
   const { user, hasPaidAccess, subscriptionLoading } = useSupabaseAuth();
+  const { addToast } = useToast();
 
   // Access control: check if user can access this challenge
   const isFree = isChallengeFree(challenge);
-  
-  // Show loading while checking subscription
-  if (!isFree && subscriptionLoading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-zinc-200 border-t-zinc-900" />
-      </div>
-    );
-  }
-  
-  // Show paywall for paid challenges if user doesn't have access
-  if (!isFree && !hasPaidAccess) {
-    return <ChallengePaywall challenge={challenge} isLoggedIn={!!user} />;
-  }
 
   const savedCode = state.challenges[challenge.slug]?.userCode ?? null;
   const initial = useMemo(
@@ -86,6 +80,8 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
   );
   const [showAIReview, setShowAIReview] = useState(false);
   const [microTaskMode, setMicroTaskMode] = useState(false);
+  const [inlineReview, setInlineReview] = useState<CodeReviewFeedback | null>(null);
+  const [showInlineReview, setShowInlineReview] = useState(false);
 
   const [stdout, setStdout] = useState("");
   const [stderr, setStderr] = useState("");
@@ -105,6 +101,24 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
   // Check if challenge has theory content
   const theoryContent = CHALLENGE_THEORY[challenge.slug];
 
+  // Detect if this is a TypeScript challenge
+  const isTypeScript = challenge.slug.startsWith("ts-");
+  const executor = isTypeScript ? typescriptExec : pyodideExec;
+  
+  // Show loading while checking subscription
+  if (!isFree && subscriptionLoading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-zinc-200 border-t-zinc-900" />
+      </div>
+    );
+  }
+  
+  // Show paywall for paid challenges if user doesn't have access
+  if (!isFree && !hasPaidAccess) {
+    return <ChallengePaywall challenge={challenge} isLoggedIn={!!user} />;
+  }
+
   useEffect(() => {
     // If there IS saved code (e.g. from a previous session), hydrate editor once.
     if (savedCode === null) return;
@@ -112,6 +126,17 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
       prev === challenge.starterCode ? savedCode : prev
     );
   }, [savedCode, challenge.starterCode]);
+
+  // Check for reverted code from submission history
+  useEffect(() => {
+    const revertKey = `challenge_${challenge.slug}_revert_code`;
+    const revertedCode = localStorage.getItem(revertKey);
+    if (revertedCode) {
+      setCode(revertedCode);
+      localStorage.removeItem(revertKey);
+      addToast("Previous submission code loaded", "success");
+    }
+  }, [challenge.slug, addToast]);
 
   // Persist code in local progress (debounced).
   useEffect(() => {
@@ -132,10 +157,6 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
 
     return () => clearTimeout(t);
   }, [challenge.slug, challenge.starterCode, code, setState]);
-
-  // Detect if this is a TypeScript challenge
-  const isTypeScript = challenge.slug.startsWith("ts-");
-  const executor = isTypeScript ? typescriptExec : pyodideExec;
 
   async function run(mode: "run" | "test") {
     setRunning(mode);
@@ -253,6 +274,42 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
     } finally {
       setRunning(null);
     }
+  }
+
+  const { isMobile } = useDevice();
+
+  // Render mobile-optimized IDE on mobile devices
+  if (isMobile) {
+    return (
+      <MobileIDE
+        challenge={challenge}
+        code={code}
+        onCodeChange={setCode}
+        onRun={() => run("run")}
+        onSubmit={submit}
+        onReset={() => {
+          if (confirm("Are you sure you want to reset your code to the starter template? This cannot be undone.")) {
+            setCode(challenge.starterCode);
+            setStdout("");
+            setStderr("");
+            setMeta(null);
+            setState((prev: LocalProgressState) => {
+              const next = { ...prev, challenges: { ...prev.challenges } };
+              const existing = prev.challenges[challenge.slug];
+              if (existing) next.challenges[challenge.slug] = { ...existing };
+              resetChallenge(next, challenge.slug);
+              return next;
+            });
+          }
+        }}
+        running={running !== null}
+        stdout={stdout}
+        stderr={stderr}
+        meta={meta}
+      >
+        {children}
+      </MobileIDE>
+    );
   }
 
   return (
@@ -458,6 +515,14 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
         </div>
 
         <div className="flex flex-col gap-2 lg:col-span-3">
+          {/* Inline AI Review */}
+          {showInlineReview && inlineReview && (
+            <InlineCodeReview
+              feedback={inlineReview}
+              onDismiss={() => setShowInlineReview(false)}
+            />
+          )}
+
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium">Output</p>
             {meta?.durationMs !== undefined ? (
@@ -521,28 +586,85 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
           </div>
 
           {stderr ? (() => {
-            // Parse and format Python errors for better UX
+            // Parse and format errors for better UX based on language
             const isTraceback = isPythonTraceback(stderr);
-            const formattedError = isTraceback ? formatTestFailure(stderr) : stderr;
+            const isTSError = isTypeScriptError(stderr);
+            
+            let formattedError: string;
+            let errorTitle: string;
+            let errorIcon: string;
+            let parsedError: ReturnType<typeof parsePythonError> | ReturnType<typeof parseTypeScriptError> | null = null;
+            
+            if (isTypeScript) {
+              // TypeScript error handling
+              parsedError = parseTypeScriptError(stderr);
+              formattedError = formatTypeScriptErrorForDisplay(parsedError);
+              errorTitle = parsedError.isTestFailure ? "Test Failed" : parsedError.type;
+              errorIcon = parsedError.isTestFailure ? "🧪" : parsedError.isCompilationError ? "⚠️" : "❌";
+            } else if (isTraceback) {
+              // Python error handling
+              parsedError = parsePythonError(stderr);
+              formattedError = formatTestFailure(stderr);
+              errorTitle = "Python Error";
+              errorIcon = "🐍";
+            } else {
+              // Generic error handling
+              formattedError = stderr;
+              errorTitle = "Error";
+              errorIcon = "❌";
+            }
+            
+            const hasLineNumber = parsedError?.lineNumber != null;
+            const hasFullDetails = isTraceback || (isTSError && parsedError && 'stackTrace' in parsedError && parsedError.stackTrace);
             
             return (
-              <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+              <div className="rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/20">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-medium text-red-700">
-                    {isTraceback ? "Python Error" : "Error"}
-                  </p>
-                  {isTraceback && (
-                    <details className="text-xs text-red-600">
-                      <summary className="cursor-pointer hover:text-red-700">Show full traceback</summary>
-                      <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-red-100 p-2 text-[10px] leading-relaxed">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{errorIcon}</span>
+                    <p className="text-xs font-medium text-red-700 dark:text-red-300">
+                      {errorTitle}
+                    </p>
+                  </div>
+                  {hasFullDetails && (
+                    <details className="text-xs text-red-600 dark:text-red-400">
+                      <summary className="cursor-pointer hover:text-red-700 dark:hover:text-red-300">Show full details</summary>
+                      <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-red-100 dark:bg-red-900/30 p-2 text-[10px] leading-relaxed">
                         {stderr}
                       </pre>
                     </details>
                   )}
                 </div>
-                <pre className="mt-2 whitespace-pre-wrap break-words font-mono text-sm leading-6 text-red-900">
-                  {formattedError}
-                </pre>
+                
+                {/* Error Message */}
+                <div className="mt-3 space-y-2">
+                  <pre className="whitespace-pre-wrap break-words font-mono text-sm leading-6 text-red-900 dark:text-red-200">
+                    {formattedError}
+                  </pre>
+                  
+                  {/* Line Number Badge */}
+                  {hasLineNumber && (
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center rounded-full bg-red-200 dark:bg-red-800 px-2.5 py-0.5 text-xs font-medium text-red-800 dark:text-red-200">
+                        📍 Line {parsedError!.lineNumber}
+                      </span>
+                      {isTypeScript && parsedError && 'columnNumber' in parsedError && parsedError.columnNumber && (
+                        <span className="inline-flex items-center rounded-full bg-red-100 dark:bg-red-900/50 px-2.5 py-0.5 text-xs font-medium text-red-700 dark:text-red-300">
+                          Column {parsedError.columnNumber}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Helpful Tip */}
+                  {parsedError?.suggestion && (
+                    <div className="mt-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 p-3">
+                      <p className="text-xs text-amber-800 dark:text-amber-200">
+                        <span className="font-semibold">💡 Tip:</span> {parsedError.suggestion}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })() : null}
@@ -680,8 +802,13 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
       <AICodeReview
         code={code}
         challengeSlug={challenge.slug}
+        challengeTitle={challenge.title}
         isVisible={showAIReview}
         onClose={() => setShowAIReview(false)}
+        onReviewReceived={(feedback) => {
+          setInlineReview(feedback);
+          setShowInlineReview(true);
+        }}
       />
     </div>
   );

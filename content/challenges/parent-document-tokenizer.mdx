@@ -1,22 +1,481 @@
-﻿<Callout title="Goal" variant="info">
-  Retrieve small chunks for precision, but feed the 'parent' window to the LLM
-  for context.
-</Callout>
+﻿---
+title: "Parent Document Tokenizer"
+description: "Implement parent document retrieval with token-based window expansion for optimal context"
+difficulty: "medium"
+xpReward: 100
+estimatedMinutes: 35
+stage: "advanced-retrieval"
+track: "graph-rag"
+tags: ["parent-document", "tokenizer", "context-window", "chunking", "expansion"]
+prerequisites: ["parent-document-chunking", "recursive-retrieval"]
+relatedChallenges: ["parent-document-chunking", "context-window-optimization", "recursive-retrieval"]
+nextChallenges: ["context-window-optimization"]
+theory:
+  overview: |
+    Parent Document Tokenizer implements the precision-context tradeoff by using 
+    small token windows for retrieval matching, then expanding to larger parent 
+    windows for LLM context. This maximizes both retrieval accuracy and generation 
+    quality.
+  keyFormulas:
+    - name: "Child Window Size"
+      formula: "w_child = target_tokens / overlap_factor"
+    - name: "Parent Window Size"
+      formula: "w_parent = k × w_child where k = expansion factor (typically 4-8x)"
+    - name: "Context Efficiency"
+      formula: "η = |relevant_tokens| / |total_tokens_sent_to_llm|"
+    - name: "Expansion Coverage"
+      formula: "coverage = min(w_parent, doc_length - start) / w_parent"
+  visualIntuition: |
+    Token-Based Parent Document Retrieval:
+    
+    ```
+    Document: "The quick brown fox jumps over the lazy dog..."
+    
+    Child Chunks (128 tokens each, for retrieval):
+      [The quick brown fox jumps over the lazy dog. The fox was very quick...]
+      [over the lazy dog. The fox was very quick. It jumped high...]
+      
+    When Child 1 matches query:
+      ↓
+    Expand to Parent Window (512 tokens):
+      ↓
+    [The quick brown fox jumps over the lazy dog. The fox was very quick.
+     It jumped high and far. The dog didn't move. The fox landed...]
+     
+    (4x expansion provides context while maintaining precision)
+    ```
+  whyItMatters: |
+    Parent document tokenization enables:
+    1. **Precision retrieval**: Small windows match specific queries
+    2. **Rich context**: Large windows provide surrounding information
+    3. **Token efficiency**: Optimize context window usage
+    4. **Boundary handling**: Proper sentence/paragraph preservation
+  commonMistakes:
+    - "Not respecting token boundaries (splitting words)"
+    - "Expansion causing context overflow"
+    - "Losing child-to-parent mapping"
+    - "Not handling document boundaries"
+  interviewTips:
+    - "Compare token-based vs character-based chunking"
+    - "Discuss optimal child/parent size ratios"
+    - "Mention overlap strategies for coverage"
+    - "Explain boundary handling (sentences, paragraphs)"
+realWorld:
+  description: |
+    Parent document retrieval is the "golden standard" for production RAG systems.
+    LangChain's ParentDocumentRetriever and LlamaIndex's auto-merging retriever 
+    both use this pattern. It's deployed in enterprise document Q&A, legal research 
+    tools, and technical documentation systems.
+  companies: ["LangChain", "LlamaIndex", "Anthropic", "OpenAI", "Google"]
+  useCases:
+    - "Enterprise document Q&A"
+    - "Legal contract analysis"
+    - "Technical documentation search"
+    - "Medical record review"
+    - "Research paper exploration"
+complexity:
+  time: "O(n) for tokenization, O(1) for parent lookup"
+  space: "O(n × (1 + 1/k)) where k = expansion factor"
+  latency: "<10ms for parent expansion"
+resources:
+  papers:
+    - title: "Lost in the Middle: How Language Models Use Long Contexts"
+      url: "https://arxiv.org/abs/2307.03172"
+      authors: "Liu et al."
+      year: 2023
+    - title: "RAPTOR: Recursive Abstractive Processing"
+      url: "https://arxiv.org/abs/2401.18059"
+      authors: "Sarthi et al."
+      year: 2024
+  documentation:
+    - title: "LangChain ParentDocumentRetriever"
+      url: "https://python.langchain.com/docs/modules/data_connection/retrievers/parent_document_retriever/"
+    - title: "Tiktoken Tokenizer"
+      url: "https://github.com/openai/tiktoken"
+    - title: "Hugging Face Tokenizers"
+      url: "https://huggingface.co/docs/tokenizers/index"
+  tutorials:
+    - title: "Parent Document Retrieval Tutorial"
+      url: "https://blog.langchain.dev/parent-document-retrieval/"
+    - title: "Optimizing RAG with Parent Documents"
+      url: "https://www.pinecone.io/learn/parent-document-retrieval/"
+  tools:
+    - name: "LangChain ParentDocumentRetriever"
+      description: "Built-in parent document implementation"
+      url: "https://python.langchain.com/"
+    - name: "Tiktoken"
+      description: "Fast BPE tokenizer for OpenAI models"
+      url: "https://github.com/openai/tiktoken"
+    - name: "Tokenizers"
+      description: "Hugging Face fast tokenization library"
+      url: "https://huggingface.co/docs/tokenizers/"
+---
+
+# Parent Document Tokenizer
+
+Implement token-based parent document retrieval that uses small windows for precise matching and expands to larger parent windows for rich LLM context.
 
 ## The Context vs Precision Trade-off
 
 - **Small chunks (128 tokens)**: Great for retrieval precision. The vector is focused.
-- **Large chunks (1024 tokens)**: Great for LLM comprehension. The model sees the surrounding context.
+- **Large chunks (1024 tokens)**: Great for LLM comprehension. The model sees surrounding context.
 
 **Parent Document Retrieval** gives you the best of both worlds.
 
-1.  Chunk your documents into small pieces (child chunks).
-2.  Link each child to its parent (or a larger window around it).
-3.  Index the **children**.
-4.  When a child is hit, retrieve and send the **parent**.
+1. **Chunk** your documents into small pieces (child chunks) using token boundaries
+2. **Link** each child to its parent (a larger window around it)
+3. **Index** the **children**
+4. When a child is hit, retrieve and send the **parent**
 
-## Implementation details
+## Your Task
 
-In this challenge, you simulate this by "expanding the window" around a hit index.
-In production (LangChain/LlamaIndex), this is often called `ParentDocumentRetriever`.
+Implement a `ParentDocumentTokenizer` class:
 
+```python
+class ParentDocumentTokenizer:
+    def __init__(self, 
+                 child_size: int = 128, 
+                 parent_size: int = 512,
+                 overlap: int = 32,
+                 tokenizer = None):
+        """
+        Initialize parent document tokenizer.
+        
+        Args:
+            child_size: Token size for child chunks (retrieval)
+            parent_size: Token size for parent chunks (generation)
+            overlap: Token overlap between consecutive children
+            tokenizer: Tokenizer instance (defaults to tiktoken)
+        """
+        pass
+    
+    def tokenize(self, text: str) -> list[int]:
+        """
+        Tokenize text to token IDs.
+        
+        Args:
+            text: Input text
+            
+        Returns:
+            List of token IDs
+        """
+        pass
+    
+    def create_child_chunks(self, text: str) -> list[dict]:
+        """
+        Create child chunks with token boundaries.
+        
+        Args:
+            text: Input document
+            
+        Returns:
+            List of child chunks:
+            [
+                {
+                    "id": str,
+                    "text": str,
+                    "tokens": list[int],
+                    "start_idx": int,
+                    "end_idx": int
+                }
+            ]
+        """
+        pass
+    
+    def create_parent_windows(self, child_chunks: list[dict], 
+                             full_text: str) -> list[dict]:
+        """
+        Create parent windows for each child.
+        
+        Args:
+            child_chunks: List of child chunks
+            full_text: Original document text
+            
+        Returns:
+            List of parent windows with mappings
+        """
+        pass
+    
+    def process_document(self, doc_id: str, text: str) -> dict:
+        """
+        Full processing pipeline.
+        
+        Args:
+            doc_id: Document identifier
+            text: Document text
+            
+        Returns:
+            {
+                "doc_id": str,
+                "children": list[dict],
+                "parents": list[dict],
+                "mappings": {
+                    "child_to_parent": dict,
+                    "parent_to_children": dict
+                }
+            }
+        """
+        pass
+    
+    def get_parent_for_child(self, child_id: str, 
+                             processed_doc: dict) -> dict:
+        """
+        Lookup parent for a given child.
+        
+        Args:
+            child_id: Child chunk ID
+            processed_doc: Processed document structure
+            
+        Returns:
+            Parent chunk dictionary
+        """
+        pass
+```
+
+## Example
+
+```python
+# Initialize tokenizer
+tokenizer = ParentDocumentTokenizer(
+    child_size=128,    # Small for precise retrieval
+    parent_size=512,   # 4x larger for context
+    overlap=32         # Overlap for continuity
+)
+
+# Process document
+doc = """
+The quick brown fox jumps over the lazy dog. The fox was very quick and agile.
+It jumped high into the air and landed gracefully. The dog didn't even notice.
+The fox continued on its journey through the forest...
+"""
+
+result = tokenizer.process_document("doc_1", doc)
+
+print(f"Created {len(result['children'])} child chunks")
+print(f"Created {len(result['parents'])} parent windows")
+
+# Child chunks (for indexing/retrieval)
+for child in result['children'][:2]:
+    print(f"Child {child['id']}: {len(child['tokens'])} tokens")
+    print(f"  Text: {child['text'][:50]}...")
+
+# When child is retrieved, get parent
+child_id = result['children'][0]['id']
+parent = tokenizer.get_parent_for_child(child_id, result)
+print(f"Parent for {child_id}:")
+print(f"  Size: {len(parent['tokens'])} tokens")
+print(f"  Text: {parent['text'][:100]}...")
+```
+
+## Algorithm Details
+
+### Tokenization
+
+```python
+def tokenize(self, text: str) -> list[int]:
+    """Tokenize text using tiktoken or provided tokenizer."""
+    if self.tokenizer is None:
+        import tiktoken
+        self.tokenizer = tiktoken.get_encoding("cl100k_base")
+    
+    return self.tokenizer.encode(text)
+
+def detokenize(self, tokens: list[int]) -> str:
+    """Convert tokens back to text."""
+    return self.tokenizer.decode(tokens)
+```
+
+### Child Chunk Creation
+
+```python
+def create_child_chunks(self, text: str) -> list[dict]:
+    """Create overlapping child chunks."""
+    tokens = self.tokenize(text)
+    chunks = []
+    
+    start = 0
+    chunk_id = 0
+    
+    while start < len(tokens):
+        end = min(start + self.child_size, len(tokens))
+        
+        chunk_tokens = tokens[start:end]
+        chunk_text = self.detokenize(chunk_tokens)
+        
+        chunks.append({
+            "id": f"child_{chunk_id}",
+            "text": chunk_text,
+            "tokens": chunk_tokens,
+            "start_idx": start,
+            "end_idx": end
+        })
+        
+        # Move with overlap
+        start = end - self.overlap
+        chunk_id += 1
+        
+        # Avoid infinite loop at end
+        if end == len(tokens):
+            break
+    
+    return chunks
+```
+
+### Parent Window Creation
+
+```python
+def create_parent_windows(self, child_chunks: list[dict], 
+                         full_text: str) -> list[dict]:
+    """Create parent windows centered on child chunks."""
+    all_tokens = self.tokenize(full_text)
+    parents = []
+    
+    for i, child in enumerate(child_chunks):
+        # Calculate parent window around child
+        child_center = (child["start_idx"] + child["end_idx"]) // 2
+        
+        parent_start = max(0, child_center - self.parent_size // 2)
+        parent_end = min(len(all_tokens), parent_start + self.parent_size)
+        
+        # Adjust if at document end
+        if parent_end == len(all_tokens):
+            parent_start = max(0, parent_end - self.parent_size)
+        
+        parent_tokens = all_tokens[parent_start:parent_end]
+        parent_text = self.detokenize(parent_tokens)
+        
+        parent_id = f"parent_{i}"
+        
+        parents.append({
+            "id": parent_id,
+            "text": parent_text,
+            "tokens": parent_tokens,
+            "start_idx": parent_start,
+            "end_idx": parent_end,
+            "child_ids": [child["id"]]  # Link to child
+        })
+    
+    return parents
+```
+
+### Full Pipeline
+
+```python
+def process_document(self, doc_id: str, text: str) -> dict:
+    """Process document into parent-child structure."""
+    # Create children
+    children = self.create_child_chunks(text)
+    
+    # Create parents
+    parents = self.create_parent_windows(children, text)
+    
+    # Build mappings
+    child_to_parent = {}
+    parent_to_children = {}
+    
+    for parent in parents:
+        parent_to_children[parent["id"]] = parent["child_ids"]
+        for child_id in parent["child_ids"]:
+            child_to_parent[child_id] = parent["id"]
+    
+    return {
+        "doc_id": doc_id,
+        "children": children,
+        "parents": parents,
+        "mappings": {
+            "child_to_parent": child_to_parent,
+            "parent_to_children": parent_to_children
+        }
+    }
+```
+
+## Token Size Guidelines
+
+| Use Case | Child Size | Parent Size | Ratio | Overlap |
+|----------|-----------|-------------|-------|---------|
+| General QA | 128 | 512 | 4x | 32 |
+| Code | 256 | 1024 | 4x | 64 |
+| Legal | 256 | 1024 | 4x | 64 |
+| Medical | 128 | 512 | 4x | 32 |
+| Research | 256 | 2048 | 8x | 64 |
+
+## Evaluation Criteria
+
+1. **Token Boundary Respect**: No split words
+2. **Coverage**: All text included in chunks
+3. **Mapping Accuracy**: Correct child→parent links
+4. **Overlap**: Proper continuity between children
+
+## Test Cases
+
+```python
+def test_token_boundaries():
+    """Ensure no words are split."""
+    tokenizer = ParentDocumentTokenizer(child_size=10)
+    
+    text = "The quick brown fox jumps"
+    chunks = tokenizer.create_child_chunks(text)
+    
+    # Reconstruct should match original
+    reconstructed = ""
+    for chunk in chunks:
+        reconstructed += chunk["text"]
+    
+    assert text in reconstructed
+
+def test_parent_expansion():
+    """Test parent is larger than child."""
+    tokenizer = ParentDocumentTokenizer(child_size=50, parent_size=200)
+    
+    text = " ".join([f"word{i}" for i in range(100)])
+    result = tokenizer.process_document("doc_1", text)
+    
+    for child in result["children"]:
+        parent = tokenizer.get_parent_for_child(child["id"], result)
+        assert len(parent["tokens"]) >= len(child["tokens"])
+
+def test_overlap():
+    """Test consecutive chunks have overlap."""
+    tokenizer = ParentDocumentTokenizer(child_size=50, overlap=10)
+    
+    text = " ".join([f"word{i}" for i in range(100)])
+    chunks = tokenizer.create_child_chunks(text)
+    
+    if len(chunks) > 1:
+        # Some overlap should exist
+        overlap = set(chunks[0]["tokens"]) & set(chunks[1]["tokens"])
+        assert len(overlap) > 0
+```
+
+## Comparison: Chunking Strategies
+
+| Strategy | Precision | Context | Storage | Best For |
+|----------|-----------|---------|---------|----------|
+| Fixed | Medium | Medium | Low | Simple docs |
+| Parent-Document | High | High | Medium | Production RAG |
+| Hierarchical | High | Very High | High | Complex docs |
+| Semantic | Very High | Medium | Medium | Thematic queries |
+
+## Production Integration
+
+```python
+# With LangChain
+from langchain.retrievers import ParentDocumentRetriever
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+child_splitter = RecursiveCharacterTextSplitter(chunk_size=128)
+parent_splitter = RecursiveCharacterTextSplitter(chunk_size=512)
+
+retriever = ParentDocumentRetriever(
+    vectorstore=vectorstore,
+    docstore=docstore,
+    child_splitter=child_splitter,
+    parent_splitter=parent_splitter
+)
+```
+
+## Further Reading
+
+- [Lost in the Middle Paper](https://arxiv.org/abs/2307.03172)
+- [LangChain ParentDocumentRetriever](https://python.langchain.com/docs/modules/data_connection/retrievers/parent_document_retriever/)
+- [Tiktoken Documentation](https://github.com/openai/tiktoken)

@@ -1,4 +1,29 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "Hallucination Detection"
+description: |
+  Detect and prevent hallucinations in RAG systems. Verify that generated content
+  is grounded in retrieved context using multiple detection strategies.
+difficulty: intermediate
+estimatedMinutes: 45
+topics: ["hallucination", "fact-checking", "grounding", "verification", "safety"]
+language: python
+prerequisites:
+  - basic-retrieval
+  - refusal-policy
+  - citation-range-validator
+related:
+  - faithfulness-judge
+  - answer-relevancy-score
+  - contextual-compression-llm
+next:
+  - faithfulness-judge
+  - answer-relevancy-score
+xp: 150
+---
+
+# Hallucination Detection
+
+<Callout title="Goal" variant="info">
   Detect and prevent hallucinations in RAG systems — verify that generated
   content is grounded in retrieved context.
 </Callout>
@@ -12,15 +37,23 @@ Hallucinations in RAG are answers that:
 - Add plausible-sounding but incorrect details
 - Fail to cite sources properly
 
-## Types of RAG Hallucinations
+### Types of RAG Hallucinations
 
-| Type               | Example                          | Cause                    |
-| ------------------ | -------------------------------- | ------------------------ |
-| **Fabrication**    | Inventing statistics not in docs | Model knowledge override |
-| **Misattribution** | Wrong source cited               | Context confusion        |
-| **Exaggeration**   | "Always" vs "Sometimes"          | Generalization           |
-| **Contradiction**  | Opposite of doc content          | Poor grounding           |
-| **Conflation**     | Mixing info from different docs  | Context merging          |
+| Type | Example | Cause |
+|------|---------|-------|
+| **Fabrication** | Inventing statistics not in docs | Model knowledge override |
+| **Misattribution** | Wrong source cited | Context confusion |
+| **Exaggeration** | "Always" vs "Sometimes" | Generalization |
+| **Contradiction** | Opposite of doc content | Poor grounding |
+| **Conflation** | Mixing info from different docs | Context merging |
+
+### Real-World Impact
+
+| Incident | Hallucination Type | Cost |
+|----------|-------------------|------|
+| Lawyer used ChatGPT citations | Fabrication | Sanctions, fines |
+| Medical advice bot | Exaggeration | Patient harm |
+| Financial reporting | Misattribution | SEC investigation |
 
 ## Detection Strategies
 
@@ -29,7 +62,7 @@ Hallucinations in RAG are answers that:
 Extract claims from the response, then verify each against context:
 
 ```python
-def extract_claims(response: str) -> list[str]:
+def extract_claims(response: str, llm) -> list[str]:
     """Extract factual claims from a response."""
     prompt = f"""Extract all factual claims from this response.
 Each claim should be a single, verifiable statement.
@@ -42,7 +75,7 @@ Claims (one per line):"""
     result = llm.generate(prompt)
     return [c.strip() for c in result.split("\n") if c.strip()]
 
-def verify_claim(claim: str, context: str) -> dict:
+def verify_claim(claim: str, context: str, llm) -> dict:
     """Verify if a claim is supported by context."""
     prompt = f"""Determine if this claim is supported by the context.
 
@@ -66,13 +99,13 @@ Verdict:"""
         "grounded": verdict == "SUPPORTED"
     }
 
-def detect_hallucinations(response: str, context: str) -> dict:
+def detect_hallucinations(response: str, context: str, llm) -> dict:
     """Full hallucination detection pipeline."""
-    claims = extract_claims(response)
+    claims = extract_claims(response, llm)
 
     results = []
     for claim in claims:
-        result = verify_claim(claim, context)
+        result = verify_claim(claim, context, llm)
         results.append(result)
 
     grounded_count = sum(1 for r in results if r["grounded"])
@@ -156,12 +189,12 @@ def verify_quotes(response: str, context: str) -> dict:
 Generate multiple answers and check consistency:
 
 ```python
-def self_consistency_check(query: str, context: str, n: int = 3) -> dict:
+def self_consistency_check(query: str, context: str, llm, n: int = 3) -> dict:
     """Generate multiple answers and check for consistency."""
     responses = []
 
     for _ in range(n):
-        response = generate_with_temperature(query, context, temperature=0.7)
+        response = llm.generate_with_temperature(query, context, temperature=0.7)
         responses.append(response)
 
     # Check pairwise consistency
@@ -238,7 +271,7 @@ def validate_citations(response: str, num_sources: int) -> dict:
 ### 3. Confidence Scoring
 
 ```python
-def generate_with_confidence(query: str, context: str) -> dict:
+def generate_with_confidence(query: str, context: str, llm) -> dict:
     """Generate response with confidence estimate."""
     prompt = f"""Answer the question based on the context.
 Also rate your confidence (0-100) in the answer being correct.
@@ -335,30 +368,30 @@ class AntiHallucinationRAG:
 
 ## Metrics
 
-| Metric             | Formula                        | Target |
-| ------------------ | ------------------------------ | ------ |
-| Grounding Rate     | grounded_claims / total_claims | >90%   |
-| Quote Accuracy     | verified_quotes / total_quotes | >95%   |
-| Contradiction Rate | contradictions / total_claims  | <5%    |
-| Refusal Rate       | refused / total_queries        | 5-15%  |
+| Metric | Formula | Target |
+|--------|---------|--------|
+| Grounding Rate | grounded_claims / total_claims | >90% |
+| Quote Accuracy | verified_quotes / total_quotes | >95% |
+| Contradiction Rate | contradictions / total_claims | <5% |
+| Refusal Rate | refused / total_queries | 5-15% |
 
 ## Cost Considerations
 
-| Approach                        | Extra Latency | Extra Cost    |
-| ------------------------------- | ------------- | ------------- |
-| Claim extraction + verification | +500ms        | +$0.005/query |
-| NLI model                       | +50ms         | Free (local)  |
-| Quote matching                  | +10ms         | Free          |
-| Self-consistency (3x)           | +2000ms       | +$0.03/query  |
+| Approach | Extra Latency | Extra Cost |
+|----------|--------------|------------|
+| Claim extraction + verification | +500ms | +$0.005/query |
+| NLI model | +50ms | Free (local) |
+| Quote matching | +10ms | Free |
+| Self-consistency (3x) | +2000ms | +$0.03/query |
 
 ## When to Use Each Strategy
 
-| Scenario                     | Strategy                |
-| ---------------------------- | ----------------------- |
+| Scenario | Strategy |
+|----------|----------|
 | High-stakes (legal, medical) | Full claim verification |
-| Cost-sensitive               | NLI + quote matching    |
-| Speed-critical               | Quote matching only     |
-| Research/analysis            | Self-consistency        |
+| Cost-sensitive | NLI + quote matching |
+| Speed-critical | Quote matching only |
+| Research/analysis | Self-consistency |
 
 ## Production Checklist
 
@@ -370,3 +403,35 @@ class AntiHallucinationRAG:
 - [ ] Create human review queue for flagged responses
 - [ ] A/B test verification strategies
 
+## Company Examples
+
+| Company | Approach | Result |
+|---------|----------|--------|
+| **Perplexity** | Citations + source verification | 95% grounding rate |
+| **Elicit** | Claim extraction + NLI | Research-grade accuracy |
+| **Consensus** | Multi-source verification | Scientific consensus |
+| **Harvey** | Legal citation validation | Case law accuracy |
+
+## Resources
+
+### Papers
+- [RAGAS: Automated Evaluation](https://arxiv.org/abs/2309.15217) - Hallucination metrics
+- [SelfCheckGPT](https://arxiv.org/abs/2303.08896) - Zero-shot hallucination detection
+- [FactScore](https://arxiv.org/abs/2305.14251) - Fine-grained factual evaluation
+
+### Tools
+- [RAGAS](https://github.com/explodinggradients/ragas) - Evaluation framework
+- [TruLens](https://github.com/truera/trulens) - LLM evaluation
+- [DeepEval](https://github.com/confident-ai/deepeval) - Unit testing for LLMs
+
+## Related Challenges
+
+- [faithfulness-judge](/challenges/faithfulness-judge) - Automated fact-checking
+- [answer-relevancy-score](/challenges/answer-relevancy-score) - Measure answer quality
+- [citation-range-validator](/challenges/citation-range-validator) - Verify citations
+- [refusal-policy](/challenges/refusal-policy) - When to decline
+
+## Next Steps
+
+- [faithfulness-judge](/challenges/faithfulness-judge) - Build automated fact-checking
+- [answer-relevancy-score](/challenges/answer-relevancy-score) - Evaluate answer quality

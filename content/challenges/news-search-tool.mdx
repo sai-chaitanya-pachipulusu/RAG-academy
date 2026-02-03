@@ -1,14 +1,305 @@
-﻿<Callout title="Goal" variant="info">
-  Build a tool that searches live news APIs for RAG augmentation.
+﻿---
+title: "Project: The News Agent"
+description: "Build a Live RAG agent that queries a search API to answer questions about recent events not in its training data"
+difficulty: "hard"
+xpReward: 150
+estimatedTime: "35-45 min"
+---
+
+<Callout title="Capstone Project" variant="info">
+  This is a **Phase 4 Capstone Project**. You'll build a production-ready "Live RAG" agent that overcomes the knowledge cutoff problem by connecting to real-time search APIs.
 </Callout>
 
-## Why this matters
+## Project Overview
 
-Static knowledge bases are stale. Live tools allow agents to answer "what happened today?".
+Language models have a fundamental limitation: they're trained on static data with a fixed knowledge cutoff. They don't know what happened yesterday, today, or an hour ago. This project solves that problem by building an agent that augments its knowledge with live web search.
 
-## Task
+### What You'll Build
 
-1. Integrate with a News API (e.g. Bing/Google/RapidAPI).
-2. Fetch results for query.
-3. Format as context chunks.
+A News Agent that:
+1. **Analyzes user queries** to extract search intent
+2. **Generates optimized search queries** from natural language
+3. **Retrieves live data** from search APIs (mocked for this challenge)
+4. **Synthesizes answers** grounded only in retrieved information
 
+### Real-World Impact
+
+This is the exact architecture powering systems like:
+- **Perplexity AI** - AI search engine answering with live sources
+- **You.com** - AI assistant with real-time web access
+- **ChatGPT with Browse** - OpenAI's web-enabled conversations
+
+---
+
+## Why This Matters
+
+### The Knowledge Cutoff Problem
+
+```
+User: "What was Apple's stock price yesterday?"
+
+Static LLM: "I don't have access to real-time data..."
+
+News Agent: "Apple (AAPL) closed at $150.25 yesterday, up 1.2% 
+             from the previous day according to market data."
+```
+
+### Live RAG Architecture
+
+```
+┌─────────────────┐     ┌──────────────┐     ┌─────────────────┐
+│  User Query     │────▶│ Query        │────▶│  Search API     │
+│  "Weather SF?"  │     │ Extraction   │     │  (Tavily/Serp)  │
+└─────────────────┘     └──────────────┘     └─────────────────┘
+                                                        │
+                                                        ▼
+┌─────────────────┐     ┌──────────────┐     ┌─────────────────┐
+│  Final Answer   │◀────│  Synthesis   │◀────│  Search Results │
+│  "65°F, sunny"  │     │  (LLM)       │     │  (Live data)    │
+└─────────────────┘     └──────────────┘     └─────────────────┘
+```
+
+---
+
+## Learning Outcomes
+
+After completing this capstone, you will be able to:
+
+1. **Design tool-augmented agents** that extend LLM capabilities beyond training data
+2. **Implement query extraction** to translate natural language into API-friendly queries
+3. **Build retrieval pipelines** that combine multiple information sources
+4. **Apply grounding techniques** to ensure answers are based on retrieved facts, not hallucinations
+5. **Evaluate agent responses** for factual accuracy and relevance
+
+---
+
+## Project Structure
+
+### Milestone 1: Query Analysis (10 min)
+Understand what the user is asking and what information is needed.
+
+**Key Concepts:**
+- Intent classification (informational vs. navigational vs. transactional)
+- Entity extraction (locations, companies, people, dates)
+- Temporal awareness ("today", "yesterday", "latest")
+
+### Milestone 2: Search Tool Integration (10 min)
+Transform the query into a format that yields good search results.
+
+**Key Concepts:**
+- Keyword extraction and normalization
+- Query expansion for better recall
+- API parameter optimization
+
+### Milestone 3: Answer Synthesis (15 min)
+Generate a coherent answer using only the retrieved information.
+
+**Key Concepts:**
+- Source attribution and citations
+- Information fusion from multiple results
+- Handling "no results" gracefully
+
+---
+
+## Implementation Guide
+
+### The Search Tool Pattern
+
+```python
+# Mock Search API - In production, use Tavily, SerpApi, or Google Custom Search
+MOCK_WEB_INDEX = {
+    "weather san francisco": "The weather in San Francisco is currently 65°F and sunny.",
+    "stock price apple": "Apple (AAPL) is trading at $150.25, up 1.2%.",
+    "latest rag techniques": "New techniques involve Agentic flows and GraphRAG for better reasoning.",
+}
+
+def search_tool(query: str) -> str:
+    """
+    Mock search tool. In production, this would call:
+    - Tavily API (AI-native search)
+    - SerpApi (Google results)
+    - Bing Search API
+    - Custom web scraper
+    """
+    normalized = " ".join(re.findall(r"[a-z0-9]+", query.lower()))
+    for key, content in MOCK_WEB_INDEX.items():
+        if key in normalized:
+            return content
+    return "No relevant results found."
+```
+
+### The Agent Implementation
+
+```python
+def news_agent_solve(user_query: str) -> str:
+    """
+    Live RAG Agent implementation.
+    
+    Steps:
+    1. Analyze the user query for intent and entities
+    2. Generate a search query (keyword extraction)
+    3. Call search_tool() to get live data
+    4. Synthesize an answer based ONLY on the tool output
+    
+    Args:
+        user_query: Natural language question from user
+        
+    Returns:
+        Synthesized answer grounded in search results
+    """
+    # Step 1: Extract keywords for search
+    # Remove punctuation, normalize case
+    keywords = " ".join(re.findall(r"[a-z0-9]+", user_query.lower()))
+    
+    # Step 2: Call search tool
+    search_result = search_tool(keywords)
+    
+    # Step 3: Synthesize answer
+    if search_result == "No relevant results found.":
+        return "I couldn't find relevant information for your query."
+    
+    return f"Based on current information: {search_result}"
+```
+
+---
+
+## Production Considerations
+
+### API Selection Guide
+
+| API | Best For | Rate Limits | Cost |
+|-----|----------|-------------|------|
+| **Tavily** | AI-native search, structured results | 1000 req/month free | $0.025/query |
+| **SerpApi** | Google results, rich snippets | 100 req/month free | $0.005/query |
+| **Bing Search** | Microsoft ecosystem integration | 1000 req/month free | $7/1000 queries |
+| **Brave Search** | Privacy-focused, no tracking | 2000 req/month free | $3/1000 queries |
+
+### Error Handling
+
+```python
+def robust_search_agent(user_query: str) -> dict:
+    """Production-ready agent with error handling."""
+    try:
+        # Extract search terms
+        keywords = extract_keywords(user_query)
+        
+        # Call search with timeout
+        results = search_with_timeout(keywords, timeout=5.0)
+        
+        if not results:
+            return {
+                "answer": "I couldn't find current information on that topic.",
+                "sources": [],
+                "confidence": 0.0
+            }
+        
+        # Synthesize with citations
+        answer = synthesize_with_citations(results)
+        
+        return {
+            "answer": answer,
+            "sources": [r.url for r in results],
+            "confidence": calculate_confidence(results)
+        }
+        
+    except TimeoutError:
+        return {"answer": "Search timed out. Please try again.", "sources": [], "confidence": 0.0}
+    except Exception as e:
+        logger.error(f"Search failed: {e}")
+        return {"answer": "An error occurred. Please try again later.", "sources": [], "confidence": 0.0}
+```
+
+### Caching Strategy
+
+For expensive API calls, implement smart caching:
+
+```python
+@cache_with_ttl(ttl_seconds=300)  # Cache for 5 minutes
+def cached_search(query: str) -> str:
+    """Cache search results to reduce API costs."""
+    return search_tool(query)
+```
+
+---
+
+## Testing Your Agent
+
+### Test Cases
+
+```python
+# Test 1: Weather query
+ans1 = news_agent_solve("What is the weather in SF?")
+assert "65F" in ans1 or "sunny" in ans1, "Should return weather information"
+
+# Test 2: Stock price query
+ans2 = news_agent_solve("AAPL price")
+assert "150.25" in ans2, "Should return stock price"
+
+# Test 3: Knowledge cutoff test
+ans3 = news_agent_solve("What are the latest RAG techniques?")
+assert "Agentic" in ans3 or "GraphRAG" in ans3, "Should use current context, not hallucinate"
+```
+
+### Evaluation Criteria
+
+| Criterion | Weight | Description |
+|-----------|--------|-------------|
+| **Accuracy** | 40% | Answer matches search results |
+| **Grounding** | 30% | No hallucinations beyond retrieved data |
+| **Relevance** | 20% | Query extraction captures user intent |
+| **Robustness** | 10% | Handles "no results" gracefully |
+
+---
+
+## Common Pitfalls
+
+1. **Hallucination Risk**
+   - ❌ Don't let the LLM make up information when search returns nothing
+   - ✅ Always return "I don't know" or "No results found"
+
+2. **Query Extraction**
+   - ❌ Searching the entire user query verbatim
+   - ✅ Extract keywords and entities for better results
+
+3. **Source Attribution**
+   - ❌ Presenting information without citing sources
+   - ✅ Always include "According to [source]" or similar
+
+4. **Over-reliance on Search**
+   - ❌ Searching for every query (wasteful)
+   - ✅ Use routing (from tool-use-basics) to decide when search is needed
+
+---
+
+## Extensions & Next Steps
+
+### Level Up Your Agent
+
+1. **Multi-Query Search**: Generate multiple search queries for complex questions
+2. **Result Ranking**: Score and filter search results by relevance
+3. **Follow-up Questions**: Ask clarifying questions for ambiguous queries
+4. **Multi-turn Context**: Remember previous searches in the conversation
+
+### Related Challenges
+
+- [tool-use-basics](tool-use-basics) - Learn query routing fundamentals
+- [react-implementation](react-implementation) - Build the full agent loop
+- [conversational-rag](conversational-rag) - Add conversation memory
+- [hybrid-search-tuning](hybrid-search-tuning) - Improve retrieval quality
+
+---
+
+## Summary
+
+You've built a **Live RAG Agent** that overcomes the knowledge cutoff problem by integrating with search APIs. This pattern is essential for:
+
+- **News and current events** - Real-time information access
+- **Market data** - Stock prices, crypto, financial metrics
+- **Weather and location data** - Dynamic environmental information
+- **Product availability** - Inventory, pricing, stock levels
+
+The key insight: **Retrieval isn't limited to vector databases**. Any data source—APIs, databases, search engines—can be your "retriever" in a RAG system.
+
+---
+
+**🎉 Capstone Complete!** You've built a production-ready agent that demonstrates the core pattern behind modern AI search engines. This project showcases your ability to integrate external tools with LLMs to solve real-world problems.

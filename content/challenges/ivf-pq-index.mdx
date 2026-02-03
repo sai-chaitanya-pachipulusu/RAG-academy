@@ -1,4 +1,15 @@
-﻿<Callout title="Goal" variant="info">
+﻿---
+title: "IVF-PQ Index"
+description: "Understand IVF-PQ (Inverted File with Product Quantization) — the memory-efficient alternative to HNSW for billion-scale vector search"
+difficulty: "advanced"
+estimatedMinutes: 75
+xpReward: 175
+prerequisites: ["ivf-flat-index", "product-quantization"]
+related: ["hnsw-index", "quantization-deep-dive", "index-sharding"]
+next: "quantization-deep-dive"
+---
+
+<Callout title="Goal" variant="info">
   Understand IVF-PQ (Inverted File with Product Quantization) — the
   memory-efficient alternative to HNSW for billion-scale vector search.
 </Callout>
@@ -27,6 +38,133 @@ Corpus: 1M vectors, nlist=1000, nprobe=10
 1. Split each 1536-dim vector into `M` subspaces (e.g., M=48, each 32-dim)
 2. Cluster each subspace into 256 centroids (1 byte each)
 3. Store only the centroid IDs (48 bytes instead of 6144 bytes = **128x compression**)
+
+## The Algorithm
+
+```python
+import numpy as np
+from typing import List, Tuple
+
+class IVFPQIndex:
+    """
+    Inverted File Index with Product Quantization.
+    
+    Time Complexity:
+    - Indexing: O(N × nlist × d) for IVF + PQ training
+    - Search: O(nprobe × (N/nlist) × M) for PQ distance lookup
+    
+    Space Complexity: O(N × M) for codes + O(nlist × d) for centroids + PQ codebooks
+    """
+    
+    def __init__(self, dim: int, nlist: int = 100, m: int = 8, nbits: int = 8):
+        self.dim = dim
+        self.nlist = nlist  # IVF clusters
+        self.m = m  # Number of subquantizers
+        self.nbits = nbits  # Bits per code (usually 8 = 256 centroids)
+        self.nprobe = 10
+        
+        assert dim % m == 0, "dim must be divisible by m"
+        self.sub_dim = dim // m
+        
+        self.coarse_centroids = None
+        self.pq_codebooks = None  # m × 256 × sub_dim
+        self.inverted_lists = {}  # centroid_id -> [(vector_id, pq_codes)]
+    
+    def _train_pq(self, vectors: np.ndarray):
+        """Train PQ codebooks for each subspace."""
+        self.pq_codebooks = []
+        
+        for i in range(self.m):
+            # Extract subspace
+            sub_vectors = vectors[:, i * self.sub_dim:(i + 1) * self.sub_dim]
+            
+            # K-means with 256 centroids
+            from sklearn.cluster import KMeans
+            kmeans = KMeans(n_clusters=256, random_state=42, n_init=10)
+            kmeans.fit(sub_vectors)
+            
+            self.pq_codebooks.append(kmeans.cluster_centers_)
+    
+    def _encode_pq(self, vector: np.ndarray) -> List[int]:
+        """Encode vector to PQ codes."""
+        codes = []
+        for i in range(self.m):
+            sub_vec = vector[i * self.sub_dim:(i + 1) * self.sub_dim]
+            # Find nearest centroid in subspace
+            distances = np.linalg.norm(self.pq_codebooks[i] - sub_vec, axis=1)
+            codes.append(int(np.argmin(distances)))
+        return codes
+    
+    def _pq_distance(self, query: np.ndarray, codes: List[int]) -> float:
+        """Compute approximate distance using PQ codes."""
+        distance = 0.0
+        for i, code in enumerate(codes):
+            sub_query = query[i * self.sub_dim:(i + 1) * self.sub_dim]
+            centroid = self.pq_codebooks[i][code]
+            distance += np.linalg.norm(sub_query - centroid) ** 2
+        return distance ** 0.5
+    
+    def train(self, vectors: List[List[float]]):
+        """Train IVF centroids and PQ codebooks."""
+        vectors_np = np.array(vectors)
+        
+        # Train coarse quantizer (IVF)
+        from sklearn.cluster import KMeans
+        kmeans = KMeans(n_clusters=self.nlist, random_state=42, n_init=10)
+        kmeans.fit(vectors_np)
+        self.coarse_centroids = kmeans.cluster_centers_
+        
+        # Train PQ codebooks
+        self._train_pq(vectors_np)
+    
+    def add(self, vectors: List[List[float]], ids: List[int] = None):
+        """Add vectors to the index."""
+        if ids is None:
+            ids = list(range(len(vectors)))
+        
+        for vid, vec in zip(ids, vectors):
+            vec_np = np.array(vec)
+            
+            # Assign to coarse centroid
+            distances = np.linalg.norm(self.coarse_centroids - vec_np, axis=1)
+            coarse_id = int(np.argmin(distances))
+            
+            # Encode with PQ
+            pq_codes = self._encode_pq(vec_np)
+            
+            # Add to inverted list
+            if coarse_id not in self.inverted_lists:
+                self.inverted_lists[coarse_id] = []
+            self.inverted_lists[coarse_id].append((vid, pq_codes))
+    
+    def search(self, query: List[float], k: int = 10) -> List[Tuple[int, float]]:
+        """Search for k nearest neighbors."""
+        query_np = np.array(query)
+        
+        # Find nprobe nearest coarse centroids
+        coarse_distances = np.linalg.norm(self.coarse_centroids - query_np, axis=1)
+        nearest_coarse = np.argsort(coarse_distances)[:self.nprobe]
+        
+        # Search in selected clusters using PQ distances
+        candidates = []
+        for cid in nearest_coarse:
+            for vid, pq_codes in self.inverted_lists.get(cid, []):
+                dist = self._pq_distance(query_np, pq_codes)
+                candidates.append((vid, dist))
+        
+        # Return top k
+        candidates.sort(key=lambda x: x[1])
+        return candidates[:k]
+```
+
+## Complexity Analysis
+
+| Aspect | Complexity | Notes |
+|--------|------------|-------|
+| Training | O(N × nlist × d + N × M × 256 × sub_dim) | IVF + PQ |
+| Indexing | O(N × nlist × d + N × M × 256) | Assign + encode |
+| Search | O(nprobe × (N/nlist) × M) | PQ lookup |
+| Space | O(N × M + nlist × d + M × 256 × sub_dim) | Compressed |
 
 ## IVF-PQ vs HNSW Comparison
 
@@ -98,47 +236,24 @@ index = faiss.IndexIVFPQ(quantizer, dim, nlist, m, 8)
 
 | Index Type    | Memory | Recall@10 | QPS  |
 | ------------- | ------ | --------- | ---- |
-| Flat (exact)  | 3 TB   | 100%      | 0.1  |
-| HNSW          | 4 TB   | 99%       | 1000 |
-| IVF-PQ (m=32) | 100 GB | 88%       | 500  |
-| IVF-PQ (m=64) | 150 GB | 92%       | 400  |
-| OPQ + IVF-PQ  | 100 GB | 91%       | 450  |
+| Flat          | 3 TB   | 100%      | 1    |
+| HNSW          | 3.6 TB | 98%       | 1000 |
+| IVF-PQ (m=32) | 40 GB  | 88%       | 500  |
+| IVF-PQ (m=64) | 80 GB  | 93%       | 400  |
 
-## Edge Cases & Gotchas
+## Resources
 
-1. **Training required**: IVF-PQ needs training on representative data
+### Papers
+- **"Product Quantization for Nearest Neighbor Search"** - Jegou et al.
+- **"Billion-scale Similarity Search with GPUs"** - Johnson et al. (FAISS)
 
-   ```python
-   index.train(training_vectors)  # Before adding vectors!
-   ```
+### Tools
+- **FAISS**: `IndexIVFPQ`, `IndexIVFHNSWPQ`
+- **Scikit-learn**: `KMeans` for clustering
 
-2. **Dimension divisibility**: `dim` must be divisible by `m`
+## Related Challenges
 
-3. **Empty clusters**: With small corpora, some clusters may be empty
-
-4. **Cold vs warm queries**: First query to a cluster is slower (cache miss)
-
-5. **IP vs L2**: Product quantization works better with L2; normalize vectors for cosine
-
-## When to Use Which
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Vector Count                              │
-│   <1M          1M-100M         100M-1B          >1B         │
-├─────────────────────────────────────────────────────────────┤
-│  HNSW         HNSW or        IVF-PQ or       IVF-OPQ-PQ    │
-│  (easy)       IVF-HNSW       IVF-HNSW-PQ     + sharding     │
-│                              (tune nprobe)                   │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## Production Checklist
-
-- [ ] Benchmark with YOUR data (synthetic benchmarks lie)
-- [ ] Test recall at YOUR k value (Recall@10 ≠ Recall@100)
-- [ ] Measure P99 latency, not average
-- [ ] Account for metadata filtering overhead
-- [ ] Plan for re-indexing (embeddings change, models update)
-- [ ] Monitor recall in production (sample and verify)
-
+- [hnsw-index](hnsw-index) - Graph-based ANN
+- [product-quantization](product-quantization) - PQ fundamentals
+- [quantization-deep-dive](quantization-deep-dive) - Advanced quantization
+- [index-sharding](index-sharding) - Distribute large indexes

@@ -9,8 +9,13 @@ language: python
 prerequisites:
   - adaptive-rag-router
   - rerank-cascade
+  - multi-step-reasoning
 xp: 200
 ---
+
+<Callout title="Goal" variant="info">
+  Build a Reasoning RAG system that thinks, retrieves iteratively, and verifies its answers.
+</Callout>
 
 # Reasoning RAG Implementation
 
@@ -115,11 +120,7 @@ class ReasoningRAG:
         # YOUR CODE HERE
         pass
     
-    def plan_next_step(
-        self, 
-        question: str, 
-        steps: List[ReasoningStep]
-    ) -> ReasoningStep:
+    def plan_next_step(self, question: str, steps: List[ReasoningStep]) -> ReasoningStep:
         """
         Decide what to do next based on current state.
         
@@ -286,7 +287,105 @@ def test_reasoning_rag():
 test_reasoning_rag()
 ```
 
+## Theoretical Foundation
+
+### Multi-Hop Reasoning
+
+Reasoning RAG addresses questions that require connecting information from multiple documents:
+
+$$
+\text{Answer} = f(d_1, d_2, ..., d_n) \text{ where } d_i \in \text{Retrieved}(q_i)
+$$
+
+Where each $q_i$ is a sub-query derived from the original question.
+
+### Iterative Retrieval Process
+
+```
+For each step t:
+  1. State s_t = (question, context_{<t})
+  2. Action a_t = π(s_t)  // Plan next action
+  3. If a_t = retrieve:
+       - Generate query q_t
+       - Retrieve docs D_t
+       - Update context
+  4. If a_t = reason:
+       - Analyze current context
+       - Identify gaps
+  5. If a_t = answer:
+       - Generate from context
+       - Verify and cite
+```
+
+### Verification Formula
+
+The verification score measures answer support:
+
+$$
+V(a, D) = \frac{1}{|claims(a)|} \sum_{c \in claims(a)} \max_{d \in D} \text{sim}(c, d)
+$$
+
+Where:
+- $a$ = answer
+- $claims(a)$ = extracted factual claims
+- $D$ = retrieved documents
+- $sim$ = semantic similarity
+
+## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity |
+|-----------|----------------|------------------|
+| Single retrieval | O(n × m) | O(k) |
+| Reasoning step | O(L) | O(1) |
+| Verification | O(|a| × k) | O(1) |
+| Full pipeline (t steps) | O(t × (n×m + L)) | O(t × k) |
+
+Where:
+- n = corpus size
+- m = avg doc length
+- k = docs retrieved per step
+- L = LLM inference cost
+- t = reasoning steps
+
+## Real-World Applications
+
+| Company | Use Case | Implementation |
+|---------|----------|----------------|
+| **Perplexity** | Research queries | Multi-hop with web search |
+| **Elicit** | Academic synthesis | Iterative paper retrieval |
+| **Cognition (Devin)** | Code understanding | Multi-file reasoning |
+| **Google DeepMind** | Scientific Q&A | Chain-of-thought + retrieval |
+
+## Best Practices
+
+1. **Limit iterations**: Set max_steps to prevent infinite loops
+2. **Deduplicate**: Track retrieved docs to avoid re-fetching
+3. **Early stopping**: Verify and answer when confident
+4. **Citation tracking**: Always record document sources
+5. **Error handling**: Gracefully handle retrieval failures
+
 ## Resources
 
-- [Chain-of-Thought Prompting](https://arxiv.org/abs/2201.11903)
-- [IRCoT: Interleaving Retrieval with CoT](https://arxiv.org/abs/2212.10509)
+### Papers
+- [Chain-of-Thought Prompting Elicits Reasoning in LLMs](https://arxiv.org/abs/2201.11903) - Wei et al.
+- [Interleaving Retrieval with Chain-of-Thought Reasoning](https://arxiv.org/abs/2212.10509) - Trivedi et al.
+- [Self-Ask: Measuring and Narrowing the Compositionality Gap](https://arxiv.org/abs/2210.03350) - Press et al.
+
+### Documentation
+- [LangChain Multi-Hop RAG](https://python.langchain.com/docs/use_cases/question_answering/multi_hop/)
+- [LlamaIndex Sub-Question Query Engine](https://docs.llamaindex.ai/en/stable/examples/query_engine/sub_question_query_engine/)
+
+### Tools
+- **DSPy**: Optimized multi-hop pipelines
+- **LangChain**: Reasoning agents and tools
+- **LlamaIndex**: Query decomposition
+
+## Related Challenges
+
+- **Prerequisites**: [multi-step-reasoning](multi-step-reasoning), [adaptive-rag-router](adaptive-rag-router)
+- **Next**: [graph-o1-reasoning](graph-o1-reasoning)
+- **Related**: [self-rag](self-rag), [multi-hop-qa](multi-hop-qa)
+
+---
+
+**🧠 Reasoning Mastery:** Reasoning RAG combines the depth of chain-of-thought with the breadth of retrieval—enabling AI systems to tackle complex, multi-faceted questions that require connecting dots across multiple sources!

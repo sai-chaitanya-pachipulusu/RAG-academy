@@ -3,28 +3,417 @@ title: "PDF Table Extraction"
 description: "Extract structured tables from PDF documents for RAG indexing"
 difficulty: "hard"
 xpReward: 150
+topics: ["pdf-processing", "tables", "structured-data", "document-parsing"]
+prerequisites: ["document-parsing-guide", "chunking-strategies"]
 ---
 
 # PDF Table Extraction
 
 ## Overview
 
-Tables contain critical structured data that standard chunking destroys. This challenge teaches you to preserve tabular information during document ingestion.
+Tables contain critical structured data that standard text chunking destroys. Financial reports, scientific papers, and legal contracts all rely on tabular information. This challenge teaches you to preserve table structure during document ingestion for accurate RAG retrieval.
 
 ## Why This Matters
 
-- **Financial Reports**: Tables are the primary data format
-- **Scientific Papers**: Results tables contain key findings
-- **Legal Contracts**: Payment schedules, terms in table form
+- **Financial Reports**: Tables are the primary data format for earnings, balance sheets
+- **Scientific Papers**: Results tables contain key findings and measurements
+- **Legal Contracts**: Payment schedules, terms, and obligations in table form
+- **Medical Records**: Patient data, medication schedules in structured tables
 
 ## Key Concepts
 
-- Markdown table parsing
-- Row vs cell chunking strategies
-- JSON conversion for structured storage
-- Preserving header context in chunks
+- **Table detection**: Identify table regions in PDF pages
+- **Cell extraction**: Parse individual cells with proper boundaries
+- **Header preservation**: Maintain column context in chunks
+- **Format conversion**: Markdown, HTML, or JSON representations
 
 ## Real-World Applications
 
-LlamaParse, Unstructured, and Google Document AI all focus heavily on table extraction for enterprise documents.
+LlamaParse, Unstructured, and Google Document AI all focus heavily on table extraction for enterprise document processing pipelines.
 
+## Table Detection Approaches
+
+### 1. Rule-Based Detection
+
+```python
+def detect_tables_by_lines(page) -> List[TableRegion]:
+    """Detect tables using PDF line drawing commands."""
+    tables = []
+    
+    # Find horizontal and vertical lines
+    h_lines = [cmd for cmd in page.drawings 
+               if is_horizontal_line(cmd)]
+    v_lines = [cmd for cmd in page.drawings 
+               if is_vertical_line(cmd)]
+    
+    # Look for grid patterns
+    for y_pos in group_lines_by_y(h_lines):
+        potential_rows = find_aligned_lines(h_lines, y_pos)
+        if len(potential_rows) >= 2:  # At least header + 1 row
+            # Find vertical lines intersecting these rows
+            x_ranges = find_column_boundaries(v_lines, y_pos)
+            if len(x_ranges) >= 2:  # At least 2 columns
+                tables.append(TableRegion(
+                    bbox=calculate_bbox(potential_rows, x_ranges),
+                    rows=len(potential_rows),
+                    cols=len(x_ranges)
+                ))
+    
+    return tables
+```
+
+### 2. ML-Based Detection
+
+```python
+class TableDetectionModel:
+    """Deep learning model for table detection."""
+    
+    def __init__(self, model_path: str):
+        self.model = load_model(model_path)
+    
+    def detect(self, page_image: np.ndarray) -> List[TableRegion]:
+        """Detect tables in a page image."""
+        # Preprocess image
+        input_tensor = self.preprocess(page_image)
+        
+        # Run inference
+        predictions = self.model.predict(input_tensor)
+        
+        # Post-process to get bounding boxes
+        boxes = self.nms(predictions)
+        
+        return [TableRegion(bbox=bbox) for bbox in boxes]
+    
+    def preprocess(self, image: np.ndarray) -> torch.Tensor:
+        """Normalize and resize image for model input."""
+        image = cv2.resize(image, (1024, 1024))
+        image = image / 255.0
+        return torch.from_numpy(image).permute(2, 0, 1).unsqueeze(0)
+```
+
+## Cell Extraction
+
+```python
+@dataclass
+class TableCell:
+    """Represents a single table cell."""
+    row: int
+    col: int
+    text: str
+    bbox: Tuple[float, float, float, float]
+    is_header: bool = False
+    rowspan: int = 1
+    colspan: int = 1
+
+class TableExtractor:
+    """Extract structured data from detected tables."""
+    
+    def __init__(self, use_ocr: bool = False):
+        self.use_ocr = use_ocr
+        self.ocr = EasyOCR() if use_ocr else None
+    
+    def extract_table(
+        self,
+        page,
+        table_region: TableRegion
+    ) -> List[List[TableCell]]:
+        """Extract cells from a table region."""
+        
+        # Get text blocks within table region
+        text_blocks = [
+            block for block in page.get_text("blocks")
+            if bbox_intersects(block.bbox, table_region.bbox)
+        ]
+        
+        # Calculate cell grid
+        rows = self._detect_rows(table_region, text_blocks)
+        cols = self._detect_columns(table_region, text_blocks)
+        
+        # Assign text to cells
+        cells = []
+        for i, row in enumerate(rows):
+            row_cells = []
+            for j, col in enumerate(cols):
+                cell_bbox = (col[0], row[0], col[1], row[1])
+                
+                # Find text blocks in this cell
+                cell_text = self._extract_cell_text(
+                    text_blocks, cell_bbox
+                )
+                
+                row_cells.append(TableCell(
+                    row=i,
+                    col=j,
+                    text=cell_text,
+                    bbox=cell_bbox,
+                    is_header=(i == 0)  # Assume first row is header
+                ))
+            cells.append(row_cells)
+        
+        return cells
+    
+    def _detect_rows(
+        self,
+        table_region: TableRegion,
+        text_blocks: List[TextBlock]
+    ) -> List[Tuple[float, float]]:
+        """Detect row boundaries from text positions."""
+        # Group text blocks by y-position
+        y_positions = defaultdict(list)
+        for block in text_blocks:
+            y_center = (block.bbox[1] + block.bbox[3]) / 2
+            y_positions[round(y_center, 1)].append(block)
+        
+        # Sort and create row ranges
+        sorted_y = sorted(y_positions.keys())
+        rows = []
+        for i, y in enumerate(sorted_y):
+            if i == 0:
+                row_top = table_region.bbox[1]
+            else:
+                row_top = (sorted_y[i-1] + y) / 2
+            
+            if i == len(sorted_y) - 1:
+                row_bottom = table_region.bbox[3]
+            else:
+                row_bottom = (y + sorted_y[i+1]) / 2
+            
+            rows.append((row_top, row_bottom))
+        
+        return rows
+```
+
+## Output Formats
+
+### Markdown Tables
+
+```python
+def cells_to_markdown(cells: List[List[TableCell]]) -> str:
+    """Convert cells to Markdown table format."""
+    if not cells:
+        return ""
+    
+    lines = []
+    
+    # Header row
+    header = cells[0]
+    lines.append("| " + " | ".join(
+        cell.text.strip() for cell in header
+    ) + " |")
+    
+    # Separator
+    lines.append("|" + "|".join(
+        " --- " for _ in header
+    ) + "|")
+    
+    # Data rows
+    for row in cells[1:]:
+        lines.append("| " + " | ".join(
+            cell.text.strip() for cell in row
+        ) + " |")
+    
+    return "\n".join(lines)
+
+# Example output:
+# | Quarter | Revenue | Growth |
+# | --- | --- | --- |
+# | Q1 2024 | $10M | 15% |
+# | Q2 2024 | $12M | 20% |
+```
+
+### JSON Structure
+
+```python
+def cells_to_json(cells: List[List[TableCell]]) -> Dict:
+    """Convert cells to structured JSON."""
+    if not cells:
+        return {}
+    
+    headers = [cell.text for cell in cells[0]]
+    
+    rows = []
+    for row_cells in cells[1:]:
+        row_data = {}
+        for i, cell in enumerate(row_cells):
+            if i < len(headers):
+                row_data[headers[i]] = cell.text
+        rows.append(row_data)
+    
+    return {
+        "headers": headers,
+        "rows": rows,
+        "metadata": {
+            "num_rows": len(rows),
+            "num_cols": len(headers)
+        }
+    }
+
+# Example output:
+# {
+#   "headers": ["Quarter", "Revenue", "Growth"],
+#   "rows": [
+#     {"Quarter": "Q1 2024", "Revenue": "$10M", "Growth": "15%"},
+#     {"Quarter": "Q2 2024", "Revenue": "$12M", "Growth": "20%"}
+#   ]
+# }
+```
+
+## Chunking Strategies for Tables
+
+### 1. Row-Based Chunking
+
+```python
+def chunk_table_by_rows(
+    cells: List[List[TableCell]],
+    max_rows: int = 5
+) -> List[Document]:
+    """Chunk table into row groups with headers."""
+    if not cells:
+        return []
+    
+    header = cells[0]
+    data_rows = cells[1:]
+    
+    chunks = []
+    for i in range(0, len(data_rows), max_rows):
+        chunk_rows = data_rows[i:i + max_rows]
+        
+        # Create markdown with header + chunk rows
+        chunk_cells = [header] + chunk_rows
+        markdown = cells_to_markdown(chunk_cells)
+        
+        chunks.append(Document(
+            content=markdown,
+            metadata={
+                "type": "table_chunk",
+                "table_row_start": i,
+                "table_row_end": i + len(chunk_rows),
+                "has_header": True
+            }
+        ))
+    
+    return chunks
+```
+
+### 2. Cell-Based Chunking
+
+```python
+def chunk_table_by_cells(
+    cells: List[List[TableCell]],
+    context_rows: int = 1
+) -> List[Document]:
+    """Create chunks for each cell with surrounding context."""
+    if not cells:
+        return []
+    
+    headers = [cell.text for cell in cells[0]]
+    chunks = []
+    
+    for row_idx, row in enumerate(cells[1:], start=1):
+        for col_idx, cell in enumerate(row):
+            if col_idx >= len(headers):
+                continue
+            
+            # Include context rows
+            context_start = max(1, row_idx - context_rows)
+            context_end = min(len(cells), row_idx + context_rows + 1)
+            
+            context = {
+                "column": headers[col_idx],
+                "value": cell.text,
+                "row_context": [
+                    {
+                        headers[i]: r[i].text 
+                        for i in range(min(len(headers), len(r)))
+                    }
+                    for r in cells[context_start:context_end]
+                ]
+            }
+            
+            chunks.append(Document(
+                content=json.dumps(context, indent=2),
+                metadata={
+                    "type": "table_cell",
+                    "row": row_idx,
+                    "col": col_idx,
+                    "column_name": headers[col_idx]
+                }
+            ))
+    
+    return chunks
+```
+
+## Handling Complex Tables
+
+### Merged Cells
+
+```python
+def detect_merged_cells(cells: List[List[TableCell]]) -> List[TableCell]:
+    """Detect and mark merged cells (rowspan/colspan)."""
+    merged = []
+    
+    for i, row in enumerate(cells):
+        for j, cell in enumerate(row):
+            # Check if this cell spans multiple rows
+            if i < len(cells) - 1:
+                next_row_cell = cells[i + 1][j]
+                if cell.text == next_row_cell.text:
+                    cell.rowspan += 1
+                    next_row_cell.is_merged = True
+            
+            # Check if this cell spans multiple columns
+            if j < len(row) - 1:
+                next_cell = row[j + 1]
+                if cell.text == next_cell.text:
+                    cell.colspan += 1
+                    next_cell.is_merged = True
+            
+            if not getattr(cell, 'is_merged', False):
+                merged.append(cell)
+    
+    return merged
+```
+
+## Quality Validation
+
+```python
+class TableQualityChecker:
+    """Validate extracted table quality."""
+    
+    def check(self, cells: List[List[TableCell]]) -> Dict[str, Any]:
+        """Run quality checks on extracted table."""
+        issues = []
+        
+        # Check for empty cells
+        empty_count = sum(
+            1 for row in cells for cell in row if not cell.text.strip()
+        )
+        if empty_count > len(cells) * len(cells[0]) * 0.3:
+            issues.append(f"Too many empty cells: {empty_count}")
+        
+        # Check column alignment
+        col_counts = [len(row) for row in cells]
+        if len(set(col_counts)) > 1:
+            issues.append(f"Inconsistent column counts: {col_counts}")
+        
+        # Check for header
+        if not cells or not any(c.is_header for c in cells[0]):
+            issues.append("No header row detected")
+        
+        return {
+            "valid": len(issues) == 0,
+            "issues": issues,
+            "num_rows": len(cells),
+            "num_cols": len(cells[0]) if cells else 0
+        }
+```
+
+## Evaluation Criteria
+
+Your solution will be evaluated on:
+
+1. **Detection Accuracy**: Correctly identify table boundaries
+2. **Cell Extraction**: Accurate text in correct cells
+3. **Structure Preservation**: Headers, merged cells handled
+4. **Chunk Quality**: Useful chunks for RAG retrieval
+5. **Format Flexibility**: Multiple output formats supported

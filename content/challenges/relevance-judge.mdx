@@ -1,25 +1,276 @@
 ﻿---
 title: "Answer Relevance Evaluator"
-description: "Grade how well an answer directly addresses the user's question."
+description: "Grade how well an answer directly addresses the user's question — a RAG system is only as good as the value it provides."
+difficulty: "medium"
+estimatedMinutes: 30
+prerequisites: ["llm-as-judge", "context-recall-judge"]
+related: ["faithfulness-judge", "llm-as-judge", "rag-evaluation-suite"]
+next: "multi-judge-consensus"
+xpReward: 80
 ---
 
-# Answer Relevance Evaluator
+<Callout title="Goal" variant="info">
+  Grade how well an answer directly addresses the user's question.
+</Callout>
 
-A RAG system is only as good as the value it provides to the user. Even if an answer is 100% factually correct (Faithful), it's useless if it doesn't actually answer the user's specific question.
-
-### The Problem: Answer Drift
+## The Problem: Answer Drift
 
 Sometimes an LLM gets distracted by interesting but irrelevant facts in the retrieved context. It might provide a great summary of a document that has nothing to do with the original prompt.
 
-### Your Task
+## Complexity Analysis
 
-Implement a basic **Relevance Scorer**:
+| Operation | Time Complexity | Space Complexity |
+|-----------|-----------------|------------------|
+| Keyword overlap | O(Q + A) | O(Q) |
+| Semantic similarity | O(d) | O(d) |
+| LLM evaluation | O(L³) | O(L) |
 
-- Compare the `query` and the `answer`.
-- Use a heuristic (like keyword overlap or cosine similarity) to determine if the answer is on-topic.
-- Return a score between 0.0 and 1.0.
+Where Q = query length, A = answer length, d = embedding dim, L = total length
 
-### Real-World Evaluation
+## Real-World Context
+
+| Company | Challenge | Solution |
+|---------|-----------|----------|
+| **OpenAI** | GPT-4 off-topic responses | Relevance scoring in evals |
+| **Anthropic** | Claude verbosity | Conciseness + relevance metrics |
+| **Perplexity** | Answer precision | Strict relevance evaluation |
+| **Bing Chat** | Query drift | Multi-turn relevance tracking |
+
+## Resources
+
+### Papers
+- **"RAGAS: Answer Relevancy Metric"** - Automated relevance scoring
+- **"Evaluating Answer Relevance"** - Survey of approaches
+
+### Tools
+- **RAGAS**: AnswerRelevancy metric
+- **TruLens**: Response relevance evaluation
+- **UpTrain**: Open-source LLM evaluation
+
+## Implementation
+
+```python
+from typing import Dict, List, Set
+import re
+
+class RelevanceEvaluator:
+    """
+    Evaluate answer relevance: how well does the answer
+    address the user's specific question.
+    """
+    
+    def __init__(self):
+        pass
+    
+    def extract_keywords(self, text: str) -> Set[str]:
+        """Extract meaningful keywords from text."""
+        # Simple keyword extraction (stop word removal)
+        stop_words = {
+            'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been',
+            'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will',
+            'would', 'could', 'should', 'may', 'might', 'must', 'shall',
+            'can', 'need', 'dare', 'ought', 'used', 'to', 'of', 'in',
+            'for', 'on', 'with', 'at', 'by', 'from', 'as', 'into',
+            'through', 'during', 'before', 'after', 'above', 'below',
+            'between', 'under', 'and', 'but', 'or', 'yet', 'so',
+            'if', 'because', 'although', 'though', 'while', 'where',
+            'when', 'that', 'which', 'who', 'whom', 'whose', 'what',
+            'this', 'these', 'those', 'i', 'you', 'he', 'she', 'it',
+            'we', 'they', 'me', 'him', 'her', 'us', 'them'
+        }
+        
+        words = re.findall(r'\b[a-zA-Z]+\b', text.lower())
+        return {w for w in words if w not in stop_words and len(w) > 2}
+    
+    def keyword_overlap_score(self, query: str, answer: str) -> float:
+        """
+        Compute relevance based on keyword overlap.
+        Simple baseline approach.
+        """
+        query_keywords = self.extract_keywords(query)
+        answer_keywords = self.extract_keywords(answer)
+        
+        if not query_keywords:
+            return 1.0
+        
+        overlap = len(query_keywords & answer_keywords)
+        return overlap / len(query_keywords)
+    
+    def evaluate(self, query: str, answer: str) -> Dict:
+        """
+        Compute relevance score.
+        
+        Args:
+            query: User's question
+            answer: Generated answer
+        
+        Returns:
+            Dict with score and details
+        """
+        score = self.keyword_overlap_score(query, answer)
+        
+        query_keywords = self.extract_keywords(query)
+        answer_keywords = self.extract_keywords(answer)
+        matched = query_keywords & answer_keywords
+        missing = query_keywords - answer_keywords
+        
+        return {
+            "score": score,
+            "query_keywords": list(query_keywords),
+            "matched_keywords": list(matched),
+            "missing_keywords": list(missing),
+            "method": "keyword_overlap"
+        }
+```
+
+## Challenge: Implement Relevance Evaluator
+
+### Requirements
+
+1. Implement `extract_keywords()` for keyword extraction
+2. Implement `keyword_overlap_score()` for relevance scoring
+3. Implement `evaluate()` with detailed breakdown
+4. Handle edge cases (empty query, empty answer)
+
+### Starter Code
+
+```python
+from typing import Dict, Set
+import re
+
+class RelevanceEvaluator:
+    """Evaluate answer relevance for RAG."""
+    
+    def extract_keywords(self, text: str) -> Set[str]:
+        """Extract meaningful keywords from text."""
+        # TODO: Implement keyword extraction
+        pass
+    
+    def keyword_overlap_score(self, query: str, answer: str) -> float:
+        """Compute relevance based on keyword overlap."""
+        # TODO: Implement overlap scoring
+        pass
+    
+    def evaluate(self, query: str, answer: str) -> Dict:
+        """Compute relevance score."""
+        # TODO: Implement evaluation
+        pass
+
+
+# Test your implementation
+def test_relevance_evaluator():
+    evaluator = RelevanceEvaluator()
+    
+    # Test 1: High relevance
+    query = "What is Python programming language?"
+    answer = "Python is a high-level programming language known for its simplicity."
+    result = evaluator.evaluate(query, answer)
+    assert result["score"] > 0.5
+    assert "python" in result["matched_keywords"]
+    
+    # Test 2: Low relevance
+    query = "What is Python?"
+    answer = "Java is an object-oriented programming language developed by Sun Microsystems."
+    result = evaluator.evaluate(query, answer)
+    assert result["score"] < 0.3
+    assert "python" in result["missing_keywords"]
+    
+    # Test 3: Empty query
+    result = evaluator.evaluate("", "Some answer")
+    assert result["score"] == 1.0
+    
+    print(f"High relevance score: {result['score']}")
+    print("All tests passed!")
+
+test_relevance_evaluator()
+```
+
+### Solution
+
+<details>
+<summary>Click to reveal solution</summary>
+
+```python
+from typing import Dict, Set
+import re
+
+class RelevanceEvaluator:
+    """Evaluate answer relevance for RAG."""
+    
+    def extract_keywords(self, text: str) -> Set[str]:
+        """Extract meaningful keywords from text."""
+        stop_words = {
+            'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been',
+            'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will',
+            'would', 'could', 'should', 'may', 'might', 'must', 'shall',
+            'can', 'need', 'to', 'of', 'in', 'for', 'on', 'with', 'at',
+            'by', 'from', 'as', 'and', 'but', 'or', 'yet', 'so', 'if',
+            'because', 'this', 'that', 'these', 'those', 'i', 'you',
+            'he', 'she', 'it', 'we', 'they'
+        }
+        
+        words = re.findall(r'\b[a-zA-Z]+\b', text.lower())
+        return {w for w in words if w not in stop_words and len(w) > 2}
+    
+    def keyword_overlap_score(self, query: str, answer: str) -> float:
+        """Compute relevance based on keyword overlap."""
+        query_keywords = self.extract_keywords(query)
+        answer_keywords = self.extract_keywords(answer)
+        
+        if not query_keywords:
+            return 1.0
+        
+        overlap = len(query_keywords & answer_keywords)
+        return overlap / len(query_keywords)
+    
+    def evaluate(self, query: str, answer: str) -> Dict:
+        """Compute relevance score."""
+        score = self.keyword_overlap_score(query, answer)
+        
+        query_keywords = self.extract_keywords(query)
+        answer_keywords = self.extract_keywords(answer)
+        matched = query_keywords & answer_keywords
+        missing = query_keywords - answer_keywords
+        
+        return {
+            "score": score,
+            "query_keywords": list(query_keywords),
+            "matched_keywords": list(matched),
+            "missing_keywords": list(missing),
+            "method": "keyword_overlap"
+        }
+```
+
+</details>
+
+## Real-World Evaluation
 
 In production, we use **LLM-as-a-Judge** (like RAGAS or Arize Phoenix) where a stronger model (e.g., GPT-4) is prompted to grade the relevance of a smaller model's output. This creates a feedback loop for continuous prompt and retrieval optimization.
 
+### Production Implementation
+
+```python
+def llm_relevance_score(query: str, answer: str, judge_fn) -> Dict:
+    """
+    Use LLM to evaluate relevance.
+    
+    More accurate than keyword matching but more expensive.
+    """
+    prompt = f"""Rate how well this answer addresses the query.
+    Score 0-10 where 10 = perfectly addresses.
+    
+    Query: {query}
+    Answer: {answer}
+    
+    Respond with JSON: {{"score": X, "reasoning": "..."}}"""
+    
+    response = judge_fn(prompt)
+    return json.loads(response)
+```
+
+## Best Practices
+
+1. **Hybrid approach**: Use keyword matching for filtering, LLM for final scoring
+2. **Threshold tuning**: Adjust based on your use case (strict vs lenient)
+3. **Multi-turn tracking**: Track relevance across conversation turns
+4. **Human validation**: Periodically verify automated scores

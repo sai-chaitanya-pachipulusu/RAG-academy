@@ -1,38 +1,425 @@
 ﻿---
 title: "Toxicity / Safety Guard"
-description: "Detect toxic or harmful content before serving to users."
+description: "Detect toxic, harmful, or unsafe content before serving to users with multi-layered defense"
+difficulty: "medium"
+xpReward: 100
+topics: ["safety", "content-moderation", "guardrails", "responsible-ai"]
+prerequisites: ["prompt-injection-defense"]
 ---
 
 # Toxicity / Safety Guard
 
-LLMs can generate harmful content. A safety guard is your last line of defense.
+## Overview
 
-### What to Detect
+LLMs can generate harmful content including hate speech, dangerous instructions, or misinformation. A safety guard is your last line of defense before content reaches users. This challenge implements a multi-layered safety system.
 
-- **Hate speech**: Discriminatory language.
-- **Violence**: Instructions for harm.
-- **Illegal activities**: Hacking, fraud.
-- **PII leakage**: Accidental exposure of personal data.
+## Why This Matters
 
-### Implementation Approaches
+- **User Safety**: Prevent exposure to harmful content
+- **Legal Compliance**: Avoid liability for generated content
+- **Brand Protection**: Maintain trust and reputation
+- **Platform Integrity**: Keep communities safe
 
-| Approach          | Speed  | Accuracy |
-| ----------------- | ------ | -------- |
-| Keyword blocklist | Fast   | Low      |
-| Classifier model  | Medium | High     |
-| LLM-as-judge      | Slow   | Highest  |
+## Key Concepts
 
-### Your Task
+- **Multi-layered defense**: Multiple detection methods
+- **Latency trade-offs**: Balance speed vs accuracy
+- **False positive management**: Avoid over-blocking
+- **Audit trails**: Track all safety decisions
 
-Implement a simple keyword-based toxicity checker:
+## Real-World Applications
 
-1. Check for toxic patterns in the text.
-2. Return `(is_safe, reason)`.
+OpenAI's moderation API, Anthropic's Constitutional AI, and Google's Perspective API all implement similar safety guard systems.
 
-### Production Tools
+## Detection Approaches
 
-- OpenAI Moderation API
-- Anthropic Constitutional AI
-- Meta LlamaGuard
-- Perspective API (Google)
+| Approach | Speed | Accuracy | Use Case |
+|----------|-------|----------|----------|
+| **Keyword blocklist** | <1ms | Low | Pre-filter |
+| **Classifier model** | 10-50ms | High | Primary filter |
+| **LLM-as-judge** | 500ms+ | Highest | Appeals, edge cases |
 
+## The Challenge
+
+### Part 1: Multi-Layer Safety System
+
+```python
+from enum import Enum
+from typing import List, Dict, Tuple
+from dataclasses import dataclass
+import re
+
+class SafetyCategory(Enum):
+    SAFE = "safe"
+    HATE = "hate"
+    VIOLENCE = "violence"
+    HARASSMENT = "harassment"
+    SELF_HARM = "self_harm"
+    SEXUAL = "sexual"
+    DANGEROUS = "dangerous"  # Instructions for harm
+    PII = "pii"  # Personal information
+    MISINFORMATION = "misinformation"
+
+@dataclass
+class SafetyCheck:
+    """Result of a safety check."""
+    is_safe: bool
+    category: SafetyCategory
+    confidence: float
+    reason: str
+    layer: str  # Which detection layer flagged it
+
+class ToxicityGuard:
+    """Multi-layer safety guard for content moderation."""
+    
+    def __init__(
+        self,
+        use_keyword_filter: bool = True,
+        use_classifier: bool = True,
+        use_llm_judge: bool = False,
+        classifier_threshold: float = 0.7
+    ):
+        self.use_keyword_filter = use_keyword_filter
+        self.use_classifier = use_classifier
+        self.use_llm_judge = use_llm_judge
+        self.classifier_threshold = classifier_threshold
+        
+        self.keyword_filter = KeywordFilter()
+        self.classifier = SafetyClassifier()
+        self.llm_judge = LLMSafetyJudge()
+    
+    def check(self, text: str) -> SafetyCheck:
+        """Run all safety checks in order of speed."""
+        
+        # Layer 1: Fast keyword filter
+        if self.use_keyword_filter:
+            result = self.keyword_filter.check(text)
+            if not result.is_safe:
+                return SafetyCheck(
+                    is_safe=False,
+                    category=result.category,
+                    confidence=0.5,  # Keywords are less confident
+                    reason=f"Keyword match: {result.matched_terms}",
+                    layer="keyword"
+                )
+        
+        # Layer 2: ML classifier
+        if self.use_classifier:
+            result = self.classifier.predict(text)
+            if result.confidence > self.classifier_threshold:
+                return SafetyCheck(
+                    is_safe=False,
+                    category=result.category,
+                    confidence=result.confidence,
+                    reason=f"Classifier detected {result.category.value}",
+                    layer="classifier"
+                )
+        
+        # Layer 3: LLM judge (slowest, most accurate)
+        if self.use_llm_judge:
+            result = self.llm_judge.evaluate(text)
+            if not result.is_safe:
+                return SafetyCheck(
+                    is_safe=False,
+                    category=result.category,
+                    confidence=result.confidence,
+                    reason=result.reasoning,
+                    layer="llm_judge"
+                )
+        
+        return SafetyCheck(
+            is_safe=True,
+            category=SafetyCategory.SAFE,
+            confidence=1.0,
+            reason="Passed all safety checks",
+            layer="all"
+        )
+```
+
+### Part 2: Keyword Filter
+
+```python
+@dataclass
+class KeywordResult:
+    is_safe: bool
+    category: SafetyCategory
+    matched_terms: List[str]
+
+class KeywordFilter:
+    """Fast regex-based keyword filtering."""
+    
+    def __init__(self):
+        self.blocklists = {
+            SafetyCategory.HATE: [
+                r'\b(hate speech pattern)\b',
+                # Add actual patterns
+            ],
+            SafetyCategory.VIOLENCE: [
+                r'\b(kill|murder|attack)\b',
+                # Context matters - these are simplified examples
+            ],
+            SafetyCategory.DANGEROUS: [
+                r'how to (make|build) (a )?(bomb|weapon)',
+                r'instructions for (hacking|breaking into)',
+            ],
+            SafetyCategory.SELF_HARM: [
+                r'\b(suicide|self.?harm|kill myself)\b',
+            ],
+            SafetyCategory.PII: [
+                r'\b\d{3}-\d{2}-\d{4}\b',  # SSN
+                r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',  # Email
+            ]
+        }
+        
+        # Compile patterns for speed
+        self.compiled = {
+            cat: [re.compile(p, re.IGNORECASE) for p in patterns]
+            for cat, patterns in self.blocklists.items()
+        }
+    
+    def check(self, text: str) -> KeywordResult:
+        """Check text against keyword blocklists."""
+        text_lower = text.lower()
+        
+        for category, patterns in self.compiled.items():
+            matches = []
+            for pattern in patterns:
+                found = pattern.findall(text_lower)
+                matches.extend(found)
+            
+            if matches:
+                return KeywordResult(
+                    is_safe=False,
+                    category=category,
+                    matched_terms=matches
+                )
+        
+        return KeywordResult(
+            is_safe=True,
+            category=SafetyCategory.SAFE,
+            matched_terms=[]
+        )
+```
+
+### Part 3: ML Classifier
+
+```python
+@dataclass
+class ClassifierResult:
+    category: SafetyCategory
+    confidence: float
+    scores: Dict[SafetyCategory, float]
+
+class SafetyClassifier:
+    """ML-based safety classification."""
+    
+    def __init__(self, model_path: str = None):
+        # Load pre-trained safety classifier
+        # Could use Perspective API, Detoxify, or custom model
+        self.model = self._load_model(model_path)
+        self.categories = list(SafetyCategory)
+    
+    def predict(self, text: str) -> ClassifierResult:
+        """Predict safety categories for text."""
+        # Run model inference
+        scores = self.model.predict(text)
+        
+        # Find highest scoring category (excluding SAFE)
+        unsafe_scores = {
+            cat: score for cat, score in scores.items()
+            if cat != SafetyCategory.SAFE
+        }
+        
+        if unsafe_scores:
+            top_category = max(unsafe_scores, key=unsafe_scores.get)
+            top_score = unsafe_scores[top_category]
+        else:
+            top_category = SafetyCategory.SAFE
+            top_score = scores.get(SafetyCategory.SAFE, 1.0)
+        
+        return ClassifierResult(
+            category=top_category,
+            confidence=top_score,
+            scores=scores
+        )
+    
+    def _load_model(self, model_path: str):
+        """Load the safety classification model."""
+        # Placeholder - would load actual model
+        return MockSafetyModel()
+```
+
+### Part 4: LLM Judge
+
+```python
+@dataclass
+class LLMJudgeResult:
+    is_safe: bool
+    category: SafetyCategory
+    confidence: float
+    reasoning: str
+
+class LLMSafetyJudge:
+    """Use LLM to evaluate content safety."""
+    
+    def __init__(self, model: str = "gpt-4"):
+        self.model = model
+        self.prompt_template = """You are a content safety evaluator. Analyze the following text and determine if it violates safety guidelines.
+
+Safety Categories:
+- HATE: Hate speech, discrimination
+- VIOLENCE: Violence, physical harm
+- HARASSMENT: Bullying, targeted abuse
+- SELF_HARM: Suicide, self-injury
+- SEXUAL: Sexual content, harassment
+- DANGEROUS: Instructions for illegal or harmful acts
+- PII: Personal identifying information
+- MISINFORMATION: Dangerous false claims
+
+Text to evaluate:
+"{text}"
+
+Respond in JSON format:
+{{
+    "is_safe": boolean,
+    "category": "SAFE" or category name,
+    "confidence": 0.0 to 1.0,
+    "reasoning": "explanation"
+}}"""
+    
+    def evaluate(self, text: str) -> LLMJudgeResult:
+        """Use LLM to evaluate content."""
+        prompt = self.prompt_template.format(text=text[:2000])
+        
+        # Call LLM
+        response = self._call_llm(prompt)
+        
+        # Parse JSON response
+        try:
+            result = json.loads(response)
+            
+            return LLMJudgeResult(
+                is_safe=result['is_safe'],
+                category=SafetyCategory(result['category'].lower()),
+                confidence=result['confidence'],
+                reasoning=result['reasoning']
+            )
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
+            # Default to safe on parsing error
+            return LLMJudgeResult(
+                is_safe=True,
+                category=SafetyCategory.SAFE,
+                confidence=0.5,
+                reasoning=f"Parsing error: {str(e)}"
+            )
+    
+    def _call_llm(self, prompt: str) -> str:
+        """Call the LLM with the prompt."""
+        # Placeholder - would call actual LLM API
+        pass
+```
+
+## Handling Edge Cases
+
+### Context-Aware Detection
+
+```python
+class ContextAwareGuard:
+    """Safety guard that considers conversation context."""
+    
+    def __init__(self, base_guard: ToxicityGuard):
+        self.guard = base_guard
+        self.context_window = 5  # Previous messages to consider
+    
+    def check_with_context(
+        self,
+        text: str,
+        conversation_history: List[str]
+    ) -> SafetyCheck:
+        """Check safety considering conversation context."""
+        # Combine recent context
+        context = "\n".join(conversation_history[-self.context_window:])
+        full_text = f"{context}\n{text}"
+        
+        result = self.guard.check(full_text)
+        
+        # Adjust confidence based on context
+        if result.category == SafetyCategory.DANGEROUS:
+            # Check if it's educational vs instructional
+            if self._is_educational_context(full_text):
+                result.is_safe = True
+                result.reason += " (educational context)"
+        
+        return result
+    
+    def _is_educational_context(self, text: str) -> bool:
+        """Detect if content is educational rather than instructional."""
+        educational_markers = [
+            'history of', 'academic', 'research', 'study',
+            'understand', 'learn about', 'analysis'
+        ]
+        instructional_markers = [
+            'how to', 'step by step', 'instructions',
+            'guide to', 'tutorial for'
+        ]
+        
+        text_lower = text.lower()
+        edu_score = sum(1 for m in educational_markers if m in text_lower)
+        inst_score = sum(1 for m in instructional_markers if m in text_lower)
+        
+        return edu_score > inst_score
+```
+
+## Audit and Monitoring
+
+```python
+@dataclass
+class SafetyAuditEntry:
+    timestamp: str
+    text_hash: str
+    result: SafetyCheck
+    latency_ms: float
+
+class SafetyAuditor:
+    """Audit safety decisions for compliance."""
+    
+    def __init__(self):
+        self.logs: List[SafetyAuditEntry] = []
+    
+    def log(self, entry: SafetyAuditEntry):
+        """Log a safety check."""
+        self.logs.append(entry)
+    
+    def get_stats(self) -> Dict:
+        """Get safety check statistics."""
+        total = len(self.logs)
+        if total == 0:
+            return {}
+        
+        blocked = sum(1 for e in self.logs if not e.result.is_safe)
+        
+        return {
+            "total_checks": total,
+            "blocked": blocked,
+            "block_rate": blocked / total,
+            "avg_latency_ms": sum(e.latency_ms for e in self.logs) / total,
+            "category_breakdown": self._category_counts()
+        }
+    
+    def _category_counts(self) -> Dict[str, int]:
+        """Count by category."""
+        counts = defaultdict(int)
+        for entry in self.logs:
+            counts[entry.result.category.value] += 1
+        return dict(counts)
+```
+
+## Evaluation Criteria
+
+Your solution will be evaluated on:
+
+1. **Detection Accuracy**: Catch harmful content
+2. **False Positive Rate**: Don't over-block safe content
+3. **Latency**: Fast enough for real-time use
+4. **Coverage**: Handle all safety categories
+5. **Auditability**: Complete decision logging

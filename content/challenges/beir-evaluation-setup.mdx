@@ -1,14 +1,18 @@
 ﻿---
 title: "BEIR Benchmark Setup"
-description: "Set up the BEIR (Benchmarking IR) framework to evaluate your retrieval system"
+description: "Set up the BEIR (Benchmarking IR) framework to evaluate your retrieval system across standardized datasets."
 difficulty: "medium"
+estimatedMinutes: 45
+prerequisites: ["evaluator-ndcg", "evaluator-recall-at-k", "retrieval-metrics"]
+related: ["mteb-evaluation", "custom-eval-dataset", "eval-dataset-curation"]
+next: "mteb-evaluation"
 xpReward: 100
-prerequisites: ["evaluator-ndcg", "evaluator-recall-at-k"]
 ---
 
-# BEIR Benchmark Setup
-
-Set up the BEIR (Benchmarking IR) framework to evaluate your retrieval system across standardized datasets.
+<Callout title="Goal" variant="info">
+  Set up the BEIR (Benchmarking IR) framework to evaluate your retrieval system
+  across standardized datasets.
+</Callout>
 
 ## Why This Matters
 
@@ -22,25 +26,26 @@ BEIR is the industry standard for measuring retrieval quality. Every major embed
 
 ## Real-World Application
 
-**Companies:** OpenAI, Cohere, Voyage AI, Jina AI
-**Use Cases:** Model selection, Embedding evaluation, Academic research
+| Company | Use Case |
+|---------|----------|
+| **OpenAI** | Embedding model evaluation |
+| **Cohere** | Model comparison and marketing |
+| **Voyage AI** | Domain-specific embedding validation |
+| **Jina AI** | Multi-modal retrieval evaluation |
+| **Academic Research** | Standardized comparison baseline |
 
 ## The Challenge
 
 Implement functions to load BEIR-format datasets and evaluate retriever performance.
-
-## Getting Started
-
-1. Understand the BEIR dataset structure (queries, corpus, qrels)
-2. Implement mock datasets for testing
-3. Build the evaluation pipeline
-4. Compute standard IR metrics
 
 ## Key Concepts
 
 ### BEIR Dataset Format
 
 ```python
+from dataclasses import dataclass
+from typing import Dict
+
 @dataclass
 class BEIRDataset:
     name: str
@@ -51,8 +56,291 @@ class BEIRDataset:
 
 ### Standard Metrics
 
-- **nDCG@10**: Primary ranking metric
-- **Recall@10**: Coverage of relevant documents
-- **Precision@10**: Accuracy of top results
-- **MRR**: Position of first relevant result
+| Metric | Description | Target |
+|--------|-------------|--------|
+| **nDCG@10** | Primary ranking metric | > 0.40 |
+| **Recall@10** | Coverage of relevant documents | > 0.70 |
+| **Precision@10** | Accuracy of top results | > 0.30 |
+| **MRR** | Position of first relevant result | > 0.60 |
 
+## Complexity Analysis
+
+| Operation | Time Complexity | Space Complexity |
+|-----------|-----------------|------------------|
+| Dataset loading | O(D + Q + R) | O(D + Q + R) |
+| Evaluation per query | O(K × log D) | O(K) |
+| Full benchmark | O(Q × K × log D) | O(D) |
+
+Where D = documents, Q = queries, R = relevance judgments, K = cutoff
+
+## Resources
+
+### Papers
+- **"BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of Information Retrieval Models"** - Thakur et al. (2021)
+- **"The BEIR Benchmark: A Heterogeneous Benchmark"** - Extended analysis
+
+### Documentation
+- [BEIR GitHub Repository](https://github.com/beir-cellar/beir)
+- [BEIR Paper](https://arxiv.org/abs/2104.08663)
+- [MTEB Leaderboard](https://huggingface.co/spaces/mteb/leaderboard)
+
+### Tools
+- **BEIR Framework**: Official Python implementation
+- **Sentence-Transformers**: Embedding models with BEIR evaluation
+- **PyTerrier**: Information retrieval toolkit with BEIR support
+
+## Implementation
+
+```python
+from typing import Dict, List, Set, Tuple
+from dataclasses import dataclass
+import json
+
+@dataclass
+class BEIRDataset:
+    """BEIR dataset structure."""
+    name: str
+    queries: Dict[str, str]
+    corpus: Dict[str, str]
+    qrels: Dict[str, Dict[str, int]]
+
+
+class BEIREvaluator:
+    """Evaluate retrievers on BEIR datasets."""
+    
+    def __init__(self, dataset: BEIRDataset):
+        self.dataset = dataset
+    
+    def evaluate(
+        self,
+        retriever_fn,
+        k: int = 10,
+        metrics: List[str] = None
+    ) -> Dict[str, float]:
+        """
+        Evaluate a retriever on the BEIR dataset.
+        
+        Args:
+            retriever_fn: Function(query) -> List[doc_id]
+            k: Cutoff for metrics
+            metrics: List of metric names to compute
+        
+        Returns:
+            Dictionary of metric names to scores
+        """
+        if metrics is None:
+            metrics = ["ndcg@10", "map@10", "recall@10", "precision@10"]
+        
+        results = {metric: [] for metric in metrics}
+        
+        for query_id, query_text in self.dataset.queries.items():
+            # Retrieve documents
+            retrieved = retriever_fn(query_text)[:k]
+            
+            # Get ground truth
+            relevant = self.dataset.qrels.get(query_id, {})
+            relevant_set = {doc_id for doc_id, rel in relevant.items() if rel > 0}
+            
+            # Compute metrics
+            if "recall@10" in metrics:
+                results["recall@10"].append(
+                    self._recall_at_k(retrieved, relevant_set, k)
+                )
+            if "precision@10" in metrics:
+                results["precision@10"].append(
+                    self._precision_at_k(retrieved, relevant_set, k)
+                )
+            # ... other metrics
+        
+        # Average across queries
+        return {metric: sum(scores) / len(scores) 
+                for metric, scores in results.items()}
+    
+    def _recall_at_k(self, retrieved: List[str], relevant: Set[str], k: int) -> float:
+        """Compute Recall@K."""
+        if not relevant:
+            return 1.0
+        top_k = set(retrieved[:k])
+        return len(top_k & relevant) / len(relevant)
+    
+    def _precision_at_k(self, retrieved: List[str], relevant: Set[str], k: int) -> float:
+        """Compute Precision@K."""
+        if not retrieved:
+            return 0.0
+        top_k = retrieved[:k]
+        relevant_count = sum(1 for doc in top_k if doc in relevant)
+        return relevant_count / len(top_k)
+```
+
+## Challenge: Implement BEIR Evaluation
+
+### Requirements
+
+1. Implement `BEIRDataset` dataclass
+2. Implement `BEIREvaluator` class
+3. Support nDCG@10, MAP@10, Recall@10, Precision@10
+4. Handle missing relevance judgments gracefully
+
+### Starter Code
+
+```python
+from typing import Dict, List, Set
+from dataclasses import dataclass
+
+@dataclass
+class BEIRDataset:
+    """BEIR dataset structure."""
+    name: str
+    queries: Dict[str, str]
+    corpus: Dict[str, str]
+    qrels: Dict[str, Dict[str, int]]
+
+
+class BEIREvaluator:
+    """Evaluate retrievers on BEIR datasets."""
+    
+    def __init__(self, dataset: BEIRDataset):
+        self.dataset = dataset
+    
+    def evaluate(self, retriever_fn, k: int = 10) -> Dict[str, float]:
+        """Evaluate a retriever on the BEIR dataset."""
+        # TODO: Implement evaluation logic
+        pass
+    
+    def _recall_at_k(self, retrieved: List[str], relevant: Set[str], k: int) -> float:
+        """Compute Recall@K."""
+        # TODO: Implement
+        pass
+    
+    def _precision_at_k(self, retrieved: List[str], relevant: Set[str], k: int) -> float:
+        """Compute Precision@K."""
+        # TODO: Implement
+        pass
+
+
+# Test your implementation
+def test_beir_evaluator():
+    # Create mock BEIR dataset
+    dataset = BEIRDataset(
+        name="test",
+        queries={
+            "q1": "machine learning",
+            "q2": "deep learning"
+        },
+        corpus={
+            "d1": "Introduction to machine learning algorithms",
+            "d2": "Deep learning with neural networks",
+            "d3": "Supervised vs unsupervised learning",
+            "d4": "Natural language processing basics"
+        },
+        qrels={
+            "q1": {"d1": 1, "d3": 1},
+            "q2": {"d2": 1}
+        }
+    )
+    
+    # Mock retriever
+    def mock_retriever(query: str) -> List[str]:
+        if "machine" in query.lower():
+            return ["d1", "d3", "d4"]
+        else:
+            return ["d2", "d1", "d4"]
+    
+    evaluator = BEIREvaluator(dataset)
+    results = evaluator.evaluate(mock_retriever, k=3)
+    
+    print(f"Results: {results}")
+    assert "recall@10" in results or "recall@3" in results
+    assert "precision@10" in results or "precision@3" in results
+    
+    print("All tests passed!")
+
+test_beir_evaluator()
+```
+
+### Solution
+
+<details>
+<summary>Click to reveal solution</summary>
+
+```python
+from typing import Dict, List, Set
+from dataclasses import dataclass
+
+@dataclass
+class BEIRDataset:
+    """BEIR dataset structure."""
+    name: str
+    queries: Dict[str, str]
+    corpus: Dict[str, str]
+    qrels: Dict[str, Dict[str, int]]
+
+
+class BEIREvaluator:
+    """Evaluate retrievers on BEIR datasets."""
+    
+    def __init__(self, dataset: BEIRDataset):
+        self.dataset = dataset
+    
+    def evaluate(self, retriever_fn, k: int = 10) -> Dict[str, float]:
+        """Evaluate a retriever on the BEIR dataset."""
+        recall_scores = []
+        precision_scores = []
+        
+        for query_id, query_text in self.dataset.queries.items():
+            # Retrieve documents
+            retrieved = retriever_fn(query_text)[:k]
+            
+            # Get ground truth
+            relevant = self.dataset.qrels.get(query_id, {})
+            relevant_set = {doc_id for doc_id, rel in relevant.items() if rel > 0}
+            
+            # Compute metrics
+            recall_scores.append(
+                self._recall_at_k(retrieved, relevant_set, k)
+            )
+            precision_scores.append(
+                self._precision_at_k(retrieved, relevant_set, k)
+            )
+        
+        return {
+            f"recall@{k}": sum(recall_scores) / len(recall_scores),
+            f"precision@{k}": sum(precision_scores) / len(precision_scores)
+        }
+    
+    def _recall_at_k(self, retrieved: List[str], relevant: Set[str], k: int) -> float:
+        """Compute Recall@K."""
+        if not relevant:
+            return 1.0
+        top_k = set(retrieved[:k])
+        return len(top_k & relevant) / len(relevant)
+    
+    def _precision_at_k(self, retrieved: List[str], relevant: Set[str], k: int) -> float:
+        """Compute Precision@K."""
+        if not retrieved:
+            return 0.0
+        top_k = retrieved[:k]
+        relevant_count = sum(1 for doc in top_k if doc in relevant)
+        return relevant_count / len(top_k)
+```
+
+</details>
+
+## Benchmark Datasets
+
+| Dataset | Domain | Queries | Documents | Avg Relevant |
+|---------|--------|---------|-----------|--------------|
+| MS MARCO | Web search | 6,980 | 8.8M | 1.1 |
+| NQ (Natural Questions) | QA | 3,452 | 2.1M | 1.2 |
+| HotpotQA | Multi-hop QA | 7,405 | 5.2M | 2.0 |
+| FiQA-2018 | Finance | 648 | 57K | 2.0 |
+| SciFact | Scientific | 300 | 5K | 1.1 |
+| NFCorpus | Medical | 323 | 3.6K | 12.4 |
+
+## Production Tips
+
+1. **Start small**: Test on SciFact or NFCorpus before running on MS MARCO
+2. **Cache embeddings**: Pre-compute and cache document embeddings
+3. **Parallelize**: Use multiprocessing for query evaluation
+4. **Track variance**: Report mean ± std across multiple runs
+5. **Compare baselines**: Always include BM25 as a baseline
