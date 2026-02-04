@@ -13,7 +13,7 @@ export default function DashboardLayout({
 }>) {
   return (
     <div className="min-h-screen bg-white">
-      <main className="mx-auto max-w-[1400px] px-8 py-12 lg:px-16 lg:py-16">
+      <main className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         {children}
       </main>
       <ChatWidget />

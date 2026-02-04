@@ -7,11 +7,18 @@ type BaseProps = Readonly<{
 }>;
 
 const BASE =
-  "rounded-2xl border border-zinc-200 bg-white/80 p-5 shadow-sm backdrop-blur transition-colors " +
-  "dark:border-white/10 dark:bg-white/[0.03] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.02)]";
+  "rounded-xl border border-[var(--border-default)] bg-white p-4 shadow-sm transition-all duration-200 " +
+  "hover:border-[var(--border-hover)] hover:shadow-md";
+
+const COMPACT =
+  "rounded-lg border border-[var(--border-default)] bg-white p-3 transition-all duration-200";
 
 export function Card({ children, className }: BaseProps) {
   return <div className={[BASE, className ?? ""].join(" ")}>{children}</div>;
+}
+
+export function CardCompact({ children, className }: BaseProps) {
+  return <div className={[COMPACT, className ?? ""].join(" ")}>{children}</div>;
 }
 
 type CardLinkProps = Readonly<{
@@ -26,7 +33,7 @@ export function CardLink({ href, children, className }: CardLinkProps) {
       href={href}
       className={[
         BASE,
-        "block hover:bg-zinc-50 dark:hover:bg-white/[0.06]",
+        "block hover:bg-[var(--gray-50)] active:scale-[0.99]",
         className ?? "",
       ].join(" ")}
     >
@@ -53,7 +60,7 @@ export function CardExternalLink({
       rel="noreferrer"
       className={[
         BASE,
-        "block hover:bg-zinc-50 dark:hover:bg-white/[0.06]",
+        "block hover:bg-[var(--gray-50)] active:scale-[0.99]",
         className ?? "",
       ].join(" ")}
     >

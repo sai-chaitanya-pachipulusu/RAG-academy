@@ -98,49 +98,49 @@ export default function Home() {
 
       {/* Hero Section */}
       <section className="relative">
-        <div className="mx-auto max-w-[1400px] px-8 pt-24 pb-32 lg:px-16 lg:pt-32 lg:pb-40">
-          <div className="grid gap-16 lg:grid-cols-2 lg:gap-24 items-center">
+        <div className="mx-auto max-w-[1400px] px-6 pt-16 pb-20 lg:px-12 lg:pt-20 lg:pb-28">
+          <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center">
             {/* Left: Text */}
-            <div className="space-y-10">
+            <div className="space-y-6">
               <Reveal>
-                <div className="inline-flex items-center gap-3 rounded-full border border-zinc-200 bg-zinc-50 px-5 py-2.5 text-xs font-medium tracking-wide text-zinc-600">
+                <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border-default)] bg-[var(--gray-50)] px-4 py-2 text-[13px] font-medium text-[var(--gray-400)]">
                   <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-zinc-400/60" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-zinc-900" />
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--accent-blue)]/60" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--accent-blue)]" />
                   </span>
                   Production-Ready RAG • 2025
                 </div>
               </Reveal>
 
               <Reveal delayMs={80}>
-                <h1 className="text-[3.5rem] font-semibold tracking-[-0.035em] leading-[1.08] text-zinc-900 lg:text-[4.5rem]">
+                <h1 className="text-[40px] font-semibold tracking-[-0.021em] leading-[1.1] text-[var(--foreground)] lg:text-[52px]">
                   Master RAG
                   <br />
-                  <span className="text-zinc-400">engineering.</span>
+                  <span className="text-[var(--gray-300)]">engineering.</span>
                 </h1>
               </Reveal>
 
               <Reveal delayMs={150}>
-                <p className="max-w-md text-[1.125rem] leading-[1.7] text-zinc-500 font-normal">
-                  From fundamentals to cutting-edge research. Build production-ready 
+                <p className="max-w-md text-[19px] leading-[1.47059] text-[var(--gray-500)]">
+                  From fundamentals to cutting-edge research. Build production-ready
                   RAG systems with interactive labs and real-world challenges.
                 </p>
               </Reveal>
 
               <Reveal delayMs={220}>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                   <Link
                     href={user ? "/learn" : "/login"}
-                    className="group inline-flex h-14 items-center justify-center gap-3 rounded-full bg-zinc-900 px-8 text-[15px] font-medium text-white transition-all duration-200 hover:bg-zinc-800"
+                    className="group inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[var(--foreground)] px-6 text-[15px] font-medium text-white transition-all duration-200 hover:bg-[var(--gray-500)] active:scale-[0.98]"
                   >
                     {user ? "Continue Learning" : "Get Started Free"}
-                    <svg className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                     </svg>
                   </Link>
                   <Link
                     href="/challenges"
-                    className="inline-flex h-14 items-center justify-center rounded-full border border-zinc-200 bg-white px-8 text-[15px] font-medium text-zinc-700 transition-all duration-200 hover:border-zinc-300 hover:bg-zinc-50"
+                    className="inline-flex h-11 items-center justify-center rounded-full border border-[var(--border-default)] bg-white px-6 text-[15px] font-medium text-[var(--foreground)] transition-all duration-200 hover:border-[var(--border-hover)] hover:bg-[var(--gray-50)] active:scale-[0.98]"
                   >
                     Explore Challenges
                   </Link>
@@ -149,11 +149,11 @@ export default function Home() {
 
               {/* Stats Row */}
               <Reveal delayMs={300}>
-                <div className="flex items-center gap-12 pt-4">
+                <div className="flex items-center gap-8 pt-2">
                   {STATS.map((stat, i) => (
                     <div key={i}>
-                      <p className="text-3xl font-semibold tracking-tight text-zinc-900">{stat.value}</p>
-                      <p className="text-sm font-medium text-zinc-400 mt-1">{stat.label}</p>
+                      <p className="text-[28px] font-semibold tracking-tight text-[var(--foreground)]">{stat.value}</p>
+                      <p className="text-[14px] font-medium text-[var(--gray-400)] mt-0.5">{stat.label}</p>
                     </div>
                   ))}
                 </div>
@@ -163,23 +163,23 @@ export default function Home() {
             {/* Right: Visual */}
             <Reveal delayMs={200}>
               <div className="relative hidden lg:block">
-                <div className="relative aspect-[4/3] rounded-3xl border border-zinc-100 bg-zinc-50/50 p-10">
-                  <div className="flex h-full flex-col items-center justify-center gap-10">
-                    <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-zinc-900 text-white">
-                      <svg className="h-12 w-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1}>
+                <div className="relative aspect-[4/3] rounded-2xl border border-[var(--border-subtle)] bg-[var(--gray-50)] p-8">
+                  <div className="flex h-full flex-col items-center justify-center gap-8">
+                    <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-[var(--foreground)] text-white shadow-lg">
+                      <svg className="h-10 w-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
                         <path d="M12 2L2 7L12 12L22 7L12 2Z" />
                         <path d="M2 17L12 22L22 17" />
                         <path d="M2 12L12 17L22 12" />
                       </svg>
                     </div>
-                    <div className="text-center space-y-2">
-                      <p className="text-sm font-medium text-zinc-400 uppercase tracking-wider">RAG Academy</p>
-                      <p className="text-sm text-zinc-500">Learn by building production systems</p>
+                    <div className="text-center space-y-1.5">
+                      <p className="text-[13px] font-medium text-[var(--gray-400)] uppercase tracking-wide">RAG Academy</p>
+                      <p className="text-[15px] text-[var(--gray-500)]">Learn by building production systems</p>
                     </div>
-                    <div className="grid grid-cols-3 gap-4 w-full max-w-sm">
+                    <div className="grid grid-cols-3 gap-3 w-full max-w-xs">
                       {["Retrieve", "Augment", "Generate"].map((step, i) => (
-                        <div key={i} className="rounded-xl border border-zinc-100 bg-white px-4 py-4 text-center">
-                          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">{step}</p>
+                        <div key={i} className="rounded-lg border border-[var(--border-default)] bg-white px-3 py-3 text-center">
+                          <p className="text-[12px] font-medium text-[var(--gray-400)] uppercase tracking-wide">{step}</p>
                         </div>
                       ))}
                     </div>
@@ -192,29 +192,29 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section className="border-t border-zinc-100">
-        <div className="mx-auto max-w-[1400px] px-8 py-24 lg:px-16 lg:py-32">
+      <section className="border-t border-[var(--border-subtle)]">
+        <div className="mx-auto max-w-[1400px] px-6 py-16 lg:px-12 lg:py-20">
           {/* Section Header */}
           <Reveal>
-            <div className="mb-16 text-center">
-              <h2 className="text-3xl font-semibold tracking-tight text-zinc-900 lg:text-4xl">
+            <div className="mb-10 text-center">
+              <h2 className="text-[32px] font-semibold tracking-tight text-[var(--foreground)] lg:text-[40px]">
                 What's Included
               </h2>
-              <p className="mt-4 text-lg text-zinc-500 max-w-2xl mx-auto">
+              <p className="mt-3 text-[19px] text-[var(--gray-500)] max-w-2xl mx-auto leading-relaxed">
                 Everything you need to master RAG engineering, from fundamentals to production deployment.
               </p>
             </div>
           </Reveal>
           
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-3">
             {FEATURES.map((feature, i) => (
               <Reveal key={feature.title} delayMs={i * 60}>
-                <div className="group rounded-2xl border border-zinc-100 bg-white p-8 transition-all duration-300 hover:border-zinc-200 hover:shadow-lg">
-                  <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600 transition-colors group-hover:bg-zinc-900 group-hover:text-white">
+                <div className="group rounded-xl border border-[var(--border-default)] bg-white p-6 transition-all duration-200 hover:border-[var(--border-hover)] hover:shadow-md hover:-translate-y-0.5">
+                  <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-lg bg-[var(--gray-50)] text-[var(--gray-400)] transition-colors group-hover:bg-[var(--foreground)] group-hover:text-white">
                     {feature.icon}
                   </div>
-                  <h3 className="mb-3 text-lg font-semibold text-zinc-900">{feature.title}</h3>
-                  <p className="text-[15px] leading-relaxed text-zinc-500">{feature.description}</p>
+                  <h3 className="mb-2 text-[19px] font-semibold text-[var(--foreground)]">{feature.title}</h3>
+                  <p className="text-[17px] leading-relaxed text-[var(--gray-500)]">{feature.description}</p>
                 </div>
               </Reveal>
             ))}
@@ -223,21 +223,21 @@ export default function Home() {
       </section>
 
       {/* Popular Challenges Section */}
-      <section className="border-t border-zinc-100 bg-zinc-50/50">
-        <div className="mx-auto max-w-[1400px] px-8 py-24 lg:px-16 lg:py-32">
+      <section className="border-t border-[var(--border-subtle)] bg-[var(--gray-50)]">
+        <div className="mx-auto max-w-[1400px] px-6 py-16 lg:px-12 lg:py-20">
           <Reveal>
-            <div className="flex items-end justify-between mb-12">
+            <div className="flex items-end justify-between mb-8">
               <div>
-                <h2 className="text-3xl font-semibold tracking-tight text-zinc-900 lg:text-4xl">
+                <h2 className="text-[32px] font-semibold tracking-tight text-[var(--foreground)] lg:text-[40px]">
                   Popular Challenges
                 </h2>
-                <p className="mt-3 text-lg text-zinc-500">
+                <p className="mt-2 text-[19px] text-[var(--gray-500)]">
                   Start with these community favorites
                 </p>
               </div>
-              <Link 
-                href="/challenges" 
-                className="hidden sm:inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-5 py-2.5 text-sm font-medium text-zinc-700 transition-all duration-200 hover:border-zinc-300 hover:bg-zinc-50 hover:shadow-sm"
+              <Link
+                href="/challenges"
+                className="hidden sm:inline-flex items-center gap-2 rounded-full border border-[var(--border-default)] bg-white px-5 py-2 text-[15px] font-medium text-[var(--foreground)] transition-all duration-200 hover:border-[var(--border-hover)] hover:bg-[var(--gray-50)] hover:shadow-sm"
               >
                 View all challenges
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -247,26 +247,26 @@ export default function Home() {
             </div>
           </Reveal>
           
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {FEATURED_CHALLENGES.map((challenge, i) => (
               <Reveal key={challenge.slug} delayMs={i * 60}>
-                <Link 
+                <Link
                   href={`/challenges/${challenge.slug}`}
-                  className="group block rounded-2xl border border-zinc-200/60 bg-white p-8 transition-all duration-300 hover:border-zinc-300 hover:shadow-lg"
+                  className="group block rounded-xl border border-[var(--border-default)] bg-white p-6 transition-all duration-200 hover:border-[var(--border-hover)] hover:shadow-md hover:-translate-y-0.5"
                 >
-                  <div className="mb-6">
-                    <span className={`inline-flex px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide ${
-                      challenge.difficulty === 'hard' 
-                        ? 'bg-zinc-900 text-white' 
-                        : 'bg-zinc-100 text-zinc-600'
+                  <div className="mb-4">
+                    <span className={`inline-flex px-2.5 py-1 rounded-full text-[12px] font-semibold uppercase tracking-wide ${
+                      challenge.difficulty === 'hard'
+                        ? 'bg-[var(--foreground)] text-white'
+                        : 'bg-[var(--gray-50)] text-[var(--gray-400)]'
                     }`}>
                       {challenge.difficulty}
                     </span>
                   </div>
-                  <h3 className="text-lg font-semibold text-zinc-900 mb-2 group-hover:text-zinc-600 transition-colors">
+                  <h3 className="text-[19px] font-semibold text-[var(--foreground)] mb-1 group-hover:text-[var(--accent-blue)] transition-colors">
                     {challenge.title}
                   </h3>
-                  <p className="text-sm text-zinc-400">{challenge.category}</p>
+                  <p className="text-[14px] text-[var(--gray-400)]">{challenge.category}</p>
                 </Link>
               </Reveal>
             ))}
@@ -275,47 +275,47 @@ export default function Home() {
       </section>
 
       {/* Advanced RAG 2025 Section */}
-      <section className="border-t border-zinc-100">
-        <div className="mx-auto max-w-[1400px] px-8 py-24 lg:px-16 lg:py-32">
+      <section className="border-t border-[var(--border-subtle)]">
+        <div className="mx-auto max-w-[1400px] px-6 py-16 lg:px-12 lg:py-20">
           <Reveal>
-            <div className="rounded-3xl border border-zinc-200 bg-zinc-50 p-10 lg:p-16">
-              <div className="flex items-center gap-4 mb-10">
-                <span className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-4 py-2 text-xs font-semibold text-white uppercase tracking-wide">
+            <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--gray-50)] p-8 lg:p-12">
+              <div className="flex items-center gap-3 mb-6">
+                <span className="inline-flex items-center gap-2 rounded-full bg-[var(--foreground)] px-3 py-1.5 text-[12px] font-semibold text-white uppercase tracking-wide">
                   New in 2025
                 </span>
-                <span className="text-sm text-zinc-500">Latest research techniques</span>
+                <span className="text-[14px] text-[var(--gray-400)]">Latest research techniques</span>
               </div>
               
-              <h2 className="text-3xl font-semibold tracking-tight text-zinc-900 lg:text-4xl mb-4">
+              <h2 className="text-[32px] font-semibold tracking-tight text-[var(--foreground)] lg:text-[40px] mb-3">
                 Advanced RAG Architectures
               </h2>
-              <p className="text-lg text-zinc-500 mb-12 max-w-3xl">
-                Master cutting-edge techniques from the latest research papers including 
+              <p className="text-[19px] text-[var(--gray-500)] mb-10 max-w-3xl leading-relaxed">
+                Master cutting-edge techniques from the latest research papers including
                 MiA-RAG, QuCo-RAG, HiFi-RAG, and more.
               </p>
 
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {ADVANCED_2025.map((tech, i) => (
                   <Reveal key={tech.title} delayMs={i * 60}>
-                    <div className="rounded-2xl border border-zinc-200 bg-white p-6 transition-all duration-300 hover:shadow-lg">
-                      <h3 className="text-base font-semibold text-zinc-900 mb-2">{tech.title}</h3>
-                      <p className="text-sm text-zinc-400 mb-3">{tech.subtitle}</p>
-                      <p className="text-sm text-zinc-500 leading-relaxed">{tech.description}</p>
+                    <div className="rounded-xl border border-[var(--border-default)] bg-white p-5 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+                      <h3 className="text-[17px] font-semibold text-[var(--foreground)] mb-1">{tech.title}</h3>
+                      <p className="text-[13px] text-[var(--gray-400)] mb-2">{tech.subtitle}</p>
+                      <p className="text-[15px] text-[var(--gray-500)] leading-relaxed">{tech.description}</p>
                     </div>
                   </Reveal>
                 ))}
               </div>
 
-              <div className="mt-12 flex items-center gap-6 flex-wrap">
+              <div className="mt-10 flex items-center gap-4 flex-wrap">
                 <Link
                   href="/challenges?search=rag"
-                  className="inline-flex h-12 items-center justify-center rounded-full bg-zinc-900 px-7 text-[15px] font-medium text-white transition-all duration-200 hover:bg-zinc-800"
+                  className="inline-flex h-10 items-center justify-center rounded-full bg-[var(--foreground)] px-6 text-[15px] font-medium text-white transition-all duration-200 hover:bg-[var(--gray-500)] active:scale-[0.98]"
                 >
                   Explore Advanced Challenges
                 </Link>
                 <Link
                   href="/playbooks"
-                  className="text-[15px] font-medium text-zinc-500 hover:text-zinc-900 transition-colors"
+                  className="text-[15px] font-medium text-[var(--accent-blue)] hover:underline underline-offset-2"
                 >
                   Read Playbooks →
                 </Link>
@@ -326,36 +326,36 @@ export default function Home() {
       </section>
 
       {/* Learning Path Section */}
-      <section className="border-t border-zinc-100 bg-zinc-50/30">
-        <div className="mx-auto max-w-[1400px] px-8 py-24 lg:px-16 lg:py-32">
+      <section className="border-t border-[var(--border-subtle)] bg-[var(--gray-50)]/50">
+        <div className="mx-auto max-w-[1400px] px-6 py-16 lg:px-12 lg:py-20">
           <Reveal>
-            <div className="text-center mb-16">
-              <h2 className="text-3xl font-semibold tracking-tight text-zinc-900 lg:text-4xl">
+            <div className="text-center mb-10">
+              <h2 className="text-[32px] font-semibold tracking-tight text-[var(--foreground)] lg:text-[40px]">
                 Your Learning Journey
               </h2>
-              <p className="mt-4 text-lg text-zinc-500 max-w-xl mx-auto">
+              <p className="mt-3 text-[19px] text-[var(--gray-500)] max-w-xl mx-auto leading-relaxed">
                 Progress through carefully designed stages from fundamentals to production
               </p>
             </div>
           </Reveal>
 
           <Reveal delayMs={100}>
-            <div className="flex items-center justify-center gap-3 flex-wrap">
+            <div className="flex items-center justify-center gap-2 flex-wrap">
               {LEARNING_PATH.map((stage, i) => (
                 <div key={stage.name} className="flex items-center">
-                  <div className="rounded-full border border-zinc-200 bg-white px-6 py-3 transition-all duration-200 hover:shadow-md">
-                    <div className="flex items-center gap-3">
-                      <div className={`h-2.5 w-2.5 rounded-full ${stage.color}`} />
+                  <div className="rounded-full border border-[var(--border-default)] bg-white px-5 py-2.5 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+                    <div className="flex items-center gap-2.5">
+                      <div className={`h-2 w-2 rounded-full ${stage.color}`} />
                       <div>
-                        <p className="text-sm font-semibold text-zinc-900">{stage.name}</p>
-                        <p className="text-xs text-zinc-400">{stage.count} challenges</p>
+                        <p className="text-[15px] font-semibold text-[var(--foreground)]">{stage.name}</p>
+                        <p className="text-[13px] text-[var(--gray-400)]">{stage.count} challenges</p>
                       </div>
                     </div>
                   </div>
                   {i < LEARNING_PATH.length - 1 && (
-                    <div className="hidden sm:flex items-center justify-center mx-4">
-                      <svg className="h-6 w-6 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    <div className="hidden sm:flex items-center justify-center mx-3">
+                      <svg className="h-5 w-5 text-[var(--gray-300)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                       </svg>
                     </div>
                   )}
@@ -365,10 +365,10 @@ export default function Home() {
           </Reveal>
 
           <Reveal delayMs={200}>
-            <div className="text-center mt-12">
+            <div className="text-center mt-10">
               <Link
                 href="/learn"
-                className="text-[15px] font-medium text-zinc-500 hover:text-zinc-900 transition-colors"
+                className="text-[15px] font-medium text-[var(--accent-blue)] hover:underline underline-offset-2"
               >
                 View full curriculum →
               </Link>
@@ -378,15 +378,15 @@ export default function Home() {
       </section>
 
       {/* RAG Pipeline Section */}
-      <section className="border-t border-zinc-100">
-        <div className="mx-auto max-w-[1400px] px-8 py-24 lg:px-16 lg:py-32">
+      <section className="border-t border-[var(--border-subtle)]">
+        <div className="mx-auto max-w-[1400px] px-6 py-16 lg:px-12 lg:py-20">
           <Reveal>
-            <div className="mb-12 max-w-xl">
-              <h2 className="text-3xl font-semibold tracking-tight text-zinc-900 lg:text-4xl">
+            <div className="mb-8 max-w-xl">
+              <h2 className="text-[32px] font-semibold tracking-tight text-[var(--foreground)] lg:text-[40px]">
                 A production RAG system,
-                <span className="text-zinc-400"> step by step.</span>
+                <span className="text-[var(--gray-300)]"> step by step.</span>
               </h2>
-              <p className="mt-4 text-lg text-zinc-500">
+              <p className="mt-3 text-[19px] text-[var(--gray-500)] leading-relaxed">
                 Scroll through the pipeline to understand how each component works together.
               </p>
             </div>
@@ -396,8 +396,8 @@ export default function Home() {
       </section>
 
       {/* Resources Grid */}
-      <section className="border-t border-zinc-100 bg-zinc-50/50">
-        <div className="mx-auto max-w-[1400px] px-8 py-24 lg:px-16 lg:py-32">
+      <section className="border-t border-[var(--border-subtle)] bg-[var(--gray-50)]">
+        <div className="mx-auto max-w-[1400px] px-6 py-16 lg:px-12 lg:py-20">
           <Reveal>
             <div className="grid gap-6 md:grid-cols-3">
               <Link 

@@ -313,73 +313,71 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <header className="flex flex-col gap-1.5">
-        <div>
+    <div className="flex flex-col gap-3">
+      <header className="flex flex-col gap-2">
+        <div className="flex items-center gap-1.5 text-[13px]">
           <Link
             href="/challenges"
-            className="text-xs font-medium text-zinc-950 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-500 dark:text-zinc-50 dark:decoration-white/25 dark:hover:decoration-white/50"
+            className="font-medium text-[var(--accent-blue)] hover:underline underline-offset-2"
           >
-            Challenges →
+            Challenges
           </Link>
-          <span className="px-2 text-xs text-zinc-400">/</span>
-          <span className="text-xs text-zinc-500 dark:text-zinc-400">
+          <span className="text-[var(--gray-300)]">/</span>
+          <span className="text-[var(--gray-400)]">
             {cleanGroupLabel(challenge.group)}
           </span>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-[26px] font-semibold tracking-tight text-[var(--foreground)]">
             {challenge.title}
           </h1>
           <div className="flex items-center gap-2">
             <Badge variant="muted">{CURRICULUM_STAGE_LABELS[challenge.stage]}</Badge>
             {challenge.benchmark && (
-              <Badge variant="accent" className="border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300">
-                Benchmark
-              </Badge>
+              <Badge variant="blue">Benchmark</Badge>
             )}
-            <span className="rounded-full border border-zinc-200 px-2 py-0.5 text-xs text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
+            <span className="rounded-full border border-[var(--border-default)] px-2 py-0.5 text-[13px] text-[var(--gray-400)]">
               {challenge.difficulty} · {challenge.xpReward} XP
             </span>
             {completed ? (
-              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
+              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[13px] font-medium text-emerald-700 border border-emerald-200">
                 Completed
               </span>
             ) : null}
           </div>
         </div>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="text-[17px] text-[var(--gray-500)] leading-relaxed">
           {challenge.description}
         </p>
 
-        {/* Real-World Context - LeetCode Differentiator */}
+        {/* Real-World Context - Compact */}
         {(challenge.realWorld || challenge.complexity) && (
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {challenge.complexity && (
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-2.5">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Complexity</p>
-                <div className="mt-1 flex flex-wrap gap-2">
-                  <code className="rounded bg-zinc-200/80 px-1.5 py-0.5 text-xs font-medium text-zinc-800">
+              <div className="rounded-lg border border-[var(--border-default)] bg-[var(--gray-50)] p-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--gray-400)]">Complexity</p>
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  <code className="rounded bg-white px-1.5 py-0.5 text-[12px] font-medium text-[var(--foreground)] border border-[var(--border-subtle)]">
                     Time: {challenge.complexity.time}
                   </code>
-                  <code className="rounded bg-zinc-200/80 px-1.5 py-0.5 text-xs font-medium text-zinc-800">
+                  <code className="rounded bg-white px-1.5 py-0.5 text-[12px] font-medium text-[var(--foreground)] border border-[var(--border-subtle)]">
                     Space: {challenge.complexity.space}
                   </code>
                 </div>
                 {challenge.complexity.latency && (
-                  <p className="mt-1.5 text-[11px] text-zinc-500">⚡ {challenge.complexity.latency}</p>
+                  <p className="mt-1 text-[11px] text-[var(--gray-400)]">⚡ {challenge.complexity.latency}</p>
                 )}
               </div>
             )}
 
             {challenge.realWorld?.companies && challenge.realWorld.companies.length > 0 && (
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-2.5">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Used By</p>
-                <div className="mt-1.5 flex flex-wrap gap-1">
+              <div className="rounded-lg border border-[var(--border-default)] bg-[var(--gray-50)] p-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--gray-400)]">Used By</p>
+                <div className="mt-1 flex flex-wrap gap-1">
                   {challenge.realWorld.companies.map((company) => (
                     <span
                       key={company}
-                      className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-800"
+                      className="rounded-full bg-[var(--accent-blue)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--accent-blue)]"
                     >
                       {company}
                     </span>
@@ -389,13 +387,13 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
             )}
 
             {challenge.realWorld?.useCases && challenge.realWorld.useCases.length > 0 && (
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-2.5">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Use Cases</p>
-                <div className="mt-1.5 flex flex-wrap gap-1">
+              <div className="rounded-lg border border-[var(--border-default)] bg-[var(--gray-50)] p-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--gray-400)]">Use Cases</p>
+                <div className="mt-1 flex flex-wrap gap-1">
                   {challenge.realWorld.useCases.map((useCase) => (
                     <span
                       key={useCase}
-                      className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-800"
+                      className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 border border-emerald-200"
                     >
                       {useCase}
                     </span>
@@ -407,9 +405,9 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
         )}
 
         {challenge.realWorld?.description && (
-          <div className="mt-2 rounded-lg border border-amber-200/50 bg-amber-50/50 p-2.5">
-            <p className="text-xs font-medium text-amber-800">🏭 In Production</p>
-            <p className="mt-1 text-xs text-amber-700">
+          <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50/70 p-2.5">
+            <p className="text-[13px] font-medium text-amber-800">🏭 In Production</p>
+            <p className="mt-1 text-[13px] text-amber-700 leading-relaxed">
               {challenge.realWorld.description}
             </p>
           </div>
@@ -417,7 +415,7 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
       </header>
 
       {children ? (
-        <section className="rounded-2xl border border-zinc-200 bg-white p-5">
+        <section className="rounded-xl border border-[var(--border-default)] bg-white p-4">
           {children}
         </section>
       ) : null}
@@ -442,7 +440,7 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
       <section className="grid gap-3 lg:grid-cols-12">
         <div className="flex flex-col gap-2 lg:col-span-9">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-medium">Editor (Python)</p>
+            <p className="text-[15px] font-medium text-[var(--foreground)]">Editor (Python)</p>
             <div className="flex items-center gap-2">
               {/* Micro-Task Mode Toggle Button */}
               <MicroTaskToggle
@@ -457,7 +455,7 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
                 type="button"
                 onClick={() => run("test")}
                 disabled={running !== null}
-                className="inline-flex h-9 items-center justify-center rounded-full bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 shadow-sm transition-all"
+                className="inline-flex h-8 items-center justify-center rounded-full bg-[var(--foreground)] px-4 text-[14px] font-medium text-white hover:bg-[var(--gray-500)] disabled:opacity-60 shadow-sm transition-all duration-200 active:scale-[0.98]"
               >
                 {running === "test" ? (
                   <>
@@ -466,7 +464,7 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
                   </>
                 ) : (
                   <>
-                    <span className="mr-2">▶</span> Run Code
+                    <span className="mr-1.5">▶</span> Run Code
                   </>
                 )}
               </button>
@@ -475,7 +473,7 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
                 type="button"
                 onClick={submit}
                 disabled={running !== null || completed}
-                className="inline-flex h-9 items-center justify-center rounded-full bg-emerald-600 px-4 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-60 shadow-sm transition-all"
+                className="inline-flex h-8 items-center justify-center rounded-full bg-emerald-600 px-4 text-[14px] font-medium text-white hover:bg-emerald-500 disabled:opacity-60 shadow-sm transition-all duration-200 active:scale-[0.98]"
               >
                 {running === "submit" ? "Submitting…" : "Submit"}
               </button>
@@ -498,18 +496,18 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
                   }
                 }}
                 disabled={running !== null}
-                className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 disabled:opacity-60 transition-all"
+                className="inline-flex h-8 items-center justify-center rounded-full border border-[var(--border-default)] bg-white px-4 text-[14px] font-medium text-[var(--gray-400)] hover:border-[var(--border-hover)] hover:bg-[var(--gray-50)] hover:text-[var(--foreground)] disabled:opacity-60 transition-all duration-200 active:scale-[0.98]"
               >
                 Reset
               </button>
             </div>
           </div>
 
-          <CodeEditor value={code} onChange={setCode} />
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            Status: {status.replace("_", " ")}
+          <CodeEditor value={code} onChange={setCode} fontSize={15} />
+          <p className="text-[13px] text-[var(--gray-400)]">
+            Status: <span className="capitalize">{status.replace("_", " ")}</span>
             {typeof progress?.attempts === "number" && progress.attempts > 0
-              ? ` · attempts: ${progress.attempts}`
+              ? ` · Attempts: ${progress.attempts}`
               : ""}
           </p>
         </div>
@@ -524,9 +522,9 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
           )}
 
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium">Output</p>
+            <p className="text-[15px] font-medium text-[var(--foreground)]">Output</p>
             {meta?.durationMs !== undefined ? (
-              <span className="text-xs text-zinc-500 dark:text-zinc-400">
+              <span className="text-[13px] text-[var(--gray-400)]">
                 {meta.durationMs}ms
               </span>
             ) : null}
@@ -534,13 +532,13 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
 
 
           {meta?.score != null && (
-            <div className="mb-2 rounded-xl border border-indigo-100 bg-indigo-50 p-3 dark:border-indigo-900/50 dark:bg-indigo-950/30">
+            <div className="mb-2 rounded-xl border border-[var(--accent-blue)]/20 bg-[var(--accent-blue)]/5 p-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-bold text-indigo-900 dark:text-indigo-100">
-                  Efficiency Score: {meta.score > 100 ? 100 : meta.score}
+                <span className="text-[14px] font-semibold text-[var(--accent-blue)]">
+                  Score: {meta.score > 100 ? 100 : meta.score}
                 </span>
                 {meta.metrics && (
-                   <div className="flex gap-3 text-xs text-indigo-700 dark:text-indigo-300">
+                   <div className="flex gap-3 text-[12px] text-[var(--accent-blue)]/80">
                      {Object.entries(meta.metrics).map(([k, v]) => (
                         <span key={k} className="font-mono">{k}: {v}</span>
                      ))}
@@ -551,35 +549,35 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
           )}
 
           {meta?.visuals && (
-             <div className="mb-2 rounded-xl border border-blue-100 bg-blue-50 p-3 dark:border-blue-900/50 dark:bg-blue-950/30 overflow-auto max-h-[400px]">
-                <span className="mb-2 block text-xs font-semibold text-blue-800 dark:text-blue-200">Visual Output</span>
+             <div className="mb-2 rounded-xl border border-[var(--border-default)] bg-[var(--gray-50)] p-3 overflow-auto max-h-[400px]">
+                <span className="mb-2 block text-[13px] font-semibold text-[var(--foreground)]">Visual Output</span>
                 {meta.visuals.type === "retrieval" ? (
                   <RetrievalVisualizer data={meta.visuals} />
                 ) : (
-                  <pre className="text-[10px] leading-3 whitespace-pre-wrap">{JSON.stringify(meta.visuals, null, 2)}</pre>
+                  <pre className="text-[11px] leading-4 whitespace-pre-wrap">{JSON.stringify(meta.visuals, null, 2)}</pre>
                 )}
              </div>
           )}
 
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+          <div className="rounded-xl border border-[var(--border-default)] bg-white p-3">
             {stdout ? (
-              <pre className="whitespace-pre-wrap break-words font-mono text-sm leading-6 text-zinc-950">
+              <pre className="whitespace-pre-wrap break-words font-mono text-[14px] leading-6 text-[var(--foreground)]">
                 {stdout}
               </pre>
             ) : stderr ? (
-               <p className="text-sm italic text-zinc-500">
+               <p className="text-[14px] italic text-[var(--gray-400)]">
                  (See error below)
                </p>
             ) : meta ? (
-              <p className="text-sm italic text-zinc-500 text-emerald-600">
+              <p className="text-[14px] italic text-emerald-600">
                 ✓ Code executed successfully.
                 <br />
-                <span className="mt-1 block text-xs not-italic text-zinc-400">
-                  Tip: Use <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-zinc-800">print()</code> to see values.
+                <span className="mt-1 block text-[13px] not-italic text-[var(--gray-400)]">
+                  Tip: Use <code className="rounded bg-[var(--gray-50)] px-1 py-0.5 font-mono text-[var(--foreground)] border border-[var(--border-subtle)]">print()</code> to see values.
                 </span>
               </p>
             ) : (
-              <p className="text-sm text-zinc-500">
+              <p className="text-[14px] text-[var(--gray-400)]">
                 Run your code to see results here.
               </p>
             )}
@@ -618,18 +616,18 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
             const hasFullDetails = isTraceback || (isTSError && parsedError && 'stackTrace' in parsedError && parsedError.stackTrace);
             
             return (
-              <div className="rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/20">
+              <div className="rounded-xl border border-red-200 bg-red-50 p-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-lg">{errorIcon}</span>
-                    <p className="text-xs font-medium text-red-700 dark:text-red-300">
+                    <span className="text-base">{errorIcon}</span>
+                    <p className="text-[13px] font-medium text-red-700">
                       {errorTitle}
                     </p>
                   </div>
                   {hasFullDetails && (
-                    <details className="text-xs text-red-600 dark:text-red-400">
-                      <summary className="cursor-pointer hover:text-red-700 dark:hover:text-red-300">Show full details</summary>
-                      <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-red-100 dark:bg-red-900/30 p-2 text-[10px] leading-relaxed">
+                    <details className="text-[12px] text-red-600">
+                      <summary className="cursor-pointer hover:text-red-700">Show full details</summary>
+                      <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-red-100 p-2 text-[11px] leading-relaxed">
                         {stderr}
                       </pre>
                     </details>
@@ -637,19 +635,19 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
                 </div>
                 
                 {/* Error Message */}
-                <div className="mt-3 space-y-2">
-                  <pre className="whitespace-pre-wrap break-words font-mono text-sm leading-6 text-red-900 dark:text-red-200">
+                <div className="mt-2 space-y-2">
+                  <pre className="whitespace-pre-wrap break-words font-mono text-[13px] leading-5 text-red-800">
                     {formattedError}
                   </pre>
                   
                   {/* Line Number Badge */}
                   {hasLineNumber && (
                     <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center rounded-full bg-red-200 dark:bg-red-800 px-2.5 py-0.5 text-xs font-medium text-red-800 dark:text-red-200">
-                        📍 Line {parsedError!.lineNumber}
+                      <span className="inline-flex items-center rounded-full bg-red-200 px-2 py-0.5 text-[12px] font-medium text-red-800">
+                        Line {parsedError!.lineNumber}
                       </span>
                       {isTypeScript && parsedError && 'columnNumber' in parsedError && parsedError.columnNumber && (
-                        <span className="inline-flex items-center rounded-full bg-red-100 dark:bg-red-900/50 px-2.5 py-0.5 text-xs font-medium text-red-700 dark:text-red-300">
+                        <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[12px] font-medium text-red-700">
                           Column {parsedError.columnNumber}
                         </span>
                       )}
@@ -658,8 +656,8 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
                   
                   {/* Helpful Tip */}
                   {parsedError?.suggestion && (
-                    <div className="mt-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 p-3">
-                      <p className="text-xs text-amber-800 dark:text-amber-200">
+                    <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 p-2.5">
+                      <p className="text-[13px] text-amber-800">
                         <span className="font-semibold">💡 Tip:</span> {parsedError.suggestion}
                       </p>
                     </div>
@@ -669,9 +667,9 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
             );
           })() : null}
 
-          <div className="rounded-xl border border-zinc-200 p-3 dark:border-zinc-800">
+          <div className="rounded-xl border border-[var(--border-default)] bg-white p-3">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-medium">Hints</p>
+              <p className="text-[15px] font-medium text-[var(--foreground)]">Hints</p>
               <button
                 type="button"
                 onClick={() =>
@@ -680,19 +678,19 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
                   )
                 }
                 disabled={revealedHints >= challenge.hints.length}
-                className="inline-flex h-8 items-center justify-center rounded-full border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-950 hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50 dark:hover:bg-zinc-900"
+                className="inline-flex h-7 items-center justify-center rounded-full border border-[var(--border-default)] bg-white px-3 text-[13px] font-medium text-[var(--foreground)] hover:bg-[var(--gray-50)] hover:border-[var(--border-hover)] disabled:opacity-60 transition-all duration-200 active:scale-[0.98]"
               >
                 Reveal hint
               </button>
             </div>
 
-            <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm text-zinc-700 dark:text-zinc-300">
+            <ol className="mt-2 list-decimal space-y-1 pl-5 text-[15px] text-[var(--gray-500)]">
               {challenge.hints.slice(0, revealedHints).map((hint) => (
-                <li key={hint}>{hint}</li>
+                <li key={hint} className="leading-relaxed">{hint}</li>
               ))}
             </ol>
             {revealedHints === 0 ? (
-              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+              <p className="mt-2 text-[14px] text-[var(--gray-400)]">
                 Stuck? Reveal hints progressively.
               </p>
             ) : null}
@@ -700,16 +698,16 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
 
           {/* Solution Section */}
           {challenge.solution && (completed || revealedHints >= challenge.hints.length) && (
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3">
               <details>
-                <summary className="cursor-pointer text-sm font-medium text-emerald-800 dark:text-emerald-200">
+                <summary className="cursor-pointer text-[15px] font-medium text-emerald-800">
                   {completed ? "View Solution" : "🔓 All hints revealed — Show Solution"}
                 </summary>
-                <div className="mt-3">
-                  <p className="mb-2 text-xs text-emerald-600 dark:text-emerald-400">
+                <div className="mt-2">
+                  <p className="mb-2 text-[13px] text-emerald-700">
                     Study this solution carefully before moving on.
                   </p>
-                  <pre className="overflow-x-auto rounded-lg bg-zinc-900 p-3 text-xs text-zinc-100">
+                  <pre className="overflow-x-auto rounded-lg bg-[var(--foreground)] p-3 text-[13px] text-white">
                     <code>{challenge.solution}</code>
                   </pre>
                 </div>
@@ -728,44 +726,44 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
         </div>
       </section>
 
-      <section className="grid gap-2 sm:grid-cols-2">
+      <section className="grid gap-3 sm:grid-cols-2">
         {prev ? (
           <CardLink href={`/challenges/${prev.slug}`}>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Previous challenge</p>
-            <p className="mt-1 text-sm font-medium">{prev.title}</p>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{prev.group}</p>
+            <p className="text-[13px] text-[var(--gray-400)]">Previous challenge</p>
+            <p className="mt-1 text-[15px] font-medium text-[var(--foreground)]">{prev.title}</p>
+            <p className="mt-0.5 text-[13px] text-[var(--gray-400)]">{prev.group}</p>
           </CardLink>
         ) : (
           <Card>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Previous challenge</p>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
-              You’re at the start of the challenge track.
+            <p className="text-[13px] text-[var(--gray-400)]">Previous challenge</p>
+            <p className="mt-1 text-[15px] text-[var(--gray-500)]">
+              You're at the start of the challenge track.
             </p>
           </Card>
         )}
 
         {next ? (
           <CardLink href={`/challenges/${next.slug}`}>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Next challenge</p>
-            <p className="mt-1 text-sm font-medium">{next.title}</p>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{next.group}</p>
+            <p className="text-[13px] text-[var(--gray-400)]">Next challenge</p>
+            <p className="mt-1 text-[15px] font-medium text-[var(--foreground)]">{next.title}</p>
+            <p className="mt-0.5 text-[13px] text-[var(--gray-400)]">{next.group}</p>
           </CardLink>
         ) : (
           <Card>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Next challenge</p>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+            <p className="text-[13px] text-[var(--gray-400)]">Next challenge</p>
+            <p className="mt-1 text-[15px] text-[var(--gray-500)]">
               End of list. Browse all challenges or follow the Study Plan.
             </p>
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-2 flex flex-wrap gap-2">
               <Link
                 href="/challenges"
-                className="text-sm font-medium text-zinc-950 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-500 dark:text-zinc-50 dark:decoration-white/25 dark:hover:decoration-white/50"
+                className="text-[14px] font-medium text-[var(--accent-blue)] hover:underline underline-offset-2"
               >
                 All challenges →
               </Link>
               <Link
                 href="/plan"
-                className="text-sm font-medium text-zinc-950 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-500 dark:text-zinc-50 dark:decoration-white/25 dark:hover:decoration-white/50"
+                className="text-[14px] font-medium text-[var(--accent-blue)] hover:underline underline-offset-2"
               >
                 Study Plan →
               </Link>
@@ -776,14 +774,14 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
 
       {/* Related Challenges - LeetCode Differentiator */}
       {challenge.relatedChallenges && challenge.relatedChallenges.length > 0 && (
-        <section className="mt-4">
-          <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Continue Learning</p>
+        <section className="mt-3">
+          <p className="text-[15px] font-medium text-[var(--foreground)]">Continue Learning</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {challenge.relatedChallenges.map((slug) => (
               <Link
                 key={slug}
                 href={`/challenges/${slug}`}
-                className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/50"
+                className="rounded-full border border-[var(--border-default)] bg-white px-3 py-1 text-[13px] font-medium text-[var(--gray-500)] transition-all duration-200 hover:border-[var(--accent-blue)]/30 hover:bg-[var(--accent-blue)]/5 hover:text-[var(--accent-blue)]"
               >
                 {slug} →
               </Link>
@@ -793,7 +791,7 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
       )}
 
       {challenge.benchmark && (
-        <section className="mt-5">
+        <section className="mt-4">
           <Leaderboard slug={challenge.slug} />
         </section>
       )}
