@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, type ReactNode, type InputHTMLAttributes, type TextareaHTMLAttributes, type SelectHTMLAttributes } from "react";
 
-function cn(...classes: Array<string | undefined | false | null>) {
+function cn(...classes: Array<string | undefined | false | null | 0 | 0n | "">) {
   return classes.filter(Boolean).join(" ");
 }
 

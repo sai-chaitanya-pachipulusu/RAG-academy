@@ -73,6 +73,7 @@ export function getPlatformStats() {
     totalStages: uniqueStages.size,
     challengesWithSolutions: challenges.filter(c => c.solution).length,
     portfolioProjects: Math.min(portfolioProjects, challenges.filter(c => c.difficulty === "hard" && c.realWorld).length),
+    freeChallenges: challenges.filter(c => c.xpReward > 0).length,
   };
 }
 

@@ -36,8 +36,8 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { useSyncConflicts } from "@/components/providers/SyncProgressProvider";
 import type { Conflict, ConflictResolutionStrategy } from "@/lib/progress/sync";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { TouchButton as Button } from "@/components/ui/TouchButton";
+import { Badge } from "@/components/ui/Badge";
 import { 
   Dialog, 
   DialogContent, 
@@ -45,9 +45,9 @@ import {
   DialogHeader, 
   DialogTitle,
   DialogFooter
-} from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
+} from "@/components/ui/Dialog";
+import { ScrollArea } from "@/components/ui/ScrollArea";
+import { Separator } from "@/components/ui/Separator";
 import { cn } from "@/lib/utils";
 
 // Format date for display

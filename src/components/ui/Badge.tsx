@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 type Props = Readonly<{
   children: ReactNode;
-  variant?: "default" | "muted" | "accent";
+  variant?: "default" | "muted" | "accent" | "outline";
   className?: string;
 }>;
 
@@ -14,7 +14,9 @@ export function Badge({ children, variant = "default", className }: Props) {
       ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-200"
       : variant === "muted"
         ? "border-zinc-200 bg-white text-zinc-600 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300"
-        : "border-zinc-200 bg-white text-zinc-900 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-100";
+        : variant === "outline"
+          ? "border-zinc-300 bg-transparent text-zinc-700 dark:border-white/20 dark:text-zinc-300"
+          : "border-zinc-200 bg-white text-zinc-900 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-100";
 
   return <span className={[base, styles, className ?? ""].join(" ")}>{children}</span>;
 }

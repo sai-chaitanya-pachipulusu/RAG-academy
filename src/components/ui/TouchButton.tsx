@@ -8,7 +8,7 @@ function cn(...classes: Array<string | undefined | false | null>) {
 
 interface TouchButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
-  variant?: "primary" | "secondary" | "ghost" | "danger";
+  variant?: "primary" | "secondary" | "ghost" | "danger" | "default" | "outline";
   size?: "sm" | "md" | "lg" | "touch";
   fullWidth?: boolean;
   ripple?: boolean;
@@ -69,6 +69,8 @@ export function TouchButton({
     secondary: "bg-white text-zinc-900 border border-zinc-200 hover:bg-zinc-50 active:bg-zinc-100",
     ghost: "bg-transparent text-zinc-700 hover:bg-zinc-100 active:bg-zinc-200",
     danger: "bg-red-600 text-white hover:bg-red-500 active:bg-red-700",
+    default: "bg-zinc-900 text-white hover:bg-zinc-800 active:bg-zinc-950",
+    outline: "bg-white text-zinc-900 border border-zinc-200 hover:bg-zinc-50 active:bg-zinc-100",
   };
 
   const sizeStyles = {

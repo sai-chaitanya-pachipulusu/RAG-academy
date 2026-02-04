@@ -7,14 +7,14 @@
  * Includes test card numbers, checkout creation, and webhook simulation.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { TestCardDisplay, TestCardSelector } from "@/components/payments/TestCardDisplay";
 import { TestCardKey } from "@/lib/payments/paddle";
 import { useSupabaseAuth } from "@/components/providers/SupabaseAuthProvider";
 
-export default function PaymentTestPage() {
+function PaymentTestPageContent() {
   const searchParams = useSearchParams();
   const { user } = useSupabaseAuth();
   const [activeTab, setActiveTab] = useState<"checkout" | "webhooks" | "scenarios" | "logs">("checkout");
@@ -646,5 +646,13 @@ export default function PaymentTestPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function PaymentTestPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
+      <PaymentTestPageContent />
+    </Suspense>
   );
 }
