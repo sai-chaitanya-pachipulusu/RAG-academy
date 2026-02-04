@@ -39,30 +39,30 @@ export default function PricingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-white dark:from-zinc-950 dark:to-zinc-900">
+    <div className="min-h-screen bg-gradient-to-b from-zinc-50 to-white">
       {/* Hero Section */}
       <div className="mx-auto max-w-7xl px-6 py-16 lg:py-24">
         <div className="text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-5xl">
+          <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl">
             Invest in your RAG engineering skills
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-lg text-zinc-600 dark:text-zinc-400">
+          <p className="mx-auto mt-4 max-w-2xl text-lg text-zinc-600">
             Join engineers building production-ready RAG systems at top companies.
           </p>
 
           {/* Phase Banner */}
           {currentPhase.phase !== "phase3" && daysRemaining !== null && (
-            <div className="mx-auto mt-8 max-w-2xl rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-200 dark:border-amber-800 p-6">
+            <div className="mx-auto mt-8 max-w-2xl rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 p-6">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <span className="inline-flex items-center gap-2 rounded-full bg-amber-900 px-3 py-1 text-xs font-semibold text-white">
                   🐦 {currentPhase.name}
                 </span>
               </div>
-              <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+              <p className="text-sm font-semibold text-amber-900">
                 {daysRemaining} days left at early bird pricing!
               </p>
               {nextPhaseInfo.priceIncrease && nextPhaseInfo.priceIncrease > 0 && (
-                <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                <p className="text-sm text-amber-700 mt-1">
                   Pro increases from ${currentPhase.tiers.paid.price.monthly}/mo to ${nextPhaseInfo.nextPhase?.tiers.paid.price.monthly}/mo on{" "}
                   {nextPhaseInfo.nextPhase?.startDate.toLocaleDateString("en-US", {
                     month: "long",
@@ -79,8 +79,8 @@ export default function PricingPage() {
               onClick={() => setBillingCycle("monthly")}
               className={`rounded-full px-6 py-2 text-sm font-medium transition-all ${
                 billingCycle === "monthly"
-                  ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900"
-                  : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+                  ? "bg-zinc-900 text-white"
+                  : "text-zinc-600 hover:text-zinc-900"
               }`}
             >
               Monthly
@@ -89,12 +89,12 @@ export default function PricingPage() {
               onClick={() => setBillingCycle("annual")}
               className={`rounded-full px-6 py-2 text-sm font-medium transition-all flex items-center gap-2 ${
                 billingCycle === "annual"
-                  ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900"
-                  : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+                  ? "bg-zinc-900 text-white"
+                  : "text-zinc-600 hover:text-zinc-900"
               }`}
             >
               Annual
-              <span className="rounded-full bg-emerald-100 dark:bg-emerald-900 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
                 Save up to 43%
               </span>
             </button>
@@ -117,59 +117,59 @@ export default function PricingPage() {
 
         {/* Comparison with competitors */}
         <div className="mx-auto mt-24 max-w-4xl">
-          <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white mb-8 text-center">
+          <h2 className="text-2xl font-bold tracking-tight text-zinc-900 mb-8 text-center">
             How we compare
           </h2>
-          <div className="overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800">
+          <div className="overflow-hidden rounded-2xl border border-zinc-200">
             <table className="w-full text-sm">
-              <thead className="bg-zinc-50 dark:bg-zinc-900">
+              <thead className="bg-zinc-50">
                 <tr>
-                  <th className="text-left py-4 px-6 font-semibold text-zinc-900 dark:text-white">Platform</th>
-                  <th className="text-center py-4 px-4 font-semibold text-zinc-900 dark:text-white">Monthly</th>
-                  <th className="text-center py-4 px-4 font-semibold text-zinc-900 dark:text-white">Annual</th>
-                  <th className="text-center py-4 px-4 font-semibold text-zinc-900 dark:text-white">Focus</th>
+                  <th className="text-left py-4 px-6 font-semibold text-zinc-900">Platform</th>
+                  <th className="text-center py-4 px-4 font-semibold text-zinc-900">Monthly</th>
+                  <th className="text-center py-4 px-4 font-semibold text-zinc-900">Annual</th>
+                  <th className="text-center py-4 px-4 font-semibold text-zinc-900">Focus</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                <tr className="bg-emerald-50 dark:bg-emerald-950/20">
-                  <td className="py-4 px-6 font-semibold text-emerald-700 dark:text-emerald-400">RAG Academy</td>
-                  <td className="py-4 px-4 text-center text-emerald-700 dark:text-emerald-400">$29</td>
-                  <td className="py-4 px-4 text-center text-emerald-700 dark:text-emerald-400">$199</td>
+              <tbody className="divide-y divide-zinc-200">
+                <tr className="bg-emerald-50">
+                  <td className="py-4 px-6 font-semibold text-emerald-700">RAG Academy</td>
+                  <td className="py-4 px-4 text-center text-emerald-700">$29</td>
+                  <td className="py-4 px-4 text-center text-emerald-700">$199</td>
                   <td className="py-4 px-4 text-center">
-                    <span className="rounded-full bg-emerald-100 dark:bg-emerald-900 px-2 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                    <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700">
                       RAG Only
                     </span>
                   </td>
                 </tr>
                 <tr>
-                  <td className="py-4 px-6 text-zinc-700 dark:text-zinc-300">LeetCode Premium</td>
-                  <td className="py-4 px-4 text-center text-zinc-600 dark:text-zinc-400">$35</td>
-                  <td className="py-4 px-4 text-center text-zinc-600 dark:text-zinc-400">$159</td>
-                  <td className="py-4 px-4 text-center text-zinc-500 dark:text-zinc-500">DSA</td>
+                  <td className="py-4 px-6 text-zinc-700">LeetCode Premium</td>
+                  <td className="py-4 px-4 text-center text-zinc-600">$35</td>
+                  <td className="py-4 px-4 text-center text-zinc-600">$159</td>
+                  <td className="py-4 px-4 text-center text-zinc-500">DSA</td>
                 </tr>
                 <tr>
-                  <td className="py-4 px-6 text-zinc-700 dark:text-zinc-300">Educative.io</td>
-                  <td className="py-4 px-4 text-center text-zinc-600 dark:text-zinc-400">$59</td>
-                  <td className="py-4 px-4 text-center text-zinc-600 dark:text-zinc-400">$199</td>
-                  <td className="py-4 px-4 text-center text-zinc-500 dark:text-zinc-500">General</td>
+                  <td className="py-4 px-6 text-zinc-700">Educative.io</td>
+                  <td className="py-4 px-4 text-center text-zinc-600">$59</td>
+                  <td className="py-4 px-4 text-center text-zinc-600">$199</td>
+                  <td className="py-4 px-4 text-center text-zinc-500">General</td>
                 </tr>
                 <tr>
-                  <td className="py-4 px-6 text-zinc-700 dark:text-zinc-300">AlgoExpert</td>
-                  <td className="py-4 px-4 text-center text-zinc-600 dark:text-zinc-400">—</td>
-                  <td className="py-4 px-4 text-center text-zinc-600 dark:text-zinc-400">$99</td>
-                  <td className="py-4 px-4 text-center text-zinc-500 dark:text-zinc-500">DSA</td>
+                  <td className="py-4 px-6 text-zinc-700">AlgoExpert</td>
+                  <td className="py-4 px-4 text-center text-zinc-600">—</td>
+                  <td className="py-4 px-4 text-center text-zinc-600">$99</td>
+                  <td className="py-4 px-4 text-center text-zinc-500">DSA</td>
                 </tr>
               </tbody>
             </table>
           </div>
-          <p className="mt-4 text-center text-sm text-zinc-500 dark:text-zinc-500">
+          <p className="mt-4 text-center text-sm text-zinc-500">
             Unlike generalist platforms, we focus exclusively on RAG engineering with production datasets and real-world code.
           </p>
         </div>
 
         {/* FAQ Section */}
         <div className="mx-auto mt-24 max-w-3xl">
-          <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white mb-8 text-center">
+          <h2 className="text-2xl font-bold tracking-tight text-zinc-900 mb-8 text-center">
             Frequently asked questions
           </h2>
           <div className="space-y-6">
@@ -264,10 +264,10 @@ function PricingCard({ tier, billingCycle, isPopular, isLifetime, user }: Pricin
 
   return (
     <div
-      className={`relative rounded-3xl border p-6 bg-white dark:bg-zinc-900 ${
+      className={`relative rounded-3xl border p-6 bg-white ${
         isPopular
           ? "border-indigo-500 shadow-xl ring-2 ring-indigo-500"
-          : "border-zinc-200 dark:border-zinc-800"
+          : "border-zinc-200"
       }`}
     >
       {/* Popular Badge */}
@@ -282,20 +282,20 @@ function PricingCard({ tier, billingCycle, isPopular, isLifetime, user }: Pricin
       {/* Tier Badge */}
       {tier.badge && !isPopular && (
         <div className="mb-4">
-          <span className="inline-flex rounded-full bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+          <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
             {tier.badge}
           </span>
         </div>
       )}
 
       {/* Tier Name */}
-      <h3 className="text-lg font-bold text-zinc-900 dark:text-white">{tier.name}</h3>
+      <h3 className="text-lg font-bold text-zinc-900">{tier.name}</h3>
 
       {/* Price */}
       <div className="mt-4">
         {isFree ? (
           <div className="flex items-baseline gap-2">
-            <span className="text-4xl font-bold text-zinc-900 dark:text-white">Free</span>
+            <span className="text-4xl font-bold text-zinc-900">Free</span>
           </div>
         ) : isLifetime ? (
           <div>
@@ -305,11 +305,11 @@ function PricingCard({ tier, billingCycle, isPopular, isLifetime, user }: Pricin
               </div>
             )}
             <div className="flex items-baseline gap-2">
-              <span className="text-4xl font-bold text-zinc-900 dark:text-white">
+              <span className="text-4xl font-bold text-zinc-900">
                 {displayPrice}
               </span>
             </div>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">One-time payment</p>
+            <p className="text-sm text-zinc-600 mt-1">One-time payment</p>
           </div>
         ) : (
           <div>
@@ -319,18 +319,18 @@ function PricingCard({ tier, billingCycle, isPopular, isLifetime, user }: Pricin
               </div>
             )}
             <div className="flex items-baseline gap-2">
-              <span className="text-4xl font-bold text-zinc-900 dark:text-white">
+              <span className="text-4xl font-bold text-zinc-900">
                 {displayPrice}
               </span>
-              <span className="text-zinc-600 dark:text-zinc-400">/month</span>
+              <span className="text-zinc-600">/month</span>
             </div>
             {billingCycle === "annual" && (
-              <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-1">
+              <p className="text-sm text-emerald-600 mt-1">
                 {tier.price.displayAnnual}/year (save {savings.savingsPercent}%)
               </p>
             )}
             {billingCycle === "monthly" && (
-              <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
+              <p className="text-sm text-zinc-600 mt-1">
                 or {tier.price.displayAnnual}/year
               </p>
             )}
@@ -340,7 +340,7 @@ function PricingCard({ tier, billingCycle, isPopular, isLifetime, user }: Pricin
 
       {/* Note */}
       {tier.note && (
-        <p className="mt-4 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3">
+        <p className="mt-4 text-xs text-amber-700 bg-amber-50 rounded-lg p-3">
           {tier.note}
         </p>
       )}
@@ -351,7 +351,7 @@ function PricingCard({ tier, billingCycle, isPopular, isLifetime, user }: Pricin
         className={`mt-6 block w-full rounded-xl py-3 text-center text-sm font-semibold transition-all ${
           isPopular
             ? "bg-indigo-600 text-white hover:bg-indigo-500"
-            : "border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white hover:border-zinc-300 dark:hover:border-zinc-600 hover:shadow-md"
+            : "border border-zinc-200 bg-white text-zinc-900 hover:border-zinc-300 hover:shadow-md"
         }`}
       >
         {isFree ? "Start Free" : isLifetime ? "Get Lifetime Access" : "Subscribe Now"}
@@ -362,7 +362,7 @@ function PricingCard({ tier, billingCycle, isPopular, isLifetime, user }: Pricin
         {tier.features.map((feature) => (
           <li key={feature} className="flex items-start gap-3">
             <svg
-              className="h-5 w-5 flex-shrink-0 text-emerald-600 dark:text-emerald-400"
+              className="h-5 w-5 flex-shrink-0 text-emerald-600"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -374,7 +374,7 @@ function PricingCard({ tier, billingCycle, isPopular, isLifetime, user }: Pricin
                 d="M5 13l4 4L19 7"
               />
             </svg>
-            <span className="text-sm text-zinc-600 dark:text-zinc-400">{feature}</span>
+            <span className="text-sm text-zinc-600">{feature}</span>
           </li>
         ))}
       </ul>
@@ -389,9 +389,9 @@ interface FAQItemProps {
 
 function FAQItem({ question, answer }: FAQItemProps) {
   return (
-    <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6">
-      <h3 className="font-semibold text-zinc-900 dark:text-white">{question}</h3>
-      <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">{answer}</p>
+    <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+      <h3 className="font-semibold text-zinc-900">{question}</h3>
+      <p className="mt-2 text-sm text-zinc-600 leading-relaxed">{answer}</p>
     </div>
   );
 }
