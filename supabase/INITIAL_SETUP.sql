@@ -6,6 +6,35 @@
 -- Paste this entire file and click "Run"
 
 -- ===========================================
+-- PART 0: Migration Safety - Ensure Paddle columns exist
+-- ===========================================
+
+-- First, ensure the subscriptions table exists with Paddle columns
+-- This handles cases where the table was created with old column names
+DO $$
+BEGIN
+  -- Check if subscriptions table exists
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'subscriptions' AND table_schema = 'public') THEN
+    -- Add missing Paddle columns if they don't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'paddle_subscription_id' AND table_schema = 'public') THEN
+      ALTER TABLE public.subscriptions ADD COLUMN paddle_subscription_id text;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'paddle_order_id' AND table_schema = 'public') THEN
+      ALTER TABLE public.subscriptions ADD COLUMN paddle_order_id text;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'paddle_product_id' AND table_schema = 'public') THEN
+      ALTER TABLE public.subscriptions ADD COLUMN paddle_product_id text;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'paddle_price_id' AND table_schema = 'public') THEN
+      ALTER TABLE public.subscriptions ADD COLUMN paddle_price_id text;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'paddle_customer_id' AND table_schema = 'public') THEN
+      ALTER TABLE public.subscriptions ADD COLUMN paddle_customer_id text;
+    END IF;
+  END IF;
+END $$;
+
+-- ===========================================
 -- PART 1: Core Tables (profiles + challenge progress)
 -- ===========================================
 

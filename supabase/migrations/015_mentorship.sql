@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS public.mentorship_requests (
   completed_at timestamptz,
   
   -- Constraints
-  UNIQUE(mentor_id, mentee_id, status) WHERE status = 'accepted'
+  CONSTRAINT unique_accepted_mentorship UNIQUE (mentor_id, mentee_id)
 );
 
 COMMENT ON TABLE public.mentorship_requests IS 'Mentorship requests between users';

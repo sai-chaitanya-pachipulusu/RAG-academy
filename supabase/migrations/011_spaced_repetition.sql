@@ -173,15 +173,15 @@ CREATE INDEX IF NOT EXISTS idx_srs_stats_date ON public.srs_stats(date);
 -- ============================================
 CREATE OR REPLACE FUNCTION public.get_srs_due_items(p_user_id uuid)
 RETURNS TABLE (
-  id uuid,
-  challenge_slug text,
-  ease_factor double precision,
-  interval integer,
-  repetitions integer,
-  next_review_at timestamptz,
-  status text,
-  is_leech boolean,
-  days_overdue integer
+  item_id uuid,
+  item_challenge_slug text,
+  item_ease_factor double precision,
+  item_interval integer,
+  item_repetitions integer,
+  item_next_review_at timestamptz,
+  item_status text,
+  item_is_leech boolean,
+  item_days_overdue integer
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -189,15 +189,15 @@ AS $$
 BEGIN
   RETURN QUERY
   SELECT 
-    si.id,
-    si.challenge_slug,
-    si.ease_factor,
-    si.interval,
-    si.repetitions,
-    si.next_review_at,
-    si.status,
-    si.is_leech,
-    GREATEST(0, EXTRACT(DAY FROM (now() - si.next_review_at))::integer) as days_overdue
+    si.id as item_id,
+    si.challenge_slug as item_challenge_slug,
+    si.ease_factor as item_ease_factor,
+    si.interval as item_interval,
+    si.repetitions as item_repetitions,
+    si.next_review_at as item_next_review_at,
+    si.status as item_status,
+    si.is_leech as item_is_leech,
+    GREATEST(0, EXTRACT(DAY FROM (now() - si.next_review_at))::integer) as item_days_overdue
   FROM public.srs_items si
   WHERE si.user_id = p_user_id
     AND si.status != 'suspended'
@@ -590,4 +590,11 @@ BEGIN
     SET
       reviews_completed = reviews_completed + 1,
       correct_reviews = correct_reviews + CASE WHEN NEW.rating != 'again' THEN 1 ELSE 0 END,
-      total_time_seconds
+      total_time_seconds = total_time_seconds + COALESCE(NEW.time_spent_seconds, 0),
+      updated_at = now()
+    WHERE user_id = NEW.user_id AND date = v_today;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$;

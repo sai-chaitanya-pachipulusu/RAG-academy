@@ -4,6 +4,21 @@
 -- ============================================
 
 -- ============================================
+-- 0) Ensure max_seats column exists in subscriptions
+-- ============================================
+-- Add max_seats column to subscriptions table (required for team features)
+ALTER TABLE public.subscriptions 
+ADD COLUMN IF NOT EXISTS max_seats integer DEFAULT 1;
+
+-- Update existing subscriptions to have reasonable defaults
+UPDATE public.subscriptions 
+SET max_seats = CASE 
+  WHEN tier = 'team' THEN 5 
+  ELSE 1 
+END 
+WHERE max_seats IS NULL;
+
+-- ============================================
 -- 1) Create team_members table
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.team_members (
