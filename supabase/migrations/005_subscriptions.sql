@@ -5,19 +5,19 @@
 ALTER TABLE public.profiles 
 ADD COLUMN IF NOT EXISTS subscription_tier text DEFAULT 'free',
 ADD COLUMN IF NOT EXISTS subscription_status text DEFAULT 'none',
-ADD COLUMN IF NOT EXISTS polar_customer_id text;
+ADD COLUMN IF NOT EXISTS paddle_customer_id text;
 
 -- 2) Create subscriptions table for detailed tracking
 CREATE TABLE IF NOT EXISTS public.subscriptions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   
-  -- Polar identifiers
-  polar_subscription_id text,
-  polar_order_id text,
-  polar_product_id text,
-  polar_price_id text,
-  polar_customer_id text,
+  -- Paddle identifiers
+  paddle_subscription_id text,
+  paddle_order_id text,
+  paddle_product_id text,
+  paddle_price_id text,
+  paddle_customer_id text,
   
   -- Subscription details
   status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'trialing', 'past_due', 'canceled', 'incomplete', 'revoked', 'lifetime')),
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS public.subscriptions (
 
 -- Index for faster lookups
 CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON public.subscriptions(user_id);
-CREATE INDEX IF NOT EXISTS idx_subscriptions_polar_subscription_id ON public.subscriptions(polar_subscription_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_paddle_subscription_id ON public.subscriptions(paddle_subscription_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON public.subscriptions(status);
 
 -- Auto-update timestamp
@@ -110,6 +110,6 @@ ON public.profiles FOR SELECT
 USING (true);
 
 -- 6) Comment on tables
-COMMENT ON TABLE public.subscriptions IS 'Stores user subscription data synced from Polar.sh';
+COMMENT ON TABLE public.subscriptions IS 'Stores user subscription data synced from Paddle';
 COMMENT ON COLUMN public.subscriptions.status IS 'active, trialing, past_due, canceled, incomplete, revoked, lifetime';
 COMMENT ON COLUMN public.subscriptions.tier IS 'free, pro, team, lifetime';

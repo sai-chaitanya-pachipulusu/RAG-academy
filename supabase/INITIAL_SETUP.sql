@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   -- Subscription fields (updated by webhooks)
   subscription_tier text DEFAULT 'free',
   subscription_status text DEFAULT 'none',
-  polar_customer_id text,
+  paddle_customer_id text,
   -- Timestamps
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
@@ -42,19 +42,19 @@ CREATE INDEX IF NOT EXISTS idx_challenge_progress_user
   ON public.challenge_progress(user_id);
 
 -- ===========================================
--- PART 2: Subscriptions (for Polar.sh payments)
+-- PART 2: Subscriptions (for Paddle payments)
 -- ===========================================
 
 CREATE TABLE IF NOT EXISTS public.subscriptions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   
-  -- Polar identifiers
-  polar_subscription_id text,
-  polar_order_id text,
-  polar_product_id text,
-  polar_price_id text,
-  polar_customer_id text,
+  -- Paddle identifiers
+  paddle_subscription_id text,
+  paddle_order_id text,
+  paddle_product_id text,
+  paddle_price_id text,
+  paddle_customer_id text,
   
   -- Subscription details
   status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'trialing', 'past_due', 'canceled', 'incomplete', 'revoked', 'lifetime')),
@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS public.subscriptions (
 
 -- Indexes for faster lookups
 CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON public.subscriptions(user_id);
-CREATE INDEX IF NOT EXISTS idx_subscriptions_polar_subscription_id ON public.subscriptions(polar_subscription_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_paddle_subscription_id ON public.subscriptions(paddle_subscription_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON public.subscriptions(status);
 CREATE INDEX IF NOT EXISTS idx_profiles_xp ON public.profiles(xp DESC);
 
@@ -231,7 +231,7 @@ CREATE TRIGGER on_auth_user_created
 
 COMMENT ON TABLE public.profiles IS 'User profiles with XP, streaks, and subscription status';
 COMMENT ON TABLE public.challenge_progress IS 'Tracks user progress on each challenge';
-COMMENT ON TABLE public.subscriptions IS 'Subscription data synced from Polar.sh via webhooks';
+COMMENT ON TABLE public.subscriptions IS 'Subscription data synced from Paddle via webhooks';
 COMMENT ON COLUMN public.subscriptions.status IS 'active, trialing, past_due, canceled, incomplete, revoked, lifetime';
 COMMENT ON COLUMN public.subscriptions.tier IS 'free, pro, team, lifetime';
 
@@ -240,9 +240,9 @@ COMMENT ON COLUMN public.subscriptions.tier IS 'free, pro, team, lifetime';
 -- ===========================================
 -- 
 -- Next steps:
--- 1. Set up Polar webhook at: https://polar.sh → Settings → Webhooks
---    - URL: https://ragacademy.space/api/webhooks/polar
---    - Secret: Use your POLAR_WEBHOOK_SECRET from .env
+-- 1. Set up Paddle webhook at: https://vendors.paddle.com → Developer Tools → Notifications
+--    - URL: https://ragacademy.space/api/webhooks/paddle
+--    - Secret: Use your PADDLE_WEBHOOK_SECRET from .env
 --    - Events: subscription.*, order.*, checkout.*
 -- 
 -- 2. Deploy to Vercel with your environment variables
