@@ -256,8 +256,6 @@ function PricingCard({ tier, billingCycle, isPopular, isLifetime, user }: Pricin
   
   const displayPrice = isLifetime
     ? tier.price.displayAnnual
-    : billingCycle === "annual"
-    ? `$${Math.round(tier.price.annual / 12)}`
     : tier.price.displayMonthly;
 
   const checkoutUrl = isFree

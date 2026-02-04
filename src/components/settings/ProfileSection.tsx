@@ -18,47 +18,47 @@ export function ProfileSection() {
   return (
     <div className="space-y-6">
        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-2xl border border-zinc-200 p-5 dark:border-zinc-800">
-          <p className="text-sm font-medium">Level</p>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+          <p className="text-sm font-medium text-zinc-900">Level</p>
+          <p className="mt-1 text-sm text-zinc-600">
             Level {level.level} · {level.title}
           </p>
-          <p className="mt-2 text-sm">
+          <p className="mt-2 text-sm text-zinc-900">
             <span className="font-medium">{state.xp}</span> XP
           </p>
           {level.nextLevelXp !== null ? (
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="mt-1 text-xs text-zinc-500">
               Next level at {level.nextLevelXp} XP
             </p>
           ) : null}
         </div>
 
-        <div className="rounded-2xl border border-zinc-200 p-5 dark:border-zinc-800">
-          <p className="text-sm font-medium">Streak</p>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+          <p className="text-sm font-medium text-zinc-900">Streak</p>
+          <p className="mt-1 text-sm text-zinc-600">
             {state.streak.streakDays} day streak
           </p>
-          <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="mt-2 text-xs text-zinc-500">
             Last activity: {state.streak.lastActivityDate ?? "—"}
           </p>
         </div>
 
-        <div className="rounded-2xl border border-zinc-200 p-5 dark:border-zinc-800">
-          <p className="text-sm font-medium">Challenges</p>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+          <p className="text-sm font-medium text-zinc-900">Challenges</p>
+          <p className="mt-1 text-sm text-zinc-600">
             Completed: {completedCount}
           </p>
         </div>
 
-        <div className="rounded-2xl border border-zinc-200 p-5 dark:border-zinc-800">
-          <p className="text-sm font-medium">Reset</p>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+          <p className="text-sm font-medium text-zinc-900">Reset</p>
+          <p className="mt-1 text-sm text-zinc-600">
             Clears local XP, streak, and challenge progress.
           </p>
           <button
             type="button"
             onClick={reset}
-            className="mt-3 inline-flex h-9 items-center justify-center rounded-full border border-zinc-200 bg-white px-4 text-xs font-medium text-zinc-950 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50 dark:hover:bg-zinc-900"
+            className="mt-3 inline-flex h-9 items-center justify-center rounded-full border border-zinc-200 bg-white px-4 text-xs font-medium text-zinc-950 hover:bg-zinc-50"
           >
             Reset local progress
           </button>

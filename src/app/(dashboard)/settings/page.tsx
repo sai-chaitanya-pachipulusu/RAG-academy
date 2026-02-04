@@ -3,7 +3,6 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ExportImportUI } from "@/components/settings/ExportImport";
 import { ReviewDashboard, ReviewStats } from "@/components/gamification/ReviewBadge";
 import { ProfileSection } from "@/components/settings/ProfileSection";
 import { useSupabaseAuth } from "@/components/providers/SupabaseAuthProvider";
@@ -70,8 +69,8 @@ function SettingsContent() {
       </header>
 
       {/* Subscription Status */}
-      <section className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-        <h2 className="mb-4 flex items-center gap-2 font-semibold text-zinc-900 dark:text-zinc-100">
+      <section className="rounded-xl border border-zinc-200 bg-white p-6">
+        <h2 className="mb-4 flex items-center gap-2 font-semibold text-zinc-900">
           <span>💎</span>
           Subscription
         </h2>
@@ -80,11 +79,11 @@ function SettingsContent() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">Current Plan</p>
-                <p className="text-lg font-semibold text-zinc-900 dark:text-white capitalize">
+                <p className="text-sm text-zinc-600">Current Plan</p>
+                <p className="text-lg font-semibold text-zinc-900 capitalize">
                   {subscription?.tier || "Free"}
                   {subscription?.isActive && subscription.tier !== "free" && (
-                    <span className="ml-2 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
+                    <span className="ml-2 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
                       Active
                     </span>
                   )}
@@ -100,7 +99,7 @@ function SettingsContent() {
                     //  window.open(url, "_blank", "noopener,noreferrer");
                     //}
                   }}
-                  className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-900 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white dark:hover:bg-zinc-700"
+                  className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-900 transition hover:bg-zinc-50"
                 >
                   Manage Subscription
                 </a>
@@ -126,19 +125,19 @@ function SettingsContent() {
             )}
             
             {subscription?.tier === "lifetime" && (
-              <p className="text-xs text-emerald-600 dark:text-emerald-400">
+              <p className="text-xs text-emerald-600">
                 🎉 Lifetime access — never expires!
               </p>
             )}
             
             {!hasPaidAccess && (
-              <div className="mt-4 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              <div className="mt-4 rounded-lg bg-zinc-50 p-4">
+                <p className="text-sm text-zinc-600">
                   Upgrade to Pro to unlock all {stats.totalChallenges}+ challenges, production datasets, and more.
                 </p>
                 <Link
                   href="/pricing"
-                  className="mt-2 inline-flex text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
+                  className="mt-2 inline-flex text-sm font-medium text-indigo-600 hover:text-indigo-500"
                 >
                   View pricing →
                 </Link>
@@ -146,13 +145,13 @@ function SettingsContent() {
             )}
           </div>
         ) : (
-          <div className="rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          <div className="rounded-lg bg-zinc-50 p-4">
+            <p className="text-sm text-zinc-600">
               Sign in to manage your subscription and sync progress across devices.
             </p>
             <Link
               href="/login?redirect=/settings"
-              className="mt-2 inline-flex text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
+              className="mt-2 inline-flex text-sm font-medium text-indigo-600 hover:text-indigo-500"
             >
               Sign in →
             </Link>
@@ -166,12 +165,9 @@ function SettingsContent() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Left Column */}
         <div className="space-y-6">
-          {/* Export/Import */}
-          <ExportImportUI />
-
           {/* Spaced Repetition */}
-          <section>
-            <h2 className="mb-3 flex items-center gap-2 font-semibold text-zinc-900 dark:text-zinc-100">
+          <section className="rounded-xl border border-zinc-200 bg-white p-6">
+            <h2 className="mb-4 flex items-center gap-2 font-semibold text-zinc-900">
               <span>🧠</span>
               Spaced Repetition
             </h2>
@@ -185,12 +181,12 @@ function SettingsContent() {
         {/* Right Column */}
         <div className="space-y-6">
           {/* Danger Zone */}
-          <section className="rounded-xl border border-red-200 bg-red-50/50 p-4 dark:border-red-900/50 dark:bg-red-950/20">
-            <h2 className="flex items-center gap-2 font-semibold text-red-700 dark:text-red-400">
+          <section className="rounded-xl border border-red-200 bg-red-50 p-4">
+            <h2 className="flex items-center gap-2 font-semibold text-red-700">
               <span>⚠️</span>
               Danger Zone
             </h2>
-            <p className="mt-1 text-sm text-red-600/70 dark:text-red-400/70">
+            <p className="mt-1 text-sm text-red-600">
               These actions cannot be undone
             </p>
             <div className="mt-4 flex flex-wrap gap-3">
@@ -201,7 +197,7 @@ function SettingsContent() {
                     window.location.reload();
                   }
                 }}
-                className="rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-950/50"
+                className="rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50"
               >
                 Reset All Progress
               </button>
