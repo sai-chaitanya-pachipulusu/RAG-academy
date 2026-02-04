@@ -1,14 +1,22 @@
 /**
  * PRICING CONFIGURATION
- * 
- * Strategy: "Grow First, Monetize Later"
- * 
- * Phase 1 (Launch): Maximize user acquisition with irresistible pricing
- * Phase 2 (Growth): Gradually increase as brand builds
- * Phase 3 (Mature): Full pricing with established reputation
- * 
- * Key insight: A new platform with 0 users cannot charge LeetCode prices.
- * Build social proof first, then optimize revenue.
+ *
+ * Strategy: "Early Bird → Launch → Regular"
+ *
+ * Phase 1 (Early Bird): Maximize user acquisition with irresistible pricing
+ *   - Now until April 1, 2026
+ *   - $12/month or $99/year (save 31%)
+ *   - Price locked forever for early subscribers
+ *
+ * Phase 2 (Launch Price): Continue growth with moderate pricing
+ *   - April 2 - July 31, 2026
+ *   - $19/month or $149/year (save 35%)
+ *
+ * Phase 3 (Regular): Full pricing aligned with market
+ *   - August 1, 2026+
+ *   - $29/month or $249/year (save 40%)
+ *
+ * Key insight: Early adopters get the best deal and become loyal advocates.
  */
 
 import { TOTAL_LESSONS_COUNT } from "@/lib/challenges/catalog";
@@ -62,29 +70,29 @@ export interface PricingPhaseConfig {
 
 // Phase date boundaries
 const PHASE_1_START = new Date("2026-01-04T00:00:00-05:00");
-const PHASE_1_END = new Date("2026-07-04T23:59:59-05:00"); // 6 months
-const PHASE_2_START = new Date("2026-07-05T00:00:00-05:00");
-const PHASE_2_END = new Date("2027-01-04T23:59:59-05:00"); // 6 months
-const PHASE_3_START = new Date("2027-01-05T00:00:00-05:00");
+const PHASE_1_END = new Date("2026-04-01T23:59:59-05:00"); // Early Bird ends April 1
+const PHASE_2_START = new Date("2026-04-02T00:00:00-05:00");
+const PHASE_2_END = new Date("2026-07-31T23:59:59-05:00"); // Launch Price ends July 31
+const PHASE_3_START = new Date("2026-08-01T00:00:00-05:00");
 
 /**
- * PHASE 1: Launch & User Acquisition (Jan 4 - Jul 4, 2026)
- * 
- * Goal: Get 1,000+ paying users for social proof
- * Strategy: "No-brainer" pricing to maximize conversion
- * 
- * Pricing logic:
- * - $9/mo = less than Netflix, single digit = impulse buy
- * - $69/yr = less than 1 month of LeetCode Premium, insane value
- * - $149 lifetime = early adopter FOMO, creates ambassadors
+ * PHASE 1: Early Bird (Now - April 1, 2026)
+ *
+ * Goal: Maximize user acquisition with irresistible pricing
+ * Strategy: Create urgency with limited-time low price + lifetime lock
+ *
+ * Pricing:
+ * - $12/mo = 60% cheaper than competitors, still profitable
+ * - $99/yr = ~$8.25/mo, 31% savings, less than 1 month of LeetCode
+ * - Lock-in: Early subscribers keep $12/mo forever
  */
 const PHASE_1_CONFIG: PricingPhaseConfig = {
   phase: "phase1",
-  name: "Founding Member",
-  tagline: "Lock in launch pricing forever",
+  name: "Early Bird",
+  tagline: "Lock in the best price forever",
   startDate: PHASE_1_START,
   endDate: PHASE_1_END,
-  goal: "Get 1,000+ paying users for social proof",
+  goal: "Maximize early user acquisition with irresistible pricing",
   tiers: {
     free: {
       id: "free",
@@ -108,15 +116,15 @@ const PHASE_1_CONFIG: PricingPhaseConfig = {
       id: "pro",
       name: "Pro",
       price: {
-        monthly: 9,
-        annual: 69,
-        displayMonthly: "$9",
-        displayAnnual: "$69",
-        effectiveMonthly: "$5.75",
-        savingsPercent: 36,
+        monthly: 12,
+        annual: 99,
+        displayMonthly: "$12",
+        displayAnnual: "$99",
+        effectiveMonthly: "$8.25",
+        savingsPercent: 31,
       },
-      badge: "🚀 Launch Price",
-      strikethrough: "$15/mo",
+      badge: "🐦 Early Bird",
+      strikethrough: "$29/mo",
       features: [
         "All 250+ challenges (Python + TypeScript)",
         "All playbooks & research papers",
@@ -125,10 +133,10 @@ const PHASE_1_CONFIG: PricingPhaseConfig = {
         "Progress tracking & XP system",
         "Certificate of completion",
         "Priority email support",
-        "Founding member badge forever",
+        "Early Bird badge forever",
       ],
       freeChallengeCount: 20,
-      note: "Lock in $9/mo forever. Price increases to $15/mo on July 5, 2026.",
+      note: "Subscribe by April 1st and lock in $12/month for life. Future users will pay $29/month.",
       popular: true,
       paddleProductId: {
         monthly: process.env.PADDLE_PRODUCT_PRO_MONTHLY || "",
@@ -195,18 +203,22 @@ const PHASE_1_CONFIG: PricingPhaseConfig = {
 };
 
 /**
- * PHASE 2: Growth (Jul 5, 2026 - Jan 4, 2027)
- * 
- * Goal: Scale to 5,000+ users with word of mouth
- * Strategy: Modest increase while still being competitive
+ * PHASE 2: Launch Price (April 2 - July 31, 2026)
+ *
+ * Goal: Continue growth with moderate pricing
+ * Strategy: Still competitive but moving toward market rate
+ *
+ * Pricing:
+ * - $19/mo = 35% cheaper than final price, competitive with market
+ * - $149/yr = ~$12.40/mo, 35% savings
  */
 const PHASE_2_CONFIG: PricingPhaseConfig = {
   phase: "phase2",
-  name: "Growth",
-  tagline: "Join thousands learning RAG",
+  name: "Launch Price",
+  tagline: "Limited time offer",
   startDate: PHASE_2_START,
   endDate: PHASE_2_END,
-  goal: "Scale to 5,000+ users",
+  goal: "Continue growth with moderate pricing",
   tiers: {
     free: {
       id: "free",
@@ -229,12 +241,12 @@ const PHASE_2_CONFIG: PricingPhaseConfig = {
       id: "pro",
       name: "Pro",
       price: {
-        monthly: 15,
-        annual: 99,
-        displayMonthly: "$15",
-        displayAnnual: "$99",
-        effectiveMonthly: "$8.25",
-        savingsPercent: 45,
+        monthly: 19,
+        annual: 149,
+        displayMonthly: "$19",
+        displayAnnual: "$149",
+        effectiveMonthly: "$12.40",
+        savingsPercent: 35,
       },
       strikethrough: "$29/mo",
       features: [
@@ -247,7 +259,7 @@ const PHASE_2_CONFIG: PricingPhaseConfig = {
         "Email support",
       ],
       freeChallengeCount: 20,
-      note: "Current price. Increases to $29/mo in January 2027.",
+      note: "Launch price ends July 31. Price increases to $29/mo on August 1.",
       popular: true,
       paddleProductId: {
         monthly: process.env.PADDLE_PRODUCT_PRO_MONTHLY || "",
@@ -308,18 +320,22 @@ const PHASE_2_CONFIG: PricingPhaseConfig = {
 };
 
 /**
- * PHASE 3: Mature (Jan 5, 2027+)
- * 
- * Goal: Revenue optimization with established brand
- * Strategy: Premium pricing justified by social proof
+ * PHASE 3: Regular Price (August 1, 2026+)
+ *
+ * Goal: Full pricing aligned with market
+ * Strategy: Premium pricing justified by value and social proof
+ *
+ * Pricing:
+ * - $29/mo = competitive with LeetCode Premium ($35), cheaper than Educative ($59)
+ * - $249/yr = ~$20.75/mo, 40% savings, competitive with annual plans
  */
 const PHASE_3_CONFIG: PricingPhaseConfig = {
   phase: "phase3",
-  name: "Standard",
-  tagline: "The #1 RAG engineering platform",
+  name: "Regular",
+  tagline: "Standard pricing",
   startDate: PHASE_3_START,
   endDate: null,
-  goal: "Revenue optimization with established brand",
+  goal: "Full pricing aligned with market rates",
   tiers: {
     free: {
       id: "free",
@@ -343,11 +359,11 @@ const PHASE_3_CONFIG: PricingPhaseConfig = {
       name: "Pro",
       price: {
         monthly: 29,
-        annual: 199,
+        annual: 249,
         displayMonthly: "$29",
-        displayAnnual: "$199",
-        effectiveMonthly: "$16.58",
-        savingsPercent: 43,
+        displayAnnual: "$249",
+        effectiveMonthly: "$20.75",
+        savingsPercent: 40,
       },
       features: [
         "All 250+ challenges (Python + TypeScript)",

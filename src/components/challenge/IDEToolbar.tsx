@@ -255,7 +255,7 @@ export function IDEToolbar({
           <button
             type="button"
             onClick={onShowAIReview}
-            className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-600 transition-colors hover:border-purple-300 hover:bg-purple-50 hover:text-purple-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:border-purple-800 dark:hover:bg-purple-950/50 dark:hover:text-purple-300"
+            className="flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 px-2 py-1 text-xs text-purple-700 transition-colors hover:border-purple-300 hover:bg-purple-100"
           >
             🤖 AI Review
           </button>
@@ -266,7 +266,7 @@ export function IDEToolbar({
           <button
             type="button"
             onClick={onShowDiff}
-            className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-600 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:border-emerald-800 dark:hover:bg-emerald-950/50 dark:hover:text-emerald-300"
+            className="flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-100"
           >
             📊 Compare Solution
           </button>
