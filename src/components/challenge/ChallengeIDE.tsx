@@ -448,8 +448,10 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
                 isEnabled={microTaskMode}
                 onToggleAction={() => setMicroTaskMode(!microTaskMode)}
               />
-              {/* AI Code Review Button */}
-              <CodeReviewButton onClick={() => setShowAIReview(true)} />
+              {/* AI Code Review Button - Pro only */}
+              {hasPaidAccess && (
+                <CodeReviewButton onClickAction={() => setShowAIReview(true)} />
+              )}
               
               <button
                 type="button"
@@ -517,7 +519,7 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
           {showInlineReview && inlineReview && (
             <InlineCodeReview
               feedback={inlineReview}
-              onDismiss={() => setShowInlineReview(false)}
+              onDismissAction={() => setShowInlineReview(false)}
             />
           )}
 

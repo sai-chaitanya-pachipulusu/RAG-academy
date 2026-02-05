@@ -120,7 +120,7 @@ export function ChallengePaywall({ challenge, isLoggedIn }: Props) {
             href="/challenges?difficulty=easy"
             className="font-medium text-zinc-600 underline underline-offset-4 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
           >
-            Browse 60+ free challenges
+            Browse 20 free challenges
           </Link>
         </p>
       </div>

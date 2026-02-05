@@ -177,12 +177,12 @@ const PHASE_1_CONFIG: PricingPhaseConfig = {
       name: "Lifetime",
       price: {
         monthly: 0,
-        annual: 35,
-        displayMonthly: "$35",
-        displayAnnual: "$35",
+        annual: 149,
+        displayMonthly: "$149",
+        displayAnnual: "$149",
       },
       badge: "🔥 Best Value",
-      strikethrough: "$99",
+      strikethrough: "$299",
       features: [
         "Everything in Pro, forever",
         "All future content & features",
@@ -192,7 +192,7 @@ const PHASE_1_CONFIG: PricingPhaseConfig = {
         "Your name in credits",
       ],
       freeChallengeCount: 20,
-      note: "One-time payment. Less than 1 month of LeetCode Premium. Lock in forever.",
+      note: "One-time payment. Less than 5 months of Pro. Lock in forever.",
       paddleProductId: {
         monthly: "",
         annual: "",

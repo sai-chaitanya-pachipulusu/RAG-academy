@@ -527,15 +527,15 @@ export function AICodeReview({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="m-4 flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="m-4 flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
+        <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
           <div className="flex items-center gap-3">
             <h2 className="flex items-center gap-2 text-lg font-semibold">
               <span>🤖</span> AI Code Review
             </h2>
             {usedFallback && (
-              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
                 Pattern Mode
               </span>
             )}
@@ -544,7 +544,7 @@ export function AICodeReview({
             {quota && <QuotaIndicator {...quota} />}
             <button
               onClick={onClose}
-              className="rounded-full p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900"
+              className="rounded-full p-2 text-zinc-500 hover:bg-zinc-100"
             >
               ✕
             </button>
@@ -552,9 +552,9 @@ export function AICodeReview({
         </div>
 
         {/* Mode selector */}
-        <div className="border-b border-zinc-200 bg-zinc-50 px-6 py-3 dark:border-zinc-800 dark:bg-zinc-900/50">
+        <div className="border-b border-zinc-200 bg-zinc-50 px-6 py-3">
           <div className="flex items-center gap-4">
-            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+            <span className="text-xs font-medium text-zinc-500">
               Review Mode:
             </span>
             <div className="flex gap-2">
@@ -565,7 +565,7 @@ export function AICodeReview({
                   className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                     mode === m
                       ? "bg-indigo-600 text-white"
-                      : "bg-white text-zinc-600 hover:bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
+                      : "bg-white text-zinc-600 hover:bg-zinc-100"
                   }`}
                 >
                   {m === "pattern" && "Pattern Only"}
@@ -574,7 +574,7 @@ export function AICodeReview({
                 </button>
               ))}
             </div>
-            <span className="text-xs text-zinc-400 dark:text-zinc-500">
+            <span className="text-xs text-zinc-400">
               {mode === "pattern" && "Fast, no API call"}
               {mode === "hybrid" && "AI with pattern fallback"}
               {mode === "ai" && "Full AI analysis"}
@@ -587,16 +587,16 @@ export function AICodeReview({
           {!review && !isLoading && !error && (
             <div className="text-center">
               <div className="mb-4 text-4xl">🤖</div>
-              <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100">
+              <h3 className="text-lg font-medium text-zinc-900">
                 Get AI-Powered Code Review
               </h3>
-              <p className="mx-auto mt-2 max-w-md text-sm text-zinc-600 dark:text-zinc-400">
+              <p className="mx-auto mt-2 max-w-md text-sm text-zinc-600">
                 Receive intelligent feedback on your code quality, performance,
                 and RAG-specific best practices.
               </p>
 
               {mode !== "pattern" && quota && quota.remaining === 0 && (
-                <div className="mx-auto mt-4 max-w-md rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">
+                <div className="mx-auto mt-4 max-w-md rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
                   <p>
                     You've reached your daily limit. Resets in{" "}
                     {formatQuotaReset(quota.resetsAt)}.
@@ -634,11 +634,11 @@ export function AICodeReview({
           )}
 
           {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center dark:border-red-900/50 dark:bg-red-950/20">
-              <p className="text-red-700 dark:text-red-300">{error}</p>
+            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center">
+              <p className="text-red-700">{error}</p>
               <button
                 onClick={handleReview}
-                className="mt-3 rounded-full bg-red-100 px-4 py-1.5 text-sm font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/50"
+                className="mt-3 rounded-full bg-red-100 px-4 py-1.5 text-sm font-medium text-red-700 hover:bg-red-200"
               >
                 Try Again
               </button>
@@ -651,12 +651,12 @@ export function AICodeReview({
               <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
                 <div className="text-center">
                   <ScoreRing score={review.score} />
-                  <p className="mt-2 text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                  <p className="mt-2 text-sm font-medium text-zinc-600">
                     {getScoreLabel(review.score)}
                   </p>
                 </div>
                 <div className="flex-1 space-y-3">
-                  <p className="text-sm text-zinc-700 dark:text-zinc-300">
+                  <p className="text-sm text-zinc-700">
                     {review.summary}
                   </p>
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -962,17 +962,17 @@ export function AICodeReview({
 
 // Button to trigger review
 export function CodeReviewButton({
-  onClick,
+  onClickAction,
   compact = false,
 }: {
-  onClick: () => void;
+  onClickAction: () => void;
   compact?: boolean;
 }) {
   if (compact) {
     return (
       <button
-        onClick={onClick}
-        className="flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700 transition-colors hover:bg-indigo-100 dark:border-indigo-900/50 dark:bg-indigo-950/30 dark:text-indigo-300 dark:hover:bg-indigo-950/50"
+        onClick={onClickAction}
+        className="flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700 transition-colors hover:bg-indigo-100"
       >
         <span>🤖</span>
         AI
@@ -982,11 +982,13 @@ export function CodeReviewButton({
 
   return (
     <button
-      onClick={onClick}
-      className="flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 transition-colors hover:bg-indigo-100 dark:border-indigo-900/50 dark:bg-indigo-950/30 dark:text-indigo-300 dark:hover:bg-indigo-950/50"
+      onClick={onClickAction}
+      className="flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 transition-colors hover:bg-indigo-100"
+      title="Get AI feedback on your code"
     >
       <span>🤖</span>
-      AI Review
+      <span className="hidden sm:inline">AI Review</span>
+      <span className="sm:hidden">AI</span>
     </button>
   );
 }
@@ -994,10 +996,10 @@ export function CodeReviewButton({
 // Inline review panel for side-by-side display
 export function InlineCodeReview({
   feedback,
-  onDismiss,
+  onDismissAction,
 }: {
   feedback: CodeReviewFeedback;
-  onDismiss?: () => void;
+  onDismissAction?: () => void;
 }) {
   const [expanded, setExpanded] = useState(true);
 
@@ -1034,10 +1036,10 @@ export function InlineCodeReview({
           >
             −
           </button>
-          {onDismiss && (
+          {onDismissAction && (
             <button
-              onClick={onDismiss}
-              className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800"
+              onClick={onDismissAction}
+              className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
               title="Dismiss"
             >
               ✕
