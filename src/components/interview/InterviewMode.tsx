@@ -279,7 +279,7 @@ function InterviewSetup({
           onClick={() => setActiveTab('templates')}
           className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
             activeTab === 'templates'
-              ? 'bg-zinc-900 text-white'
+              ? 'bg-indigo-600 text-white'
               : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
           }`}
         >
@@ -289,7 +289,7 @@ function InterviewSetup({
           onClick={() => setActiveTab('custom')}
           className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
             activeTab === 'custom'
-              ? 'bg-zinc-900 text-white'
+              ? 'bg-indigo-600 text-white'
               : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
           }`}
         >
@@ -353,7 +353,7 @@ function InterviewSetup({
                     onClick={() => onUpdateConfig({ ...customConfig, difficulty: d })}
                     className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                       customConfig.difficulty === d
-                        ? 'bg-zinc-900 text-white'
+                        ? 'bg-indigo-600 text-white'
                         : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
                     }`}
                   >
@@ -394,7 +394,7 @@ function InterviewSetup({
       <button
         onClick={onStart}
         disabled={activeTab === 'templates' && !selectedTemplate}
-        className="w-full rounded-xl bg-zinc-900 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Start Interview
       </button>
@@ -442,7 +442,7 @@ function InterviewIntro({
         </button>
         <button
           onClick={onBegin}
-          className="flex-1 rounded-xl bg-zinc-900 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+          className="flex-1 rounded-xl bg-indigo-600 py-3 text-sm font-medium text-white transition-colors hover:bg-indigo-500"
         >
           Begin Interview
         </button>
@@ -563,7 +563,7 @@ function QuestionView({
       {/* Submit */}
       <button
         onClick={onSubmit}
-        className="w-full rounded-xl bg-zinc-900 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+        className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-medium text-white transition-colors hover:bg-indigo-500"
       >
         Submit Answer
       </button>
@@ -633,7 +633,7 @@ function QuestionReview({
 
       <button
         onClick={onNext}
-        className="w-full rounded-xl bg-zinc-900 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+        className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-medium text-white transition-colors hover:bg-indigo-500"
       >
         Next Question
       </button>
@@ -682,7 +682,7 @@ function InterviewComplete({
       <div className="flex gap-3">
         <button
           onClick={onRestart}
-          className="flex-1 rounded-xl bg-zinc-900 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+          className="flex-1 rounded-xl bg-indigo-600 py-3 text-sm font-medium text-white transition-colors hover:bg-indigo-500"
         >
           Practice Again
         </button>
