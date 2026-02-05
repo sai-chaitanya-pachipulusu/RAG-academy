@@ -239,7 +239,7 @@ function ScoreRing({
           fill="none"
           stroke="currentColor"
           strokeWidth={strokeWidth}
-          className="text-zinc-200 dark:text-zinc-800"
+          className="text-zinc-200"
         />
         <circle
           cx={size / 2}
@@ -287,14 +287,14 @@ function CategoryScore({
       <span className="text-lg">{icon}</span>
       <div className="flex-1">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          <span className="text-xs font-medium text-zinc-600">
             {label}
           </span>
-          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+          <span className="text-xs font-semibold text-zinc-900">
             {score}
           </span>
         </div>
-        <div className="mt-1 h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+        <div className="mt-1 h-2 overflow-hidden rounded-full bg-zinc-200">
           <div
             className={`h-full rounded-full transition-all duration-500 ${colorClasses[color]}`}
             style={{ width: `${score}%` }}
@@ -315,11 +315,11 @@ function IssueCard({
 }) {
   const severityColors: Record<ReviewSeverity, string> = {
     critical:
-      "border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/20",
+      "border-red-200 bg-red-50",
     warning:
-      "border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20",
+      "border-amber-200 bg-amber-50",
     suggestion:
-      "border-blue-200 bg-blue-50 dark:border-blue-900/50 dark:bg-blue-950/20",
+      "border-blue-200 bg-blue-50",
   };
 
   return (
@@ -330,27 +330,27 @@ function IssueCard({
         <span className="text-lg">{getSeverityIcon(issue.severity)}</span>
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-zinc-900 dark:text-zinc-100">
+            <span className="font-medium text-zinc-900">
               {issue.category}
             </span>
             {issue.line && (
               <button
                 onClick={() => onLineClick?.(issue.line!)}
-                className="rounded bg-white/50 px-1.5 py-0.5 text-xs font-mono text-zinc-600 hover:bg-white dark:bg-zinc-900/50 dark:text-zinc-400"
+                className="rounded bg-white/50 px-1.5 py-0.5 text-xs font-mono text-zinc-600 hover:bg-white"
               >
                 Line {issue.line}
               </button>
             )}
           </div>
-          <p className="mt-1 text-zinc-700 dark:text-zinc-300">
+          <p className="mt-1 text-zinc-700">
             {issue.message}
           </p>
           {issue.suggestion && (
-            <div className="mt-2 rounded bg-white/70 p-2 dark:bg-zinc-900/50">
-              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+            <div className="mt-2 rounded bg-white/70 p-2">
+              <p className="text-xs font-medium text-zinc-500">
                 Suggestion:
               </p>
-              <p className="text-zinc-700 dark:text-zinc-300">
+              <p className="text-zinc-700">
                 {issue.suggestion}
               </p>
             </div>
@@ -379,8 +379,8 @@ function QuotaIndicator({
   const percentage = Math.min(100, (used / limit) * 100);
 
   return (
-    <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-      <div className="h-2 w-16 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+    <div className="flex items-center gap-2 text-xs text-zinc-500">
+      <div className="h-2 w-16 overflow-hidden rounded-full bg-zinc-200">
         <div
           className={`h-full rounded-full transition-all ${percentage >= 90 ? "bg-red-500" : percentage >= 70 ? "bg-amber-500" : "bg-emerald-500"}`}
           style={{ width: `${percentage}%` }}
@@ -687,18 +687,18 @@ export function AICodeReview({
               {/* Complexity Analysis */}
               {review.complexity &&
                 review.complexity.time !== "Analysis requires AI" && (
-                  <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/30">
-                    <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                    <h4 className="text-sm font-semibold text-zinc-900">
                       Complexity Analysis
                     </h4>
                     <div className="mt-2 flex gap-4">
-                      <div className="rounded-lg bg-white px-3 py-2 dark:bg-zinc-800">
+                      <div className="rounded-lg bg-white px-3 py-2">
                         <span className="text-xs text-zinc-500">Time</span>
                         <p className="font-mono text-sm font-medium">
                           {review.complexity.time}
                         </p>
                       </div>
-                      <div className="rounded-lg bg-white px-3 py-2 dark:bg-zinc-800">
+                      <div className="rounded-lg bg-white px-3 py-2">
                         <span className="text-xs text-zinc-500">Space</span>
                         <p className="font-mono text-sm font-medium">
                           {review.complexity.space}
@@ -706,7 +706,7 @@ export function AICodeReview({
                       </div>
                     </div>
                     {review.complexity.explanation && (
-                      <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
+                      <p className="mt-2 text-xs text-zinc-600">
                         {review.complexity.explanation}
                       </p>
                     )}
@@ -714,7 +714,7 @@ export function AICodeReview({
                 )}
 
               {/* Tabs */}
-              <div className="border-b border-zinc-200 dark:border-zinc-800">
+              <div className="border-b border-zinc-200">
                 <div className="flex gap-1">
                   {[
                     { id: "overview", label: "Overview", count: null },
@@ -733,18 +733,18 @@ export function AICodeReview({
                       onClick={() => setActiveTab(tab.id as typeof activeTab)}
                       className={`relative px-4 py-2 text-sm font-medium transition-colors ${
                         activeTab === tab.id
-                          ? "text-indigo-600 dark:text-indigo-400"
-                          : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300"
+                          ? "text-indigo-600"
+                          : "text-zinc-500 hover:text-zinc-700"
                       }`}
                     >
                       {tab.label}
                       {tab.count !== null && tab.count > 0 && (
-                        <span className="ml-1.5 rounded-full bg-zinc-200 px-1.5 py-0.5 text-xs dark:bg-zinc-800">
+                        <span className="ml-1.5 rounded-full bg-zinc-200 px-1.5 py-0.5 text-xs">
                           {tab.count}
                         </span>
                       )}
                       {activeTab === tab.id && (
-                        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 dark:bg-indigo-400" />
+                        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600" />
                       )}
                     </button>
                   ))}
@@ -757,15 +757,15 @@ export function AICodeReview({
                   <div className="space-y-4">
                     {/* Positive Feedback */}
                     {review.positiveFeedback.length > 0 && (
-                      <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/20">
-                        <h4 className="flex items-center gap-2 text-sm font-semibold text-emerald-800 dark:text-emerald-200">
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
+                        <h4 className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
                           <span>✅</span> What's Done Well
                         </h4>
                         <ul className="mt-2 space-y-1">
                           {review.positiveFeedback.map((item, i) => (
                             <li
                               key={i}
-                              className="text-sm text-emerald-700 dark:text-emerald-300"
+                              className="text-sm text-emerald-700"
                             >
                               • {item}
                             </li>
@@ -776,15 +776,15 @@ export function AICodeReview({
 
                     {/* RAG Insights */}
                     {review.ragInsights && review.ragInsights.length > 0 && (
-                      <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 dark:border-indigo-900/50 dark:bg-indigo-950/20">
-                        <h4 className="flex items-center gap-2 text-sm font-semibold text-indigo-800 dark:text-indigo-200">
+                      <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4">
+                        <h4 className="flex items-center gap-2 text-sm font-semibold text-indigo-800">
                           <span>🧠</span> RAG-Specific Insights
                         </h4>
                         <ul className="mt-2 space-y-1">
                           {review.ragInsights.map((item, i) => (
                             <li
                               key={i}
-                              className="text-sm text-indigo-700 dark:text-indigo-300"
+                              className="text-sm text-indigo-700"
                             >
                               • {item}
                             </li>
@@ -806,7 +806,7 @@ export function AICodeReview({
                           {sortedIssues.length > 3 && (
                             <button
                               onClick={() => setActiveTab("issues")}
-                              className="w-full rounded-lg border border-dashed border-zinc-300 py-2 text-sm text-zinc-500 hover:border-zinc-400 hover:text-zinc-600 dark:border-zinc-700 dark:text-zinc-400"
+                              className="w-full rounded-lg border border-dashed border-zinc-300 py-2 text-sm text-zinc-500 hover:border-zinc-400 hover:text-zinc-600"
                             >
                               + {sortedIssues.length - 3} more issues
                             </button>
@@ -835,7 +835,7 @@ export function AICodeReview({
                             return (
                               <span
                                 key={sev}
-                                className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-1 text-xs dark:bg-zinc-800"
+                                className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-1 text-xs"
                               >
                                 {getSeverityIcon(sev as ReviewSeverity)}
                                 {getSeverityLabel(sev as ReviewSeverity)}: {count}
@@ -851,11 +851,11 @@ export function AICodeReview({
                               <div key={category}>
                                 <button
                                   onClick={() => toggleCategory(category)}
-                                  className="flex w-full items-center justify-between rounded-lg bg-zinc-100 px-3 py-2 text-left text-sm font-medium dark:bg-zinc-800"
+                                  className="flex w-full items-center justify-between rounded-lg bg-zinc-100 px-3 py-2 text-left text-sm font-medium"
                                 >
                                   <span>{category}</span>
                                   <span className="flex items-center gap-2">
-                                    <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-xs dark:bg-zinc-700">
+                                    <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-xs">
                                       {issues.length}
                                     </span>
                                     <span>
@@ -893,7 +893,7 @@ export function AICodeReview({
                         {review.improvements.map((item, i) => (
                           <li
                             key={i}
-                            className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200"
+                            className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-sm text-amber-800"
                           >
                             <span>💡</span>
                             <span>{item}</span>
@@ -909,11 +909,11 @@ export function AICodeReview({
                     {review.educationalNotes.map((note, i) => (
                       <div
                         key={i}
-                        className="rounded-lg border border-blue-200 bg-blue-50/50 p-4 dark:border-blue-900/50 dark:bg-blue-950/20"
+                        className="rounded-lg border border-blue-200 bg-blue-50/50 p-4"
                       >
                         <div className="flex items-start gap-2">
                           <span className="text-lg">📚</span>
-                          <p className="text-sm text-blue-800 dark:text-blue-200">
+                          <p className="text-sm text-blue-800">
                             {note}
                           </p>
                         </div>
@@ -928,14 +928,14 @@ export function AICodeReview({
 
         {/* Footer */}
         {review && (
-          <div className="border-t border-zinc-200 bg-zinc-50 px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900/50">
+          <div className="border-t border-zinc-200 bg-zinc-50 px-6 py-4">
             <div className="flex items-center justify-between">
               <button
                 onClick={() => {
                   setReview(null);
                   setError(null);
                 }}
-                className="rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                className="rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-100"
               >
                 Review Again
               </button>
@@ -1007,7 +1007,7 @@ export function InlineCodeReview({
     return (
       <button
         onClick={() => setExpanded(true)}
-        className="flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 dark:border-indigo-900/50 dark:bg-indigo-950/30 dark:text-indigo-300"
+        className="flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700"
       >
         <span>🤖</span>
         <span>AI Review: {feedback.score}/100</span>
@@ -1017,12 +1017,12 @@ export function InlineCodeReview({
   }
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+    <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <ScoreRing score={feedback.score} size={48} strokeWidth={4} />
           <div>
-            <h4 className="font-medium text-zinc-900 dark:text-zinc-100">
+            <h4 className="font-medium text-zinc-900">
               AI Review
             </h4>
             <p className="text-xs text-zinc-500">{getScoreLabel(feedback.score)}</p>
@@ -1031,7 +1031,7 @@ export function InlineCodeReview({
         <div className="flex gap-2">
           <button
             onClick={() => setExpanded(false)}
-            className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800"
+            className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
             title="Minimize"
           >
             −
@@ -1048,7 +1048,7 @@ export function InlineCodeReview({
         </div>
       </div>
 
-      <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+      <p className="mt-3 text-sm text-zinc-600">
         {feedback.summary}
       </p>
 
@@ -1066,10 +1066,10 @@ export function InlineCodeReview({
                   key={i}
                   className={`rounded-lg border p-2 text-xs ${
                     issue.severity === "critical"
-                      ? "border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/20"
+                      ? "border-red-200 bg-red-50"
                       : issue.severity === "warning"
-                        ? "border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20"
-                        : "border-blue-200 bg-blue-50 dark:border-blue-900/50 dark:bg-blue-950/20"
+                        ? "border-amber-200 bg-amber-50"
+                        : "border-blue-200 bg-blue-50"
                   }`}
                 >
                   <span className="font-medium">{issue.category}:</span>{" "}

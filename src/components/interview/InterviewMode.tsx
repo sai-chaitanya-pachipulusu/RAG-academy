@@ -268,7 +268,7 @@ function InterviewSetup({
     <div className="space-y-6">
       <div className="text-center">
         <h2 className="text-2xl font-semibold">Interview Practice</h2>
-        <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+        <p className="mt-2 text-zinc-600">
           Practice with realistic interview questions and get AI-powered feedback
         </p>
       </div>
@@ -279,8 +279,8 @@ function InterviewSetup({
           onClick={() => setActiveTab('templates')}
           className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
             activeTab === 'templates'
-              ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
-              : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'
+              ? 'bg-zinc-900 text-white'
+              : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
           }`}
         >
           Templates
@@ -289,8 +289,8 @@ function InterviewSetup({
           onClick={() => setActiveTab('custom')}
           className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
             activeTab === 'custom'
-              ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
-              : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'
+              ? 'bg-zinc-900 text-white'
+              : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
           }`}
         >
           Custom
@@ -305,8 +305,8 @@ function InterviewSetup({
               onClick={() => onSelectTemplate(template)}
               className={`rounded-xl border p-4 text-left transition-all ${
                 selectedTemplate?.id === template.id
-                  ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-950/20'
-                  : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700'
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-zinc-200 hover:border-zinc-300'
               }`}
             >
               <div className="flex items-start justify-between">
@@ -353,8 +353,8 @@ function InterviewSetup({
                     onClick={() => onUpdateConfig({ ...customConfig, difficulty: d })}
                     className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                       customConfig.difficulty === d
-                        ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
-                        : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'
+                        ? 'bg-zinc-900 text-white'
+                        : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
                     }`}
                   >
                     {d}
@@ -377,8 +377,8 @@ function InterviewSetup({
                     }}
                     className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
                       customConfig.types.includes(type)
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                        : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-zinc-100 text-zinc-600'
                     }`}
                   >
                     <Icon className="h-4 w-4" />
@@ -394,7 +394,7 @@ function InterviewSetup({
       <button
         onClick={onStart}
         disabled={activeTab === 'templates' && !selectedTemplate}
-        className="w-full rounded-xl bg-zinc-900 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+        className="w-full rounded-xl bg-zinc-900 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Start Interview
       </button>
@@ -413,22 +413,22 @@ function InterviewIntro({
 }) {
   return (
     <div className="mx-auto max-w-lg space-y-6 text-center">
-      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 text-2xl dark:bg-blue-900/30">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 text-2xl">
         🎯
       </div>
       <h2 className="text-2xl font-semibold">Ready to Begin?</h2>
-      <div className="space-y-2 text-zinc-600 dark:text-zinc-400">
+      <div className="space-y-2 text-zinc-600">
         <p>{session.questions.length} questions</p>
         <p>Target duration: {session.targetDuration} minutes</p>
         <p>Difficulty: {session.difficulty}</p>
       </div>
 
-      <div className="rounded-xl bg-amber-50 p-4 text-left dark:bg-amber-950/20">
-        <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
+      <div className="rounded-xl bg-amber-50 p-4 text-left">
+        <div className="flex items-center gap-2 text-amber-800">
           <Lightbulb className="h-4 w-4" />
           <span className="font-medium">Pro Tip</span>
         </div>
-        <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">
+        <p className="mt-2 text-sm text-amber-700">
           {interviewTips[0].content}
         </p>
       </div>
@@ -436,13 +436,13 @@ function InterviewIntro({
       <div className="flex gap-3">
         <button
           onClick={onBack}
-          className="flex-1 rounded-xl border border-zinc-200 py-3 text-sm font-medium transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+          className="flex-1 rounded-xl border border-zinc-200 py-3 text-sm font-medium transition-colors hover:bg-zinc-50"
         >
           Back
         </button>
         <button
           onClick={onBegin}
-          className="flex-1 rounded-xl bg-zinc-900 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+          className="flex-1 rounded-xl bg-zinc-900 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
         >
           Begin Interview
         </button>
@@ -479,7 +479,7 @@ function QuestionView({
       {/* Progress Bar */}
       <div className="flex items-center gap-4">
         <div className="flex-1">
-          <div className="h-2 rounded-full bg-zinc-100 dark:bg-zinc-800">
+          <div className="h-2 rounded-full bg-zinc-100">
             <div
               className="h-full rounded-full bg-blue-500 transition-all"
               style={{ width: `${progress}%` }}
@@ -512,10 +512,10 @@ function QuestionView({
       {/* Question */}
       <Card className="p-6">
         <h3 className="text-lg font-semibold">{question.title}</h3>
-        <p className="mt-4 text-zinc-700 dark:text-zinc-300">{question.question}</p>
+        <p className="mt-4 text-zinc-700">{question.question}</p>
 
         {question.context && (
-          <div className="mt-4 rounded-lg bg-zinc-50 p-4 text-sm text-zinc-600 dark:bg-zinc-900/50 dark:text-zinc-400">
+          <div className="mt-4 rounded-lg bg-zinc-50 p-4 text-sm text-zinc-600">
             <strong>Context:</strong> {question.context}
           </div>
         )}
@@ -523,7 +523,7 @@ function QuestionView({
         {/* Hints */}
         <button
           onClick={onToggleHints}
-          className="mt-4 flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
+          className="mt-4 flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
         >
           <Lightbulb className="h-4 w-4" />
           {showHints ? 'Hide Hints' : 'Show Hints'}
@@ -537,9 +537,9 @@ function QuestionView({
               exit={{ opacity: 0, height: 0 }}
               className="mt-2 overflow-hidden"
             >
-              <ul className="space-y-2 rounded-lg bg-amber-50 p-4 text-sm dark:bg-amber-950/20">
+              <ul className="space-y-2 rounded-lg bg-amber-50 p-4 text-sm">
                 {question.hints.map((hint, i) => (
-                  <li key={i} className="flex gap-2 text-amber-800 dark:text-amber-200">
+                  <li key={i} className="flex gap-2 text-amber-800">
                     <span className="font-bold">{i + 1}.</span>
                     {hint}
                   </li>
@@ -556,14 +556,14 @@ function QuestionView({
           value={answer}
           onChange={(e) => onAnswerChange(e.target.value)}
           placeholder="Type your answer here..."
-          className="min-h-[150px] w-full resize-none rounded-lg border border-zinc-200 p-3 text-sm focus:border-blue-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-950"
+          className="min-h-[150px] w-full resize-none rounded-lg border border-zinc-200 p-3 text-sm focus:border-blue-500 focus:outline-none"
         />
       </Card>
 
       {/* Submit */}
       <button
         onClick={onSubmit}
-        className="w-full rounded-xl bg-zinc-900 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+        className="w-full rounded-xl bg-zinc-900 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
       >
         Submit Answer
       </button>
@@ -582,8 +582,8 @@ function QuestionReview({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl bg-emerald-50 p-4 dark:bg-emerald-950/20">
-        <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-200">
+      <div className="rounded-xl bg-emerald-50 p-4">
+        <div className="flex items-center gap-2 text-emerald-800">
           <CheckCircle className="h-5 w-5" />
           <span className="font-semibold">Answer Submitted!</span>
         </div>
@@ -595,14 +595,14 @@ function QuestionReview({
           {q.expectedPoints.map((point, i) => (
             <li key={i} className="flex items-start gap-2 text-sm">
               <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-              <span className="text-zinc-700 dark:text-zinc-300">{point}</span>
+              <span className="text-zinc-700">{point}</span>
             </li>
           ))}
         </ul>
 
         {q.followUpQuestions && q.followUpQuestions.length > 0 && (
           <div className="mt-6">
-            <h4 className="font-medium text-zinc-900 dark:text-zinc-100">Potential Follow-ups</h4>
+            <h4 className="font-medium text-zinc-900">Potential Follow-ups</h4>
             <ul className="mt-2 space-y-1">
               {q.followUpQuestions.map((followUp, i) => (
                 <li key={i} className="text-sm text-zinc-500">
@@ -615,13 +615,13 @@ function QuestionReview({
 
         {q.relatedChallenges.length > 0 && (
           <div className="mt-6">
-            <h4 className="font-medium text-zinc-900 dark:text-zinc-100">Related Challenges</h4>
+            <h4 className="font-medium text-zinc-900">Related Challenges</h4>
             <div className="mt-2 flex flex-wrap gap-2">
               {q.relatedChallenges.map((slug) => (
                 <Link
                   key={slug}
                   href={`/challenges/${slug}`}
-                  className="rounded-lg bg-zinc-100 px-3 py-1 text-sm hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+                  className="rounded-lg bg-zinc-100 px-3 py-1 text-sm hover:bg-zinc-200"
                 >
                   {slug}
                 </Link>
@@ -633,7 +633,7 @@ function QuestionReview({
 
       <button
         onClick={onNext}
-        className="w-full rounded-xl bg-zinc-900 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+        className="w-full rounded-xl bg-zinc-900 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
       >
         Next Question
       </button>
@@ -650,11 +650,11 @@ function InterviewComplete({
 }) {
   return (
     <div className="space-y-6 text-center">
-      <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-3xl dark:bg-emerald-900/30">
+      <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-3xl">
         🎉
       </div>
       <h2 className="text-2xl font-semibold">Interview Complete!</h2>
-      <p className="text-zinc-600 dark:text-zinc-400">
+      <p className="text-zinc-600">
         You answered {session.questions.length} questions in{' '}
         {Math.round(session.totalTimeSeconds / 60)} minutes
       </p>
@@ -662,17 +662,17 @@ function InterviewComplete({
       <Card className="p-6">
         <h3 className="font-semibold">Session Summary</h3>
         <div className="mt-4 grid grid-cols-3 gap-4">
-          <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-900/50">
+          <div className="rounded-lg bg-zinc-50 p-3">
             <p className="text-2xl font-bold">{session.questions.length}</p>
             <p className="text-xs text-zinc-500">Questions</p>
           </div>
-          <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-900/50">
+          <div className="rounded-lg bg-zinc-50 p-3">
             <p className="text-2xl font-bold">
               {Math.round(session.totalTimeSeconds / 60)}m
             </p>
             <p className="text-xs text-zinc-500">Duration</p>
           </div>
-          <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-900/50">
+          <div className="rounded-lg bg-zinc-50 p-3">
             <p className="text-2xl font-bold">{session.difficulty}</p>
             <p className="text-xs text-zinc-500">Difficulty</p>
           </div>
@@ -682,13 +682,13 @@ function InterviewComplete({
       <div className="flex gap-3">
         <button
           onClick={onRestart}
-          className="flex-1 rounded-xl bg-zinc-900 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+          className="flex-1 rounded-xl bg-zinc-900 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
         >
           Practice Again
         </button>
         <Link
           href="/dashboard"
-          className="flex-1 rounded-xl border border-zinc-200 py-3 text-sm font-medium transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+          className="flex-1 rounded-xl border border-zinc-200 py-3 text-sm font-medium transition-colors hover:bg-zinc-50"
         >
           Back to Dashboard
         </Link>
