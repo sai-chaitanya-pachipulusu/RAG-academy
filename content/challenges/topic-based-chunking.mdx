@@ -1,0 +1,46 @@
+---
+title: "Topic-Based Chunking: Clustering for Concept Groups"
+description: "Learn to group content by topic/concept rather than document position"
+prompt: |
+  # Topic-Based Chunking
+
+  Linear chunking follows document order. But topics can be scattered! The introduction mentions AI, the conclusion revisits AI - they belong together conceptually.
+
+  ## The Insight
+
+  - **Traditional**: Split by position → Topics scattered across chunks
+  - **Topic-based**: Group by concept → Related content together
+  - **Use case**: When consolidating scattered information improves retrieval
+
+  ## The Algorithm
+
+  1. Embed all sentences/paragraphs
+  2. Apply clustering (k-means, HDBSCAN, etc.)
+  3. Group content by cluster assignment
+  4. Order content within clusters by original position
+
+  ## Your Task
+
+  Implement `topic_based_chunk()` that:
+  1. Takes sentences and embeddings
+  2. Clusters by semantic similarity
+  3. Groups sentences by topic
+  4. Preserves original order within topics
+
+  ## When to Use Topic-Based Chunking
+
+  | Scenario | Benefit |
+  |----------|---------|
+  | Research papers | Methods, Results, Discussion all reference same experiments |
+  | Legal documents | Same clause referenced in multiple sections |
+  | Technical docs | Same concept explained in overview + details |
+  | Multi-topic articles | Clear topic separation |
+
+  ## Real-World Applications
+
+  - **Elicit**: Research synthesis groups related findings
+  - **Semantic Scholar**: Cross-references related content
+  - **Notion AI**: Groups related information for summarization
+---
+
+Topic-based chunking reorganizes content by concept rather than position, consolidating scattered information about the same topic into coherent chunks.

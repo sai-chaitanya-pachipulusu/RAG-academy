@@ -8,10 +8,41 @@ import type { RawChallenge } from "@/lib/challenges/types";
  * - WHAT problem it solved that predecessors couldn't
  * - HOW to implement it correctly
  * 
- * Learning Path:
+ * LEARNING PATHS:
+ * 
+ * Core Path (12 challenges):
  * 1. Fixed-Size → 2. Overlapping → 3. Sentence-Based → 4. Paragraph-Based
  * → 5. Sliding Window → 6. Recursive → 7. Section-Based → 8. Semantic 
  * → 9. Hierarchical → 10. Metadata-Aware
+ * 
+ * Alternative Entry Points from Fixed-Size:
+ * - Page-Level → (for PDF-first workflows)
+ * - Document-Level → (for FAQs, tickets, short docs)
+ * 
+ * Advanced Paths (from advancedChunking.ts):
+ * 
+ * Semantic Deep Dive (from semantic-chunking):
+ * → Max-Min Semantic → Statistical Break Detection → Topic-Based
+ * 
+ * Hybrid Path (requires both recursive + semantic):
+ * → Semantic-Guided Recursive
+ * 
+ * Overlap Optimization (from sliding-window + semantic):
+ * → Variable Overlap Chunking
+ * 
+ * Structure-Aware (from section-based):
+ * → Layout-Aware → Code-Aware → Table-Aware
+ * 
+ * Domain-Specific (from section-based):
+ * → Legal Clause Chunking (contracts, compliance)
+ * → Financial Statement Chunking (10-K, earnings, MD&A)
+ * 
+ * Production-Grade (from semantic or hierarchical):
+ * → Agentic Chunking (LLM-guided)
+ * → Parent-Document Chunking
+ * → Chunking Router (dynamic strategy selection)
+ * 
+ * Total: 25 challenges across 7 levels
  */
 
 export const CHUNKING_MASTERCLASS_CHALLENGES: RawChallenge[] = [
@@ -201,6 +232,290 @@ def overlap_chunk(text: str, chunk_size: int, overlap: int) -> List[str]:
       useCases: ["All production RAG", "Legal document search"],
     },
     relatedPlaybooks: ["document-parsing-guide", "rag-techniques-encyclopedia"],
+  },
+
+  // ============================================================================
+  // LEVEL 1B: PAGE-LEVEL CHUNKING (Document Granularity)
+  // ============================================================================
+  {
+    slug: "page-level-chunking",
+    title: "Page-Level Chunking: Document Boundaries",
+    description:
+      `WHY INTRODUCED: Many documents (PDFs, slides, scanned docs) have natural page boundaries. INSIGHT: Evaluations show page-level chunking often performs surprisingly well - sometimes beating complex methods! PROBLEM IT SOLVED: Preserves visual/logical units as authors intended. IMPROVEMENT: Simple yet effective for PDFs, presentations, and paginated content.`,
+    group: "Chunking Masterclass — Level 1: Basics",
+    difficulty: "easy",
+    xpReward: 35,
+    prerequisites: ["fixed-size-chunking-fundamentals"],
+    starterCode: `from typing import List, Dict
+
+def page_level_chunk(
+    pages: List[str],
+    min_page_length: int = 100,
+    max_pages_per_chunk: int = 1
+) -> List[Dict]:
+    """
+    Chunk documents by page boundaries.
+    
+    First Principles:
+    - PDF pages are intentional visual units
+    - Authors organize content by pages
+    - Page breaks often align with topic transitions
+    
+    Why this matters:
+    - Slides: each slide = one complete idea
+    - PDFs: headers/footers reset per page
+    - Scanned docs: page = natural retrieval unit
+    
+    Args:
+        pages: List of page texts (extracted from PDF/slides)
+        min_page_length: Merge pages shorter than this with next page
+        max_pages_per_chunk: Maximum pages to combine (for short pages)
+        
+    Returns:
+        List of dicts with:
+        - 'text': chunk content
+        - 'page_numbers': list of page numbers in this chunk
+        - 'type': 'single_page' or 'merged_pages'
+        
+    Rules:
+        - Merge very short pages with adjacent ones
+        - Never exceed max_pages_per_chunk
+        - Track original page numbers for citation
+    """
+    # TODO: implement
+    raise NotImplementedError
+`,
+    testCode: `# Basic page chunking
+pages = [
+    "Introduction to Machine Learning. This is a comprehensive guide.",
+    "Chapter 1: Supervised Learning. Classification and regression are key techniques.",
+    "Chapter 2: Unsupervised Learning. Clustering and dimensionality reduction.",
+    "Summary and conclusions."
+]
+
+chunks = page_level_chunk(pages, min_page_length=50, max_pages_per_chunk=2)
+
+# Each page should generally be its own chunk (if long enough)
+assert len(chunks) >= 2
+
+# Page numbers should be tracked
+for chunk in chunks:
+    assert 'page_numbers' in chunk
+    assert isinstance(chunk['page_numbers'], list)
+    assert len(chunk['page_numbers']) >= 1
+
+# Short pages should be merged
+short_pages = ["Hi", "There", "How are you doing today? This is a longer page."]
+merged = page_level_chunk(short_pages, min_page_length=20, max_pages_per_chunk=3)
+assert len(merged) < len(short_pages)  # Some should be merged
+
+print("All tests passed!")`,
+    hints: [
+      "Iterate through pages, tracking current chunk and page numbers",
+      "If page length < min_page_length, merge with next (respecting max_pages)",
+      "Store page_numbers as a list for merged chunks",
+    ],
+    solution: `from typing import List, Dict
+
+def page_level_chunk(
+    pages: List[str],
+    min_page_length: int = 100,
+    max_pages_per_chunk: int = 1
+) -> List[Dict]:
+    if not pages:
+        return []
+    
+    chunks = []
+    current_text = ""
+    current_pages = []
+    
+    for i, page in enumerate(pages):
+        page_num = i + 1  # 1-indexed
+        page_text = page.strip()
+        
+        if not page_text:
+            continue
+        
+        # Check if we should start a new chunk or add to current
+        if current_text:
+            # Check if current chunk is long enough
+            if len(current_text) >= min_page_length and len(current_pages) >= max_pages_per_chunk:
+                # Flush current chunk
+                chunks.append({
+                    'text': current_text,
+                    'page_numbers': current_pages.copy(),
+                    'type': 'merged_pages' if len(current_pages) > 1 else 'single_page'
+                })
+                current_text = page_text
+                current_pages = [page_num]
+            elif len(current_pages) < max_pages_per_chunk:
+                # Merge with current
+                current_text += "\\n\\n" + page_text
+                current_pages.append(page_num)
+            else:
+                # Can't merge more, flush and start new
+                chunks.append({
+                    'text': current_text,
+                    'page_numbers': current_pages.copy(),
+                    'type': 'merged_pages' if len(current_pages) > 1 else 'single_page'
+                })
+                current_text = page_text
+                current_pages = [page_num]
+        else:
+            current_text = page_text
+            current_pages = [page_num]
+    
+    # Flush final chunk
+    if current_text:
+        chunks.append({
+            'text': current_text,
+            'page_numbers': current_pages,
+            'type': 'merged_pages' if len(current_pages) > 1 else 'single_page'
+        })
+    
+    return chunks
+`,
+    timeEstimate: { minutes: 20, label: "20-25 min" },
+    realWorld: {
+      description: "Surprisingly effective! Research shows page-level often beats complex strategies for PDFs. Used by LlamaParse, Unstructured.io for initial document processing.",
+      companies: ["LlamaParse", "Unstructured.io", "Adobe", "Google Docs"],
+      useCases: ["PDF processing", "Slide deck search", "Scanned document RAG"],
+    },
+    relatedPlaybooks: ["document-parsing-guide", "chunking-strategies"],
+  },
+
+  // ============================================================================
+  // LEVEL 1C: DOCUMENT-LEVEL CHUNKING (Short Documents)
+  // ============================================================================
+  {
+    slug: "document-level-chunking",
+    title: "Document-Level Chunking: When Documents Are Chunks",
+    description:
+      `WHY INTRODUCED: Not all documents need chunking! Short, self-contained docs (tickets, FAQs, news) are already perfect retrieval units. PROBLEM IT SOLVED: Over-chunking destroys context in already-small documents. IMPROVEMENT: Customer support tickets, product FAQs, and short news articles perform MUCH better as whole documents.`,
+    group: "Chunking Masterclass — Level 1: Basics",
+    difficulty: "easy",
+    xpReward: 30,
+    prerequisites: ["fixed-size-chunking-fundamentals"],
+    starterCode: `from typing import List, Dict
+
+def document_level_chunk(
+    documents: List[Dict],
+    max_doc_length: int = 2000,
+    split_long_docs: bool = True,
+    overlap: int = 100
+) -> List[Dict]:
+    """
+    Use entire documents as chunks (with fallback for long ones).
+    
+    First Principles:
+    - Short documents ARE the natural retrieval unit
+    - Support tickets, FAQs, news articles are self-contained
+    - Chunking them destroys context unnecessarily
+    
+    Use cases:
+    - Customer support: each ticket = one chunk
+    - FAQs: each Q&A pair = one chunk
+    - News: each article = one chunk (or 2-3 for long ones)
+    
+    Args:
+        documents: List of dicts with 'id', 'text', and optional metadata
+        max_doc_length: If doc exceeds this, optionally split it
+        split_long_docs: Whether to split documents exceeding max_doc_length
+        overlap: Overlap when splitting long docs
+        
+    Returns:
+        List of chunks, each with:
+        - 'text': chunk content
+        - 'doc_id': source document ID
+        - 'chunk_index': 0 for whole docs, 0+ for split docs
+        - 'is_complete_doc': True if chunk = entire document
+    """
+    # TODO: implement
+    raise NotImplementedError
+`,
+    testCode: `# Short documents = whole chunks
+docs = [
+    {"id": "ticket_1", "text": "How do I reset my password? Go to Settings > Security."},
+    {"id": "ticket_2", "text": "My order hasn't arrived. Check tracking at orders/track."},
+    {"id": "faq_1", "text": "What payment methods do you accept? We accept Visa, Mastercard, and PayPal."}
+]
+
+chunks = document_level_chunk(docs, max_doc_length=500)
+
+# Each short doc should be one chunk
+assert len(chunks) == 3
+
+# Each chunk should be a complete document
+for chunk in chunks:
+    assert chunk['is_complete_doc'] == True
+    assert chunk['chunk_index'] == 0
+    assert 'doc_id' in chunk
+
+# Long document should be split
+long_doc = [{"id": "article_1", "text": "A" * 1000 + " " + "B" * 1000}]
+split_chunks = document_level_chunk(long_doc, max_doc_length=500, split_long_docs=True)
+
+assert len(split_chunks) > 1
+assert split_chunks[0]['is_complete_doc'] == False
+assert all(c['doc_id'] == 'article_1' for c in split_chunks)
+
+print("All tests passed!")`,
+    hints: [
+      "Short docs (< max_doc_length): return as-is with chunk_index=0",
+      "Long docs: split with overlap if split_long_docs=True",
+      "Track doc_id for all chunks from same source",
+    ],
+    solution: `from typing import List, Dict
+
+def document_level_chunk(
+    documents: List[Dict],
+    max_doc_length: int = 2000,
+    split_long_docs: bool = True,
+    overlap: int = 100
+) -> List[Dict]:
+    chunks = []
+    
+    for doc in documents:
+        doc_id = doc.get('id', 'unknown')
+        text = doc.get('text', '')
+        metadata = {k: v for k, v in doc.items() if k not in ['id', 'text']}
+        
+        if len(text) <= max_doc_length or not split_long_docs:
+            # Document fits as single chunk
+            chunks.append({
+                'text': text,
+                'doc_id': doc_id,
+                'chunk_index': 0,
+                'is_complete_doc': len(text) <= max_doc_length,
+                **metadata
+            })
+        else:
+            # Split long document
+            chunk_index = 0
+            step = max_doc_length - overlap
+            i = 0
+            
+            while i < len(text):
+                chunk_text = text[i:i + max_doc_length]
+                chunks.append({
+                    'text': chunk_text,
+                    'doc_id': doc_id,
+                    'chunk_index': chunk_index,
+                    'is_complete_doc': False,
+                    **metadata
+                })
+                chunk_index += 1
+                i += step
+    
+    return chunks
+`,
+    timeEstimate: { minutes: 15, label: "15-20 min" },
+    realWorld: {
+      description: "Essential for customer support, FAQ systems, and news search. Intercom, Zendesk, and help desk systems use document-level for tickets.",
+      companies: ["Intercom", "Zendesk", "Freshdesk", "HubSpot"],
+      useCases: ["Support ticket search", "FAQ retrieval", "News article search", "Product reviews"],
+    },
+    relatedPlaybooks: ["document-parsing-guide", "chunking-strategies"],
   },
 
   // ============================================================================

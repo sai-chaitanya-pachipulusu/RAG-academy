@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Reveal } from "@/components/ui/Reveal";
 import { RAGScrollStory } from "@/components/landing/RAGScrollStory";
 import { useSupabaseAuth } from "@/components/providers/SupabaseAuthProvider";
-import { getPlatformStats } from "@/lib/challenges/catalog";
+import { getPlatformStats, CHALLENGES } from "@/lib/challenges/catalog";
 import { PricingBanner } from "@/components/pricing/PricingBanner";
 
 
@@ -70,13 +70,19 @@ const ADVANCED_2025 = [
   },
 ];
 
-// Learning path stages
+// Learning path stages - dynamically count challenges per stage
+const stageCounts = CHALLENGES.reduce((acc, challenge) => {
+  const stage = challenge.stage;
+  acc[stage] = (acc[stage] || 0) + 1;
+  return acc;
+}, {} as Record<string, number>);
+
 const LEARNING_PATH = [
-  { name: "Foundations", count: 4, color: "bg-zinc-900" },
-  { name: "Retrieval", count: 6, color: "bg-zinc-700" },
-  { name: "Post-Retrieval", count: 8, color: "bg-zinc-600" },
-  { name: "Evaluation", count: 6, color: "bg-zinc-500" },
-  { name: "Production", count: 5, color: "bg-zinc-400" },
+  { name: "Foundations", count: stageCounts["foundations"] || 0, color: "bg-zinc-900" },
+  { name: "Pre-Retrieval", count: stageCounts["pre-retrieval"] || 0, color: "bg-zinc-800" },
+  { name: "Retrieval", count: stageCounts["retrieval"] || 0, color: "bg-zinc-700" },
+  { name: "Post-Retrieval", count: stageCounts["post-retrieval"] || 0, color: "bg-zinc-600" },
+  { name: "Evaluation", count: stageCounts["evaluation-ops"] || 0, color: "bg-zinc-500" },
 ];
 
 // Dynamic stats from actual challenge data
@@ -87,6 +93,7 @@ const STATS = [
   { value: `${roundedChallenges}+`, label: "Challenges" },
   { value: `${platformStats.totalModules}`, label: "Modules" },
 ];
+
 
 export default function Home() {
   const { user } = useSupabaseAuth();

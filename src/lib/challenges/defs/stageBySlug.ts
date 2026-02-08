@@ -303,4 +303,16 @@ export const CHALLENGE_STAGE_BY_SLUG: Record<string, CurriculumStage> = {
   "faithfulness-calculator": "evaluation-ops",
   "bleu-rouge-scores": "evaluation-ops",
   "multimodal-embedding-fusion": "multimodal",
+
+  // NEW: Advanced Chunking Techniques (Granularity & Domain-Specific)
+  "page-level-chunking": "pre-retrieval",
+  "document-level-chunking": "pre-retrieval",
+  "layout-aware-chunking": "pre-retrieval",
+  "maxmin-semantic-chunking": "pre-retrieval",
+  "statistical-break-detection": "pre-retrieval",
+  "semantic-guided-recursive-chunking": "pre-retrieval",
+  "topic-based-chunking": "pre-retrieval",
+  "variable-overlap-chunking": "pre-retrieval",
+  "legal-clause-chunking": "pre-retrieval",
+  "financial-statement-chunking": "pre-retrieval",
 };

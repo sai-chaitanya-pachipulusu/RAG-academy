@@ -1,0 +1,44 @@
+---
+title: "Statistical Break Detection: Percentile-Based Boundaries"
+description: "Learn adaptive threshold detection using percentile, IQR, and standard deviation methods"
+prompt: |
+  # Statistical Break Detection
+
+  Fixed thresholds for semantic breaks don't generalize across documents. A threshold that works for technical documentation fails on conversational text. Use statistics to find outlier distances automatically!
+
+  ## The Problem
+
+  - **Fixed threshold (e.g., 0.3)**: Works on some docs, fails on others
+  - **Different embedding models**: Produce different distance distributions
+  - **Document variety**: Technical vs conversational vs mixed content
+
+  ## Statistical Methods
+
+  ### Percentile Method
+  Break if distance > Nth percentile (e.g., 90th)
+  - Simple and intuitive
+  - Adapts to any distribution
+  - Percentage of breaks is predictable
+
+  ### IQR (Interquartile Range) Method
+  Break if distance > Q3 + 1.5×IQR
+  - Standard outlier detection
+  - More robust to extreme values
+  - Based on distribution spread
+
+  ### Standard Deviation Method
+  Break if distance > mean + N×σ
+  - Assumes normal-ish distribution
+  - Controllable via multiplier N
+  - Good for well-behaved data
+
+  ## Your Task
+
+  Implement `statistical_break_chunk()` that:
+  1. Computes all adjacent sentence distances
+  2. Calculates statistical threshold based on method
+  3. Marks breaks where distance exceeds threshold
+  4. Returns chunks with method metadata
+---
+
+Statistical break detection adapts thresholds to document characteristics, making semantic chunking more robust across different document types and embedding models.

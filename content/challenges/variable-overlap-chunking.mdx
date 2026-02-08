@@ -1,0 +1,46 @@
+---
+title: "Variable Overlap Chunking: Smart Context Preservation"
+description: "Learn to apply more overlap at topic transitions, less in coherent sections"
+prompt: |
+  # Variable Overlap Chunking
+
+  Fixed overlap wastes tokens in smooth sections and may be insufficient at topic transitions. Why use 50 tokens of overlap everywhere when some boundaries need 100 and others need only 10?
+
+  ## The Insight
+
+  - **Topic change**: High semantic distance → Need MORE overlap
+  - **Smooth continuation**: Low semantic distance → Need LESS overlap
+  - **Result**: Same retrieval quality with 20-40% fewer tokens
+
+  ## The Algorithm
+
+  1. Process text in chunk-sized windows
+  2. At each boundary, compute semantic distance
+  3. Map distance to overlap: high distance → high overlap
+  4. Apply variable step size based on computed overlap
+
+  ```
+  Smooth section: [====][====][====]  (minimal overlap)
+                       ↓ minimal overlap
+  Topic change:  [====][====][====]   
+                           ↓ maximum overlap
+  ```
+
+  ## Your Task
+
+  Implement `variable_overlap_chunk()` that:
+  1. Creates chunks at regular intervals
+  2. Computes semantic distance at boundaries
+  3. Scales overlap: min_overlap to max_overlap based on distance
+  4. Returns chunks with overlap metadata
+
+  ## Cost Optimization
+
+  If you have 10,000 chunks with 100 tokens overlap each:
+  - **Fixed overlap**: 1M overlap tokens stored
+  - **Variable overlap**: ~600K-800K tokens (20-40% savings)
+
+  At $0.10/1K tokens, that's $20-40 saved per embedding run!
+---
+
+Variable overlap chunking intelligently allocates more context preservation at topic transitions and less in smooth sections, optimizing both quality and cost.

@@ -1,0 +1,44 @@
+---
+title: "Layout-Aware Chunking: Visual Structure Recognition"
+description: "Learn to chunk documents by visual layout - columns, sidebars, headers, and footers for 30-50% better retrieval"
+prompt: |
+  # Layout-Aware Chunking
+
+  PDFs and HTML have visual structure invisible to text-only chunking. A two-column PDF chunked linearly produces nonsense where left and right columns interleave!
+
+  ## The Problem
+
+  Text extraction typically linearizes documents, losing critical layout information:
+  - **Multi-column layouts**: Left column text mixed with right column
+  - **Sidebars**: Definitions/notes mixed into main content
+  - **Headers/footers**: Repeated on every chunk, wasting tokens
+  - **Captions**: Separated from their figures/tables
+
+  ## Your Task
+
+  Implement `layout_aware_chunk()` that:
+  1. Separates headers/footers as metadata
+  2. Groups content by column/section
+  3. Processes each visual region independently
+  4. Attaches layout context to chunks
+
+  ## Layout Block Types
+
+  | Block Type | Handling Strategy |
+  |-----------|-------------------|
+  | `header` | Extract as metadata, attach to chunks |
+  | `footer` | Usually discard (page numbers, disclaimers) |
+  | `sidebar` | Keep separate, mark as supplementary |
+  | `main` | Primary content, standard chunking |
+  | `caption` | Attach to associated figure/table |
+  | `table` | Keep atomic, don't split mid-table |
+
+  ## Real-World Usage
+
+  - **Unstructured.io**: Industry leader in layout-aware parsing
+  - **LlamaParse**: Uses vision models for layout detection
+  - **Docugami**: Enterprise document understanding
+  - **Adobe**: PDF layout analysis APIs
+---
+
+Layout-aware chunking respects the visual structure of documents. When authors use columns, sidebars, or specific layouts, they're communicating structure that text-only chunking ignores.
