@@ -34,6 +34,7 @@ import { QUERY_UNDERSTANDING_CHALLENGES } from "./queryUnderstanding";
 import { ADVANCED_RAG_TECHNIQUES } from "./advancedRagTechniques";
 import { TYPESCRIPT_CHALLENGES } from "./typescript";
 import { VINIJA_INSPIRED_CHALLENGES } from "./vinijaInspired";
+import { MISSING_CHALLENGES } from "./missingChallenges";
 
 export const RAW_CHALLENGES: RawChallenge[] = [
   ...FOUNDATIONS_CHALLENGES,
@@ -68,6 +69,7 @@ export const RAW_CHALLENGES: RawChallenge[] = [
   ...ADVANCED_RAG_TECHNIQUES,
   ...TYPESCRIPT_CHALLENGES,
   ...VINIJA_INSPIRED_CHALLENGES,
+  ...MISSING_CHALLENGES,
 ];
 
 

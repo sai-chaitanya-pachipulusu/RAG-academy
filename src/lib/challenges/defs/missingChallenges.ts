@@ -1,0 +1,1003 @@
+import type { RawChallenge } from "@/lib/challenges/types";
+
+export const MISSING_CHALLENGES: RawChallenge[] = [
+  {
+    slug: "embedding-model-selection",
+    title: "Embedding Model Selection",
+    description:
+      "Compare and select embedding models based on performance, cost, and use case. Why: Different models excel at different tasks - choosing wrong impacts quality significantly. Solves: Make informed decisions about which embedding model to use.",
+    group: "Phase 0 — Vector Math & Foundations",
+    difficulty: "medium",
+    xpReward: 50,
+    starterCode: `from typing import List, Dict, Tuple
+import json
+
+EMBEDDING_MODELS = {
+    "text-embedding-3-small": {
+        "dimensions": 1536,
+        "cost_per_1k": 0.00002,
+        "latency_ms": 50,
+        "mteb_score": 62.3,
+    },
+    "text-embedding-3-large": {
+        "dimensions": 3072,
+        "cost_per_1k": 0.00013,
+        "latency_ms": 150,
+        "mteb_score": 67.7,
+    },
+    "cohere-embed-english-v3": {
+        "dimensions": 1024,
+        "cost_per_1k": 0.00010,
+        "latency_ms": 80,
+        "mteb_score": 64.8,
+    },
+}
+
+def calculate_cost_efficiency(
+    model_name: str, 
+    num_documents: int, 
+    avg_doc_length: int,
+    queries_per_day: int
+) -> float:
+    """
+    Calculate cost efficiency score for a model.
+    
+    Consider:
+    - Embedding cost (based on tokens)
+    - Storage cost (dimensions)
+    - Latency cost (affects user experience)
+    
+    Lower is better.
+    """
+    model = EMBEDDING_MODELS[model_name]
+    # Estimate tokens (rough: 1 token ~ 4 chars)
+    doc_tokens = num_documents * (avg_doc_length // 4)
+    query_tokens_per_day = queries_per_day * 50  # Assume 50 tokens per query
+    daily_tokens = doc_tokens + query_tokens_per_day
+    
+    # TODO: implement cost calculation
+    # Consider: embedding cost + storage cost + latency impact
+    raise NotImplementedError
+
+def select_best_model(
+    num_documents: int,
+    avg_doc_length: int,
+    queries_per_day: int,
+    min_mteb_score: float = 60.0,
+    budget_monthly: float = 100.0
+) -> Tuple[str, Dict]:
+    """
+    Select the best embedding model based on constraints.
+    
+    Returns: (model_name, analysis_dict)
+    """
+    # TODO: implement model selection logic
+    raise NotImplementedError
+`,
+    testCode: `def _almost_equal(x, y, eps=1e-3):
+    return abs(x - y) < eps
+
+# Test cost calculation
+cost = calculate_cost_efficiency("text-embedding-3-small", 10000, 500, 1000)
+assert cost > 0, "Cost should be positive"
+
+# Test model selection - should meet MTEB threshold
+model, analysis = select_best_model(10000, 500, 1000, min_mteb_score=60.0)
+assert model in EMBEDDING_MODELS, f"Invalid model: {model}"
+assert analysis["mteb_score"] >= 60.0, f"MTEB score too low: {analysis['mteb_score']}"
+assert analysis["monthly_cost"] <= 100.0, f"Over budget: {analysis['monthly_cost']}"
+
+# Test with high quality requirement
+model, analysis = select_best_model(50000, 1000, 5000, min_mteb_score=65.0, budget_monthly=500.0)
+print("Selected model:", model)
+print("MTEB score:", analysis["mteb_score"])
+print("Monthly cost: $" + str(round(analysis["monthly_cost"], 2)))
+
+print("All tests passed!")`,
+    hints: [
+      "Cost = (embedding_cost_per_1k * tokens / 1000) + (dimensions * storage_cost_per_dim)",
+      "Consider latency impact on user experience (convert to monetary impact)",
+      "Filter models by minimum MTEB score first, then pick lowest cost",
+    ],
+    solution: `from typing import List, Dict, Tuple
+
+EMBEDDING_MODELS = {
+    "text-embedding-3-small": {
+        "dimensions": 1536,
+        "cost_per_1k": 0.00002,
+        "latency_ms": 50,
+        "mteb_score": 62.3,
+    },
+    "text-embedding-3-large": {
+        "dimensions": 3072,
+        "cost_per_1k": 0.00013,
+        "latency_ms": 150,
+        "mteb_score": 67.7,
+    },
+    "cohere-embed-english-v3": {
+        "dimensions": 1024,
+        "cost_per_1k": 0.00010,
+        "latency_ms": 80,
+        "mteb_score": 64.8,
+    },
+}
+
+STORAGE_COST_PER_DIM_PER_MILLION = 0.0001  # $ per million vectors per dimension
+
+def calculate_cost_efficiency(
+    model_name: str, 
+    num_documents: int, 
+    avg_doc_length: int,
+    queries_per_day: int
+) -> float:
+    model = EMBEDDING_MODELS[model_name]
+    doc_tokens = num_documents * (avg_doc_length // 4)
+    query_tokens_per_day = queries_per_day * 50
+    daily_tokens = doc_tokens + query_tokens_per_day
+    
+    embedding_cost = (daily_tokens / 1000) * model["cost_per_1k"] * 30  # monthly
+    storage_cost = num_documents * model["dimensions"] * STORAGE_COST_PER_DIM_PER_MILLION / 1_000_000
+    latency_cost = model["latency_ms"] * queries_per_day * 30 * 0.00001  # $10 per minute wait time
+    
+    return embedding_cost + storage_cost + latency_cost
+
+def select_best_model(
+    num_documents: int,
+    avg_doc_length: int,
+    queries_per_day: int,
+    min_mteb_score: float = 60.0,
+    budget_monthly: float = 100.0
+) -> Tuple[str, Dict]:
+    candidates = []
+    
+    for name, props in EMBEDDING_MODELS.items():
+        if props["mteb_score"] < min_mteb_score:
+            continue
+            
+        cost = calculate_cost_efficiency(name, num_documents, avg_doc_length, queries_per_day)
+        
+        if cost <= budget_monthly:
+            candidates.append((name, cost, props))
+    
+    if not candidates:
+        raise ValueError("No model meets criteria: min_mteb=" + str(min_mteb_score) + ", budget=$" + str(budget_monthly))
+    
+    # Select lowest cost
+    best = min(candidates, key=lambda x: x[1])
+    return best[0], {
+        "mteb_score": best[2]["mteb_score"],
+        "monthly_cost": best[1],
+        "dimensions": best[2]["dimensions"],
+    }`,
+    timeEstimate: { minutes: 30, label: "30-45 min" },
+    realWorld: {
+      description: "Embedding model selection directly impacts RAG quality and cost. OpenAI's models are general-purpose; domain-specific models (like scibert for science) may outperform on specific tasks.",
+      companies: ["OpenAI", "Cohere", "Hugging Face"],
+      useCases: ["Production RAG", "Cost Optimization", "Quality Assurance"],
+    },
+    relatedChallenges: ["embedding-finetuning", "cosine-similarity"],
+    relatedPlaybooks: ["embedding-model-selection", "rag-cost-calculator"],
+  },
+  {
+    slug: "rag-cost-calculator",
+    title: "RAG Cost Calculator",
+    description:
+      "Build a comprehensive cost calculator for RAG systems. Why: RAG costs add up quickly - embeddings, vector DB, LLM calls. Solves: Predict and optimize RAG costs before going to production.",
+    group: "Phase 6 — Production Engineering & Security",
+    difficulty: "medium",
+    xpReward: 50,
+    starterCode: `from typing import Dict, List
+
+# Pricing constants (example values)
+LLM_PRICING = {
+    "gpt-4o": {"input": 0.005, "output": 0.015},  # per 1K tokens
+    "gpt-4o-mini": {"input": 0.00015, "output": 0.0006},
+    "claude-3-haiku": {"input": 0.00025, "output": 0.00125},
+}
+
+EMBEDDING_PRICING = {
+    "text-embedding-3-small": 0.00002,  # per 1K tokens
+    "text-embedding-3-large": 0.00013,
+}
+
+VECTOR_DB_PRICING = {
+    "pinecone": {"storage": 0.08, "read_operations": 0.40},  # per 100K
+    "weaviate": {"storage": 0.05, "read_operations": 0.10},
+    "qdrant": {"storage": 0.03, "read_operations": 0.05},
+}
+
+def calculate_monthly_cost(
+    llm_model: str,
+    embedding_model: str,
+    vector_db: str,
+    num_documents: int,
+    avg_doc_tokens: int,
+    queries_per_day: int,
+    avg_query_tokens: int,
+    avg_context_tokens: int,
+    avg_output_tokens: int,
+) -> Dict:
+    """
+    Calculate monthly RAG system costs.
+    
+    Returns dict with breakdown:
+    - embedding_costs
+    - llm_costs  
+    - vector_db_costs
+    - total
+    """
+    # TODO: implement cost calculation
+    raise NotImplementedError
+
+def calculate_cost_per_query(
+    llm_model: str,
+    embedding_model: str,
+    avg_query_tokens: int,
+    avg_context_tokens: int,
+    avg_output_tokens: int,
+    retrieval_count: int = 10,
+) -> Dict:
+    """
+    Calculate cost per individual query.
+    """
+    # TODO: implement per-query cost
+    raise NotImplementedError
+`,
+    testCode: `cost = calculate_monthly_cost(
+    llm_model="gpt-4o-mini",
+    embedding_model="text-embedding-3-small",
+    vector_db="qdrant",
+    num_documents=10000,
+    avg_doc_tokens=500,
+    queries_per_day=1000,
+    avg_query_tokens=50,
+    avg_context_tokens=3000,
+    avg_output_tokens=200,
+)
+
+print("Monthly cost breakdown:", cost)
+assert cost["total"] > 0, "Total should be positive"
+assert "embedding_costs" in cost
+assert "llm_costs" in cost
+assert "vector_db_costs" in cost
+
+# Test per-query cost
+per_query = calculate_cost_per_query(
+    llm_model="gpt-4o-mini",
+    embedding_model="text-embedding-3-small",
+    avg_query_tokens=50,
+    avg_context_tokens=3000,
+    avg_output_tokens=200,
+)
+print("Cost per query: $" + str(round(per_query["total"], 6)))
+assert per_query["total"] > 0
+
+# Compare models
+cost_small = calculate_monthly_cost(
+    "gpt-4o-mini", "text-embedding-3-small", "qdrant",
+    10000, 500, 1000, 50, 3000, 200
+)
+cost_large = calculate_monthly_cost(
+    "gpt-4o", "text-embedding-3-large", "pinecone",
+    10000, 500, 1000, 50, 3000, 200
+)
+
+print("GPT-4o-mini: $" + str(round(cost_small["total"], 2)) + "/month")
+print("GPT-4o: $" + str(round(cost_large["total"], 2)) + "/month")
+
+print("All tests passed!")`,
+    hints: [
+      "Embedding cost = (documents * doc_tokens + queries * query_tokens) * price_per_1k",
+      "LLM cost = queries * (context_tokens + output_tokens) * price_per_1k",
+      "Vector DB = storage_cost + (queries * read_ops)",
+      "30 days per month for daily calculations",
+    ],
+    solution: `from typing import Dict
+
+LLM_PRICING = {
+    "gpt-4o": {"input": 0.005, "output": 0.015},
+    "gpt-4o-mini": {"input": 0.00015, "output": 0.0006},
+    "claude-3-haiku": {"input": 0.00025, "output": 0.00125},
+}
+
+EMBEDDING_PRICING = {
+    "text-embedding-3-small": 0.00002,
+    "text-embedding-3-large": 0.00013,
+}
+
+VECTOR_DB_PRICING = {
+    "pinecone": {"storage": 0.08, "read_operations": 0.40},
+    "weaviate": {"storage": 0.05, "read_operations": 0.10},
+    "qdrant": {"storage": 0.03, "read_operations": 0.05},
+}
+
+def calculate_monthly_cost(
+    llm_model: str,
+    embedding_model: str,
+    vector_db: str,
+    num_documents: int,
+    avg_doc_tokens: int,
+    queries_per_day: int,
+    avg_query_tokens: int,
+    avg_context_tokens: int,
+    avg_output_tokens: int,
+) -> Dict:
+    days_per_month = 30
+    
+    # Embedding costs
+    doc_embedding_tokens = num_documents * avg_doc_tokens
+    daily_query_tokens = queries_per_day * avg_query_tokens
+    monthly_embedding_tokens = doc_embedding_tokens + (daily_query_tokens * days_per_month)
+    embedding_costs = (monthly_embedding_tokens / 1000) * EMBEDDING_PRICING[embedding_model]
+    
+    # LLM costs
+    daily_context_tokens = queries_per_day * avg_context_tokens
+    daily_output_tokens = queries_per_day * avg_output_tokens
+    monthly_context = daily_context_tokens * days_per_month
+    monthly_output = daily_output_tokens * days_per_month
+    llm_costs = (monthly_context / 1000) * LLM_PRICING[llm_model]["input"]
+    llm_costs += (monthly_output / 1000) * LLM_PRICING[llm_model]["output"]
+    
+    # Vector DB costs
+    db_pricing = VECTOR_DB_PRICING[vector_db]
+    storage_costs = (num_documents / 1_000_000) * db_pricing["storage"]
+    monthly_reads = queries_per_day * days_per_month / 100_000
+    read_costs = monthly_reads * db_pricing["read_operations"]
+    vector_db_costs = storage_costs + read_costs
+    
+    return {
+        "embedding_costs": round(embedding_costs, 2),
+        "llm_costs": round(llm_costs, 2),
+        "vector_db_costs": round(vector_db_costs, 2),
+        "total": round(embedding_costs + llm_costs + vector_db_costs, 2),
+    }
+
+def calculate_cost_per_query(
+    llm_model: str,
+    embedding_model: str,
+    avg_query_tokens: int,
+    avg_context_tokens: int,
+    avg_output_tokens: int,
+    retrieval_count: int = 10,
+) -> Dict:
+    # Embedding cost for query
+    embedding_cost = (avg_query_tokens / 1000) * EMBEDDING_PRICING[embedding_model]
+    
+    # LLM cost
+    llm_cost = (avg_context_tokens / 1000) * LLM_PRICING[llm_model]["input"]
+    llm_cost += (avg_output_tokens / 1000) * LLM_PRICING[llm_model]["output"]
+    
+    # Vector DB read (minimal for one query)
+    db_cost = (1 / 100_000) * VECTOR_DB_PRICING["qdrant"]["read_operations"]
+    
+    return {
+        "embedding": round(embedding_cost, 6),
+        "llm": round(llm_cost, 6),
+        "vector_db": round(db_cost, 6),
+        "total": round(embedding_cost + llm_cost + db_cost, 6),
+    }`,
+    timeEstimate: { minutes: 25, label: "25-35 min" },
+    realWorld: {
+      description: "RAG costs can surprise teams - a system with 10K documents and 1K daily queries might cost $50-500/month depending on model choices. This challenge teaches cost-awareness.",
+      companies: ["OpenAI", "Anthropic", "Pinecone"],
+      useCases: ["Budget Planning", "Cost Optimization", "Vendor Selection"],
+    },
+    relatedChallenges: ["embedding-model-selection", "semantic-caching"],
+    relatedPlaybooks: ["rag-cost-calculator", "rag-techniques-encyclopedia"],
+  },
+  {
+    slug: "chunking-strategies",
+    title: "Chunking Strategies Overview",
+    description:
+      "Implement multiple chunking strategies and compare their effectiveness. Why: Different content types need different approaches. Solves: Choose optimal chunking for your specific use case.",
+    group: "Phase 1 — The Data Layer (Ingestion & Indexing)",
+    difficulty: "medium",
+    xpReward: 50,
+    starterCode: `from typing import List, Callable
+import re
+
+def chunk_by_characters(text: str, chunk_size: int, overlap: int = 0) -> List[str]:
+    """
+    Fixed-size character-based chunking.
+    """
+    # TODO: implement
+    raise NotImplementedError
+
+def chunk_by_sentences(text: str, max_sentences: int) -> List[str]:
+    """
+    Split text by sentences, grouping multiple sentences per chunk.
+    """
+    # TODO: implement
+    raise NotImplementedError
+
+def chunk_by_paragraphs(text: str, max_paragraphs: int) -> List[str]:
+    """
+    Split by paragraphs (double newline separator).
+    """
+    # TODO: implement
+    raise NotImplementedError
+
+def chunk_by_markdown_headers(text: str, max_chunk_size: int) -> List[str]:
+    """
+    Split by markdown headers, grouping content under each header.
+    """
+    # TODO: implement
+    raise NotImplementedError
+
+def compare_chunking_strategies(
+    text: str,
+    strategies: List[Callable],
+    chunk_size: int
+) -> dict:
+    """
+    Compare different chunking strategies.
+    
+    Returns metrics for each strategy:
+    - num_chunks
+    - avg_chunk_length
+    - coverage (how much of original text is preserved)
+    """
+    # TODO: implement comparison
+    raise NotImplementedError
+`,
+    testCode: `text = "# Introduction to RAG\\n\\nRetrieval-Augmented Generation (RAG) is a technique for enhancing LLM responses.\\n\\n## What is RAG?\\n\\nRAG combines the power of retrieval systems with generative models.\\n\\n## Why use RAG?\\n\\n1. Factual accuracy\\n2. Source attribution\\n3. Up-to-date knowledge\\n\\n## How does it work?\\n\\nThe system retrieves relevant documents and feeds them to the LLM as context."
+
+# Test character chunking
+char_chunks = chunk_by_characters(text, 100, overlap=20)
+assert len(char_chunks) > 0
+print("Character chunks:", len(char_chunks))
+
+# Test sentence chunking
+sentence_chunks = chunk_by_sentences(text, max_sentences=2)
+assert len(sentence_chunks) > 0
+print("Sentence chunks:", len(sentence_chunks))
+
+# Test paragraph chunking
+para_chunks = chunk_by_paragraphs(text, max_paragraphs=2)
+assert len(para_chunks) > 0
+print("Paragraph chunks:", len(para_chunks))
+
+# Test markdown chunking
+md_chunks = chunk_by_markdown_headers(text, max_chunk_size=500)
+assert len(md_chunks) > 0
+print("Markdown chunks:", len(md_chunks))
+
+# Test comparison
+comparison = compare_chunking_strategies(
+    text,
+    [chunk_by_characters, chunk_by_sentences, chunk_by_paragraphs],
+    chunk_size=100
+)
+print("Comparison:", comparison)
+
+print("All tests passed!")`,
+    hints: [
+      "Character chunking: use slicing with overlap [i:i+size]",
+      "Sentence chunking: split by [.!?] then group",
+      "Paragraph: split by \\n\\n",
+      "Markdown: find headers (# ## ###), group content between them",
+    ],
+    solution: `from typing import List, Callable
+import re
+
+def chunk_by_characters(text: str, chunk_size: int, overlap: int = 0) -> List[str]:
+    if not text or chunk_size <= 0:
+        return [text] if text else []
+    
+    chunks = []
+    start = 0
+    while start < len(text):
+        end = start + chunk_size
+        chunks.append(text[start:end])
+        start = end - overlap if overlap > 0 else end
+    
+    return chunks
+
+def chunk_by_sentences(text: str, max_sentences: int) -> List[str]:
+    sentences = re.split(r'(?<=[.!?])\\s+', text)
+    sentences = [s.strip() for s in sentences if s.strip()]
+    
+    chunks = []
+    for i in range(0, len(sentences), max_sentences):
+        chunk = ' '.join(sentences[i:i + max_sentences])
+        chunks.append(chunk)
+    
+    return chunks
+
+def chunk_by_paragraphs(text: str, max_paragraphs: int) -> List[str]:
+    paragraphs = text.split('\\n\\n')
+    paragraphs = [p.strip() for p in paragraphs if p.strip()]
+    
+    chunks = []
+    for i in range(0, len(paragraphs), max_paragraphs):
+        chunk = '\\n\\n'.join(paragraphs[i:i + max_paragraphs])
+        chunks.append(chunk)
+    
+    return chunks
+
+def chunk_by_markdown_headers(text: str, max_chunk_size: int) -> List[str]:
+    lines = text.split('\\n')
+    chunks = []
+    current_chunk = []
+    current_size = 0
+    
+    for line in lines:
+        line_size = len(line)
+        if current_size + line_size > max_chunk_size and current_chunk:
+            chunks.append('\\n'.join(current_chunk))
+            current_chunk = [line]
+            current_size = line_size
+        else:
+            current_chunk.append(line)
+            current_size += line_size
+    
+    if current_chunk:
+        chunks.append('\\n'.join(current_chunk))
+    
+    return chunks
+
+def compare_chunking_strategies(
+    text: str,
+    strategies: List[Callable],
+    chunk_size: int
+) -> dict:
+    results = {}
+    
+    for strategy in strategies:
+        if strategy.__name__ == "chunk_by_sentences":
+            chunks = strategy(text, max_sentences=chunk_size)
+        elif strategy.__name__ == "chunk_by_paragraphs":
+            chunks = strategy(text, max_paragraphs=chunk_size)
+        else:
+            chunks = strategy(text, chunk_size)
+        
+        results[strategy.__name__] = {
+            "num_chunks": len(chunks),
+            "avg_chunk_length": sum(len(c) for c in chunks) / len(chunks) if chunks else 0,
+            "coverage": sum(len(c) for c in chunks) / len(text) if text else 0,
+        }
+    
+    return results`,
+    timeEstimate: { minutes: 35, label: "35-45 min" },
+    realWorld: {
+      description: "Chunking strategy significantly impacts retrieval quality. Code needs different chunking than prose. Medical texts need sentence-level chunks while legal documents benefit from section-level.",
+      companies: ["Notion", "Linear", "GitBook"],
+      useCases: ["Documentation RAG", "Knowledge Bases", "Code Search"],
+    },
+    relatedChallenges: ["simple-chunking", "semantic-chunking", "recursive-chunking"],
+    relatedPlaybooks: ["chunking-strategies", "rag-techniques-encyclopedia"],
+  },
+  {
+    slug: "contextual-retrieval",
+    title: "Contextual Retrieval",
+    description:
+      "Implement contextual retrieval - adding surrounding context to chunks before embedding. Why: Chunks lose meaning without context; this improves retrieval precision significantly. Solves: Better retrieval by preserving document structure.",
+    group: "Phase 1 — The Data Layer (Ingestion & Indexing)",
+    difficulty: "hard",
+    xpReward: 100,
+    starterCode: `from typing import List, Dict, Tuple
+
+def get_surrounding_context(
+    full_text: str,
+    chunk_start: int,
+    context_lines: int = 3
+) -> str:
+    """
+    Extract surrounding context for a chunk.
+    
+    Returns text from before and after the chunk.
+    """
+    # TODO: implement
+    raise NotImplementedError
+
+def create_contextual_chunks(
+    text: str,
+    chunk_size: int,
+    context_lines: int = 3
+) -> List[Dict]:
+    """
+    Create chunks with surrounding context.
+    
+    Returns list of {
+        "chunk": str,      # The actual chunk
+        "context": str,    # Surrounding context
+        "full_with_context": str  # Chunk + context combined
+    }
+    """
+    # TODO: implement
+    raise NotImplementedError
+
+def contextual_embed_prep(
+    chunks_with_context: List[Dict],
+    include_context_in_embedding: bool = True
+) -> List[str]:
+    """
+    Prepare text for embedding, optionally including context.
+    
+    If include_context_in_embedding is True, prepend context to chunk.
+    Otherwise, just return the chunk.
+    """
+    # TODO: implement
+    raise NotImplementedError
+
+def evaluate_contextual_retrieval(
+    queries: List[str],
+    chunks_with_context: List[Dict],
+    top_k: int = 3
+) -> Dict:
+    """
+    Evaluate contextual retrieval effectiveness.
+    
+    Compare retrieval with and without context.
+    """
+    # TODO: implement
+    raise NotImplementedError
+`,
+    testCode: `text = "# Chapter 1: Introduction\\n\\nThis is the introduction section of our document.\\nIt provides an overview of what will be covered.\\n\\n## Background\\n\\nMachine learning has revolutionized many fields.\\nDeep learning has made significant progress recently.\\n\\n## Objectives\\n\\nThe main objectives of this work are:\\n1. To understand RAG systems\\n2. To build production-ready pipelines\\n3. To optimize for cost and quality\\n\\n# Chapter 2: Technical Details\\n\\nThis chapter covers the technical implementation."
+
+# Test surrounding context
+context = get_surrounding_context(text, 50, context_lines=2)
+print("Context:", context[:100], "...")
+
+# Test contextual chunking
+chunks = create_contextual_chunks(text, chunk_size=100, context_lines=2)
+print("Created", len(chunks), "contextual chunks")
+
+for i, c in enumerate(chunks[:2]):
+    print("\\nChunk", i, ":", c["chunk"][:50], "...")
+    print("Context:", c["context"][:50], "...")
+    print("Full:", c["full_with_context"][:80], "...")
+
+# Test embedding prep
+prepared = contextual_embed_prep(chunks, include_context_in_embedding=True)
+print("\\nPrepared", len(prepared), "texts for embedding")
+
+# Test retrieval evaluation
+queries = ["objectives of this work", "machine learning revolution"]
+results = evaluate_contextual_retrieval(queries, chunks, top_k=2)
+print("\\nEvaluation results:", results)
+
+print("All tests passed!")`,
+    hints: [
+      "Get surrounding context by finding chunk position in full text",
+      "Extract text before and after the chunk using the context_lines parameter",
+      "Combine context + chunk for embedding (this is the key insight of contextual retrieval)",
+      "For evaluation, compare retrieval precision with/without context",
+    ],
+    solution: `from typing import List, Dict, Tuple
+
+def get_surrounding_context(
+    full_text: str,
+    chunk_start: int,
+    context_lines: int = 3
+) -> str:
+    lines = full_text[:chunk_start].split('\\n')
+    preceding = '\\n'.join(lines[-context_lines:]) if lines else ""
+    
+    chunk_end = chunk_start + 200  # approximate
+    remaining = full_text[chunk_start:chunk_start + 500]
+    following_lines = remaining.split('\\n')[:context_lines]
+    following = '\\n'.join(following_lines)
+    
+    context_parts = []
+    if preceding:
+        context_parts.append(preceding)
+    if following:
+        context_parts.append(following)
+    
+    return '\\n'.join(context_parts)
+
+def create_contextual_chunks(
+    text: str,
+    chunk_size: int,
+    context_lines: int = 3
+) -> List[Dict]:
+    chunks = []
+    start = 0
+    
+    while start < len(text):
+        end = min(start + chunk_size, len(text))
+        chunk = text[start:end]
+        
+        context = get_surrounding_context(text, start, context_lines)
+        
+        chunks.append({
+            "chunk": chunk,
+            "context": context,
+            "full_with_context": "Context: {}\\n\\nChunk: {}".format(context, chunk)
+        })
+        
+        start = end
+    
+    return chunks
+
+def contextual_embed_prep(
+    chunks_with_context: List[Dict],
+    include_context_in_embedding: bool = True
+) -> List[str]:
+    if include_context_in_embedding:
+        return [c["full_with_context"] for c in chunks_with_context]
+    else:
+        return [c["chunk"] for c in chunks_with_context]
+
+def evaluate_contextual_retrieval(
+    queries: List[str],
+    chunks_with_context: List[Dict],
+    top_k: int = 3
+) -> Dict:
+    results = {}
+    for query in queries:
+        query_lower = query.lower()
+        
+        with_context_scores = []
+        without_context_scores = []
+        
+        for c in chunks_with_context:
+            with_ctx = sum(1 for word in query_lower.split() if word in c["full_with_context"].lower())
+            with_context_scores.append(with_ctx)
+            
+            without_ctx = sum(1 for word in query_lower.split() if word in c["chunk"].lower())
+            without_context_scores.append(without_ctx)
+        
+        top_with = sorted(zip(range(len(chunks_with_context)), with_context_scores), 
+                         key=lambda x: x[1], reverse=True)[:top_k]
+        top_without = sorted(zip(range(len(chunks_with_context)), without_context_scores),
+                           key=lambda x: x[1], reverse=True)[:top_k]
+        
+        results[query] = {
+            "with_context": [i for i, s in top_with],
+            "without_context": [i for i, s in top_without],
+            "improvement": len(set(top_with) & set(top_without)) / top_k
+        }
+    
+    return results`,
+    timeEstimate: { minutes: 45, label: "45-60 min" },
+    realWorld: {
+      description: "Anthropic's contextual retrieval paper showed 49% improvement in retrieval precision. By embedding 'Summary: This is about X. Content: [chunk]' instead of just the chunk, you preserve document structure.",
+      companies: ["Anthropic", "Notion", "Confluence"],
+      useCases: ["Enterprise Search", "Documentation RAG", "Knowledge Management"],
+    },
+    relatedChallenges: ["contextual-chunk-headers", "semantic-chunking"],
+    relatedPlaybooks: ["rag-techniques-encyclopedia", "chunking-strategies"],
+  },
+  {
+    slug: "splade-learned-sparse",
+    title: "SPLADE Learned Sparse Embeddings",
+    description:
+      "Implement SPLADE (Sparse Lexical and Expansion) learned sparse embeddings. Why: SPLADE combines dense retrieval's semantic power with sparse BM25's exact matching. Solves: Better recall by adding learned term expansion.",
+    group: "Phase 2 — Retrieval & Query Engineering",
+    difficulty: "hard",
+    xpReward: 100,
+    starterCode: `from typing import List, Dict, Tuple
+import math
+
+class SPLADEEncoder:
+    def __init__(self, vocab_size: int = 30000, expansion_factor: int = 3):
+        self.vocab_size = vocab_size
+        self.expansion_factor = expansion_factor
+        self.term_weights = self._init_weights()
+    
+    def _init_weights(self) -> Dict[int, float]:
+        """Initialize term importance weights."""
+        weights = {}
+        common_terms = ["the", "is", "are", "a", "an", "to", "of", "in", "on", "for"]
+        for i, term in enumerate(common_terms):
+            weights[hash(term) % self.vocab_size] = 0.1
+        return weights
+    
+    def encode(self, text: str) -> Dict[int, float]:
+        """
+        Encode text into sparse vector (term -> importance).
+        
+        SPLADE expands terms and weights by importance.
+        """
+        # TODO: implement SPLADE encoding
+        # 1. Tokenize text
+        # 2. Look up term importance
+        # 3. Apply expansion (add related terms)
+        # 4. Return sparse representation
+        raise NotImplementedError
+
+def compute_sparse_similarity(
+    sparse_a: Dict[int, float],
+    sparse_b: Dict[int, float]
+) -> float:
+    """
+    Compute similarity between two sparse vectors.
+    
+    Uses dot product of non-zero entries.
+    """
+    # TODO: implement
+    raise NotImplementedError
+
+def retrieve_with_splade(
+    query: str,
+    documents: List[str],
+    encoder: SPLADEEncoder,
+    top_k: int = 5
+) -> List[Tuple[int, float]]:
+    """
+    Retrieve documents using SPLADE embeddings.
+    
+    Returns: [(doc_index, score), ...]
+    """
+    # TODO: implement retrieval
+    raise NotImplementedError
+
+def compare_bm25_vs_splade(
+    query: str,
+    documents: List[str],
+    top_k: int = 5
+) -> Dict:
+    """
+    Compare BM25 vs SPLADE retrieval results.
+    """
+    # TODO: implement comparison
+    raise NotImplementedError
+`,
+    testCode: `encoder = SPLADEEncoder(vocab_size=1000, expansion_factor=2)
+
+# Test encoding
+text = "machine learning is transforming artificial intelligence"
+sparse = encoder.encode(text)
+print("Sparse encoding:", len(sparse), "non-zero terms")
+print("Sample weights:", dict(list(sparse.items())[:5]))
+
+# Test similarity
+sparse_a = {1: 0.5, 2: 0.3, 5: 0.8}
+sparse_b = {1: 0.4, 2: 0.5, 3: 0.2}
+sim = compute_sparse_similarity(sparse_a, sparse_b)
+print("\\nSimilarity:", sim)
+assert sim > 0, "Similarity should be positive"
+
+# Test retrieval
+documents = [
+    "machine learning algorithms process data",
+    "deep learning uses neural networks",
+    "cooking recipes use ingredients",
+    "artificial intelligence and machine learning",
+    "web development with JavaScript",
+]
+
+results = retrieve_with_splade("machine learning", documents, encoder, top_k=3)
+print("\\nTop 3 results:", results)
+assert len(results) == 3
+
+# Test comparison
+comparison = compare_bm25_vs_splade("machine learning", documents, top_k=3)
+print("\\nBM25 vs SPLADE comparison:", comparison)
+assert "splade_results" in comparison
+assert "bm25_results" in comparison
+
+print("All tests passed!")`,
+    hints: [
+      "SPLADE encodes text as sparse vector: {token_id: importance_weight}",
+      "Term expansion: for each token, add related terms with lower weights",
+      "Similarity = sum(a[i] * b[i]) for all non-zero indices",
+      "BM25 comparison: use standard BM25 scoring for comparison",
+    ],
+    solution: `from typing import List, Dict, Tuple
+import re
+import math
+
+class SPLADEEncoder:
+    def __init__(self, vocab_size: int = 30000, expansion_factor: int = 3):
+        self.vocab_size = vocab_size
+        self.expansion_factor = expansion_factor
+        self.term_weights = self._init_weights()
+        self.expansion_terms = self._init_expansion()
+    
+    def _init_weights(self) -> Dict[int, float]:
+        weights = {}
+        common_terms = ["the", "is", "are", "a", "an", "to", "of", "in", "on", "for"]
+        for term in common_terms:
+            weights[hash(term) % self.vocab_size] = 0.1
+        return weights
+    
+    def _init_expansion(self) -> Dict[int, List[int]]:
+        expansion = {}
+        ml_terms = [hash("machine") % self.vocab_size, 
+                   hash("learning") % self.vocab_size]
+        expansion[hash("ml") % self.vocab_size] = ml_terms
+        return expansion
+    
+    def encode(self, text: str) -> Dict[int, float]:
+        tokens = re.findall(r'[a-z]+', text.lower())
+        sparse = {}
+        
+        for token in tokens:
+            token_id = hash(token) % self.vocab_size
+            
+            base_weight = self.term_weights.get(token_id, 1.0)
+            sparse[token_id] = sparse.get(token_id, 0) + base_weight
+            
+            if token_id in self.expansion_terms:
+                for exp_term in self.expansion_terms[token_id]:
+                    exp_weight = base_weight * 0.5
+                    sparse[exp_term] = sparse.get(exp_term, 0) + exp_weight
+        
+        sparse = {k: math.log(1 + max(0, v)) for k, v in sparse.items()}
+        
+        return sparse
+
+def compute_sparse_similarity(
+    sparse_a: Dict[int, float],
+    sparse_b: Dict[int, float]
+) -> float:
+    similarity = 0.0
+    for idx, weight_a in sparse_a.items():
+        if idx in sparse_b:
+            similarity += weight_a * sparse_b[idx]
+    return similarity
+
+def retrieve_with_splade(
+    query: str,
+    documents: List[str],
+    encoder: SPLADEEncoder,
+    top_k: int = 5
+) -> List[Tuple[int, float]]:
+    query_sparse = encoder.encode(query)
+    doc_sparses = [encoder.encode(doc) for doc in documents]
+    
+    scores = []
+    for idx, doc_sparse in enumerate(doc_sparses):
+        score = compute_sparse_similarity(query_sparse, doc_sparse)
+        scores.append((idx, score))
+    
+    scores.sort(key=lambda x: x[1], reverse=True)
+    return scores[:top_k]
+
+def compute_bm25_score(
+    query: str,
+    document: str,
+    avg_doc_len: float,
+    k1: float = 1.5,
+    b: float = 0.75
+) -> float:
+    doc_len = len(document.split())
+    query_terms = query.lower().split()
+    doc_terms = document.lower().split()
+    doc_freq = {}
+    for term in doc_terms:
+        doc_freq[term] = doc_freq.get(term, 0) + 1
+    
+    score = 0.0
+    for term in query_terms:
+        if term in doc_freq:
+            tf = doc_freq[term]
+            numerator = tf * (k1 + 1)
+            denominator = tf + k1 * (1 - b + b * doc_len / avg_doc_len)
+            score += numerator / denominator
+    
+    return score
+
+def compare_bm25_vs_splade(
+    query: str,
+    documents: List[str],
+    top_k: int = 5
+) -> Dict:
+    encoder = SPLADEEncoder()
+    splade_results = retrieve_with_splade(query, documents, encoder, top_k)
+    
+    avg_doc_len = sum(len(d.split()) for d in documents) / len(documents)
+    bm25_scores = []
+    for idx, doc in enumerate(documents):
+        score = compute_bm25_score(query, doc, avg_doc_len)
+        bm25_scores.append((idx, score))
+    bm25_scores.sort(key=lambda x: x[1], reverse=True)
+    bm25_results = bm25_scores[:top_k]
+    
+    return {
+        "splade_results": splade_results,
+        "bm25_results": bm25_results,
+    }`,
+    timeEstimate: { minutes: 50, label: "50-65 min" },
+    realWorld: {
+      description: "SPLADE (Sparse Lexical and Expansion) from Facebook achieves state-of-the-art on BEIR benchmark. It learns which terms to expand - e.g., 'AI' expands to 'artificial intelligence, machine learning, deep learning'.",
+      companies: ["Meta", "Facebook"],
+      useCases: ["High-recall Retrieval", "Academic Search", "Enterprise Search"],
+    },
+    relatedChallenges: ["bm25-from-scratch", "hybrid-search-tuning", "colbert-maxsim"],
+    relatedPlaybooks: ["rag-techniques-encyclopedia", "tool-comparison-matrix"],
+  },
+];
