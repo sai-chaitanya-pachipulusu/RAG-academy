@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 import "@/styles/mobile.css";
 import { AppProviders } from "@/components/providers/AppProviders";
@@ -68,6 +69,7 @@ export default function RootLayout({
             <MobileNav />
           </div>
         </AppProviders>
+        <Analytics />
       </body>
     </html>
   );

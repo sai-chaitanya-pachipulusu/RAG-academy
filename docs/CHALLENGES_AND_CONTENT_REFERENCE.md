@@ -67,8 +67,9 @@
 | Vector Normalization | `vector-normalization` | Easy | Normalize vectors to unit length (L2 norm) for consistent similarity |
 | Sparse Vectors (BoW) | `sparse-vector-bow` | Easy | Create Bag-of-Words representations for hybrid search |
 | Batched Dot Product | `batch-dot-product` | Easy | Compute similarity scores for multiple documents efficiently |
+| Embedding Model Selection | `embedding-model-selection` | Medium | Compare and select embedding models based on performance, cost, and MTEB score |
 
-**Key Concepts**: Vector operations, similarity metrics, tokenization, normalization
+**Key Concepts**: Vector operations, similarity metrics, tokenization, normalization, model selection
 
 ---
 
@@ -105,7 +106,14 @@
 | IVF (Inverted File) Index | `ivf-flat-index` | Hard | Implement K-Means clustering to partition vector space |
 | HNSW Index | `hnsw-index` | Hard | Build multi-layer graph for logarithmic search time |
 
-**Key Concepts**: Text splitting, semantic boundaries, deduplication, vector indices
+### 1.4 Advanced Chunking
+
+| Challenge | Slug | Difficulty | Description |
+|-----------|------|------------|-------------|
+| Chunking Strategies Overview | `chunking-strategies` | Medium | Compare multiple chunking strategies (character, sentence, paragraph, markdown) |
+| Contextual Retrieval | `contextual-retrieval` | Hard | Add surrounding context to chunks before embedding for better retrieval |
+
+**Key Concepts**: Text splitting, semantic boundaries, deduplication, vector indices, context preservation
 
 ---
 
@@ -146,7 +154,13 @@
 | Similarity Score Threshold | `similarity-threshold` | Medium | Filter results by absolute similarity, not just top-K |
 | Recency Boosting | `recency-boost` | Medium | Boost retrieval scores based on document freshness |
 
-**Key Concepts**: Dense vs sparse retrieval, hybrid search, query expansion, rerouting
+### 2.5 Advanced Sparse Retrieval
+
+| Challenge | Slug | Difficulty | Description |
+|-----------|------|------------|-------------|
+| SPLADE Learned Sparse | `splade-learned-sparse` | Hard | Implement SPLADE sparse embeddings with learned term expansion |
+
+**Key Concepts**: Dense vs sparse retrieval, hybrid search, query expansion, rerouting, learned sparse representations
 
 ---
 
@@ -241,6 +255,65 @@
 
 ---
 
+## Phase 6: Grounding & Safety
+
+**Purpose**: Ensure RAG outputs are grounded, safe, and compliant.
+
+| Challenge | Slug | Difficulty | Description |
+|-----------|------|------------|-------------|
+| Prompt Template | `prompt-template` | Medium | Build grounded RAG prompt with citation rules |
+| Metadata Filtering | `metadata-filtering` | Medium | Enforce tenant/document filters before scoring |
+| ACL Filter Enforcement | `acl-filter-enforcement` | Easy | Enforce role-based access control at retrieval time |
+| Prompt Injection Sanitizer | `prompt-injection-sanitizer` | Hard | Detect and strip prompt injection instructions |
+| PII Redaction | `pii-redaction` | Medium | Redact emails, phones, SSN before LLM processing |
+| Citation Range Validator | `citation-range-validator` | Easy | Validate that citations refer to provided sources only |
+| Refusal Policy | `refusal-policy` | Medium | Decide when to answer vs refuse based on evidence strength |
+| Toxicity Guard | `toxicity-guard` | Medium | Detect and filter toxic outputs |
+| PII Detection | `pii-detection` | Medium | Detect personal information in outputs |
+| Prompt Injection Detection | `injection-detection` | Hard | Find injection attempts in user inputs |
+| Output Filtering | `output-filtering` | Medium | Filter sensitive outputs before returning to users |
+
+**Key Concepts**: PII handling, prompt injection, ACL, citation validation, output safety
+
+---
+
+## Phase 7: Agentic RAG
+
+**Purpose**: Build dynamic cognitive architectures with tool use and self-correction.
+
+| Challenge | Slug | Difficulty | Description |
+|-----------|------|------------|-------------|
+| Tool Use Basics | `tool-use-basics` | Medium | Build router that decides between search, calculator, or direct answer |
+| ReAct Implementation | `react-implementation` | Hard | Implement Thought → Action → Observation loop |
+| Self-Correction Loop | `self-correction-loop` | Hard | Check if generated answer is supported by retrieved context |
+| Self-RAG Grader | `self-rag-grader` | Hard | Grade retrieval and generation for self-correction |
+| Corrective RAG | `corrective-rag` | Hard | Implement corrective retrieval with fallback mechanisms |
+| Query Routing | `query-router` | Medium | Route queries to appropriate RAG pipelines |
+| Multi-Step Reasoning | `multi-step-reasoning` | Hard | Break complex queries into multi-step reasoning chains |
+| Tool Orchestration | `tool-orchestration` | Hard | Orchestrate multiple tools for complex tasks |
+| Conversation Buffer Memory | `conversation-buffer-memory` | Medium | Maintain conversation history for multi-turn RAG |
+| Entity Memory | `entity-memory` | Medium | Track entities across conversation turns |
+
+**Key Concepts**: Agentic reasoning, tool use, self-reflection, memory management
+
+---
+
+## Phase 8: Graph & Knowledge
+
+**Purpose**: Leverage knowledge graphs for multi-hop reasoning.
+
+| Challenge | Slug | Difficulty | Description |
+|-----------|------|------------|-------------|
+| Entity Extraction | `entity-extraction` | Medium | Extract (Subject, Predicate, Object) triples from text |
+| Graph Traversal RAG | `graph-traversal-rag` | Hard | Traverse knowledge graphs for multi-hop retrieval |
+| GraphRAG Knowledge Graph | `graphrag-knowledge-graph` | Hard | Build knowledge graph for GraphRAG |
+| Graph-O1 Reasoning | `graph-o1-reasoning` | Hard | MCTS for graph-based reasoning |
+| Hypergraph Memory RAG | `hypergraph-memory-rag` | Hard | Hypergraph memory for multi-step reasoning |
+
+**Key Concepts**: Knowledge graphs, entity extraction, graph traversal, multi-hop reasoning
+
+---
+
 ## Phase 9: Frontier & Advanced Architectures (2025)
 
 **Purpose**: Master cutting-edge research techniques from latest papers.
@@ -288,7 +361,27 @@
 | LoRA Adapter Architecture | `lora-adapter` | Hard | Implement LoRA computation for efficient tuning |
 | Evaluation Dataset Curator | `eval-dataset-curator` | Medium | Design diverse evaluation sets |
 
-**Key Concepts**: Multimodal embeddings, domain-specific RAG, fine-tuning
+**Key Concepts**: Fine-tuning, domain adaptation, LoRA, synthetic data
+
+---
+
+## Phase 11: Production Ops
+
+**Purpose**: Scale RAG systems with production-grade infrastructure.
+
+| Challenge | Slug | Difficulty | Description |
+|-----------|------|------------|-------------|
+| Rate Limiter (Token Bucket) | `rate-limiter` | Medium | Protect RAG endpoint from abuse |
+| Audit Logger | `audit-logger` | Medium | Log every query and response for compliance |
+| Source Fingerprinting (GDPR) | `source-fingerprint` | Medium | Track chunk sources for targeted deletion |
+| RAG Cost Calculator | `rag-cost-calculator` | Medium | Calculate monthly RAG costs (embeddings, LLM, vector DB) |
+| Semantic Caching | `semantic-caching` | Medium | Cache similar queries to reduce costs |
+| Index Sharding | `index-sharding` | Hard | Shard vector indices for scale |
+| Async Batch Processor | `async-batch-processor` | Medium | Process documents in async batches |
+| Index Warmup | `index-warmup` | Medium | Preload indices for cold start optimization |
+| Multi-Tenancy RAG | `multi-tenant-rag` | Hard | Implement tenant isolation |
+
+**Key Concepts**: Rate limiting, caching, sharding, multi-tenancy, cost optimization
 
 ---
 
@@ -867,7 +960,7 @@ To add lessons:
 ---
 
 *Last Updated: February 2026*
-*Total Challenges: 230+*
+*Total Challenges: 236*
 *Total Lessons: 70+*
 *Total Playbooks: 25+*
-*Documentation Version: 1.3*
+*Documentation Version: 1.4*
