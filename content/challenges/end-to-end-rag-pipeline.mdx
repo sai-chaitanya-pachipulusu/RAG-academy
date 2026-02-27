@@ -1,0 +1,21 @@
+---
+title: "Project: End-to-End RAG Pipeline"
+description: "Build a complete miniature RAG pipeline from scratch."
+difficulty: "hard"
+---
+
+## The Challenge
+
+In this capstone project, you will build a complete, miniature Retrieval-Augmented Generation (RAG) pipeline from scratch without any external libraries like LangChain or LlamaIndex.
+
+This will cement your understanding of how the core components of RAG interact.
+
+### Your Task
+You need to implement the `MiniRAGPipeline` class:
+
+1. **Ingestion**: Implement `ingest(documents)`. Convert raw text to vectors using the provided mock embedder (`_mock_embed`), and store them.
+2. **Retrieval**: Implement `retrieve(query, top_k)`. Embed the query, calculate the dot product between the query vector and all stored vectors, and return the top `k` most similar documents.
+3. **Generation**: Implement `generate(query)`. Retrieve context, and format a mock LLM response combining the context and the query.
+
+### Why this matters
+Frameworks hide a lot of complexity. When your RAG system fails in production (e.g., retrieving the wrong documents, or hallucinating), you need to know exactly how the data flows from text to vectors to context window to debug it effectively.

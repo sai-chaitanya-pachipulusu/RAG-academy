@@ -125,7 +125,6 @@ export async function POST(request: NextRequest) {
 function verifyWebhookSignature(payload: any, signature: string | null): boolean {
   // Implement based on your payment provider's webhook verification
   // For Polar, use their webhook signing secret
-  // For Paddle, use their webhook verification
   
   const webhookSecret = process.env.PAYMENT_WEBHOOK_SECRET;
   

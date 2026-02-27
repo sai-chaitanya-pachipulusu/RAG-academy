@@ -3,7 +3,7 @@
 /**
  * Payment Test Page
  * 
- * Provides a UI for testing payment flows with Paddle.
+ * Provides a UI for testing payment flows with Polar.
  * Includes test card numbers, checkout creation, and webhook simulation.
  */
 
@@ -11,7 +11,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { TestCardDisplay, TestCardSelector } from "@/components/payments/TestCardDisplay";
-import { TestCardKey } from "@/lib/payments/paddle";
+import { TestCardKey } from "@/lib/payments/polar";
 import { useSupabaseAuth } from "@/components/providers/SupabaseAuthProvider";
 
 function PaymentTestPageContent() {
@@ -176,7 +176,7 @@ function PaymentTestPageContent() {
           Payment Testing
         </h1>
         <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-          Test payment flows with Paddle sandbox environment
+          Test payment flows with Polar sandbox environment
         </p>
         
         {/* Environment Indicator */}
@@ -474,8 +474,8 @@ function PaymentTestPageContent() {
                   <span className="text-zinc-600 dark:text-zinc-400">Endpoint URL</span>
                   <code className="rounded bg-zinc-100 px-2 py-0.5 text-xs dark:bg-zinc-800">
                     {typeof window !== "undefined"
-                      ? `${window.location.origin}/api/webhooks/paddle`
-                      : "/api/webhooks/paddle"}
+                    ? `${window.location.origin}/api/webhooks/polar`
+                      : "/api/webhooks/polar"}
                   </code>
                 </div>
                 <div className="flex justify-between">
@@ -500,8 +500,8 @@ function PaymentTestPageContent() {
                 <li>Install ngrok: <code>npm install -g ngrok</code></li>
                 <li>Start your dev server: <code>npm run dev</code></li>
                 <li>Expose webhook: <code>ngrok http 3000</code></li>
-                <li>Copy the HTTPS URL to Paddle dashboard</li>
-                <li>Add <code>/api/webhooks/paddle</code> to the URL</li>
+                <li>Copy the HTTPS URL to Polar dashboard</li>
+                <li>Add <code>/api/webhooks/polar</code> to the URL</li>
               </ol>
             </div>
           </div>

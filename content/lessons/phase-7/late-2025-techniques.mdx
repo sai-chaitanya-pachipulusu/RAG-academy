@@ -70,14 +70,14 @@ discussing financial performance. The company reported Q3 earnings of $4.2B."
 
 ### 2. LongRAG: Long-context as retrieval
 
-With 128K+ context windows common, LongRAG challenges the traditional "retrieve small chunks" paradigm:
+With massive context windows becoming the norm (Gemini 1.5 Pro at 2M tokens, Qwen 2.5 at 128K+ tokens), LongRAG challenges the traditional "retrieve small chunks" paradigm:
 
 ```
 Traditional RAG:
   Query → Retrieve 5 chunks (500 tokens each) → Generate
 
 LongRAG:
-  Query → Retrieve 1-2 "long units" (4K-30K tokens each) → Generate
+  Query → Retrieve 1-2 "long units" (4K-100K tokens each) → Generate
 ```
 
 **Why it matters**: Reduces the number of retrieval calls and keeps more coherent context together.

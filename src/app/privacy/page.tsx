@@ -41,7 +41,7 @@ export default function PrivacyPage() {
               and optional profile details (username, display name)
             </li>
             <li>
-              <strong>Payment Information:</strong> Processed securely by Paddle.com;
+              <strong>Payment Information:</strong> Processed securely by Polar.sh;
               we do not store credit card numbers
             </li>
             <li>
@@ -93,7 +93,7 @@ export default function PrivacyPage() {
               <strong>Service Providers:</strong>
               <ul>
                 <li>Supabase (database and authentication)</li>
-                <li>Paddle (payment processing)</li>
+                <li>Polar.sh (payment processing)</li>
                 <li>Resend (email delivery)</li>
                 <li>Vercel (hosting)</li>
               </ul>

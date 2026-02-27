@@ -35,18 +35,18 @@
 
 | Phase | Curriculum Stage | Focus Area | # Challenges |
 |-------|-----------------|------------|--------------|
-| Phase 0 | Foundations | Vector math, tokenization | 11 |
-| Phase 1 | Pre-retrieval | Chunking, indexing, deduplication | 48 |
-| Phase 2 | Retrieval | Basic retrieval, BM25, hybrid | 13 |
+| Phase 0 | Foundations | Vector math, tokenization | 12 |
+| Phase 1 | Pre-retrieval | Chunking, indexing, deduplication | 50 |
+| Phase 2 | Retrieval | Basic retrieval, BM25, hybrid | 14 |
 | Phase 3 | Query Transforms | Query expansion, rewriting | 13 |
 | Phase 4 | Advanced Retrieval | Parent doc, recursive retrieval | 10 |
 | Phase 5 | Post-retrieval | Reranking, context optimization | 18 |
 | Phase 6 | Grounding & Safety | PII, ACL, prompt injection | 17 |
-| Phase 7 | Agentic RAG | Tool use, ReAct, self-correction | 20 |
+| Phase 7 | Agentic RAG | Tool use, ReAct, self-correction | 21 |
 | Phase 8 | Graph & Knowledge | Knowledge graphs, multi-hop | 7 |
 | Phase 9 | Multimodal | Tables, images, video, audio | 11 |
 | Phase 10 | Fine-tuning | Domain adaptation, embedding tuning | 7 |
-| Phase 11 | Production Ops | Scaling, caching, rate limiting | 27 |
+| Phase 11 | Production Ops | Scaling, caching, rate limiting | 29 |
 | Phase 12 | Evaluation Ops | Metrics, observability, benchmarks | 34 |
 
 > **Capstone Projects**: 3 (news-search-tool, customer-support-bot, financial-analyst-agent)  
@@ -251,66 +251,158 @@
 | Audit Logger | `audit-logger` | Medium | Log every query and response for compliance |
 | Source Fingerprinting (GDPR) | `source-fingerprint` | Medium | Track chunk sources for targeted deletion |
 
+### 5.5 Advanced Caching
+
+| Challenge | Slug | Difficulty | Description |
+|-----------|------|------------|-------------|
+| RAG Cost Calculator | `rag-cost-calculator` | Medium | Calculate monthly RAG costs (embeddings, LLM, vector DB) |
+| Semantic Caching | `semantic-caching` | Medium | Cache similar queries to reduce costs |
+| Advanced Semantic Cache | `semantic-cache-advanced` | Medium | Semantic cache with embedding similarity threshold |
+
 **Key Concepts**: Security, observability, compliance, cost optimization
 
 ---
 
 ## Phase 6: Grounding & Safety
 
-**Purpose**: Ensure RAG outputs are grounded, safe, and compliant.
+**Purpose**: Ensure RAG outputs are grounded, safe, and compliant. This phase covers the critical aspects of building production-ready RAG systems that can be trusted with real user data.
+
+### 6.1 Prompt Engineering & Grounding
 
 | Challenge | Slug | Difficulty | Description |
 |-----------|------|------------|-------------|
 | Prompt Template | `prompt-template` | Medium | Build grounded RAG prompt with citation rules |
-| Metadata Filtering | `metadata-filtering` | Medium | Enforce tenant/document filters before scoring |
-| ACL Filter Enforcement | `acl-filter-enforcement` | Easy | Enforce role-based access control at retrieval time |
-| Prompt Injection Sanitizer | `prompt-injection-sanitizer` | Hard | Detect and strip prompt injection instructions |
-| PII Redaction | `pii-redaction` | Medium | Redact emails, phones, SSN before LLM processing |
 | Citation Range Validator | `citation-range-validator` | Easy | Validate that citations refer to provided sources only |
 | Refusal Policy | `refusal-policy` | Medium | Decide when to answer vs refuse based on evidence strength |
-| Toxicity Guard | `toxicity-guard` | Medium | Detect and filter toxic outputs |
-| PII Detection | `pii-detection` | Medium | Detect personal information in outputs |
+
+### 6.2 Security & Access Control
+
+| Challenge | Slug | Difficulty | Description |
+|-----------|------|------------|-------------|
+| Metadata Filtering | `metadata-filtering` | Medium | Enforce tenant/document filters before scoring |
+| ACL Filter Enforcement | `acl-filter-enforcement` | Easy | Enforce role-based access control at retrieval time |
+
+### 6.3 Threat Protection
+
+| Challenge | Slug | Difficulty | Description |
+|-----------|------|------------|-------------|
+| Prompt Injection Sanitizer | `prompt-injection-sanitizer` | Hard | Detect and strip prompt injection instructions |
 | Prompt Injection Detection | `injection-detection` | Hard | Find injection attempts in user inputs |
+
+### 6.4 Privacy & Compliance
+
+| Challenge | Slug | Difficulty | Description |
+|-----------|------|------------|-------------|
+| PII Redaction | `pii-redaction` | Medium | Redact emails, phones, SSN before LLM processing |
+| PII Detection | `pii-detection` | Medium | Detect personal information in outputs |
+
+### 6.5 Output Safety
+
+| Challenge | Slug | Difficulty | Description |
+|-----------|------|------------|-------------|
+| Toxicity Guard | `toxicity-guard` | Medium | Detect and filter toxic outputs |
 | Output Filtering | `output-filtering` | Medium | Filter sensitive outputs before returning to users |
 
 **Key Concepts**: PII handling, prompt injection, ACL, citation validation, output safety
+
+**Learning Outcomes**:
+- Build RAG prompts that cite sources and refuse uncertain answers
+- Implement role-based access control at retrieval time
+- Detect and prevent prompt injection attacks
+- Redact PII from both inputs and outputs
+- Filter toxic or inappropriate content
+
+**Real-World Applications**: Enterprise RAG systems, customer support bots, compliance-heavy industries (healthcare, finance)
 
 ---
 
 ## Phase 7: Agentic RAG
 
-**Purpose**: Build dynamic cognitive architectures with tool use and self-correction.
+**Purpose**: Build dynamic cognitive architectures with tool use and self-correction. Move beyond static retrieval chains to agents that can reason, plan, and adapt.
+
+### 7.1 Tool Use & Routing
 
 | Challenge | Slug | Difficulty | Description |
 |-----------|------|------------|-------------|
 | Tool Use Basics | `tool-use-basics` | Medium | Build router that decides between search, calculator, or direct answer |
+| Query Routing | `query-router` | Medium | Route queries to appropriate RAG pipelines |
+| Tool Orchestration | `tool-orchestration` | Hard | Orchestrate multiple tools for complex tasks |
+
+### 7.2 Reasoning Patterns
+
+| Challenge | Slug | Difficulty | Description |
+|-----------|------|------------|-------------|
 | ReAct Implementation | `react-implementation` | Hard | Implement Thought → Action → Observation loop |
+| Multi-Step Reasoning | `multi-step-reasoning` | Hard | Break complex queries into multi-step reasoning chains |
+
+### 7.3 Self-Correction & Reflection
+
+| Challenge | Slug | Difficulty | Description |
+|-----------|------|------------|-------------|
 | Self-Correction Loop | `self-correction-loop` | Hard | Check if generated answer is supported by retrieved context |
 | Self-RAG Grader | `self-rag-grader` | Hard | Grade retrieval and generation for self-correction |
 | Corrective RAG | `corrective-rag` | Hard | Implement corrective retrieval with fallback mechanisms |
-| Query Routing | `query-router` | Medium | Route queries to appropriate RAG pipelines |
-| Multi-Step Reasoning | `multi-step-reasoning` | Hard | Break complex queries into multi-step reasoning chains |
-| Tool Orchestration | `tool-orchestration` | Hard | Orchestrate multiple tools for complex tasks |
+
+### 7.4 Memory & Context
+
+| Challenge | Slug | Difficulty | Description |
+|-----------|------|------------|-------------|
 | Conversation Buffer Memory | `conversation-buffer-memory` | Medium | Maintain conversation history for multi-turn RAG |
 | Entity Memory | `entity-memory` | Medium | Track entities across conversation turns |
 
 **Key Concepts**: Agentic reasoning, tool use, self-reflection, memory management
 
+**Learning Outcomes**:
+- Build agents that can use multiple tools (search, calculator, API calls)
+- Implement the ReAct pattern for reasoning + acting
+- Add self-correction loops that validate outputs against retrieved context
+- Build conversation memory systems for multi-turn RAG
+- Route queries to fast/slow paths based on complexity
+
+**Real-World Applications**: 
+- Customer support agents that can check order status, refund policies, etc.
+- Research assistants that can browse the web and cite sources
+- Code assistants that can run tests and search documentation
+
 ---
 
 ## Phase 8: Graph & Knowledge
 
-**Purpose**: Leverage knowledge graphs for multi-hop reasoning.
+**Purpose**: Leverage knowledge graphs for multi-hop reasoning. Move beyond flat vector search to structured knowledge representations that can model complex relationships.
+
+### 8.1 Knowledge Graph Fundamentals
 
 | Challenge | Slug | Difficulty | Description |
 |-----------|------|------------|-------------|
 | Entity Extraction | `entity-extraction` | Medium | Extract (Subject, Predicate, Object) triples from text |
-| Graph Traversal RAG | `graph-traversal-rag` | Hard | Traverse knowledge graphs for multi-hop retrieval |
 | GraphRAG Knowledge Graph | `graphrag-knowledge-graph` | Hard | Build knowledge graph for GraphRAG |
+
+### 8.2 Graph-Based Retrieval
+
+| Challenge | Slug | Difficulty | Description |
+|-----------|------|------------|-------------|
+| Graph Traversal RAG | `graph-traversal-rag` | Hard | Traverse knowledge graphs for multi-hop retrieval |
+
+### 8.3 Advanced Graph Reasoning
+
+| Challenge | Slug | Difficulty | Description |
+|-----------|------|------------|-------------|
 | Graph-O1 Reasoning | `graph-o1-reasoning` | Hard | MCTS for graph-based reasoning |
 | Hypergraph Memory RAG | `hypergraph-memory-rag` | Hard | Hypergraph memory for multi-step reasoning |
 
 **Key Concepts**: Knowledge graphs, entity extraction, graph traversal, multi-hop reasoning
+
+**Learning Outcomes**:
+- Extract entities and relationships from unstructured text
+- Build knowledge graphs that capture domain relationships
+- Implement graph traversal algorithms for multi-hop retrieval
+- Use GraphRAG to answer complex queries requiring reasoning across multiple pieces of information
+- Build hypergraph memory systems for complex reasoning chains
+
+**Real-World Applications**:
+- Company knowledge bases that model employee-project-team relationships
+- Medical systems that can reason about drug interactions
+- Financial analysis that tracks company relationships, subsidiaries, ownership
 
 ---
 
@@ -369,6 +461,8 @@
 
 **Purpose**: Scale RAG systems with production-grade infrastructure.
 
+### 11.1 Performance & Caching
+
 | Challenge | Slug | Difficulty | Description |
 |-----------|------|------------|-------------|
 | Rate Limiter (Token Bucket) | `rate-limiter` | Medium | Protect RAG endpoint from abuse |
@@ -376,6 +470,7 @@
 | Source Fingerprinting (GDPR) | `source-fingerprint` | Medium | Track chunk sources for targeted deletion |
 | RAG Cost Calculator | `rag-cost-calculator` | Medium | Calculate monthly RAG costs (embeddings, LLM, vector DB) |
 | Semantic Caching | `semantic-caching` | Medium | Cache similar queries to reduce costs |
+| Advanced Semantic Cache | `semantic-cache-advanced` | Medium | Semantic cache with embedding similarity threshold |
 | Index Sharding | `index-sharding` | Hard | Shard vector indices for scale |
 | Async Batch Processor | `async-batch-processor` | Medium | Process documents in async batches |
 | Index Warmup | `index-warmup` | Medium | Preload indices for cold start optimization |
@@ -662,13 +757,25 @@ See `docs/CONTENT_GAPS_2025.md` for detailed analysis of:
 
 ### Planned Challenges
 
-- `query-router` - Route queries to appropriate RAG pipeline
-- `semantic-cache-advanced` - Build cache with similarity threshold
+- ~~`query-router`~~ - Route queries to appropriate RAG pipeline ✅
+- ~~`semantic-cache-advanced`~~ - Build cache with similarity threshold ✅
 - `guardrails-input/output` - Validate and filter RAG inputs/outputs
 - `rag-regression-test` - Build retrieval regression suite
 - `cost-aware-routing` - Route based on query complexity
 - `streaming-citations` - Stream answers with inline citations
 - `multi-tenant-rag` - Implement tenant isolation
+
+### Recently Added Challenges
+
+| Challenge | Slug | Phase | Description |
+|-----------|------|-------|-------------|
+| Embedding Model Selection | `embedding-model-selection` | Phase 0 | Compare and select embedding models based on performance, cost, and MTEB score |
+| RAG Cost Calculator | `rag-cost-calculator` | Phase 11 | Calculate monthly RAG costs (embeddings, LLM, vector DB) |
+| Chunking Strategies Overview | `chunking-strategies` | Phase 1 | Compare multiple chunking strategies |
+| Contextual Retrieval | `contextual-retrieval` | Phase 1 | Add surrounding context to chunks before embedding |
+| SPLADE Learned Sparse | `splade-learned-sparse` | Phase 2 | Implement SPLADE sparse embeddings with learned term expansion |
+| Advanced Semantic Cache | `semantic-cache-advanced` | Phase 11 | Semantic cache with embedding similarity threshold |
+| Query Router | `query-router` | Phase 7 | Route queries to appropriate RAG pipelines |
 
 ### Planned Lessons
 
@@ -803,6 +910,7 @@ Lessons are MDX files located in `content/lessons/<phase>/<slug>.mdx`
 | Late 2025 Techniques | `phase-7/late-2025-techniques.mdx` | Emerging techniques |
 | Compound AI Systems | `phase-7/compound-ai-systems.mdx` | Multi-component systems |
 | External Project Gallery | `phase-7/external-project-gallery.mdx` | Real-world examples |
+| Voice & Audio RAG | `phase-7/voice-rag-overview.mdx` | Voice RAG patterns |
 | Realtime RAG | `phase-7/realtime-rag.mdx` | Streaming and real-time |
 | Power of Noise | `phase-7/power-of-noise.mdx` | Noisy data handling |
 
@@ -960,7 +1068,7 @@ To add lessons:
 ---
 
 *Last Updated: February 2026*
-*Total Challenges: 236*
+*Total Challenges: 243*
 *Total Lessons: 70+*
 *Total Playbooks: 25+*
-*Documentation Version: 1.4*
+*Documentation Version: 1.5*

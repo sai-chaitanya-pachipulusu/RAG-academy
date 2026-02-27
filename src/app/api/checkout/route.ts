@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getCurrentPricingPhase } from "@/lib/pricing/config";
 import { 
-  getPaddleProductId, 
-  createPaddleCheckout,
-  type PaddleTier,
-  type PaddleBillingCycle,
-} from "@/lib/payments/paddle";
+  getPolarProductPriceId, 
+  createPolarCheckout,
+  type PolarTier,
+  type PolarBillingCycle,
+} from "@/lib/payments/polar";
 
 const getSupabaseClient = () => {
   return createClient(
@@ -74,20 +74,20 @@ export async function POST(request: NextRequest) {
     const currentPhase = getCurrentPricingPhase();
     console.log(`Checkout initiated - Phase: ${currentPhase.name}, Tier: ${tier}, Billing: ${billingCycle}`);
 
-    // Get the correct Paddle product price ID
-    const productPriceId = getPaddleProductId(
-      tier as PaddleTier, 
-      billingCycle as PaddleBillingCycle
+    // Get the correct Polar product price ID
+    const productPriceId = getPolarProductPriceId(
+      tier as PolarTier, 
+      billingCycle as PolarBillingCycle
     );
 
     if (!productPriceId) {
-      // In development without Paddle configured, return mock URL
+      // In development without Polar configured, return mock URL
       if (process.env.NODE_ENV === "development") {
-        console.log("Paddle not configured, returning mock checkout for development");
+        console.log("Polar not configured, returning mock checkout for development");
         return NextResponse.json({
           url: `/settings?checkout=mock&tier=${tier}&billing=${billingCycle}`,
           mock: true,
-          message: "Paddle not configured. Configure PADDLE_PRODUCT_* env vars for real checkout.",
+          message: "Polar not configured. Configure POLAR_PRODUCT_* env vars for real checkout.",
         });
       }
       
@@ -97,13 +97,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create Paddle checkout session
-    const checkout = await createPaddleCheckout({
-      productId: productPriceId,
+    // Create Polar checkout session
+    const checkout = await createPolarCheckout({
+      productPriceId,
       userId: user.id,
       userEmail: user.email!,
-      tier: tier as PaddleTier,
-      billingCycle: billingCycle as PaddleBillingCycle,
+      tier: tier as PolarTier,
+      billingCycle: billingCycle as PolarBillingCycle,
       successUrl: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/settings?success=true`,
       metadata: {
         pricing_phase: currentPhase.name,

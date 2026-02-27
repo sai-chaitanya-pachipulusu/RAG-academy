@@ -1,0 +1,25 @@
+---
+title: "Advanced Semantic Caching"
+description: "Build a semantic cache that uses embedding similarity to serve instant responses for repeated or highly similar queries."
+difficulty: "medium"
+xpReward: 50
+topics: ["caching", "production", "latency", "cost-optimization"]
+prerequisites: ["embedding-cache"]
+---
+
+# Advanced Semantic Caching
+
+## The Challenge
+
+Large Language Models are slow and expensive. If 1,000 users ask "How do I reset my password?", you shouldn't run the embedding model, vector search, and LLM generation 1,000 times.
+
+**Semantic Caching** intercepts the user's query, embeds it, and compares it to a cache of previous queries. If the similarity score is above a certain threshold (e.g., 95%), it returns the cached response instantly.
+
+### Your Task
+You need to implement the `SemanticCache` class:
+
+1. **Get**: Implement `get(query_vector)`. Compare the new query vector against all cached vectors using dot product. If the highest similarity exceeds the `threshold`, return the cached response.
+2. **Set**: Implement `set(query_text, query_vector, response)`. Store the query, its vector, and the response in the cache.
+
+### Why this matters
+Semantic caching can reduce LLM costs by 30-50% for high-traffic applications with FAQ-style usage patterns, while dropping response latency from seconds to milliseconds.

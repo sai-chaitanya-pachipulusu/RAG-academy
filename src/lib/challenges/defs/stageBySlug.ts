@@ -59,12 +59,17 @@ export const CHALLENGE_STAGE_BY_SLUG: Record<string, CurriculumStage> = {
   // Grounding & safety
   "prompt-template": "grounding-safety",
   "metadata-filtering": "grounding-safety",
+  "acl-filter-enforcement": "grounding-safety",
   "citation-range-validator": "grounding-safety",
   "refusal-policy": "grounding-safety",
   "prompt-injection-sanitizer": "grounding-safety",
   "pii-redaction": "grounding-safety",
-  "acl-filter-enforcement": "grounding-safety",
   
+  // New Missing Challenges mapping
+  "multi-tenant-rag": "production-ops",
+  "semantic-cache-advanced": "production-ops",
+  "query-router": "agentic-rag",
+
   // Agentic RAG
   "tool-use-basics": "agentic-rag",
   "react-implementation": "agentic-rag",
@@ -81,7 +86,9 @@ export const CHALLENGE_STAGE_BY_SLUG: Record<string, CurriculumStage> = {
   "evaluator-ndcg": "evaluation-ops",
   "news-search-tool": "capstone-projects",
   "customer-support-bot": "capstone-projects",
+  "enterprise-support-router": "capstone-projects",
   "financial-analyst-agent": "capstone-projects",
+  "end-to-end-rag-pipeline": "capstone-projects",
   "arena-tfidf-log-search": "arena",
 
   // New Advanced Stages
@@ -197,7 +204,6 @@ export const CHALLENGE_STAGE_BY_SLUG: Record<string, CurriculumStage> = {
   
   // Tier 3B: Graph RAG & Specialized
   "graph-traversal-rag": "graph-rag",
-  "multi-tenant-rag": "production-ops",
   "hybrid-search-tuning": "retrieval",
   
   // Tier 3C: Document Parsing

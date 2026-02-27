@@ -13,13 +13,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { 
-  createPaddleCheckout, 
-  getPaddleProductId,
-  verifyPaddleWebhookSignature,
+  createPolarCheckout, 
+  getPolarProductPriceId,
   TEST_CARDS,
-  type PaddleTier,
-  type PaddleBillingCycle 
-} from "@/lib/payments/paddle";
+  type PolarTier,
+  type PolarBillingCycle 
+} from "@/lib/payments/polar";
 import { validatePaymentEnvironment } from "@/lib/payments/validate";
 
 // Initialize Supabase with service role
@@ -98,7 +97,8 @@ export async function GET(): Promise<NextResponse> {
   
   return NextResponse.json({
     status: "Payment test API active",
-    environment: process.env.PADDLE_ENVIRONMENT || "sandbox",
+    provider: "polar",
+    environment: process.env.NODE_ENV || "development",
     endpoints: {
       POST: {
         "/api/payments/test": {
@@ -132,8 +132,8 @@ async function handleCreateCheckout(body: any): Promise<NextResponse> {
     );
   }
   
-  const validTiers: PaddleTier[] = ["pro", "team", "lifetime"];
-  const validCycles: PaddleBillingCycle[] = ["monthly", "annual", "lifetime"];
+  const validTiers: PolarTier[] = ["pro", "team", "lifetime"];
+  const validCycles: PolarBillingCycle[] = ["monthly", "annual", "lifetime"];
   
   if (!validTiers.includes(tier)) {
     return NextResponse.json(
@@ -150,14 +150,14 @@ async function handleCreateCheckout(body: any): Promise<NextResponse> {
   }
   
   // Get product ID
-  const productId = getPaddleProductId(tier, billingCycle);
+  const productId = getPolarProductPriceId(tier, billingCycle);
   
   if (!productId) {
     return NextResponse.json(
       { 
         error: "Product not configured",
         message: `No product ID found for ${tier}/${billingCycle}. Check environment variables.`,
-        envVar: `PADDLE_PRODUCT_${tier.toUpperCase()}_${billingCycle.toUpperCase()}`
+        envVar: `POLAR_PRODUCT_${tier.toUpperCase()}_${billingCycle.toUpperCase()}`
       },
       { status: 500 }
     );
@@ -165,10 +165,10 @@ async function handleCreateCheckout(body: any): Promise<NextResponse> {
   
   try {
     // Create test checkout
-    const checkout = await createPaddleCheckout({
-      productId,
+    const checkout = await createPolarCheckout({
+      productPriceId: productId,
       userId: body.userId || "test-user-" + Date.now(),
-      userEmail: body.email || "test@example.com",
+      userEmail: body.email || "",
       tier,
       billingCycle,
       successUrl: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/settings/billing/test?success=true`,
@@ -244,15 +244,15 @@ async function handleSimulateWebhook(body: any): Promise<NextResponse> {
     }
   };
   
-  // Forward to actual webhook handler
+    // Forward to actual webhook handler
   try {
-    const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/webhooks/paddle`;
+    const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/webhooks/polar`;
     
     const response = await fetch(webhookUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "paddle-signature": "test-signature",
+        "polar-signature": "test-signature",
       },
       body: JSON.stringify(simulatedEvent),
     });
@@ -295,7 +295,7 @@ async function handleGetTestCards(): Promise<NextResponse> {
   return NextResponse.json({
     testCards: TEST_CARDS,
     instructions: {
-      general: "Use these test card numbers in the Paddle checkout",
+      general: "Use these test card numbers in the Polar checkout",
       expiry: "Any future date (e.g., 12/25)",
       cvc: "Any 3 digits (e.g., 123)",
       zip: "Any 5 digits (e.g., 12345)",

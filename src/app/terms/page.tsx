@@ -57,7 +57,7 @@ export default function TermsPage() {
 
           <h2>4. Subscription and Payments</h2>
           <p>
-            Paid subscriptions are processed through Paddle.com, our Merchant of
+            Paid subscriptions are processed through Polar.sh, our Merchant of
             Record. By subscribing, you agree to:
           </p>
           <ul>

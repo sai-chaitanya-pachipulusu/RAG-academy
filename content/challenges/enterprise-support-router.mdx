@@ -1,0 +1,22 @@
+---
+title: "Project: Enterprise Support Router"
+description: "Build a multi-stage routing system that categorizes a user query and directs it to the appropriate data source."
+difficulty: "hard"
+---
+
+## The Challenge
+
+In enterprise RAG systems, putting all data into a single vector database is an anti-pattern. Different types of data require different retrieval strategies:
+- **Unstructured Data** (Policies, docs, wikis) -> Vector Database
+- **Structured Data** (Order status, inventory, user accounts) -> SQL/NoSQL Database
+
+You need to build a **Semantic Router** that analyzes the user's query intent, and then directs the query to the correct system. 
+
+### Your Task
+1. Implement the `router_agent` to classify user queries as either "POLICY", "ORDER_STATUS", or "UNKNOWN".
+2. Implement `retrieve_policy` to fetch unstructured data.
+3. Implement `get_order_status` to fetch structured data from a simulated database.
+4. Synthesize everything in `enterprise_support_bot`.
+
+### Why this matters
+Semantic Routing reduces context window bloat, lowers token costs, prevents hallucinations (by querying hard data directly), and improves response latency.

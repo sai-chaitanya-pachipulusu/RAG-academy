@@ -46,7 +46,7 @@ export interface PricingTier {
   freeChallengeCount: number;
   note?: string;
   popular?: boolean;
-  paddleProductId?: {
+  polarProductId?: {
     monthly: string;
     annual: string;
     lifetime?: string;
@@ -138,7 +138,7 @@ const PHASE_1_CONFIG: PricingPhaseConfig = {
       freeChallengeCount: 20,
       note: "Subscribe by April 1st and lock in $12/month for life. Future users will pay $29/month.",
       popular: true,
-      paddleProductId: {
+      polarProductId: {
         monthly: process.env.PADDLE_PRODUCT_PRO_MONTHLY || "",
         annual: process.env.PADDLE_PRODUCT_PRO_ANNUAL || "",
       },
@@ -167,7 +167,7 @@ const PHASE_1_CONFIG: PricingPhaseConfig = {
       ],
       freeChallengeCount: 20,
       note: "Lock in $29/mo for your team. Increases to $49/mo on July 5, 2026.",
-      paddleProductId: {
+      polarProductId: {
         monthly: process.env.PADDLE_PRODUCT_TEAM_MONTHLY || "",
         annual: process.env.PADDLE_PRODUCT_TEAM_ANNUAL || "",
       },
@@ -193,7 +193,7 @@ const PHASE_1_CONFIG: PricingPhaseConfig = {
       ],
       freeChallengeCount: 20,
       note: "One-time payment. Less than 5 months of Pro. Lock in forever.",
-      paddleProductId: {
+      polarProductId: {
         monthly: "",
         annual: "",
         lifetime: process.env.PADDLE_PRODUCT_LIFETIME || "",
@@ -261,7 +261,7 @@ const PHASE_2_CONFIG: PricingPhaseConfig = {
       freeChallengeCount: 20,
       note: "Launch price ends July 31. Price increases to $29/mo on August 1.",
       popular: true,
-      paddleProductId: {
+      polarProductId: {
         monthly: process.env.PADDLE_PRODUCT_PRO_MONTHLY || "",
         annual: process.env.PADDLE_PRODUCT_PRO_ANNUAL || "",
       },
@@ -287,7 +287,7 @@ const PHASE_2_CONFIG: PricingPhaseConfig = {
         "Quarterly team office hours",
       ],
       freeChallengeCount: 20,
-      paddleProductId: {
+      polarProductId: {
         monthly: process.env.PADDLE_PRODUCT_TEAM_MONTHLY || "",
         annual: process.env.PADDLE_PRODUCT_TEAM_ANNUAL || "",
       },
@@ -310,7 +310,7 @@ const PHASE_2_CONFIG: PricingPhaseConfig = {
       ],
       freeChallengeCount: 20,
       note: "One-time payment. Price increases to $149 in January 2027.",
-      paddleProductId: {
+      polarProductId: {
         monthly: "",
         annual: "",
         lifetime: process.env.PADDLE_PRODUCT_LIFETIME || "",
@@ -376,7 +376,7 @@ const PHASE_3_CONFIG: PricingPhaseConfig = {
       ],
       freeChallengeCount: 20,
       popular: true,
-      paddleProductId: {
+      polarProductId: {
         monthly: process.env.PADDLE_PRODUCT_PRO_MONTHLY || "",
         annual: process.env.PADDLE_PRODUCT_PRO_ANNUAL || "",
       },
@@ -405,7 +405,7 @@ const PHASE_3_CONFIG: PricingPhaseConfig = {
       ],
       freeChallengeCount: 20,
       note: "Additional seats: $79/mo each",
-      paddleProductId: {
+      polarProductId: {
         monthly: process.env.PADDLE_PRODUCT_TEAM_MONTHLY || "",
         annual: process.env.PADDLE_PRODUCT_TEAM_ANNUAL || "",
       },
@@ -428,7 +428,7 @@ const PHASE_3_CONFIG: PricingPhaseConfig = {
       ],
       freeChallengeCount: 20,
       note: "One-time payment. Never pay again.",
-      paddleProductId: {
+      polarProductId: {
         monthly: "",
         annual: "",
         lifetime: process.env.PADDLE_PRODUCT_LIFETIME || "",

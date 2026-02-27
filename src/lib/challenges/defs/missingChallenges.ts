@@ -1000,4 +1000,195 @@ def compare_bm25_vs_splade(
     relatedChallenges: ["bm25-from-scratch", "hybrid-search-tuning", "colbert-maxsim"],
     relatedPlaybooks: ["rag-techniques-encyclopedia", "tool-comparison-matrix"],
   },
+  {
+    slug: "semantic-cache-advanced",
+    title: "Advanced Semantic Caching",
+    description:
+      "Build a semantic cache that uses embedding similarity to serve instant responses for repeated or highly similar queries, reducing LLM costs and latency.",
+    group: "Phase 11 — Production Ops",
+    difficulty: "medium",
+    xpReward: 50,
+    starterCode: `from typing import Dict, List, Optional
+import math
+
+class SemanticCache:
+    def __init__(self, similarity_threshold: float = 0.95):
+        # Format: [ {"query": "...", "vector": [...], "response": "..."} ]
+        self.cache = []
+        self.threshold = similarity_threshold
+        
+    def get(self, query_vector: List[float]) -> Optional[str]:
+        """
+        Check if a highly similar query exists in the cache.
+        If similarity >= self.threshold, return the cached response.
+        Otherwise return None.
+        """
+        # TODO: Implement semantic cache retrieval
+        raise NotImplementedError
+        
+    def set(self, query_text: str, query_vector: List[float], response: str):
+        """
+        Store a new query and response in the cache.
+        """
+        # TODO: Implement cache storage
+        raise NotImplementedError
+
+def compute_similarity(v1: List[float], v2: List[float]) -> float:
+    # Assuming normalized vectors, return dot product
+    return sum(a * b for a, b in zip(v1, v2))
+`,
+    testCode: `cache = SemanticCache(similarity_threshold=0.90)
+
+# Mock some query embeddings
+q1_vec = [1.0, 0.0, 0.0]  # "What is RAG?"
+q2_vec = [0.99, 0.14, 0.0] # "Can you explain RAG to me?" (Highly similar)
+q3_vec = [0.0, 1.0, 0.0]  # "How do I bake a cake?" (Different)
+
+# Populate cache
+cache.set("What is RAG?", q1_vec, "RAG stands for Retrieval-Augmented Generation.")
+
+# Test exact match (or very close)
+result1 = cache.get(q2_vec)
+print("Query 2 cache hit:", result1)
+assert result1 == "RAG stands for Retrieval-Augmented Generation.", "Should hit cache for similar query"
+
+# Test cache miss
+result2 = cache.get(q3_vec)
+print("Query 3 cache hit:", result2)
+assert result2 is None, "Should miss cache for different query"
+
+print("All tests passed!")`,
+    hints: [
+      "Iterate through all items in self.cache and compute similarity.",
+      "Keep track of the highest similarity found.",
+      "If the highest similarity is greater than or equal to self.threshold, return that item's response.",
+    ],
+    solution: `from typing import Dict, List, Optional
+
+class SemanticCache:
+    def __init__(self, similarity_threshold: float = 0.95):
+        self.cache = []
+        self.threshold = similarity_threshold
+        
+    def get(self, query_vector: List[float]) -> Optional[str]:
+        if not self.cache:
+            return None
+            
+        best_sim = -1.0
+        best_response = None
+        
+        for item in self.cache:
+            sim = compute_similarity(query_vector, item["vector"])
+            if sim > best_sim:
+                best_sim = sim
+                best_response = item["response"]
+                
+        if best_sim >= self.threshold:
+            return best_response
+            
+        return None
+        
+    def set(self, query_text: str, query_vector: List[float], response: str):
+        self.cache.append({
+            "query": query_text,
+            "vector": query_vector,
+            "response": response
+        })
+
+def compute_similarity(v1: List[float], v2: List[float]) -> float:
+    return sum(a * b for a, b in zip(v1, v2))`,
+    timeEstimate: { minutes: 25, label: "25-35 min" },
+    realWorld: {
+      description: "Semantic caching (like GPTCache) intercepts queries before they hit the expensive retrieval/LLM generation steps. If a user asks 'how do I reset password' and another asks 'how to change password', they both get the same cached answer instantly.",
+      companies: ["Zilliz", "Redis", "Cloudflare"],
+      useCases: ["Cost Reduction", "Latency Optimization", "FAQ Chatbots"],
+    },
+    relatedChallenges: ["embedding-cache", "rag-cost-calculator"],
+    relatedPlaybooks: ["rag-techniques-encyclopedia"],
+  },
+  {
+    slug: "query-router",
+    title: "Query Router (Fast vs Slow Path)",
+    description:
+      "Route queries to different RAG pipelines based on their difficulty. Send simple factual questions to a fast path and complex multi-step reasoning to a slow path.",
+    group: "Phase 7 — Agentic RAG",
+    difficulty: "medium",
+    xpReward: 50,
+    starterCode: `from typing import List, Dict
+
+# Mock pipelines
+def fast_path_rag(query: str) -> str:
+    return f"[FAST PATH] Direct keyword match for: {query}"
+
+def slow_path_rag(query: str) -> str:
+    return f"[SLOW PATH] Deep reasoning & multi-hop retrieval for: {query}"
+
+def direct_answer(query: str) -> str:
+    return f"[NO RAG] Generic conversational response to: {query}"
+
+def route_query(query: str) -> str:
+    """
+    Analyze the query and determine the routing path.
+    1. If greeting/chit-chat -> 'direct'
+    2. If contains 'compare', 'analyze', 'why', 'how does' -> 'slow'
+    3. Default -> 'fast'
+    
+    Then call the appropriate function.
+    """
+    # TODO: Implement routing logic
+    raise NotImplementedError
+`,
+    testCode: `res1 = route_query("Hello! How are you today?")
+print("Res 1:", res1)
+assert "NO RAG" in res1, "Greetings should bypass RAG"
+
+res2 = route_query("What is the capital of France?")
+print("Res 2:", res2)
+assert "FAST PATH" in res2, "Simple fact questions should use fast path"
+
+res3 = route_query("Can you compare the architecture of Transformer and RNN, and explain why Transformers are faster?")
+print("Res 3:", res3)
+assert "SLOW PATH" in res3, "Complex analysis should use slow path"
+
+print("All tests passed!")`,
+    hints: [
+      "Use simple keyword matching (`in query.lower()`) to classify.",
+      "Greetings: 'hello', 'hi', 'hey', 'how are you'.",
+      "Analysis: 'compare', 'analyze', 'why', 'how does'.",
+    ],
+    solution: `from typing import List, Dict
+
+def fast_path_rag(query: str) -> str:
+    return f"[FAST PATH] Direct keyword match for: {query}"
+
+def slow_path_rag(query: str) -> str:
+    return f"[SLOW PATH] Deep reasoning & multi-hop retrieval for: {query}"
+
+def direct_answer(query: str) -> str:
+    return f"[NO RAG] Generic conversational response to: {query}"
+
+def route_query(query: str) -> str:
+    q_lower = query.lower()
+    
+    # Check for chit-chat
+    chit_chat_words = ["hello", "hi", "hey", "how are you", "good morning"]
+    if any(q_lower.startswith(w) or q_lower == w for w in chit_chat_words):
+        return direct_answer(query)
+        
+    # Check for complex reasoning
+    complex_words = ["compare", "analyze", "why", "how does", "explain the difference"]
+    if any(w in q_lower for w in complex_words):
+        return slow_path_rag(query)
+        
+    # Default to fast path for standard retrieval
+    return fast_path_rag(query)`,
+    timeEstimate: { minutes: 20, label: "20-30 min" },
+    realWorld: {
+      description: "In production, not all queries require a $0.05 GPT-4o call + 3 Vector DB searches. Routing 'Hello' to a fast cheap model, and 'Compare our Q3 revenue to Q4' to a deep-research agent saves massive amounts of money and time.",
+      companies: ["Anthropic", "Cohere", "LangChain"],
+      useCases: ["Cost Optimization", "Adaptive RAG", "Agentic Systems"],
+    },
+    relatedChallenges: ["tool-use-basics", "route-by-difficulty"],
+    relatedPlaybooks: ["rag-techniques-encyclopedia"],
+  }
 ];

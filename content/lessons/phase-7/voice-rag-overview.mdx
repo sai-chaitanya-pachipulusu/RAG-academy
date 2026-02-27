@@ -1,0 +1,93 @@
+---
+title: "Voice & Audio RAG Overview"
+description: "Emerging patterns for handling audio streams and voice queries in RAG systems."
+order: 5
+estimatedMinutes: 25
+stage: frontier
+prerequisites:
+  - phase: phase-6
+    slug: scaling-rag
+next:
+  phase: phase-7
+  slug: realtime-rag
+outcomes:
+  - "Understand the architecture of Voice RAG."
+  - "Learn the difference between cascade and native audio models."
+  - "Identify latency bottlenecks in voice interfaces."
+tags: ["voice", "audio", "frontier", "2025"]
+sources:
+  - title: "OpenAI Realtime API Docs"
+    url: "https://platform.openai.com/docs/guides/realtime"
+    type: "blog"
+---
+
+# Voice & Audio RAG Overview
+
+## Goals
+- Understand the architecture of Voice RAG systems.
+- Learn the difference between cascade (STT -> LLM -> TTS) and native audio models.
+- Identify and mitigate latency bottlenecks in voice interfaces.
+
+## Prereqs
+- Read: **Realtime RAG** (Phase 7).
+- Read: **Introduction to Agentic RAG** (Phase 5).
+
+## Core Idea
+Voice RAG introduces a new constraint that text RAG doesn't have: **strict latency requirements**. In text chat, a user might wait 3-5 seconds for a well-researched answer. On a voice call, a 3-second pause feels like a dropped connection. 
+
+This requires fundamentally changing how retrieval and generation are pipelined.
+
+## Architecture 1: The Cascade Approach
+The traditional way to build Voice RAG is stringing together separate models:
+
+1. **Speech-to-Text (STT)**: User speaks -> Whisper transcribes to text.
+2. **Text RAG**: Standard text retrieval and generation.
+3. **Text-to-Speech (TTS)**: LLM generates text -> ElevenLabs/OpenAI TTS speaks it back.
+
+### The Latency Problem
+If STT takes 500ms, RAG takes 2000ms, and TTS takes 500ms, the user waits 3 seconds before hearing the first word.
+
+### The Solution: Streaming Everything
+To make cascade voice RAG feel conversational, you must stream the entire pipeline:
+- Stream audio chunks to STT to get partial transcripts.
+- Stream partial transcripts to the LLM to begin generating text.
+- Stream LLM text chunks (sentences) directly into the TTS model.
+- Stream TTS audio back to the user before the full sentence is even finished generating.
+
+## Architecture 2: Native Audio Models
+In late 2024 and 2025, native multimodal models (like GPT-4o and Gemini 1.5 Pro) emerged. These models don't need separate STT or TTS steps—they process audio natively and generate audio natively.
+
+```
+User Voice -> Native Audio LLM (with RAG tools) -> Voice Response
+```
+
+### Advantages
+- **Lower latency**: Eliminates the overhead of separate STT and TTS models.
+- **Emotion & Tone**: Native audio models can hear tone, urgency, and background noise, and can respond with appropriate emotion.
+- **Interruption handling**: Native models are much better at handling user interruptions (barge-in) mid-sentence.
+
+## Indexing Audio Data
+What if the *source documents* are audio (e.g., podcasts, meeting recordings, sales calls)?
+
+1. **Transcription & Diarization**: Transcribe the audio and identify *who* is speaking (diarization).
+2. **Timestamp mapping**: Every chunk of text must retain its exact audio timestamp.
+3. **Chunking**: Chunk by speaker turns or topic changes, not just fixed characters.
+4. **Retrieval**: When returning the context to the user, you can return the text transcript *and* a playable audio snippet starting at the mapped timestamp.
+
+## Summary
+Voice RAG is moving rapidly from the clunky Cascade approach to low-latency Native Audio models. If you are building Voice RAG today, focus heavily on streaming architectures and handling user interruptions gracefully.
+
+## Failure modes
+- **Latency Spikes**: Waiting for the entire STT/TTS roundtrip creates unnatural conversation.
+- **Interruption Failures**: Not stopping TTS or LLM generation when the user interrupts (barge-in).
+- **Background Noise**: STT transcribing dogs barking or keyboard typing as user input, triggering false RAG queries.
+
+## Production defaults
+- **Use Streaming**: Stream input audio, LLM output, and TTS output simultaneously.
+- **VAD (Voice Activity Detection)**: Use a fast VAD model to detect when the user stops speaking before triggering the RAG pipeline.
+- **Native Multimodal**: If budget permits, use native audio models (GPT-4o) over cascade pipelines.
+
+## Do next
+1. Move on to **Realtime RAG**.
+2. Experiment with OpenAI's Realtime API.
+3. Learn how to map audio timestamps for Audio Indexing.

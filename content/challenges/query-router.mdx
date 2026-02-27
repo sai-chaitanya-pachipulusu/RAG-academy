@@ -1,0 +1,27 @@
+---
+title: "Query Router (Fast vs Slow Path)"
+description: "Route queries to different RAG pipelines based on their difficulty."
+difficulty: "medium"
+xpReward: 50
+topics: ["agentic-rag", "routing", "production", "optimization"]
+prerequisites: ["route-by-difficulty"]
+---
+
+# Query Router (Fast vs Slow Path)
+
+## The Challenge
+
+In production, not all queries require an expensive GPT-4o call and multiple vector database searches. 
+
+- A simple greeting ("Hello") doesn't need RAG at all.
+- A simple fact lookup ("What is the capital of France?") needs a basic fast RAG pipeline.
+- A complex analysis ("Compare Q3 and Q4 revenue and explain the drop") needs a slow, agentic, multi-step RAG pipeline.
+
+### Your Task
+Implement a `route_query` function that analyzes a query and determines the optimal path:
+1. If the query is a greeting, route it to `direct_answer`.
+2. If the query contains analysis keywords (compare, analyze, why, how does), route it to `slow_path_rag`.
+3. Otherwise, route it to `fast_path_rag`.
+
+### Why this matters
+Routing is the key to optimizing both cost and latency in production AI systems. By reserving expensive models and long context windows only for queries that actually need them, you can dramatically improve the unit economics of your application.
