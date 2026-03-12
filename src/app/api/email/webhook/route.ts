@@ -49,9 +49,14 @@ function verifyWebhookSignature(payload: string, signature: string | null): bool
     return true;
   }
   
-  // In production, verify the signature using Resend's method
-  // https://resend.com/docs/dashboard/webhooks#verifying-webhooks
-  return true;
+  if (!signature) {
+    console.warn('No signature provided in request');
+    return false;
+  }
+  
+  // Simple token comparison (not secure for production!)
+  // In production, use proper HMAC verification as per Resend docs
+  return signature === webhookSecret;
 }
 
 export async function POST(request: NextRequest) {

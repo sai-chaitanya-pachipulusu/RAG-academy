@@ -8,7 +8,7 @@
  */
 
 import { useState } from "react";
-import { TEST_CARDS, type TestCardKey } from "@/lib/payments/paddle";
+import { TEST_CARDS, type TestCardKey } from "@/lib/payments/polar";
 
 interface TestCardDisplayProps {
   showTitle?: boolean;

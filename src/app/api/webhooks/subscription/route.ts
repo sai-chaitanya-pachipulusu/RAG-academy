@@ -124,17 +124,38 @@ export async function POST(request: NextRequest) {
  */
 function verifyWebhookSignature(payload: any, signature: string | null): boolean {
   // Implement based on your payment provider's webhook verification
-  // For Polar, use their webhook signing secret
+  // For Polar, use their webhook signing secret with HMAC-SHA256
   
-  const webhookSecret = process.env.PAYMENT_WEBHOOK_SECRET;
+  const webhookSecret = process.env.POLAR_WEBHOOK_SECRET;
   
   if (!webhookSecret) {
-    console.warn('PAYMENT_WEBHOOK_SECRET not set, skipping verification');
+    console.warn('POLAR_WEBHOOK_SECRET not set, skipping verification');
     return true;
   }
   
-  // TODO: Implement proper signature verification
-  return true;
+  if (!signature) {
+    console.warn('No signature provided in request');
+    return false;
+  }
+
+  try {
+    const crypto = require("crypto");
+    
+    // Convert payload to string if it's an object
+    const payloadString = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    
+    const hmac = crypto.createHmac("sha256", webhookSecret);
+    hmac.update(payloadString);
+    const computedSignature = hmac.digest("hex");
+
+    return crypto.timingSafeEqual(
+      Buffer.from(signature),
+      Buffer.from(computedSignature)
+    );
+  } catch (error) {
+    console.error("Webhook signature verification failed:", error);
+    return false;
+  }
 }
 
 /**

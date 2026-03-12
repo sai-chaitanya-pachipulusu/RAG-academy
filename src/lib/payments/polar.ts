@@ -4,6 +4,9 @@
  * Handles checkout creation, webhook verification, and subscription management.
  * Uses Polar's API for payment processing.
  * Documentation: https://polar.sh/docs
+ *
+ * Note: This implementation assumes you're using Polar's production API.
+ * For sandbox testing, you would need separate sandbox credentials.
  */
 
 import { Polar } from "@polar-sh/sdk";
@@ -24,21 +27,38 @@ export interface PolarSubscription {
   currentPeriodEnd?: string;
 }
 
+/**
+ * Base URL for Polar API (used for direct fetch calls)
+ * Note: The Polar SDK handles this internally, but we keep this for direct calls
+ */
 const POLAR_API_URL = "https://api.polar.sh/v1";
 
+/**
+ * Initialize Polar client with proper configuration
+ * 
+ * @returns Polar client instance
+ * @throws Error if POLAR_ACCESS_TOKEN is not configured
+ */
 function getPolarClient(): Polar {
   const accessToken = process.env.POLAR_ACCESS_TOKEN;
   if (!accessToken) {
     throw new Error("POLAR_ACCESS_TOKEN not configured");
   }
 
-  // Token only works with production API
+  // Token only works with production API (as confirmed by testing)
   return new Polar({
     accessToken,
     server: "production",
   });
 }
 
+/**
+ * Get the Polar product price ID for a given tier and billing cycle
+ * 
+ * @param tier - Subscription tier (pro, team, lifetime)
+ * @param billingCycle - Billing frequency (monthly, annual, lifetime)
+ * @returns Product price ID or null if not configured
+ */
 export function getPolarProductPriceId(
   tier: PolarTier,
   billingCycle: PolarBillingCycle
@@ -55,6 +75,12 @@ export function getPolarProductPriceId(
   return envVarMap[key] || null;
 }
 
+/**
+ * Create a Polar checkout session
+ * 
+ * @param params - Checkout parameters
+ * @returns Promise resolving to checkout session data
+ */
 export async function createPolarCheckout(params: {
   productPriceId: string;
   userId: string;
@@ -90,6 +116,12 @@ export async function createPolarCheckout(params: {
   };
 }
 
+/**
+ * Get checkout session details by ID
+ * 
+ * @param checkoutId - Checkout session ID
+ * @returns Promise resolving to checkout data or null if failed
+ */
 export async function getPolarCheckout(checkoutId: string) {
   try {
     const polar = getPolarClient();
@@ -100,6 +132,12 @@ export async function getPolarCheckout(checkoutId: string) {
   }
 }
 
+/**
+ * Get customer portal URL for managing subscriptions
+ * 
+ * @returns Promise resolving to customer portal URL
+ * @throws Error if organization slug is not configured
+ */
 export async function getPolarCustomerPortalUrl(): Promise<string> {
   const organizationSlug = process.env.NEXT_PUBLIC_POLAR_ORGANIZATION_SLUG;
   if (!organizationSlug) {
@@ -109,6 +147,12 @@ export async function getPolarCustomerPortalUrl(): Promise<string> {
   return `https://polar.sh/${organizationSlug}/settings`;
 }
 
+/**
+ * Cancel a subscription
+ * 
+ * @param subscriptionId - Subscription ID to cancel
+ * @returns Promise resolving to boolean indicating success
+ */
 export async function cancelPolarSubscription(subscriptionId: string): Promise<boolean> {
   const accessToken = process.env.POLAR_ACCESS_TOKEN;
   if (!accessToken) {
@@ -130,6 +174,12 @@ export async function cancelPolarSubscription(subscriptionId: string): Promise<b
   }
 }
 
+/**
+ * Get subscription details
+ * 
+ * @param subscriptionId - Subscription ID
+ * @returns Promise resolving to subscription data or null if failed
+ */
 export async function getPolarSubscription(subscriptionId: string) {
   try {
     const polar = getPolarClient();
@@ -140,6 +190,15 @@ export async function getPolarSubscription(subscriptionId: string) {
   }
 }
 
+/**
+ * Verify Polar webhook signature
+ * Polar uses HMAC-SHA256 for webhook verification
+ * 
+ * @param payload - Raw webhook payload
+ * @param signature - Signature from Polar-Signature header
+ * @param secret - Webhook secret from environment
+ * @returns Boolean indicating if signature is valid
+ */
 export function verifyPolarWebhookSignature(
   payload: string,
   signature: string,
@@ -167,6 +226,10 @@ export function verifyPolarWebhookSignature(
   }
 }
 
+/**
+ * Test card numbers for Polar sandbox
+ * Note: Polar uses Stripe as payment processor in sandbox
+ */
 export const TEST_CARDS = {
   success: {
     number: "4242 4242 4242 4242",
@@ -213,3 +276,4 @@ export const TEST_CARDS = {
 } as const;
 
 export type TestCardKey = keyof typeof TEST_CARDS;
+

@@ -13,6 +13,7 @@ Interactive, code-first learning for Retrieval‑Augmented Generation (RAG).
   - Monaco editor + output panel
   - Pyodide executes Python in a Web Worker
   - First challenge: `/challenges/dot-product`
+- **Payment processing**: Integrated with Polar.sh for subscription management
 
 ### Local development
 
@@ -26,6 +27,15 @@ Create `.env.local` (copy from `.env.example`) and set:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `POLAR_ACCESS_TOKEN` (from Polar dashboard)
+- `POLAR_WEBHOOK_SECRET` (from Polar dashboard)
+- `POLAR_PRODUCT_PRO_MONTHLY` (Product ID from Polar)
+- `POLAR_PRODUCT_PRO_ANNUAL` (Product ID from Polar)
+- `POLAR_PRODUCT_TEAM_MONTHLY` (Product ID from Polar)
+- `POLAR_PRODUCT_TEAM_ANNUAL` (Product ID from Polar)
+- `POLAR_PRODUCT_LIFETIME` (Product ID from Polar)
+- `NEXT_PUBLIC_POLAR_ORGANIZATION_SLUG` (your Polar organization slug)
 
 Run dev server:
 
