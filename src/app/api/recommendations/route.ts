@@ -7,14 +7,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { RecommendationEngine } from "@/lib/recommendations/engine";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+function getSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error("Missing Supabase environment variables");
+  if (!url || !key) {
+    return null;
+  }
+
+  return createClient(url, key);
 }
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // ============================================
 // GET - Fetch recommendations
@@ -90,6 +92,9 @@ async function buildRecommendationContext(userId: string) {
   };
 
   try {
+    const supabase = getSupabaseAdmin();
+    if (!supabase) return context;
+
     // Fetch user progress
     const { data: progress } = await supabase
       .from("user_progress")
@@ -98,12 +103,12 @@ async function buildRecommendationContext(userId: string) {
 
     if (progress) {
       context.completedChallenges = progress
-        .filter((p: any) => p.status === 'completed')
-        .map((p: any) => p.challenge_slug);
+        .filter((p: { status: string }) => p.status === 'completed')
+        .map((p: { challenge_slug: string }) => p.challenge_slug);
       
       context.inProgressChallenges = progress
-        .filter((p: any) => p.status === 'in_progress')
-        .map((p: any) => p.challenge_slug);
+        .filter((p: { status: string }) => p.status === 'in_progress')
+        .map((p: { challenge_slug: string }) => p.challenge_slug);
     }
 
     // Fetch skill gaps
@@ -115,7 +120,12 @@ async function buildRecommendationContext(userId: string) {
       .limit(10);
 
     if (skillGaps) {
-      context.skillGaps = skillGaps.map((g: any) => ({
+      context.skillGaps = skillGaps.map((g: { 
+        skill_category: string; 
+        skill_name: string; 
+        proficiency_score: number; 
+        gap_severity: string;
+      }) => ({
         skillCategory: g.skill_category,
         skillName: g.skill_name,
         proficiencyScore: g.proficiency_score,
@@ -132,7 +142,11 @@ async function buildRecommendationContext(userId: string) {
       .limit(10);
 
     if (analytics) {
-      context.recentActivity = analytics.map((a: any) => ({
+      context.recentActivity = analytics.map((a: { 
+        challenge_slug: string; 
+        last_attempt_at: string; 
+        completed_at: string | null;
+      }) => ({
         challengeSlug: a.challenge_slug,
         action: a.completed_at ? 'completed' : 'started',
         timestamp: a.last_attempt_at,

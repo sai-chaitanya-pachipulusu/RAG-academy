@@ -129,8 +129,8 @@ function verifyWebhookSignature(payload: any, signature: string | null): boolean
   const webhookSecret = process.env.POLAR_WEBHOOK_SECRET;
   
   if (!webhookSecret) {
-    console.warn('POLAR_WEBHOOK_SECRET not set, skipping verification');
-    return true;
+    console.error('POLAR_WEBHOOK_SECRET not set — rejecting webhook for security');
+    return false;
   }
   
   if (!signature) {

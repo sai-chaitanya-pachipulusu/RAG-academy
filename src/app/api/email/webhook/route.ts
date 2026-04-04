@@ -35,18 +35,15 @@ interface ResendWebhookEvent {
 }
 
 /**
- * Verify Resend webhook signature
- * Note: In production, implement proper signature verification
- * using Resend's webhook signing secret
+ * Verify Resend webhook signature using HMAC-SHA256
+ * Resend signs webhooks with a signing secret from the dashboard
  */
 function verifyWebhookSignature(payload: string, signature: string | null): boolean {
-  // TODO: Implement proper signature verification
-  // For now, we'll check for a simple secret token
   const webhookSecret = process.env.RESEND_WEBHOOK_SECRET;
   
   if (!webhookSecret) {
-    console.warn('RESEND_WEBHOOK_SECRET not set, skipping signature verification');
-    return true;
+    console.error('RESEND_WEBHOOK_SECRET not set — rejecting webhook for security');
+    return false;
   }
   
   if (!signature) {
@@ -54,9 +51,21 @@ function verifyWebhookSignature(payload: string, signature: string | null): bool
     return false;
   }
   
-  // Simple token comparison (not secure for production!)
-  // In production, use proper HMAC verification as per Resend docs
-  return signature === webhookSecret;
+  try {
+    const crypto = require("crypto");
+    
+    const hmac = crypto.createHmac("sha256", webhookSecret);
+    hmac.update(payload);
+    const computedSignature = hmac.digest("hex");
+
+    return crypto.timingSafeEqual(
+      Buffer.from(signature),
+      Buffer.from(computedSignature)
+    );
+  } catch (error) {
+    console.error("Webhook signature verification failed:", error);
+    return false;
+  }
 }
 
 export async function POST(request: NextRequest) {

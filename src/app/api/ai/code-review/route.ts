@@ -9,7 +9,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getLLMCodeReview } from "@/lib/ai/llmReview";
-import { hasQuota, consumeQuota, getQuotaStatus } from "@/lib/ai/quota";
+import { hasQuota, consumeQuota, refundQuota, getQuotaStatus } from "@/lib/ai/quota";
 import { rateLimit, getClientIp } from "@/lib/security/rateLimit";
 import { verifySupabaseAccessToken } from "@/lib/supabase/serverAuth";
 import type { CodeReviewRequest } from "@/lib/ai/types";

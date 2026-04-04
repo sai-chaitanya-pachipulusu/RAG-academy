@@ -109,6 +109,29 @@ export function getQuotaStatus(userId: string): {
 }
 
 /**
+ * Refund one review to user's quota (used when review fails)
+ */
+export function refundQuota(userId: string): { success: boolean; remaining: number } {
+  const quota = getUserQuota(userId);
+
+  if (quota.hasUnlimited) {
+    return { success: true, remaining: Infinity };
+  }
+
+  if (quota.usedToday <= 0) {
+    return { success: false, remaining: quota.dailyLimit };
+  }
+
+  quota.usedToday -= 1;
+  quotaStore.set(userId, quota);
+
+  return {
+    success: true,
+    remaining: quota.dailyLimit - quota.usedToday,
+  };
+}
+
+/**
  * Set unlimited access for a user (e.g., for premium subscribers)
  */
 export function setUnlimitedAccess(userId: string, unlimited: boolean): void {
