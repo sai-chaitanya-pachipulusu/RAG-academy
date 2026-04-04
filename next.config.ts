@@ -5,6 +5,15 @@ const nextConfig: NextConfig = {
     root: process.cwd(),
   },
 
+  // Optimize package imports to reduce bundle size
+  experimental: {
+    optimizePackageImports: [
+      "lucide-react",
+      "framer-motion",
+      "@supabase/supabase-js",
+    ],
+  },
+
   // Security headers for production
   async headers() {
     return [
@@ -30,6 +39,10 @@ const nextConfig: NextConfig = {
           {
             key: "Strict-Transport-Security",
             value: "max-age=31536000; includeSubDomains",
+          },
+          {
+            key: "Content-Security-Policy",
+            value: "frame-ancestors 'none';",
           },
         ],
       },
