@@ -119,9 +119,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     // Check user quota
-    const quotaCheck = hasQuota(userId);
+    const quotaCheck = await hasQuota(userId);
     if (!quotaCheck.allowed) {
-      const quotaStatus = getQuotaStatus(userId);
+      const quotaStatus = await getQuotaStatus(userId);
       return NextResponse.json(
         {
           success: false,
@@ -138,7 +138,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     // Consume quota
-    const quotaResult = consumeQuota(userId);
+    const quotaResult = await consumeQuota(userId);
     if (!quotaResult.success) {
       return NextResponse.json(
         { success: false, error: "Failed to consume quota" },
@@ -154,7 +154,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
 
     // Get updated quota status
-    const finalQuotaStatus = getQuotaStatus(userId);
+    const finalQuotaStatus = await getQuotaStatus(userId);
 
     // Return response
     if (reviewResult.success) {
@@ -177,9 +177,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       });
     } else {
       // Refund quota on failure
-      const quota = getQuotaStatus(userId);
-      // Note: In a real implementation, you'd want to properly refund the quota
-      // For now, we just return the error
+      await refundQuota(userId);
+      const quota = await getQuotaStatus(userId);
 
       return NextResponse.json(
         {
@@ -209,7 +208,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
  */
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const userId = await getUserId(req);
-  const quota = getQuotaStatus(userId);
+  const quota = await getQuotaStatus(userId);
 
   return NextResponse.json({
     success: true,
