@@ -1,21 +1,33 @@
 ---
-title: "Legal Clause Chunking: Contract-Aware Boundaries"
-description: "Learn to chunk legal documents by clause structure for accurate retrieval and compliance"
-prompt: |
+title: 'Legal Clause Chunking: Contract-Aware Boundaries'
+description: >-
+  Learn to chunk legal documents by clause structure for accurate retrieval and
+  compliance
+prompt: >
   # Legal Clause Chunking
 
-  Legal documents have strict structure: articles, clauses, sections, schedules. Splitting a clause mid-sentence can change legal meaning entirely!
+
+  Legal documents have strict structure: articles, clauses, sections, schedules.
+  Splitting a clause mid-sentence can change legal meaning entirely!
+
 
   ## The Problem
 
+
   Standard chunking on legal text is dangerous:
+
   - **"The Buyer shall pay... [chunk break] ...upon delivery"** → Meaning lost
+
   - **Cross-references**: "per Section 3.2" must link to actual Section 3.2
+
   - **Definitions**: Terms defined in Section 1 used throughout
+
 
   ## Legal Document Structure
 
+
   ```
+
   ARTICLE I - DEFINITIONS
     Section 1.1. "Agreement" means...
     Section 1.2. "Party" means...
@@ -26,29 +38,48 @@ prompt: |
       (b) sub-clause...
   ```
 
+
   ## Your Task
 
+
   Implement `legal_clause_chunk()` that:
+
   1. Detects ARTICLE patterns (ARTICLE I, ARTICLE 1, etc.)
+
   2. Detects Section patterns (Section 1.1, Section 2., etc.)
+
   3. Detects sub-clauses ((a), (b), (c), etc.)
+
   4. Tracks hierarchy: [Article I > Section 1.1 > (a)]
+
 
   ## Common Legal Patterns
 
+
   | Pattern | Regex | Purpose |
+
   |---------|-------|---------|
+
   | Articles | `^ARTICLE\s+[IVX]+` | Major divisions |
+
   | Sections | `^Section\s+\d+\.\d*` | Numbered clauses |
+
   | Sub-clauses | `^\([a-z]\)` | Lettered items |
+
   | Recitals | `^WHEREAS` | Background context |
+
   | Operative | `^NOW THEREFORE` | Binding provisions |
+
 
   ## Real-World Usage
 
+
   - **Harvey AI**: AI for legal analysis
+
   - **Kira Systems**: Contract review automation
+
   - **Luminance**: Due diligence platform
+difficulty: medium
 ---
 
 Legal clause chunking respects the strict hierarchical structure of contracts and legal documents, ensuring chunks align with legal meaning.

@@ -1,41 +1,71 @@
 ---
-title: "Document-Level Chunking: When Documents Are Chunks"
-description: "Learn when to use entire documents as chunks - essential for FAQs, support tickets, and short-form content"
-prompt: |
+title: 'Document-Level Chunking: When Documents Are Chunks'
+description: >-
+  Learn when to use entire documents as chunks - essential for FAQs, support
+  tickets, and short-form content
+prompt: >
   # Document-Level Chunking
 
-  Not all documents need chunking! Short, self-contained documents like support tickets, FAQs, and news snippets are already perfect retrieval units. Over-chunking them destroys context unnecessarily.
+
+  Not all documents need chunking! Short, self-contained documents like support
+  tickets, FAQs, and news snippets are already perfect retrieval units.
+  Over-chunking them destroys context unnecessarily.
+
 
   ## The Problem
 
+
   Applying aggressive chunking to short documents causes problems:
-  - **FAQ entries**: "Q: How do I reset?" / "A: Go to settings" → Split into meaningless fragments
+
+  - **FAQ entries**: "Q: How do I reset?" / "A: Go to settings" → Split into
+  meaningless fragments
+
   - **Support tickets**: Context is lost when ticket is broken into pieces
+
   - **News snippets**: Headline separated from content ruins understanding
+
 
   ## Your Task
 
+
   Implement `document_level_chunk()` that:
+
   1. Uses entire documents as chunks when they're short enough
+
   2. Only splits documents that exceed a size threshold
+
   3. Applies overlap when splitting long documents
+
   4. Tracks document IDs and chunk indices
+
 
   ## When to Use Document-Level Chunking
 
+
   | Document Type | Typical Size | Recommendation |
+
   |--------------|--------------|----------------|
+
   | Support tickets | 50-500 chars | Use whole doc |
+
   | FAQ entries | 100-800 chars | Use whole doc |
+
   | News articles | 500-3000 chars | 1-3 chunks max |
+
   | Blog posts | 2000-10000 chars | Standard chunking |
+
   | Research papers | 10000+ chars | Standard chunking |
+
 
   ## Real-World Usage
 
+
   - **Zendesk/Intercom**: Tickets are single retrieval units
+
   - **Help desk systems**: Each FAQ = one searchable unit
+
   - **News aggregators**: Article-level for headline search
+difficulty: medium
 ---
 
 Document-level chunking recognizes that some content is already perfectly sized for retrieval. Over-chunking short documents destroys context and hurts retrieval quality.

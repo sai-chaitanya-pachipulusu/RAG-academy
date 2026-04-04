@@ -265,7 +265,7 @@ async function logWebhookEvent(event: any): Promise<void> {
 }
 
 async function syncSubscriptionToDatabase(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   params: {
     userId: string;
     tier: PolarTier;

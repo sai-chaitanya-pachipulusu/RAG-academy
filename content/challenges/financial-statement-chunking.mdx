@@ -1,21 +1,32 @@
 ---
-title: "Financial Statement Chunking: Structured Data Extraction"
-description: "Learn to chunk financial documents with proper context for numbers and tables"
-prompt: |
+title: 'Financial Statement Chunking: Structured Data Extraction'
+description: Learn to chunk financial documents with proper context for numbers and tables
+prompt: >
   # Financial Statement Chunking
 
-  Financial documents have specific structure: MD&A, income statements, balance sheets, notes. Numbers are MEANINGLESS without context - "$25M" means nothing without knowing it's Net Income up from $20M last year.
+
+  Financial documents have specific structure: MD&A, income statements, balance
+  sheets, notes. Numbers are MEANINGLESS without context - "$25M" means nothing
+  without knowing it's Net Income up from $20M last year.
+
 
   ## The Problem
 
+
   Standard chunking on financial documents:
+
   - **Splits tables mid-row**: "Revenue | $100M" separated from "$83M"
+
   - **Loses note context**: "See Note 1" separated from Note 1 content
+
   - **Mixes sections**: MD&A commentary mixed with raw figures
+
 
   ## Financial Document Structure
 
+
   ```
+
   MANAGEMENT DISCUSSION & ANALYSIS
     [Narrative explaining performance]
 
@@ -29,30 +40,50 @@ prompt: |
     [Detailed explanation]
   ```
 
+
   ## Your Task
 
+
   Implement `financial_statement_chunk()` that:
+
   1. Detects standard financial sections (MD&A, Income Statement, etc.)
+
   2. Preserves tables as atomic units
+
   3. Extracts note references
+
   4. Links sections to their explanatory notes
+
 
   ## Financial Section Types
 
+
   | Section | Content Type | Handling |
+
   |---------|--------------|----------|
+
   | MD&A | Narrative | Standard text chunking |
+
   | Income Statement | Tables + numbers | Keep tables atomic |
+
   | Balance Sheet | Tables | Keep tables atomic |
+
   | Cash Flow | Tables | Keep tables atomic |
+
   | Notes | Explanatory | Link to references |
+
   | Auditor Report | Narrative | Standard chunking |
+
 
   ## Real-World Usage
 
+
   - **Bloomberg Terminal**: Financial data in context
+
   - **FactSet**: Investment research
+
   - **AlphaSense**: Earnings call analysis
+difficulty: medium
 ---
 
 Financial statement chunking preserves the critical relationship between numbers, tables, and their explanatory notes in financial documents.

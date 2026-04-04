@@ -1,45 +1,77 @@
 ---
-title: "Max-Min Semantic Chunking: Optimal Boundary Detection"
-description: "Learn to place chunk boundaries at maximum semantic distance for 15-25% better coherence"
-prompt: |
+title: 'Max-Min Semantic Chunking: Optimal Boundary Detection'
+description: >-
+  Learn to place chunk boundaries at maximum semantic distance for 15-25% better
+  coherence
+prompt: >
   # Max-Min Semantic Chunking
 
-  Basic semantic chunking uses arbitrary thresholds. But where exactly should boundaries be? Place them where semantic distance is MAXIMUM between adjacent segments!
+
+  Basic semantic chunking uses arbitrary thresholds. But where exactly should
+  boundaries be? Place them where semantic distance is MAXIMUM between adjacent
+  segments!
+
 
   ## The Insight
 
+
   - **Max inter-chunk distance**: Clear topic separation between chunks
+
   - **Min intra-chunk distance**: Coherent content within chunks
+
   - **Mathematical optimization**: Principled, not arbitrary thresholds
+
 
   ## The Algorithm
 
+
   1. Compute pairwise cosine distances between adjacent sentence embeddings
+
   2. Identify positions with MAXIMUM semantic distance
+
   3. Select top N-1 boundaries for N desired chunks
+
   4. Respect minimum chunk size constraints
+
 
   ## Your Task
 
+
   Implement `maxmin_semantic_chunk()` that:
+
   1. Takes sentences and their embeddings
+
   2. Finds optimal boundary positions
+
   3. Creates chunks with maximum inter-chunk separation
+
   4. Ensures minimum chunk size is respected
+
 
   ## Why This Works
 
-  When topics change, the embedding space shows this as increased cosine distance:
+
+  When topics change, the embedding space shows this as increased cosine
+  distance:
+
 
   ```
+
   Topic A sentences → [similar embeddings]
+
   ↕ LARGE DISTANCE (boundary here!)
+
   Topic B sentences → [different embeddings]
+
   ```
+
 
   ## Research Background
 
-  This technique comes from Greg Kamradt's semantic chunking research and is implemented in advanced RAG systems like Jina AI's embeddings pipeline.
+
+  This technique comes from Greg Kamradt's semantic chunking research and is
+  implemented in advanced RAG systems like Jina AI's embeddings pipeline.
+difficulty: medium
 ---
 
 Max-Min semantic chunking places boundaries where semantic distance is maximum, creating optimally coherent chunks through mathematical optimization rather than arbitrary thresholds.

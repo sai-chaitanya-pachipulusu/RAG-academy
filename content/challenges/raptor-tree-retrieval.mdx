@@ -1,0 +1,59 @@
+---
+title: "RAPTOR Tree Retrieval"
+description: "Implement Recursive Abstractive Processing for Tree-Organized Retrieval — build a hierarchical retrieval system that clusters documents at multiple levels of abstraction."
+difficulty: hard
+xpReward: 180
+tags: ["advanced-retrieval", "hierarchical", "clustering"]
+sources:
+  - "https://arxiv.org/abs/2401.18059"
+  - "https://github.com/parthsarthi03/raptor"
+---
+
+## Overview
+
+RAPTOR (Recursive Abstractive Processing for Tree-Organized Retrieval) builds a tree of document summaries at multiple levels of abstraction. When retrieving, it traverses the tree to find the most relevant nodes at the right level of detail.
+
+## How It Works
+
+1. **Embed** all documents
+2. **Cluster** embeddings using Gaussian Mixture Models
+3. **Summarize** each cluster into a higher-level node
+4. **Repeat** recursively until a single root node remains
+5. **Retrieve** by traversing from root to leaves based on query similarity
+
+## Implementation
+
+```python
+from typing import List, Dict
+import numpy as np
+
+class RAPTORTree:
+    def __init__(self, embed_fn, summarize_fn):
+        self.embed_fn = embed_fn
+        self.summarize_fn = summarize_fn
+        self.tree = {}
+    
+    def build_tree(self, documents: List[str], max_depth: int = 3) -> Dict:
+        """Build RAPTOR tree from documents."""
+        # TODO: Implement recursive clustering and summarization
+        raise NotImplementedError
+    
+    def retrieve(self, query: str, top_k: int = 5) -> List[str]:
+        """Retrieve relevant documents by tree traversal."""
+        # TODO: Implement tree traversal retrieval
+        raise NotImplementedError
+```
+
+## Key Benefits
+
+- Handles queries at different levels of granularity
+- Provides both high-level context and specific details
+- Reduces noise by filtering irrelevant branches early
+- Scales better than flat retrieval for large document sets
+
+## Production Notes
+
+- Use UMAP for dimensionality reduction before clustering
+- Set max depth based on document collection size
+- Cache cluster embeddings for incremental updates
+- Consider hybrid retrieval (RAPTOR + BM25) for best results

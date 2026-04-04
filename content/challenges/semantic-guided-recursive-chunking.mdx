@@ -1,41 +1,69 @@
 ---
-title: "Semantic-Guided Recursive Chunking: Best of Both Worlds"
-description: "Combine structural and semantic chunking for 20-30% better results than either alone"
-prompt: |
+title: 'Semantic-Guided Recursive Chunking: Best of Both Worlds'
+description: >-
+  Combine structural and semantic chunking for 20-30% better results than either
+  alone
+prompt: >
   # Semantic-Guided Recursive Chunking
 
-  Recursive chunking respects structure but ignores semantics. Semantic chunking ignores structure. Why not use both?
+
+  Recursive chunking respects structure but ignores semantics. Semantic chunking
+  ignores structure. Why not use both?
+
 
   ## The Insight
 
-  - **Recursive chunking**: Good at respecting document structure (headings, paragraphs)
+
+  - **Recursive chunking**: Good at respecting document structure (headings,
+  paragraphs)
+
   - **Semantic chunking**: Good at finding topical boundaries
+
   - **Combined approach**: Structure-first, then refine semantically
+
 
   ## The Algorithm
 
-  1. **Phase 1: Structural Split** - Apply recursive chunking on structural boundaries
+
+  1. **Phase 1: Structural Split** - Apply recursive chunking on structural
+  boundaries
+
   2. **Phase 2: Coherence Check** - Compute internal coherence of each chunk
+
   3. **Phase 3: Semantic Refinement**
      - Low coherence → Split at internal semantic boundary
      - High similarity with neighbor → Consider merging
   4. **Result**: Chunks that respect both structure AND semantics
 
+
   ## Your Task
 
+
   Implement `semantic_guided_recursive_chunk()` that:
+
   1. Applies recursive structural splitting
+
   2. Computes coherence for each initial chunk
+
   3. Splits incoherent chunks at semantic boundaries
+
   4. Returns refined chunks with coherence metadata
+
 
   ## Why This Works
 
-  Structure gives us good initial boundaries (paragraph breaks, section headings). But sometimes:
+
+  Structure gives us good initial boundaries (paragraph breaks, section
+  headings). But sometimes:
+
   - A single paragraph covers two topics (split it!)
+
   - Two paragraphs are really one topic (merge consideration)
 
-  Semantic analysis refines the structural boundaries based on actual content similarity.
+
+  Semantic analysis refines the structural boundaries based on actual content
+  similarity.
+difficulty: medium
 ---
 
 Semantic-guided recursive chunking combines the strengths of structural and semantic approaches, respecting document organization while ensuring topical coherence.

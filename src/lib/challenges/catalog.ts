@@ -9,10 +9,9 @@ import { CHALLENGE_STAGE_BY_SLUG } from "@/lib/challenges/defs/stageBySlug";
  * Source: src/lib/search/contentIndex.generated.json
  * To recount: run `npm run build:search-index`
  */
-let _cachedLessonCount: number | null = null;
+let _cachedLessonCount: number = 68;
 
 function computeLessonCount(): number {
-  if (_cachedLessonCount !== null) return _cachedLessonCount;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const index = require("@/lib/search/contentIndex.generated.json");
@@ -21,8 +20,7 @@ function computeLessonCount(): number {
     );
     _cachedLessonCount = lessons.length;
   } catch {
-    // Fallback if index not yet generated
-    _cachedLessonCount = 68;
+    // Keep fallback value if index not yet generated
   }
   return _cachedLessonCount;
 }

@@ -1,23 +1,34 @@
 ---
-title: "Knowledge Graph Extraction"
-slug: "knowledge-graph-extraction"
-difficulty: "medium"
+title: Knowledge Graph Extraction
+slug: knowledge-graph-extraction
+difficulty: medium
 estimatedMinutes: 30
-stage: "advanced-retrieval"
-track: "graph-rag"
-tags: ["graph-rag", "knowledge-graph", "entity-extraction", "nlp"]
-prerequisites: ["entity-extraction"]
-relatedChallenges: ["graph-traversal-rag", "multi-hop-qa"]
+stage: advanced-retrieval
+track: graph-rag
+tags:
+  - graph-rag
+  - knowledge-graph
+  - entity-extraction
+  - nlp
+prerequisites:
+  - entity-extraction
+relatedChallenges:
+  - graph-traversal-rag
+  - multi-hop-qa
 theory:
-  overview: |
-    Knowledge Graph Extraction is the foundation of Graph RAG. It transforms unstructured 
-    text into structured (Subject, Predicate, Object) triples that can be used for 
+  overview: >
+    Knowledge Graph Extraction is the foundation of Graph RAG. It transforms
+    unstructured 
+
+    text into structured (Subject, Predicate, Object) triples that can be used
+    for 
+
     multi-hop reasoning and relationship discovery.
   keyFormulas:
-    - name: "Triple Structure"
-      formula: "(Subject, Predicate, Object) → (Entity_A, Relationship, Entity_B)"
-    - name: "Graph Construction"
-      formula: "G = (V, E) where V = {entities}, E = {(s, p, o) triples}"
+    - name: Triple Structure
+      formula: '(Subject, Predicate, Object) → (Entity_A, Relationship, Entity_B)'
+    - name: Graph Construction
+      formula: 'G = (V, E) where V = {entities}, E = {(s, p, o) triples}'
   visualIntuition: |
     Imagine turning a paragraph like:
     "Alice works at OpenAI. She leads the GPT team."
@@ -28,34 +39,47 @@ theory:
     GPT team --belongs_to--> OpenAI
 
     Now you can answer: "What does Alice's team work on?" by traversing edges.
-  whyItMatters: |
+  whyItMatters: >
     Graph RAG solves problems traditional RAG cannot:
-    1. Multi-hop reasoning: "What projects are at risk based on team dependencies?"
+
+    1. Multi-hop reasoning: "What projects are at risk based on team
+    dependencies?"
+
     2. Thematic synthesis: "What recurring themes exist across our research?"
+
     3. Relationship discovery: "How are topic A and topic B connected?"
   commonMistakes:
-    - "Not normalizing entity names (OpenAI vs OPEN-AI vs Open AI)"
-    - "Extracting too many or too few relationships (balance precision/recall)"
-    - "Missing implicit relationships in the text"
+    - Not normalizing entity names (OpenAI vs OPEN-AI vs Open AI)
+    - Extracting too many or too few relationships (balance precision/recall)
+    - Missing implicit relationships in the text
   interviewTips:
-    - "Mention that extraction quality is the bottleneck for Graph RAG"
-    - "Discuss using NER + LLM for hybrid extraction"
-    - "Reference Leiden algorithm for community detection on the graph"
+    - Mention that extraction quality is the bottleneck for Graph RAG
+    - Discuss using NER + LLM for hybrid extraction
+    - Reference Leiden algorithm for community detection on the graph
 realWorld:
-  description: |
+  description: >
     Microsoft's GraphRAG system uses knowledge graph extraction to enable 
-    question-answering that requires synthesizing information across many documents.
-    It's used for enterprise knowledge management, research synthesis, and compliance.
-  companies: ["Microsoft", "Google", "Amazon", "Neo4j"]
+
+    question-answering that requires synthesizing information across many
+    documents.
+
+    It's used for enterprise knowledge management, research synthesis, and
+    compliance.
+  companies:
+    - Microsoft
+    - Google
+    - Amazon
+    - Neo4j
   useCases:
-    - "Enterprise knowledge base Q&A"
-    - "Research paper synthesis"
-    - "Compliance and audit trails"
-    - "Customer journey analysis"
+    - Enterprise knowledge base Q&A
+    - Research paper synthesis
+    - Compliance and audit trails
+    - Customer journey analysis
 complexity:
-  time: "O(n) where n = number of sentences"
-  space: "O(v + e) where v = entities, e = relationships"
-  latency: "~500ms per document (with LLM extraction)"
+  time: O(n) where n = number of sentences
+  space: 'O(v + e) where v = entities, e = relationships'
+  latency: ~500ms per document (with LLM extraction)
+description: Interactive challenge for Knowledge Graph Extraction
 ---
 
 # Knowledge Graph Extraction

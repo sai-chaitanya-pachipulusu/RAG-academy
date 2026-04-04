@@ -321,4 +321,30 @@ export const CHALLENGE_STAGE_BY_SLUG: Record<string, CurriculumStage> = {
   "variable-overlap-chunking": "pre-retrieval",
   "legal-clause-chunking": "pre-retrieval",
   "financial-statement-chunking": "pre-retrieval",
+  // Phase 3 — Query Transforms
+  "hyde-retrieval": "query-transforms",
+  "query-complexity-classifier": "query-transforms",
+  // Phase 5 — Post-retrieval
+  "sentence-window-retrieval": "post-retrieval",
+  "sentence-window-retriever": "post-retrieval",
+  // Phase 6 — Grounding & Safety
+  "claude-native-citations": "grounding-safety",
+  "gemini-grounding": "grounding-safety",
+  // Phase 7 — Agentic RAG
+  "adaptive-rag-router": "agentic-rag",
+  "multi-hop-qa": "agentic-rag",
+  "reasoning-rag-implementation": "agentic-rag",
+  "user-profile-rag": "agentic-rag",
+  // Phase 8 — Graph & Knowledge
+  "knowledge-graph-extraction": "graph-rag",
+  // Phase 11 — Production Ops
+  "kv-cache-optimization": "production-ops",
+  "realtime-document-sync": "production-ops",
+  // Phase 12 — Evaluation Ops
+  "answer-relevancy-score": "evaluation-ops",
+  "context-recall-calculator": "evaluation-ops",
+  "llm-as-judge": "evaluation-ops",
+  "rag-failure-diagnosis": "evaluation-ops",
+  // Phase 0 — Foundations
+  "bert-vs-sentence-transformers": "foundations",
 };

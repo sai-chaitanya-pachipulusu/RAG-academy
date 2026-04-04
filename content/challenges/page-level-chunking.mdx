@@ -1,37 +1,65 @@
 ---
-title: "Page-Level Chunking: Document Boundaries"
-description: "Learn to chunk documents by page boundaries - a surprisingly effective technique for PDFs, slides, and scanned documents"
-prompt: |
+title: 'Page-Level Chunking: Document Boundaries'
+description: >-
+  Learn to chunk documents by page boundaries - a surprisingly effective
+  technique for PDFs, slides, and scanned documents
+prompt: >
   # Page-Level Chunking
 
-  Many documents have natural page boundaries that authors intentionally use to organize content. Research shows page-level chunking often performs surprisingly well - sometimes beating complex methods!
+
+  Many documents have natural page boundaries that authors intentionally use to
+  organize content. Research shows page-level chunking often performs
+  surprisingly well - sometimes beating complex methods!
+
 
   ## The Problem
 
-  Traditional chunking ignores page boundaries, potentially splitting content that was designed to stay together:
+
+  Traditional chunking ignores page boundaries, potentially splitting content
+  that was designed to stay together:
+
   - **Slides**: Each slide is a complete unit of thought
+
   - **PDFs**: Headers/footers reset per page, visual layouts are page-bound
+
   - **Scanned docs**: Page = natural retrieval and citation unit
+
 
   ## Your Task
 
+
   Implement `page_level_chunk()` that:
+
   1. Treats each page as a potential chunk
+
   2. Merges very short pages with adjacent ones
+
   3. Tracks original page numbers for citation
+
   4. Returns structured output with page metadata
+
 
   ## Why This Matters
 
-  - **Citation accuracy**: "See page 42" is much clearer than "see chunk 7 of document 3"
+
+  - **Citation accuracy**: "See page 42" is much clearer than "see chunk 7 of
+  document 3"
+
   - **Layout preservation**: Keeps visually-related content together
-  - **Simplicity**: Often beats complex semantic chunking on well-structured PDFs
+
+  - **Simplicity**: Often beats complex semantic chunking on well-structured
+  PDFs
+
 
   ## Real-World Usage
 
+
   - **LlamaParse**: Uses page-level as initial parsing strategy
+
   - **Unstructured.io**: Page boundaries as primary document structure
+
   - **Legal/Financial docs**: Page citations are often legally required
+difficulty: medium
 ---
 
 Page-level chunking treats document pages as natural chunk boundaries. This fundamental technique recognizes that document authors intentionally organize content by pages - a fact that sophisticated chunking methods often overlook.
