@@ -117,9 +117,22 @@ function generateChecksum(data: unknown): string {
   }
 }
 
-// Verify data integrity
 function verifyChecksum(data: unknown, checksum: string): boolean {
   return generateChecksum(data) === checksum;
+}
+
+/**
+ * Map user_progress status values to challenge_progress legacy values
+ * user_progress: not_started, in_progress, completed
+ * challenge_progress: started, attempted, completed
+ */
+function mapStatusToLegacy(status: string): string {
+  switch (status) {
+    case "not_started": return "started";
+    case "in_progress": return "attempted";
+    case "completed": return "completed";
+    default: return "started";
+  }
 }
 
 // GET handler - Pull progress from server
@@ -292,9 +305,9 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Check for existing progress
+        // Check for existing progress (use detected table)
         const { data: existing } = await supabase
-          .from("user_progress")
+          .from(tableName)
           .select("version, updated_at")
           .eq("user_id", userId)
           .eq("challenge_slug", item.challenge_slug)
@@ -318,23 +331,36 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
+        // Build upsert data — adapt to table schema
+        const isUserProgress = tableName === "user_progress";
+        const upsertData: Record<string, unknown> = {
+          user_id: userId,
+          challenge_slug: item.challenge_slug,
+          status: isUserProgress ? item.status : mapStatusToLegacy(item.status),
+          attempts: item.attempts,
+          best_score: item.best_score,
+          updated_at: new Date().toISOString(),
+        };
+
+        // Add columns only if they exist in the target table
+        if (isUserProgress) {
+          upsertData.last_submitted_code = item.last_submitted_code;
+          upsertData.completed_at = item.completed_at;
+          upsertData.version = item.version;
+          upsertData.checksum = item.checksum;
+          upsertData.client_timestamp = item.client_timestamp;
+          upsertData.device_id = item.device_id;
+          upsertData.synced_at = new Date().toISOString();
+        } else {
+          // challenge_progress uses 'code' not 'last_submitted_code'
+          upsertData.code = item.last_submitted_code;
+          if (item.completed_at) upsertData.completed_at = item.completed_at;
+        }
+
         // Upsert progress
         const { error: upsertError } = await supabase
-          .from("user_progress")
-          .upsert({
-            user_id: userId,
-            challenge_slug: item.challenge_slug,
-            status: item.status,
-            attempts: item.attempts,
-            best_score: item.best_score,
-            last_submitted_code: item.last_submitted_code,
-            completed_at: item.completed_at,
-            version: item.version,
-            checksum: item.checksum,
-            client_timestamp: item.client_timestamp,
-            device_id: item.device_id,
-            synced_at: new Date().toISOString(),
-          }, {
+          .from(tableName)
+          .upsert(upsertData, {
             onConflict: "user_id,challenge_slug",
           });
 
