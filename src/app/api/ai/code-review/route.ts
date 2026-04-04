@@ -11,20 +11,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { getLLMCodeReview } from "@/lib/ai/llmReview";
 import { hasQuota, consumeQuota, getQuotaStatus } from "@/lib/ai/quota";
 import { rateLimit, getClientIp } from "@/lib/security/rateLimit";
+import { verifySupabaseAccessToken } from "@/lib/supabase/serverAuth";
 import type { CodeReviewRequest } from "@/lib/ai/types";
 
 /**
- * Get user ID from request (session, API key, or anonymous)
+ * Get user ID from request — resolves the bearer token to an actual user ID
+ * via Supabase so the token itself never appears in quota/rate-limit keys.
+ * Falls back to an IP-based ID for unauthenticated requests.
  */
-function getUserId(req: NextRequest): string {
-  // Try to get from auth header or session cookie
-  // For now, use IP-based identification for anonymous users
+async function getUserId(req: NextRequest): Promise<string> {
   const authHeader = req.headers.get("authorization");
   if (authHeader?.startsWith("Bearer ")) {
-    return `user:${authHeader.slice(7)}`;
+    const token = authHeader.slice(7);
+    const user = await verifySupabaseAccessToken(token);
+    if (user?.id) return `user:${user.id}`;
   }
 
-  // Fall back to IP-based ID
+  // Fall back to IP-based ID for anonymous / unauthenticated requests
   const ip = getClientIp(req);
   return `ip:${ip || "anonymous"}`;
 }
@@ -91,7 +94,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     const requestData = validation.data!;
-    const userId = getUserId(req);
+    const userId = await getUserId(req);
 
     // Apply IP-based rate limiting (10 requests per minute)
     const clientIp = getClientIp(req) || "unknown";
@@ -205,7 +208,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
  * GET handler for quota status
  */
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const userId = getUserId(req);
+  const userId = await getUserId(req);
   const quota = getQuotaStatus(userId);
 
   return NextResponse.json({

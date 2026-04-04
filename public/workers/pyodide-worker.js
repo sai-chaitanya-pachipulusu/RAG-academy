@@ -4,7 +4,7 @@
 // This is intentionally a plain JS file served from /public so Next doesn't need
 // special bundler config for workers.
 
-const PYODIDE_VERSION = "0.25.1";
+const PYODIDE_VERSION = "0.27.2";
 const PYODIDE_BASE_URL = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`;
 
 let pyodideReadyPromise = null;
@@ -20,6 +20,9 @@ async function ensurePyodide() {
   return pyodideReadyPromise;
 }
 
+// Max characters captured from stdout/stderr before truncation.
+const STDOUT_MAX_CHARS = 50_000;
+
 const RUNNER = `
 import io
 import json
@@ -31,26 +34,55 @@ _stderr = io.StringIO()
 sys.stdout = _stdout
 sys.stderr = _stderr
 
-ns = {}
+# ── User namespace ──────────────────────────────────────────────────────────
+# User code runs here. _SCORE / _METRICS / _VISUALS are intentionally absent
+# so the user cannot pre-seed them to spoof test results.
+user_ns = {}
 if "DATASET_JSON" in globals() and DATASET_JSON:
-    ns["DATASET"] = json.loads(DATASET_JSON)
+    user_ns["DATASET"] = json.loads(DATASET_JSON)
 
 ok = True
 try:
-    exec(USER_CODE, ns, ns)
-    if MODE == "test":
-        exec(TEST_CODE, ns, ns)
+    exec(USER_CODE, user_ns, user_ns)
 except Exception:
     ok = False
     traceback.print_exc()
 
+# ── Test namespace ──────────────────────────────────────────────────────────
+# Test code runs in a fresh namespace that can READ user_ns symbols but
+# cannot be poisoned by user-defined _SCORE / _METRICS / _VISUALS because
+# those sentinel names are explicitly reset here before exec.
+_score = None
+_metrics = None
+_visuals = None
+
+if ok and MODE == "test":
+    test_ns = dict(user_ns)          # shallow copy — user functions are visible
+    test_ns["_SCORE"] = None         # reset sentinels so user can't pre-set them
+    test_ns["_METRICS"] = None
+    test_ns["_VISUALS"] = None
+    try:
+        exec(TEST_CODE, test_ns, test_ns)
+        _score = test_ns.get("_SCORE", None)
+        _metrics = test_ns.get("_METRICS", None)
+        _visuals = test_ns.get("_VISUALS", None)
+    except Exception:
+        ok = False
+        traceback.print_exc()
+
+# ── Capture & truncate output ───────────────────────────────────────────────
+_raw_stdout = _stdout.getvalue()
+_raw_stderr = _stderr.getvalue()
+_stdout_truncated = len(_raw_stdout) > STDOUT_MAX_CHARS
+_stderr_truncated = len(_raw_stderr) > STDOUT_MAX_CHARS
+
 __result__ = json.dumps({
   "ok": ok,
-  "stdout": _stdout.getvalue(),
-  "stderr": _stderr.getvalue(),
-  "score": ns.get("_SCORE", None),
-  "metrics": ns.get("_METRICS", None),
-  "visuals": ns.get("_VISUALS", None)
+  "stdout": (_raw_stdout[:STDOUT_MAX_CHARS] + "\\n[output truncated]") if _stdout_truncated else _raw_stdout,
+  "stderr": (_raw_stderr[:STDOUT_MAX_CHARS] + "\\n[output truncated]") if _stderr_truncated else _raw_stderr,
+  "score": _score,
+  "metrics": _metrics,
+  "visuals": _visuals,
 })
 __result__
 `;
@@ -81,6 +113,7 @@ self.onmessage = async (event) => {
     pyodide.globals.set("USER_CODE", userCode);
     pyodide.globals.set("TEST_CODE", typeof testCode === "string" ? testCode : "");
     pyodide.globals.set("DATASET_JSON", dataset ? JSON.stringify(dataset) : "");
+    pyodide.globals.set("STDOUT_MAX_CHARS", STDOUT_MAX_CHARS);
 
     const jsonStr = await pyodide.runPythonAsync(RUNNER);
     const parsed = JSON.parse(jsonStr);

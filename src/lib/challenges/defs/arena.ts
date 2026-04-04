@@ -94,6 +94,44 @@ _VISUALS = {"type": "retrieval", "samples": results_for_viz} if results_for_viz 
       "IDF (Inverse Document Frequency) = log(N / (df + 1)). Adding 1 avoids division by zero.",
       "Pre-calculate IDF in `train_tfidf` so the online `rank_tfidf` is fast.",
     ],
+    solution: `from typing import Dict, List, Tuple
+import math
+import re
+
+def tokenize(text: str) -> List[str]:
+    return re.findall(r"[a-z0-9]+", text.lower())
+
+def train_tfidf(docs: List[str]) -> Tuple[Dict[str, int], int]:
+    df: Dict[str, int] = {}
+    N = len(docs)
+    for doc in docs:
+        terms = set(tokenize(doc))
+        for term in terms:
+            df[term] = df.get(term, 0) + 1
+    return df, N
+
+def rank_tfidf(docs: List[str], query: str, k: int = 3) -> List[Tuple[int, float]]:
+    df, N = train_tfidf(docs)
+    query_terms = tokenize(query)
+    
+    scores = []
+    for i, doc in enumerate(docs):
+        doc_terms = tokenize(doc)
+        doc_len = len(doc_terms) if doc_terms else 1
+        term_counts: Dict[str, int] = {}
+        for t in doc_terms:
+            term_counts[t] = term_counts.get(t, 0) + 1
+        
+        score = 0.0
+        for term in query_terms:
+            tf = term_counts.get(term, 0) / doc_len
+            idf = math.log(N / (df.get(term, 0) + 1))
+            score += tf * idf
+        scores.append((i, score))
+    
+    scores.sort(key=lambda x: x[1], reverse=True)
+    return scores[:k]
+`,
     realWorld: {
         description: "TF-IDF is the 'Great Grandfather' of RAG. Before vector embeddings, this was how nearly all enterprise search worked. It still outperforms dense vectors on 'keyword-heavy' queries (like specific error codes).",
         companies: ["Elastic", "Lucidworks", "Microsoft"],

@@ -18,13 +18,42 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-// Get Supabase client
+// Get Supabase client with proper env validation
 const getSupabaseClient = () => {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!url || !key) {
+    throw new Error(
+      "Missing Supabase credentials. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY."
+    );
+  }
+  
+  return createClient(url, key);
 };
+
+/**
+ * Safely query a table, returning null if the table doesn't exist.
+ * This handles the case where optional migration tables (sync_sessions,
+ * progress_conflicts) haven't been run yet.
+ */
+async function safeQuery<T>(
+  supabase: ReturnType<typeof createClient>,
+  table: string,
+  queryFn: (q: any) => any
+): Promise<{ data: T[] | null; error: any }> {
+  try {
+    const result = await queryFn(supabase.from(table));
+    return result;
+  } catch (err: any) {
+    // Table doesn't exist error from PostgREST
+    if (err.message?.includes("relation") && err.message?.includes("does not exist")) {
+      console.warn(`[sync] Table "${table}" does not exist — skipping. Run migration 008_progress_sync.sql to enable full sync.`);
+      return { data: null, error: null };
+    }
+    throw err;
+  }
+}
 
 // Validation schemas
 const ProgressItemSchema = z.object({
@@ -68,15 +97,24 @@ interface ProgressItem {
 }
 
 // Generate checksum for data integrity
+// Uses crypto.createHash for collision-resistant integrity verification
 function generateChecksum(data: unknown): string {
   const str = JSON.stringify(data);
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const crypto = require("crypto");
+    return crypto.createHash("sha256").update(str).digest("hex").slice(0, 16);
+  } catch {
+    // Fallback for environments without crypto (e.g., some edge runtimes)
+    // This is a basic hash — not cryptographically secure but better than nothing
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return hash.toString(16);
   }
-  return hash.toString(16);
 }
 
 // Verify data integrity
@@ -119,8 +157,18 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "100", 10);
 
     // Fetch progress from database
+    // Use challenge_progress (created by schema.sql) as the canonical table.
+    // If user_progress exists (from migration 008), prefer it for sync-specific fields.
+    let tableName = "challenge_progress";
+    try {
+      const { data: testTable } = await supabase.from("user_progress").select("id").limit(1);
+      if (testTable) tableName = "user_progress";
+    } catch {
+      // user_progress doesn't exist, fall back to challenge_progress
+    }
+
     let query = supabase
-      .from("user_progress")
+      .from(tableName)
       .select("*")
       .eq("user_id", userId)
       .order("updated_at", { ascending: true })
@@ -198,6 +246,16 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = user.id;
+    
+    // Detect which progress table exists (challenge_progress from schema.sql,
+    // or user_progress from migration 008)
+    let tableName = "challenge_progress";
+    try {
+      const { data: testTable } = await supabase.from("user_progress").select("id").limit(1);
+      if (testTable) tableName = "user_progress";
+    } catch {
+      // user_progress doesn't exist, fall back to challenge_progress
+    }
     
     // Parse and validate request body
     const body = await request.json();

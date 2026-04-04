@@ -40,10 +40,7 @@ export async function GET(request: NextRequest) {
 
     const supabase = getSupabaseAdmin();
     const now = new Date();
-    
-    // Check if it's Monday (0 = Sunday, 1 = Monday)
-    const isMonday = now.getUTCDay() === 1;
-    
+
     // Find users who have weekly digest enabled
     const { data: users, error: usersError } = await supabase
       .from('email_preferences')
@@ -88,7 +85,6 @@ export async function GET(request: NextRequest) {
         message: 'No users at their preferred time (Monday 9 AM)',
         totalUsers: users.length,
         processed: 0,
-        isMonday,
       });
     }
 

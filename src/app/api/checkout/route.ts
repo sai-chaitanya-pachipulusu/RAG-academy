@@ -9,42 +9,37 @@ import {
 } from "@/lib/payments/polar";
 
 const getSupabaseClient = () => {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!url || !key) {
+    throw new Error("Missing Supabase credentials. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
+  }
+  
+  return createClient(url, key);
 };
 
 export async function POST(request: NextRequest) {
   try {
     const supabase = getSupabaseClient();
 
-    // Get auth token from request
+    // Get auth token from request (Bearer header or cookie)
     const authHeader = request.headers.get("authorization");
     const token = authHeader?.replace("Bearer ", "") || 
                   request.cookies.get("sb-access-token")?.value;
 
-    // Try to get user from session
-    let user = null;
-    if (token) {
-      const { data: { user: authUser }, error } = await supabase.auth.getUser(token);
-      if (!error && authUser) {
-        user = authUser;
-      }
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized — no auth token provided" }, { status: 401 });
     }
 
-    // If no token auth, try cookie-based auth
-    if (!user) {
-      const cookieHeader = request.headers.get("cookie");
-      if (cookieHeader) {
-        // Parse cookies and try to get session
-        const { data: { session } } = await supabase.auth.getSession();
-        user = session?.user;
-      }
-    }
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Verify user with the provided token
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: "Unauthorized — invalid or expired session", details: authError?.message },
+        { status: 401 }
+      );
     }
 
     // Get request body

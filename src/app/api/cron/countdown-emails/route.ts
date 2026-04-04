@@ -55,10 +55,12 @@ export async function GET(request: NextRequest) {
     const nextPrice = nextPhaseInfo.nextPhase.tiers.paid.price.monthly;
 
     // Initialize Supabase with service role
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !supabaseKey) {
+      return NextResponse.json({ error: "Missing Supabase credentials" }, { status: 500 });
+    }
+    const supabase = createServerClient(supabaseUrl, supabaseKey);
 
     // Get free tier users who haven't upgraded
     const { data: freeUsers, error: usersError } = await supabase.rpc(

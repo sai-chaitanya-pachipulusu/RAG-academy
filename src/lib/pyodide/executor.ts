@@ -93,8 +93,9 @@ function request(
 
   return new Promise<PyodideExecResult>((resolve, reject) => {
     const timeoutId = setTimeout(() => {
+      // teardownWorker rejects all pending promises (including this one) and
+      // clears their timeouts — no separate reject() call needed here.
       teardownWorker(new Error(`Execution timed out after ${timeoutMs}ms.`));
-      reject(new Error(`Execution timed out after ${timeoutMs}ms.`));
     }, timeoutMs);
 
     pendingById.set(id, { resolve, reject, timeoutId });

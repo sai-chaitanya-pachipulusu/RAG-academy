@@ -1,106 +1,130 @@
-## RAG Academy
+# RAG Academy
 
-Interactive, code-first learning for Retrieval‑Augmented Generation (RAG).
+Interactive, code-first learning platform for Retrieval-Augmented Generation (RAG). Master RAG from vector math fundamentals to production-grade systems through hands-on challenges.
 
-### What’s implemented so far (MVP scaffolding)
+## Features
 
-- **Marketing landing page**: `/`
-- **Dashboard shell (header + sidebar)**: `/dashboard`, `/learn`, `/challenges`, `/papers`, `/compare`
-- **MDX lessons (file-based)**:
-  - Content lives in `content/lessons/<phase>/<slug>.mdx`
-  - Example: `/learn/phase-0/why-rag-exists`
-- **In-browser Python challenge runner**:
-  - Monaco editor + output panel
-  - Pyodide executes Python in a Web Worker
-  - First challenge: `/challenges/dot-product`
-- **Payment processing**: Integrated with Polar.sh for subscription management
+- **260+ Interactive Challenges** — Write Python code in-browser, get instant feedback
+- **13 Curriculum Phases** — From foundations to evaluation ops
+- **In-Browser Code Execution** — Monaco editor + Pyodide Web Worker
+- **Progressive Difficulty** — Easy → Medium → Hard challenges with XP rewards
+- **Real-World Context** — Each challenge includes production use cases and company examples
+- **Payment Integration** — Polar.sh for subscription management
+- **Supabase Auth** — GitHub OAuth with role-based access control
 
-### Local development
+## Curriculum
 
-Install deps:
+| Phase | Topic | Challenges |
+|-------|-------|------------|
+| Phase 0 | Foundations | Vector math, tokenization |
+| Phase 1 | Pre-retrieval | Chunking, indexing, deduplication |
+| Phase 2 | Retrieval | BM25, hybrid search, dense retrieval |
+| Phase 3 | Query Transforms | Query expansion, rewriting, HyDE |
+| Phase 4 | Advanced Retrieval | Parent doc, recursive retrieval, indices |
+| Phase 5 | Post-retrieval | Reranking, context optimization |
+| Phase 6 | Grounding & Safety | PII, ACL, prompt injection |
+| Phase 7 | Agentic RAG | Tool use, ReAct, self-correction |
+| Phase 8 | Graph & Knowledge | Knowledge graphs, multi-hop |
+| Phase 9 | Multimodal | Tables, images, video, audio |
+| Phase 10 | Fine-tuning | Domain adaptation, embedding tuning |
+| Phase 11 | Production Ops | Scaling, caching, rate limiting |
+| Phase 12 | Evaluation Ops | Metrics, observability, benchmarks |
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- npm or pnpm
+
+### Installation
 
 ```bash
 npm install
 ```
 
-Create `.env.local` (copy from `.env.example`) and set:
+### Environment Setup
 
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `POLAR_ACCESS_TOKEN` (from Polar dashboard)
-- `POLAR_WEBHOOK_SECRET` (from Polar dashboard)
-- `POLAR_PRODUCT_PRO_MONTHLY` (Product ID from Polar)
-- `POLAR_PRODUCT_PRO_ANNUAL` (Product ID from Polar)
-- `POLAR_PRODUCT_TEAM_MONTHLY` (Product ID from Polar)
-- `POLAR_PRODUCT_TEAM_ANNUAL` (Product ID from Polar)
-- `POLAR_PRODUCT_LIFETIME` (Product ID from Polar)
-- `NEXT_PUBLIC_POLAR_ORGANIZATION_SLUG` (your Polar organization slug)
+Create `.env.local` (copy from `.env.example`):
 
-Run dev server:
+```bash
+# Supabase (Database & Auth)
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+# Polar.sh (Payments)
+POLAR_ACCESS_TOKEN=your_polar_token
+POLAR_WEBHOOK_SECRET=your_webhook_secret
+POLAR_PRODUCT_PRO_MONTHLY=your_product_id
+POLAR_PRODUCT_PRO_ANNUAL=your_product_id
+POLAR_PRODUCT_TEAM_MONTHLY=your_product_id
+POLAR_PRODUCT_TEAM_ANNUAL=your_product_id
+POLAR_PRODUCT_LIFETIME=your_product_id
+NEXT_PUBLIC_POLAR_ORGANIZATION_SLUG=your_org_slug
+```
+
+### Development
 
 ```bash
 npm run dev
 ```
 
-Then open `http://localhost:3000`.
+Open [http://localhost:3000](http://localhost:3000).
 
-### Where to edit
+### Build & Validate
 
-- **Challenge catalog**: `src/lib/challenges/catalog.ts`
-- **Challenge UI**: `src/components/challenge/ChallengeIDE.tsx`
-- **Monaco wrapper**: `src/components/challenge/CodeEditor.tsx`
-- **Pyodide worker**: `public/workers/pyodide-worker.js`
-- **Pyodide client wrapper**: `src/lib/pyodide/executor.ts`
-- **Lessons loader**: `src/lib/lessons/fs.ts`
-- **MDX renderer**: `src/components/learn/MDXRenderer.tsx`
-- **Dashboard layout**: `src/app/(dashboard)/layout.tsx`
+```bash
+npm run build
+```
 
-### Next up
+This runs validation scripts for challenges, content, and Next.js environment before building.
 
-- MDX lessons (Contentlayer)
-- Supabase auth + persistence (progress, XP, streaks)
-- More challenges (Phase 0: cosine similarity, chunking, retrieval)
+## Project Structure
 
-### Supabase setup (required for auth + sync)
+```
+├── content/
+│   ├── challenges/          # MDX challenge content (260+ files)
+│   ├── lessons/             # MDX lesson content by phase
+│   └── playbooks/           # Reference guides and cheat sheets
+├── src/
+│   ├── app/                 # Next.js App Router routes
+│   │   ├── (dashboard)/     # Authenticated dashboard routes
+│   │   └── api/             # API routes (checkout, webhooks, cron)
+│   ├── components/          # React components
+│   ├── lib/
+│   │   ├── challenges/      # Challenge definitions and runner
+│   │   ├── payments/        # Polar.sh integration
+│   │   ├── pyodide/         # In-browser Python execution
+│   │   └── search/          # Search index and functionality
+│   └── middleware.ts        # Auth and routing middleware
+├── supabase/
+│   └── migrations/          # Database schema migrations
+└── scripts/                 # Build and validation scripts
+```
 
-1. **Run schema**: open Supabase → SQL Editor → run `supabase/schema.sql`
+## Tech Stack
+
+- **Framework**: Next.js 16 (App Router)
+- **Database**: Supabase (PostgreSQL + Auth)
+- **Payments**: Polar.sh (Merchant of Record)
+- **Code Editor**: Monaco Editor
+- **Python Runtime**: Pyodide (WebAssembly)
+- **Deployment**: Vercel
+- **Analytics**: Vercel Analytics
+
+## Supabase Setup
+
+1. **Run migrations**: `supabase/migrations/` in order (001 → 015)
 2. **Enable GitHub OAuth**: Supabase → Auth → Providers → GitHub
-3. **Add redirect URLs** (Supabase → Auth → URL Configuration):
+3. **Add redirect URLs**:
    - `http://localhost:3000/auth/callback`
-   - Your Vercel URL + `/auth/callback`
+   - Your production URL + `/auth/callback`
 
-## Getting Started
+## Contributing
 
-First, run the development server:
+Contributions are welcome! Please read the codebase structure above to understand where to make changes.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## License
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `src/app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT

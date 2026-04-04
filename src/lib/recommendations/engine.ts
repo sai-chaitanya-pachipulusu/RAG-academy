@@ -5,7 +5,17 @@
 
 import { getAllChallenges, getChallengeBySlug } from "@/lib/challenges/catalog";
 import type { Challenge } from "@/lib/challenges/types";
-import { getSupabase } from "@/lib/supabase/client";
+import { createClient } from "@supabase/supabase-js";
+
+/** Server-side Supabase client — safe to call from API routes and server components. */
+function getServerSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+}
 
 // ============================================
 // Types
@@ -82,7 +92,7 @@ export class RecommendationEngine {
    * Get review recommendations (spaced repetition)
    */
   async getReviewRecommendations(userId: string, limit: number = 3): Promise<ChallengeRecommendation[]> {
-    const supabase = getSupabase();
+    const supabase = getServerSupabase();
     if (!supabase) return [];
 
     // Get challenges that need review based on completion date
@@ -513,7 +523,7 @@ export async function getReviewRecommendations(
 // ============================================
 
 async function buildRecommendationContext(userId: string): Promise<RecommendationContext> {
-  const supabase = getSupabase();
+  const supabase = getServerSupabase();
   
   const context: RecommendationContext = {
     userId,

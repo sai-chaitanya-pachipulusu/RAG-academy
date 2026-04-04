@@ -62,7 +62,7 @@ const slugs = [];
 for (const name of defFiles) {
   const full = path.join(DEFS_DIR, name);
   const raw = await fs.readFile(full, "utf8");
-  const re = /slug:\s*"([^"]+)"/g;
+  const re = /slug:\s*["']([^"']+)["']/g;
   let m;
   while ((m = re.exec(raw))) {
     const slug = m[1];

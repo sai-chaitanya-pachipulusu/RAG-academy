@@ -5,10 +5,29 @@ import { RAW_CHALLENGES } from "@/lib/challenges/defs/all";
 import { CHALLENGE_STAGE_BY_SLUG } from "@/lib/challenges/defs/stageBySlug";
 
 /**
- * Total lessons count (update this when adding lessons)
- * Run: (Get-ChildItem -Path "content\lessons" -Recurse -Filter "*.mdx").Count
+ * Total lessons count — computed from search index at build time
+ * Source: src/lib/search/contentIndex.generated.json
+ * To recount: run `npm run build:search-index`
  */
-export const TOTAL_LESSONS_COUNT = 67;
+let _cachedLessonCount: number | null = null;
+
+function computeLessonCount(): number {
+  if (_cachedLessonCount !== null) return _cachedLessonCount;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const index = require("@/lib/search/contentIndex.generated.json");
+    const lessons = (index.docs ?? []).filter(
+      (d: any) => d.sourcePath?.includes("content/lessons/")
+    );
+    _cachedLessonCount = lessons.length;
+  } catch {
+    // Fallback if index not yet generated
+    _cachedLessonCount = 68;
+  }
+  return _cachedLessonCount;
+}
+
+export const TOTAL_LESSONS_COUNT = computeLessonCount();
 
 function assertUniqueSlugs(challenges: RawChallenge[]) {
   const seen = new Set<string>();

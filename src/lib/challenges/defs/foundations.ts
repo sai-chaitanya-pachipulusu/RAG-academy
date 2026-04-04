@@ -95,7 +95,7 @@ def cosine_similarity(a: List[float], b: List[float]) -> float:
     Rules:
     - If lengths differ, raise ValueError.
     - If either vector has zero magnitude, raise ValueError.
-    - Empty vectors are allowed ONLY if both are empty (raise ValueError otherwise).
+    - Empty vectors raise ValueError (no direction to compare).
     \"\"\"
     # TODO: implement
     raise NotImplementedError

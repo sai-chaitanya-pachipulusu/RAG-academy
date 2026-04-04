@@ -1190,5 +1190,696 @@ def route_query(query: str) -> str:
     },
     relatedChallenges: ["tool-use-basics", "route-by-difficulty"],
     relatedPlaybooks: ["rag-techniques-encyclopedia"],
-  }
+  },
+  {
+    slug: "adaptive-rag-router",
+    title: "Adaptive RAG Router",
+    description: "Build a query router that dynamically selects the optimal RAG strategy based on query complexity. Why: Not all queries need the same treatment — routing saves cost and latency. Solves: Intelligent query dispatching.",
+    group: "Phase 7 — Agentic RAG",
+    difficulty: "medium",
+    xpReward: 150,
+    starterCode: `from typing import Dict, List
+
+QUERY_COMPLEXITY = {
+    "simple": {"strategy": "fast-retrieval", "model": "gpt-3.5"},
+    "moderate": {"strategy": "standard-rag", "model": "gpt-4o-mini"},
+    "complex": {"strategy": "deep-research", "model": "gpt-4o"},
+}
+
+def classify_complexity(query: str) -> str:
+    """Classify query as simple, moderate, or complex."""
+    # TODO: Implement classification logic
+    raise NotImplementedError
+
+def route_query(query: str) -> Dict:
+    """Route query to appropriate RAG strategy."""
+    # TODO: Implement routing
+    raise NotImplementedError`,
+    testCode: `def test_adaptive_rag_router():
+    assert classify_complexity("What is 2+2?") == "simple"
+    assert classify_complexity("Compare our Q3 revenue to Q4") == "complex"
+    assert route_query("Hello")["strategy"] == "fast-retrieval"
+    print("All tests passed!")`,
+    hints: ["Use keyword-based classification first", "Consider query length and complexity indicators", "Route based on classification result"],
+    timeEstimate: { minutes: 45, label: "45-60 min" },
+    realWorld: {
+      description: "Production RAG systems route queries to optimize cost/latency. Simple factual queries use fast retrieval + cheap models, while complex analytical queries use multi-step reasoning with powerful models.",
+      companies: ["Anthropic", "Cohere"],
+      useCases: ["Cost Optimization", "Adaptive RAG"],
+    },
+    relatedChallenges: ["cost-aware-router", "route-by-difficulty"],
+    relatedPlaybooks: ["rag-techniques-encyclopedia"],
+  },
+  {
+    slug: "agentic-rag-workflows",
+    title: "Agentic RAG Workflows",
+    description: "Build end-to-end agentic RAG workflows with tool use, planning, and self-correction. Why: Static pipelines can't handle complex multi-step tasks. Solves: Dynamic reasoning with retrieval.",
+    group: "Phase 7 — Agentic RAG",
+    difficulty: "hard",
+    xpReward: 180,
+    starterCode: `class AgenticRAGWorkflow:
+    def __init__(self, tools: List):
+        self.tools = tools
+        self.memory = []
+
+    def execute(self, query: str, max_steps: int = 5) -> str:
+        """Execute agentic RAG workflow."""
+        # TODO: Implement tool selection, planning, execution
+        raise NotImplementedError`,
+    testCode: `def test_agentic_workflow():
+    workflow = AgenticRAGWorkflow(tools=["search", "calculator"])
+    result = workflow.execute("What is the population of Paris?", max_steps=3)
+    assert len(result) > 0
+    print("All tests passed!")`,
+    hints: ["Start with single tool use", "Add memory between steps", "Implement self-correction loop"],
+    timeEstimate: { minutes: 60, label: "60-90 min" },
+    realWorld: {
+      description: "Agentic RAG goes beyond simple retrieve-and-generate by using tools, planning multi-step approaches, and self-correcting when retrieval fails.",
+      companies: ["LangChain", "LlamaIndex", "CrewAI"],
+      useCases: ["Research Agents", "Code Assistants"],
+    },
+    relatedChallenges: ["tool-use-basics", "react-implementation", "multi-step-reasoning"],
+    relatedPlaybooks: ["rag-techniques-encyclopedia"],
+  },
+  {
+    slug: "answer-relevancy-score",
+    title: "Answer Relevancy Score",
+    description: "Calculate how relevant generated answers are to the original query using LLM-as-judge. Why: High retrieval scores don't guarantee relevant answers. Solves: Answer quality measurement.",
+    group: "Phase 12 — Evaluation Ops",
+    difficulty: "medium",
+    xpReward: 120,
+    starterCode: `def answer_relevancy(query: str, answer: str, contexts: List[str]) -> float:
+    """Calculate answer relevancy score (0-1)."""
+    # TODO: Implement relevancy scoring
+    raise NotImplementedError`,
+    testCode: `def test_answer_relevancy():
+    score = answer_relevancy("What is Paris?", "Paris is the capital of France", ["Paris is a city"])
+    assert 0 <= score <= 1
+    print("All tests passed!")`,
+    hints: ["Use LLM to judge relevance", "Compare answer entities to query entities", "Score based on information overlap"],
+    timeEstimate: { minutes: 40, label: "40-50 min" },
+    realWorld: {
+      description: "Answer relevancy measures whether the generated response actually addresses the user's question, not just whether it's grounded in retrieved context.",
+      companies: ["Ragas", "DeepEval", "Arize"],
+      useCases: ["RAG Evaluation", "Quality Monitoring"],
+    },
+    relatedChallenges: ["faithfulness-judge", "relevance-judge", "llm-as-judge"],
+    relatedPlaybooks: ["rag-evaluation-suite"],
+  },
+  {
+    slug: "bert-vs-sentence-transformers",
+    title: "BERT vs Sentence Transformers",
+    description: "Compare BERT-based embeddings with sentence-transformers for RAG retrieval quality. Why: Model choice dramatically impacts retrieval accuracy. Solves: Informed embedding model selection.",
+    group: "Phase 0 — Vector Math & Foundations",
+    difficulty: "medium",
+    xpReward: 100,
+    starterCode: `def compare_embedding_models(sentences: List[str]) -> Dict:
+    """Compare BERT and sentence-transformers embeddings."""
+    # TODO: Implement comparison
+    raise NotImplementedError`,
+    testCode: `def test_embedding_comparison():
+    sentences = ["The cat sat on the mat", "A feline rested on a rug"]
+    result = compare_embedding_models(sentences)
+    assert "bert_similarity" in result
+    assert "st_similarity" in result
+    print("All tests passed!")`,
+    hints: ["Use mean pooling for BERT", "Compare cosine similarities", "Measure retrieval quality differences"],
+    timeEstimate: { minutes: 35, label: "35-45 min" },
+    realWorld: {
+      description: "Understanding the difference between token-level (BERT) and sentence-level embeddings is crucial for choosing the right model for your RAG pipeline.",
+      companies: ["HuggingFace", "SentenceTransformers"],
+      useCases: ["Model Selection", "Retrieval Optimization"],
+    },
+    relatedChallenges: ["embedding-model-selection", "cosine-similarity"],
+    relatedPlaybooks: ["embedding-model-selection"],
+  },
+  {
+    slug: "claude-native-citations",
+    title: "Claude Native Citations",
+    description: "Implement native citation generation using Claude's built-in citation capabilities. Why: Citations improve trust and verifiability. Solves: Source attribution in RAG outputs.",
+    group: "Phase 6 — Grounding & Safety",
+    difficulty: "medium",
+    xpReward: 120,
+    starterCode: `def generate_citation(query: str, context: str, answer: str) -> Dict:
+    """Generate native citations for RAG answer."""
+    # TODO: Implement citation generation
+    raise NotImplementedError`,
+    testCode: `def test_citation_generation():
+    result = generate_citation("What is RAG?", "RAG is retrieval-augmented generation", "RAG combines retrieval with generation")
+    assert "citations" in result
+    print("All tests passed!")`,
+    hints: ["Use Claude's citation format", "Map answer claims to context spans", "Include source identifiers"],
+    timeEstimate: { minutes: 40, label: "40-50 min" },
+    realWorld: {
+      description: "Claude's native citation feature automatically links answer claims to source text, improving transparency and reducing hallucinations.",
+      companies: ["Anthropic"],
+      useCases: ["Research", "Legal", "Medical"],
+    },
+    relatedChallenges: ["citation-range-validator", "prompt-template"],
+    relatedPlaybooks: ["rag_troubleshooting_guide"],
+  },
+  {
+    slug: "context-recall-calculator",
+    title: "Context Recall Calculator",
+    description: "Calculate context recall — what fraction of ground truth answer is supported by retrieved context. Why: Measures retrieval completeness. Solves: Identifying missing information.",
+    group: "Phase 12 — Evaluation Ops",
+    difficulty: "medium",
+    xpReward: 120,
+    starterCode: `def context_recall(retrieved_contexts: List[str], ground_truth_answer: str) -> float:
+    """Calculate context recall score (0-1)."""
+    # TODO: Implement recall calculation
+    raise NotImplementedError`,
+    testCode: `def test_context_recall():
+    contexts = ["Paris is the capital of France", "Population is 2.2 million"]
+    answer = "Paris is France's capital with 2.2M people"
+    score = context_recall(contexts, answer)
+    assert 0 <= score <= 1
+    print("All tests passed!")`,
+    hints: ["Break answer into claims", "Check each claim against contexts", "Calculate fraction supported"],
+    timeEstimate: { minutes: 40, label: "40-50 min" },
+    realWorld: {
+      description: "Context recall measures whether your retrieval is comprehensive enough to answer the question, separate from generation quality.",
+      companies: ["Ragas", "DeepEval"],
+      useCases: ["RAG Evaluation", "Retrieval Tuning"],
+    },
+    relatedChallenges: ["context-recall-judge", "retrieval-metrics"],
+    relatedPlaybooks: ["rag-evaluation-suite"],
+  },
+  {
+    slug: "customer-support-bot",
+    title: "Customer Support Bot",
+    description: "Build a complete customer support RAG bot with FAQ retrieval, ticket creation, and escalation. Why: Most common RAG production use case. Solves: End-to-end support automation.",
+    group: "Phase 13 — Capstone Projects",
+    difficulty: "hard",
+    xpReward: 200,
+    starterCode: `class CustomerSupportBot:
+    def __init__(self, knowledge_base: str):
+        # TODO: Initialize
+        pass
+
+    def handle_query(self, query: str) -> Dict:
+        """Handle customer support query."""
+        # TODO: Implement
+        raise NotImplementedError`,
+    testCode: `def test_support_bot():
+    bot = CustomerSupportBot(knowledge_base="faq.txt")
+    result = bot.handle_query("How do I reset my password?")
+    assert "answer" in result
+    print("All tests passed!")`,
+    hints: ["Start with FAQ retrieval", "Add intent classification", "Implement escalation logic"],
+    timeEstimate: { minutes: 90, label: "90-120 min" },
+    realWorld: {
+      description: "Customer support bots are the #1 RAG use case in production, handling FAQs, troubleshooting, and ticket routing.",
+      companies: ["Intercom", "Zendesk", "Ada"],
+      useCases: ["Customer Support", "Help Desks"],
+    },
+    relatedChallenges: ["end-to-end-rag-pipeline", "conversational-rag"],
+    relatedPlaybooks: ["capstone-projects"],
+  },
+  {
+    slug: "evaluator-f1-score",
+    title: "Evaluator F1 Score",
+    description: "Calculate F1 score for RAG retrieval evaluation — balancing precision and recall. Why: F1 gives a single metric for retrieval quality. Solves: Holistic retrieval measurement.",
+    group: "Phase 12 — Evaluation Ops",
+    difficulty: "medium",
+    xpReward: 120,
+    starterCode: `def f1_score(retrieved: set, relevant: set) -> float:
+    """Calculate F1 score for retrieval."""
+    # TODO: Implement
+    raise NotImplementedError`,
+    testCode: `def test_f1_score():
+    retrieved = {1, 2, 3, 4, 5}
+    relevant = {3, 4, 5, 6, 7}
+    score = f1_score(retrieved, relevant)
+    assert abs(score - 0.5) < 0.01
+    print("All tests passed!")`,
+    hints: ["Calculate precision first", "Calculate recall second", "F1 = 2 * (precision * recall) / (precision + recall)"],
+    timeEstimate: { minutes: 30, label: "30-40 min" },
+    realWorld: {
+      description: "F1 score balances precision (are retrieved docs relevant?) and recall (did we find all relevant docs?) into one metric.",
+      companies: ["TREC", "BEIR"],
+      useCases: ["Retrieval Evaluation", "Benchmarking"],
+    },
+    relatedChallenges: ["evaluator-recall-at-k", "evaluator-precision-at-k"],
+    relatedPlaybooks: ["rag-evaluation-suite"],
+  },
+  {
+    slug: "gemini-grounding",
+    title: "Gemini Grounding",
+    description: "Implement Google Gemini's grounding feature to connect LLM outputs to verified sources. Why: Grounding reduces hallucinations with real-time data. Solves: Factual accuracy in generation.",
+    group: "Phase 6 — Grounding & Safety",
+    difficulty: "medium",
+    xpReward: 120,
+    starterCode: `def grounded_generation(query: str, sources: List[str]) -> Dict:
+    """Generate grounded response with Gemini."""
+    # TODO: Implement grounding
+    raise NotImplementedError`,
+    testCode: `def test_grounded_generation():
+    result = grounded_generation("What is the weather?", ["Weather API: Sunny"])
+    assert "response" in result
+    assert "sources" in result
+    print("All tests passed!")`,
+    hints: ["Use Gemini's grounding API", "Include source citations", "Verify factual claims"],
+    timeEstimate: { minutes: 40, label: "40-50 min" },
+    realWorld: {
+      description: "Gemini's grounding connects generation to Google Search results and enterprise data, providing verified citations.",
+      companies: ["Google"],
+      useCases: ["Search", "Enterprise RAG"],
+    },
+    relatedChallenges: ["prompt-template", "refusal-policy"],
+    relatedPlaybooks: ["rag_troubleshooting_guide"],
+  },
+  {
+    slug: "hyde-retrieval",
+    title: "HyDE Retrieval",
+    description: "Implement Hypothetical Document Embeddings (HyDE) — generate a fake answer, embed it, and search. Why: Bridges the query-document vocabulary gap. Solves: Retrieval for complex queries.",
+    group: "Phase 3 — Query Transforms",
+    difficulty: "medium",
+    xpReward: 130,
+    starterCode: `def hyde_retrieval(query: str, corpus: List[Dict], k: int = 5) -> List[Dict]:
+    """HyDE: Generate hypothetical doc, embed, retrieve."""
+    # TODO: Implement
+    raise NotImplementedError`,
+    testCode: `def test_hyde_retrieval():
+    corpus = [{"id": 1, "text": "Paris is the capital of France"}]
+    results = hyde_retrieval("What is France's capital?", corpus, k=1)
+    assert len(results) == 1
+    print("All tests passed!")`,
+    hints: ["Generate hypothetical answer first", "Embed the hypothetical", "Search corpus with hypothetical embedding"],
+    timeEstimate: { minutes: 45, label: "45-60 min" },
+    realWorld: {
+      description: "HyDE improves retrieval by generating a hypothetical answer first, then using that as the query — bridging the vocabulary gap between questions and documents.",
+      companies: ["CMU", "Meta"],
+      useCases: ["Research", "Complex QA"],
+    },
+    relatedChallenges: ["hyde-search", "hyde-implementation", "step-back-prompting"],
+    relatedPlaybooks: ["rag-techniques-encyclopedia"],
+  },
+  {
+    slug: "ivf-pq-index",
+    title: "IVF-PQ Index",
+    description: "Implement Inverted File with Product Quantization — the most common ANN index for billion-scale vector search. Why: Enables fast search over massive datasets. Solves: Scalable retrieval.",
+    group: "Phase 4 — Advanced Retrieval",
+    difficulty: "hard",
+    xpReward: 180,
+    starterCode: `import numpy as np
+
+class IVFPQIndex:
+    def __init__(self, nlist: int, m: int, nbits: int):
+        # TODO: Initialize IVF-PQ index
+        pass
+
+    def add(self, vectors: np.ndarray):
+        # TODO: Add vectors to index
+        raise NotImplementedError
+
+    def search(self, query: np.ndarray, k: int) -> List[int]:
+        # TODO: Search index
+        raise NotImplementedError`,
+    testCode: `def test_ivf_pq():
+    index = IVFPQIndex(nlist=100, m=8, nbits=8)
+    vectors = np.random.randn(1000, 128).astype(np.float32)
+    index.add(vectors)
+    results = index.search(vectors[0], k=5)
+    assert len(results) == 5
+    print("All tests passed!")`,
+    hints: ["Start with IVF clustering", "Add product quantization", "Implement approximate search"],
+    timeEstimate: { minutes: 60, label: "60-90 min" },
+    realWorld: {
+      description: "IVF-PQ is the backbone of Faiss and powers billion-scale vector search at companies like Meta, Spotify, and Pinterest.",
+      companies: ["Meta (Faiss)", "Spotify"],
+      useCases: ["Large-scale Search", "Recommendation"],
+    },
+    relatedChallenges: ["ivf-flat-index", "hnsw-index", "product-quantization"],
+    relatedPlaybooks: ["rag-performance-benchmarks"],
+  },
+  {
+    slug: "knowledge-graph-extraction",
+    title: "Knowledge Graph Extraction",
+    description: "Extract entities and relationships from text to build a knowledge graph for GraphRAG. Why: Structured knowledge enables multi-hop reasoning. Solves: Complex relationship queries.",
+    group: "Phase 8 — Graph & Knowledge",
+    difficulty: "hard",
+    xpReward: 160,
+    starterCode: `def extract_knowledge_graph(text: str) -> Dict:
+    """Extract (entity, relation, entity) triples from text."""
+    # TODO: Implement extraction
+    raise NotImplementedError`,
+    testCode: `def test_kg_extraction():
+    text = "Apple was founded by Steve Jobs in Cupertino."
+    graph = extract_knowledge_graph(text)
+    assert "entities" in graph
+    assert "relations" in graph
+    print("All tests passed!")`,
+    hints: ["Use NER for entities", "Use dependency parsing for relations", "Build adjacency list"],
+    timeEstimate: { minutes: 55, label: "55-70 min" },
+    realWorld: {
+      description: "Knowledge graphs power Microsoft's GraphRAG, enabling summarization and discovery across large document collections.",
+      companies: ["Microsoft", "Neo4j"],
+      useCases: ["Research", "Due Diligence", "Compliance"],
+    },
+    relatedChallenges: ["entity-extraction", "graphrag-knowledge-graph"],
+    relatedPlaybooks: ["rag-techniques-encyclopedia"],
+  },
+  {
+    slug: "kv-cache-optimization",
+    title: "KV Cache Optimization",
+    description: "Optimize Key-Value cache for RAG generation — reuse cached context across queries. Why: KV cache is the largest memory consumer in generation. Solves: Generation cost and latency.",
+    group: "Phase 11 — Production Ops",
+    difficulty: "hard",
+    xpReward: 160,
+    starterCode: `class KVCacheOptimizer:
+    def __init__(self):
+        self.cache = {}
+
+    def generate_with_cache(self, query: str, shared_context: str) -> str:
+        """Generate with KV cache reuse."""
+        # TODO: Implement
+        raise NotImplementedError`,
+    testCode: `def test_kv_cache():
+    optimizer = KVCacheOptimizer()
+    result1 = optimizer.generate_with_cache("Q1", "Shared context")
+    result2 = optimizer.generate_with_cache("Q2", "Shared context")
+    assert len(optimizer.cache) > 0
+    print("All tests passed!")`,
+    hints: ["Cache shared context KV pairs", "Reuse cache across queries", "Measure memory savings"],
+    timeEstimate: { minutes: 50, label: "50-65 min" },
+    realWorld: {
+      description: "KV cache optimization can reduce generation latency by 40-60% and memory by 50% in RAG systems with shared context.",
+      companies: ["vLLM", "TGI", "Together AI"],
+      useCases: ["High-throughput RAG", "Cost Reduction"],
+    },
+    relatedChallenges: ["context-window-optimization", "token-budget-packing"],
+    relatedPlaybooks: ["production-rag-blueprint"],
+  },
+  {
+    slug: "llm-as-judge",
+    title: "LLM-as-Judge",
+    description: "Use an LLM to evaluate RAG output quality across multiple dimensions. Why: Automated evaluation scales better than human review. Solves: Continuous quality monitoring.",
+    group: "Phase 12 — Evaluation Ops",
+    difficulty: "medium",
+    xpReward: 130,
+    starterCode: `def llm_judge(query: str, answer: str, contexts: List[str]) -> Dict:
+    """Evaluate RAG output using LLM-as-judge."""
+    # TODO: Implement multi-dimension evaluation
+    raise NotImplementedError`,
+    testCode: `def test_llm_judge():
+    result = llm_judge("What is RAG?", "RAG is retrieval-augmented generation", ["RAG combines retrieval"])
+    assert "relevance" in result
+    assert "faithfulness" in result
+    print("All tests passed!")`,
+    hints: ["Define evaluation dimensions", "Create judge prompt template", "Parse LLM scores"],
+    timeEstimate: { minutes: 45, label: "45-60 min" },
+    realWorld: {
+      description: "LLM-as-judge is the most popular RAG evaluation method in production, scoring answers on relevance, faithfulness, completeness, and helpfulness.",
+      companies: ["OpenAI", "Anthropic", "Ragas"],
+      useCases: ["Quality Monitoring", "A/B Testing"],
+    },
+    relatedChallenges: ["faithfulness-judge", "relevance-judge", "multi-judge-consensus"],
+    relatedPlaybooks: ["rag-evaluation-suite"],
+  },
+  {
+    slug: "multi-hop-qa",
+    title: "Multi-Hop QA",
+    description: "Build a multi-hop question answering system that chains multiple retrieval steps. Why: Complex questions require information from multiple sources. Solves: Multi-step reasoning.",
+    group: "Phase 7 — Agentic RAG",
+    difficulty: "hard",
+    xpReward: 160,
+    starterCode: `def multi_hop_qa(query: str, retriever, max_hops: int = 3) -> str:
+    """Answer questions requiring multiple retrieval steps."""
+    # TODO: Implement multi-hop reasoning
+    raise NotImplementedError`,
+    testCode: `def test_multi_hop_qa():
+    class MockRetriever:
+        def retrieve(self, q): return [{"text": "Answer info"}]
+    result = multi_hop_qa("Who founded the company that acquired X?", MockRetriever())
+    assert len(result) > 0
+    print("All tests passed!")`,
+    hints: ["Decompose query into sub-questions", "Retrieve for each sub-question", "Synthesize final answer"],
+    timeEstimate: { minutes: 55, label: "55-70 min" },
+    realWorld: {
+      description: "Multi-hop QA handles questions like 'What company founded by the person who wrote The Lean Startup is based in SF?' — requiring 2+ retrieval steps.",
+      companies: ["Meta (HotpotQA)", "DeepMind"],
+      useCases: ["Research", "Complex Analysis"],
+    },
+    relatedChallenges: ["query-decomposition", "react-implementation"],
+    relatedPlaybooks: ["rag-techniques-encyclopedia"],
+  },
+  {
+    slug: "query-complexity-classifier",
+    title: "Query Complexity Classifier",
+    description: "Build a classifier that categorizes queries by complexity to route to appropriate processing. Why: Different queries need different resources. Solves: Efficient resource allocation.",
+    group: "Phase 3 — Query Transforms",
+    difficulty: "medium",
+    xpReward: 120,
+    starterCode: `def classify_query_complexity(query: str) -> str:
+    """Classify query as simple, moderate, or complex."""
+    # TODO: Implement classification
+    raise NotImplementedError`,
+    testCode: `def test_query_classifier():
+    assert classify_query_complexity("What is 2+2?") == "simple"
+    assert classify_query_complexity("Compare Q3 and Q4 revenue trends") == "complex"
+    print("All tests passed!")`,
+    hints: ["Count question words", "Check for comparison operators", "Measure query length"],
+    timeEstimate: { minutes: 35, label: "35-45 min" },
+    realWorld: {
+      description: "Query complexity classification enables smart routing — simple queries get fast answers, complex ones get deep analysis.",
+      companies: ["Cohere", "LangChain"],
+      useCases: ["Query Routing", "Cost Optimization"],
+    },
+    relatedChallenges: ["route-by-difficulty", "adaptive-rag-router"],
+    relatedPlaybooks: ["rag-techniques-encyclopedia"],
+  },
+  {
+    slug: "rag-failure-diagnosis",
+    title: "RAG Failure Diagnosis",
+    description: "Build a diagnostic tool that identifies why a RAG query failed — was it retrieval, context, or generation? Why: Debugging RAG is hard without systematic diagnosis. Solves: Root cause analysis.",
+    group: "Phase 12 — Evaluation Ops",
+    difficulty: "medium",
+    xpReward: 130,
+    starterCode: `def diagnose_rag_failure(query: str, answer: str, contexts: List[str]) -> Dict:
+    """Diagnose why a RAG query failed."""
+    # TODO: Implement failure diagnosis
+    raise NotImplementedError`,
+    testCode: `def test_failure_diagnosis():
+    result = diagnose_rag_failure("What is RAG?", "I don't know", [])
+    assert "failure_type" in result
+    assert result["failure_type"] == "retrieval"
+    print("All tests passed!")`,
+    hints: ["Check retrieval quality first", "Then context relevance", "Finally generation faithfulness"],
+    timeEstimate: { minutes: 45, label: "45-60 min" },
+    realWorld: {
+      description: "Systematic failure diagnosis identifies whether issues stem from retrieval (wrong docs), context (too much noise), or generation (hallucination).",
+      companies: ["Arize", "LangSmith", "Ragas"],
+      useCases: ["Debugging", "Quality Improvement"],
+    },
+    relatedChallenges: ["retrieval-metrics", "rag-usage-dashboard"],
+    relatedPlaybooks: ["rag_troubleshooting_guide"],
+  },
+  {
+    slug: "rag-observability",
+    title: "RAG Observability",
+    description: "Build an observability dashboard for RAG systems tracking latency, cost, quality, and errors. Why: Production RAG needs monitoring. Solves: Visibility into system health.",
+    group: "Phase 12 — Evaluation Ops",
+    difficulty: "medium",
+    xpReward: 140,
+    starterCode: `class RAGOberservability:
+    def __init__(self):
+        self.metrics = {}
+
+    def track_query(self, query: str, latency: float, cost: float, quality: float):
+        """Track RAG query metrics."""
+        # TODO: Implement
+        raise NotImplementedError`,
+    testCode: `def test_observability():
+    obs = RAGOberservability()
+    obs.track_query("test", 0.5, 0.01, 0.9)
+    assert len(obs.metrics) > 0
+    print("All tests passed!")`,
+    hints: ["Track latency per query", "Accumulate costs", "Calculate quality averages"],
+    timeEstimate: { minutes: 50, label: "50-65 min" },
+    realWorld: {
+      description: "RAG observability tracks retrieval quality, generation quality, latency, cost, and error rates across all queries.",
+      companies: ["LangSmith", "Arize Phoenix", "Helicone"],
+      useCases: ["Production Monitoring", "Debugging"],
+    },
+    relatedChallenges: ["audit-logger", "rag-usage-dashboard"],
+    relatedPlaybooks: ["rag-observability-guide"],
+  },
+  {
+    slug: "realtime-document-sync",
+    title: "Real-time Document Sync",
+    description: "Implement real-time synchronization between document changes and vector index updates. Why: Stale indices return outdated information. Solves: Fresh retrieval results.",
+    group: "Phase 11 — Production Ops",
+    difficulty: "hard",
+    xpReward: 160,
+    starterCode: `class RealtimeDocSync:
+    def __init__(self, index, db):
+        # TODO: Initialize
+        pass
+
+    def on_document_change(self, doc_id: str, new_content: str):
+        """Handle document change and update index."""
+        # TODO: Implement
+        raise NotImplementedError`,
+    testCode: `def test_realtime_sync():
+    sync = RealtimeDocSync(index={}, db={})
+    sync.on_document_change("doc1", "New content")
+    assert "doc1" in sync.index or "doc1" in sync.db
+    print("All tests passed!")`,
+    hints: ["Use change data capture", "Update embeddings incrementally", "Handle deletions"],
+    timeEstimate: { minutes: 55, label: "55-70 min" },
+    realWorld: {
+      description: "Real-time sync ensures vector indices reflect the latest document changes, critical for wikis, knowledge bases, and collaborative docs.",
+      companies: ["Notion", "Confluence", "SharePoint"],
+      useCases: ["Knowledge Management", "Wikis"],
+    },
+    relatedChallenges: ["live-index-updates", "index-warmup"],
+    relatedPlaybooks: ["production-rag-blueprint"],
+  },
+  {
+    slug: "reasoning-rag-implementation",
+    title: "Reasoning RAG Implementation",
+    description: "Implement reasoning-enhanced RAG that plans before retrieving and synthesizes across multiple sources. Why: Complex tasks require reasoning, not just retrieval. Solves: Analytical RAG.",
+    group: "Phase 7 — Agentic RAG",
+    difficulty: "hard",
+    xpReward: 170,
+    starterCode: `class ReasoningRAG:
+    def __init__(self, retriever, llm):
+        # TODO: Initialize
+        pass
+
+    def reason_and_answer(self, query: str) -> str:
+        """Plan, retrieve, reason, and answer."""
+        # TODO: Implement
+        raise NotImplementedError`,
+    testCode: `def test_reasoning_rag():
+    rag = ReasoningRAG(retriever=None, llm=None)
+    # Mock test
+    assert hasattr(rag, "reason_and_answer")
+    print("All tests passed!")`,
+    hints: ["Plan retrieval steps first", "Execute retrieval", "Synthesize with reasoning"],
+    timeEstimate: { minutes: 60, label: "60-80 min" },
+    realWorld: {
+      description: "Reasoning RAG combines chain-of-thought reasoning with retrieval for complex analytical tasks like financial analysis and legal research.",
+      companies: ["Anthropic", "OpenAI"],
+      useCases: ["Financial Analysis", "Legal Research"],
+    },
+    relatedChallenges: ["react-implementation", "multi-step-reasoning"],
+    relatedPlaybooks: ["rag-techniques-encyclopedia"],
+  },
+  {
+    slug: "reranker-selection",
+    title: "Reranker Selection",
+    description: "Compare and select the optimal reranker model for your RAG pipeline based on quality, latency, and cost. Why: Different rerankers excel at different tasks. Solves: Optimal reranker choice.",
+    group: "Phase 5 — Post-retrieval",
+    difficulty: "medium",
+    xpReward: 120,
+    starterCode: `def evaluate_rerankers(queries: List[str], docs: List[List[str]], labels: List[List[int]]) -> Dict:
+    """Compare multiple reranker models."""
+    # TODO: Implement comparison
+    raise NotImplementedError`,
+    testCode: `def test_reranker_selection():
+    queries = ["What is RAG?"]
+    docs = [["RAG is retrieval", "RAG is generation"]]
+    labels = [[1, 0]]
+    result = evaluate_rerankers(queries, docs, labels)
+    assert "ndcg" in result
+    print("All tests passed!")`,
+    hints: ["Test multiple rerankers", "Measure NDCG@k", "Compare latency and cost"],
+    timeEstimate: { minutes: 40, label: "40-50 min" },
+    realWorld: {
+      description: "Choosing between Cohere Rerank, Cross-Encoder, and ColBERT rerankers depends on your quality requirements, latency budget, and cost constraints.",
+      companies: ["Cohere", "HuggingFace", "Voyage AI"],
+      useCases: ["Retrieval Optimization", "Quality Improvement"],
+    },
+    relatedChallenges: ["reranker-score-function", "reranker-cascade"],
+    relatedPlaybooks: ["tool-comparison-matrix"],
+  },
+  {
+    slug: "sentence-window-retrieval",
+    title: "Sentence Window Retrieval",
+    description: "Implement sentence window retrieval — retrieve by sentence but return surrounding context. Why: Sentence-level precision with contextual completeness. Solves: Retrieval granularity mismatch.",
+    group: "Phase 5 — Post-retrieval",
+    difficulty: "medium",
+    xpReward: 130,
+    starterCode: `def sentence_window_retrieve(query: str, sentences: List[str], window_size: int = 2) -> List[str]:
+    """Retrieve sentences with surrounding context windows."""
+    # TODO: Implement
+    raise NotImplementedError`,
+    testCode: `def test_sentence_window():
+    sentences = ["S1", "S2", "S3", "S4", "S5"]
+    results = sentence_window_retrieve("query", sentences, window_size=1)
+    assert len(results) > 0
+    print("All tests passed!")`,
+    hints: ["Split document into sentences", "Embed each sentence", "Return window around retrieved sentences"],
+    timeEstimate: { minutes: 40, label: "40-50 min" },
+    realWorld: {
+      description: "Sentence window retrieval (LlamaIndex) retrieves at sentence granularity for precision but returns surrounding sentences for context.",
+      companies: ["LlamaIndex"],
+      useCases: ["Legal Documents", "Technical Manuals"],
+    },
+    relatedChallenges: ["sentence-window-retriever", "contextual-retrieval"],
+    relatedPlaybooks: ["rag-techniques-encyclopedia"],
+  },
+  {
+    slug: "sentence-window-retriever",
+    title: "Sentence Window Retriever",
+    description: "Build a sentence-level retriever that expands retrieved sentences into context windows. Why: Improves context quality without losing retrieval precision. Solves: Context completeness.",
+    group: "Phase 5 — Post-retrieval",
+    difficulty: "medium",
+    xpReward: 130,
+    starterCode: `class SentenceWindowRetriever:
+    def __init__(self, embed_fn, window_size: int = 2):
+        # TODO: Initialize
+        pass
+
+    def retrieve(self, query: str, k: int = 5) -> List[Dict]:
+        """Retrieve with sentence window expansion."""
+        # TODO: Implement
+        raise NotImplementedError`,
+    testCode: `def test_sentence_window_retriever():
+    retriever = SentenceWindowRetriever(embed_fn=lambda x: [0.1], window_size=1)
+    results = retriever.retrieve("query", k=3)
+    assert isinstance(results, list)
+    print("All tests passed!")`,
+    hints: ["Store sentence indices", "Expand to window on retrieval", "Maintain document references"],
+    timeEstimate: { minutes: 40, label: "40-50 min" },
+    realWorld: {
+      description: "Sentence window retrievers are ideal for documents where individual sentences carry specific meaning but need surrounding context for full understanding.",
+      companies: ["LlamaIndex"],
+      useCases: ["Legal", "Medical", "Technical"],
+    },
+    relatedChallenges: ["sentence-window-retrieval", "contextual-retrieval"],
+    relatedPlaybooks: ["rag-techniques-encyclopedia"],
+  },
+  {
+    slug: "user-profile-rag",
+    title: "User Profile RAG",
+    description: "Build a personalized RAG system that adapts responses based on user profiles, history, and preferences. Why: Personalization improves user satisfaction. Solves: One-size-fits-all answers.",
+    group: "Phase 7 — Agentic RAG",
+    difficulty: "medium",
+    xpReward: 140,
+    starterCode: `class UserProfileRAG:
+    def __init__(self, retriever, llm):
+        # TODO: Initialize
+        pass
+
+    def personalized_query(self, user_id: str, query: str) -> str:
+        """Generate personalized response based on user profile."""
+        # TODO: Implement
+        raise NotImplementedError`,
+    testCode: `def test_user_profile_rag():
+    rag = UserProfileRAG(retriever=None, llm=None)
+    assert hasattr(rag, "personalized_query")
+    print("All tests passed!")`,
+    hints: ["Store user preferences", "Augment query with profile", "Adapt response style"],
+    timeEstimate: { minutes: 50, label: "50-65 min" },
+    realWorld: {
+      description: "User profile RAG personalizes answers based on expertise level, past interactions, and preferences — essential for enterprise knowledge systems.",
+      companies: ["Notion AI", "Slack AI"],
+      useCases: ["Enterprise Search", "Personal Assistants"],
+    },
+    relatedChallenges: ["personalized-rag", "conversation-buffer-memory"],
+    relatedPlaybooks: ["rag-techniques-encyclopedia"],
+  },
 ];

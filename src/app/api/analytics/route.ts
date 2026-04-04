@@ -5,15 +5,26 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { verifySupabaseAccessToken } from "@/lib/supabase/serverAuth";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error("Missing Supabase environment variables");
+/** Lazy factory — never throws at module load time. */
+function getSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error("Missing Supabase environment variables");
+  return createClient(url, key);
 }
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+/** Resolve the bearer token from the request to a verified user ID. */
+async function authenticate(request: NextRequest): Promise<string | null> {
+  const authHeader = request.headers.get("authorization");
+  const token =
+    authHeader?.replace("Bearer ", "") ??
+    request.cookies.get("sb-access-token")?.value;
+  if (!token) return null;
+  const user = await verifySupabaseAccessToken(token);
+  return user?.id ?? null;
+}
 
 // ============================================
 // GET - Fetch analytics data
@@ -21,17 +32,15 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
-    const type = searchParams.get("type") || "summary";
-
+    const userId = await authenticate(request);
     if (!userId) {
-      return NextResponse.json(
-        { error: "User ID is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get("type") || "summary";
+
+    // userId is always derived from the verified session — never from the query string.
     switch (type) {
       case "summary":
         return await getAnalyticsSummary(userId);
@@ -39,9 +48,10 @@ export async function GET(request: NextRequest) {
         return await getTimePerChallenge(userId);
       case "skills":
         return await getSkillGaps(userId);
-      case "heatmap":
+      case "heatmap": {
         const days = parseInt(searchParams.get("days") || "365");
         return await getActivityHeatmap(userId, days);
+      }
       case "patterns":
         return await getStudyPatterns(userId);
       default:
@@ -65,21 +75,27 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { type, userId, data } = body;
+    const userId = await authenticate(request);
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    if (!userId || !type) {
+    const body = await request.json();
+    const { type, data } = body;
+
+    if (!type) {
       return NextResponse.json(
-        { error: "User ID and type are required" },
+        { error: "Event type is required" },
         { status: 400 }
       );
     }
 
+    // userId is always the authenticated user — ignore any userId in the request body.
     switch (type) {
       case "session_start":
         return await startLearningSession(userId, data);
       case "session_end":
-        return await endLearningSession(data);
+        return await endLearningSession(userId, data);
       case "challenge_analytics":
         return await updateChallengeAnalytics(userId, data);
       default:
@@ -102,6 +118,7 @@ export async function POST(request: NextRequest) {
 // ============================================
 
 async function getAnalyticsSummary(userId: string) {
+  const supabase = getSupabaseAdmin();
   // Fetch all analytics data in parallel
   const [
     { data: challengeAnalytics },
@@ -157,6 +174,7 @@ async function getAnalyticsSummary(userId: string) {
 }
 
 async function getTimePerChallenge(userId: string) {
+  const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("challenge_analytics")
     .select("*")
@@ -169,6 +187,7 @@ async function getTimePerChallenge(userId: string) {
 }
 
 async function getSkillGaps(userId: string) {
+  const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("skill_gap_analysis")
     .select("*")
@@ -181,6 +200,7 @@ async function getSkillGaps(userId: string) {
 }
 
 async function getActivityHeatmap(userId: string, days: number) {
+  const supabase = getSupabaseAdmin();
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
@@ -214,6 +234,7 @@ async function getActivityHeatmap(userId: string, days: number) {
 }
 
 async function getStudyPatterns(userId: string) {
+  const supabase = getSupabaseAdmin();
   const { data: sessions, error } = await supabase
     .from("learning_sessions")
     .select("*")
@@ -262,6 +283,7 @@ async function getStudyPatterns(userId: string) {
 }
 
 async function startLearningSession(userId: string, data: any) {
+  const supabase = getSupabaseAdmin();
   const { data: session, error } = await supabase
     .from("learning_sessions")
     .insert({
@@ -279,13 +301,16 @@ async function startLearningSession(userId: string, data: any) {
   return NextResponse.json({ sessionId: session.id });
 }
 
-async function endLearningSession(data: any) {
+async function endLearningSession(userId: string, data: any) {
   const { sessionId, challengesCompleted, xpEarned, focusScore } = data;
+  const supabase = getSupabaseAdmin();
 
+  // Filter by both id AND user_id to prevent one user from closing another's session.
   const { data: session, error: fetchError } = await supabase
     .from("learning_sessions")
     .select("started_at")
     .eq("id", sessionId)
+    .eq("user_id", userId)
     .single();
 
   if (fetchError) throw fetchError;
@@ -312,6 +337,7 @@ async function endLearningSession(data: any) {
 }
 
 async function updateChallengeAnalytics(userId: string, data: any) {
+  const supabase = getSupabaseAdmin();
   const {
     challengeSlug,
     timeSpentSeconds,

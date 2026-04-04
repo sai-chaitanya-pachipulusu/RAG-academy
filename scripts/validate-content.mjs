@@ -129,6 +129,73 @@ for (const { id, dir } of CONTENT_DIRS) {
   }
 }
 
+// ── Challenge MDX validation ─────────────────────────────────────────────────
+// Checks every file in content/challenges/ for required frontmatter fields.
+// This is separate from validate-challenges.mjs which only confirms a file exists.
+
+const VALID_DIFFICULTIES = new Set([
+  "beginner",
+  "intermediate",
+  "medium",
+  "hard",
+  "advanced",
+  "expert",
+]);
+
+const challengesDir = path.join(ROOT, "content", "challenges");
+const challengeFiles = await listMdxFiles(challengesDir);
+
+const challengeWarnings = [];
+
+for (const file of challengeFiles) {
+  const rel = path.relative(ROOT, file);
+  let raw;
+  try {
+    raw = await fs.readFile(file, "utf8");
+  } catch {
+    errors.push(`${rel}: could not read file`);
+    continue;
+  }
+
+  let data, content;
+  try {
+    ({ data, content } = matter(raw));
+  } catch (e) {
+    errors.push(`${rel}: malformed YAML frontmatter — ${e.message}`);
+    continue;
+  }
+
+  // Required string fields — missing or empty means the UI can't render the card
+  if (!data?.title || String(data.title).trim() === "") {
+    errors.push(`${rel}: frontmatter 'title' is required`);
+  }
+  if (!data?.description || String(data.description).trim() === "") {
+    errors.push(`${rel}: frontmatter 'description' is required`);
+  }
+
+  // difficulty must be a recognised value
+  if (!data?.difficulty) {
+    errors.push(`${rel}: frontmatter 'difficulty' is required`);
+  } else if (!VALID_DIFFICULTIES.has(String(data.difficulty).trim().toLowerCase())) {
+    errors.push(
+      `${rel}: frontmatter 'difficulty' has unrecognised value "${data.difficulty}" (valid: ${Array.from(VALID_DIFFICULTIES).join(", ")})`
+    );
+  }
+
+  // xpReward is optional but should be a positive number when present
+  if (data?.xpReward !== undefined && (typeof data.xpReward !== "number" || data.xpReward <= 0)) {
+    errors.push(`${rel}: frontmatter 'xpReward' must be a positive number when present`);
+  }
+
+  // Body must not be empty
+  if (!content || content.trim().length < 50) {
+    errors.push(`${rel}: challenge body is too short (< 50 chars) — likely empty`);
+  }
+}
+
+// eslint-disable-next-line no-console
+console.log(`Challenge MDX validation: ${challengeFiles.length} files checked.`);
+
 if (errors.length > 0) fail(errors);
 
 // eslint-disable-next-line no-console

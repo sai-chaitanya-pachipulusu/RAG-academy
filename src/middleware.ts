@@ -5,7 +5,14 @@ import { NextResponse, type NextRequest } from "next/server";
 const PUBLIC_ROUTES = [
   "/login",
   "/auth/callback",
-  "/api/",
+];
+
+// Public API routes that should remain accessible without auth
+// Only these specific API paths are public — all others require auth
+const PUBLIC_API_ROUTES = [
+  "/api/webhooks/",      // Payment provider webhooks
+  "/api/email/webhook",  // Email provider webhooks
+  "/api/health",         // Health check endpoint
 ];
 
 export async function middleware(request: NextRequest) {
@@ -13,6 +20,11 @@ export async function middleware(request: NextRequest) {
 
   // Allow public routes
   if (pathname === "/" || PUBLIC_ROUTES.some((route) => pathname.startsWith(route))) {
+    return NextResponse.next();
+  }
+
+  // Allow public API routes (webhooks, health checks)
+  if (PUBLIC_API_ROUTES.some((route) => pathname.startsWith(route))) {
     return NextResponse.next();
   }
 
