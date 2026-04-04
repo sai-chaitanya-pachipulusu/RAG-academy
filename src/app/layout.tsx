@@ -32,8 +32,62 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "RAG Academy",
-  description: "Interactive, code-first learning for Retrieval-Augmented Generation (RAG).",
+  title: {
+    default: "RAG Academy — Interactive RAG Learning Platform",
+    template: "%s | RAG Academy",
+  },
+  description: "Master Retrieval-Augmented Generation (RAG) through 260+ interactive, code-first challenges. From vector math fundamentals to production-grade systems.",
+  keywords: [
+    "RAG",
+    "Retrieval Augmented Generation",
+    "LLM",
+    "AI",
+    "Machine Learning",
+    "Vector Database",
+    "Embeddings",
+    "Prompt Engineering",
+    "LangChain",
+    "LlamaIndex",
+    "Python",
+    "Interactive Learning",
+    "Code Challenges",
+  ],
+  authors: [{ name: "RAG Academy Team" }],
+  creator: "RAG Academy",
+  publisher: "RAG Academy",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://ragacademy.space",
+    siteName: "RAG Academy",
+    title: "RAG Academy — Interactive RAG Learning Platform",
+    description: "Master Retrieval-Augmented Generation (RAG) through 260+ interactive, code-first challenges.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "RAG Academy — Interactive RAG Learning Platform",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "RAG Academy — Interactive RAG Learning Platform",
+    description: "Master Retrieval-Augmented Generation (RAG) through 260+ interactive, code-first challenges.",
+    images: ["/og-image.png"],
+  },
   icons: {
     icon: "/favicon.svg",
     apple: "/icon.svg",
