@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 import "@/styles/mobile.css";
 import { AppProviders } from "@/components/providers/AppProviders";
+import { SkipLink } from "@/components/accessibility/SkipLink";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { MobileNav } from "@/components/navigation/MobileNav";
@@ -60,9 +61,10 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-white text-zinc-900`}
       >
         <AppProviders>
+          <SkipLink />
           <div className="flex flex-col min-h-screen">
             <Header />
-            <main className="flex-1 pb-16 md:pb-0">
+            <main id="main-content" className="flex-1 pb-16 md:pb-0" role="main" tabIndex={-1}>
               {children}
             </main>
             <Footer />

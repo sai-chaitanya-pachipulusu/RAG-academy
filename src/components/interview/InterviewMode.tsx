@@ -65,6 +65,39 @@ export function InterviewMode({ userId }: InterviewModeProps) {
   const [answer, setAnswer] = useState('');
   const [showHints, setShowHints] = useState(false);
 
+  const submitAnswer = useCallback(() => {
+    setSession((prevSession) => {
+      if (!prevSession) return prevSession;
+
+      const updatedQuestions = [...prevSession.questions];
+      updatedQuestions[currentQuestionIndex] = {
+        ...updatedQuestions[currentQuestionIndex],
+        answer,
+        endedAt: new Date().toISOString(),
+        timeSpentSeconds: updatedQuestions[currentQuestionIndex].question.timeLimitMinutes * 60 - timeRemaining,
+      };
+
+      return {
+        ...prevSession,
+        questions: updatedQuestions,
+      };
+    });
+
+    setSession((prevSession) => {
+      if (!prevSession) return prevSession;
+      if (currentQuestionIndex < prevSession.questions.length - 1) {
+        setState('review');
+      } else {
+        setState('complete');
+      }
+      return prevSession;
+    });
+  }, [currentQuestionIndex, answer, timeRemaining]);
+
+  const handleTimeUp = useCallback(() => {
+    submitAnswer();
+  }, [submitAnswer]);
+
   // Timer effect
   useEffect(() => {
     if (state === 'question' && timeRemaining > 0) {
@@ -79,7 +112,7 @@ export function InterviewMode({ userId }: InterviewModeProps) {
       }, 1000);
       return () => clearInterval(timer);
     }
-  }, [state, timeRemaining]);
+  }, [state, timeRemaining, handleTimeUp]);
 
   const startInterview = useCallback(() => {
     const template = selectedTemplate;
@@ -125,36 +158,6 @@ export function InterviewMode({ userId }: InterviewModeProps) {
     setTimeRemaining(questions[0].timeLimitMinutes * 60);
     setState('intro');
   }, [selectedTemplate, customConfig, userId]);
-
-  const handleTimeUp = () => {
-    // Auto-submit when time is up
-    submitAnswer();
-  };
-
-  const submitAnswer = () => {
-    if (!session) return;
-
-    const updatedQuestions = [...session.questions];
-    updatedQuestions[currentQuestionIndex] = {
-      ...updatedQuestions[currentQuestionIndex],
-      answer,
-      endedAt: new Date().toISOString(),
-      timeSpentSeconds: updatedQuestions[currentQuestionIndex].question.timeLimitMinutes * 60 - timeRemaining,
-    };
-
-    const updatedSession = {
-      ...session,
-      questions: updatedQuestions,
-    };
-
-    setSession(updatedSession);
-
-    if (currentQuestionIndex < session.questions.length - 1) {
-      setState('review');
-    } else {
-      setState('complete');
-    }
-  };
 
   const nextQuestion = () => {
     if (!session) return;

@@ -197,17 +197,21 @@ export function SyncProgressProvider({
     };
   }, [isAuthenticated, user?.id]);
   
-  // Handle beforeunload - sync before logout/close
+  // Handle beforeunload/pagehide - sync before logout/close
+  // Note: beforeunload cannot await async operations, so we use
+  // sendBeacon for a best-effort sync on page unload.
   useEffect(() => {
-    const handleBeforeUnload = async () => {
+    const handlePageHide = () => {
       if (isAuthenticated && user?.id) {
-        await syncBeforeLogout(user.id);
+        // sendBeacon is fire-and-forget but survives page unload
+        const payload = JSON.stringify({ userId: user.id, action: "beforeunload" });
+        navigator.sendBeacon("/api/progress/sync", new Blob([payload], { type: "application/json" }));
       }
     };
     
-    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("pagehide", handlePageHide);
     return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("pagehide", handlePageHide);
     };
   }, [isAuthenticated, user?.id]);
   
