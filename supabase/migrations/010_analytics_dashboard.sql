@@ -362,6 +362,16 @@ CREATE POLICY "Users can view own skill gaps"
   ON public.skill_gap_analysis FOR SELECT
   USING (auth.uid() = user_id);
 
+-- Skill gaps are populated by SECURITY DEFINER function, but allow
+-- client-side upsert for manual recalculations or overrides.
+CREATE POLICY "Users can insert own skill gaps"
+  ON public.skill_gap_analysis FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own skill gaps"
+  ON public.skill_gap_analysis FOR UPDATE
+  USING (auth.uid() = user_id);
+
 CREATE POLICY "Users can view own learning sessions"
   ON public.learning_sessions FOR SELECT
   USING (auth.uid() = user_id);
@@ -378,8 +388,28 @@ CREATE POLICY "Users can view own daily stats"
   ON public.daily_learning_stats FOR SELECT
   USING (auth.uid() = user_id);
 
+-- Daily stats are populated by trigger, but allow client-side upsert
+-- for manual corrections or backfilling historical data.
+CREATE POLICY "Users can insert own daily stats"
+  ON public.daily_learning_stats FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own daily stats"
+  ON public.daily_learning_stats FOR UPDATE
+  USING (auth.uid() = user_id);
+
 CREATE POLICY "Users can view own peer comparison"
   ON public.peer_comparison FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- Peer comparison is populated by SECURITY DEFINER function, but allow
+-- client-side upsert for manual recalculations.
+CREATE POLICY "Users can insert own peer comparison"
+  ON public.peer_comparison FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own peer comparison"
+  ON public.peer_comparison FOR UPDATE
   USING (auth.uid() = user_id);
 
 -- ============================================
