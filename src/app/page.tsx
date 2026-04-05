@@ -70,6 +70,14 @@ const ADVANCED_2025 = [
   },
 ];
 
+// What's new - recent additions
+const WHATS_NEW = [
+  { title: "Voice RAG", desc: "Audio-based retrieval and generation", phase: "Phase 7" },
+  { title: "MCP Integration", desc: "Model Context Protocol support", phase: "Phase 5" },
+  { title: "Project Certificates", desc: "Earn certificates for completed tracks", phase: "Projects" },
+  { title: "Peer Reviews", desc: "Community feedback on project submissions", phase: "Projects" },
+];
+
 // Learning path stages - dynamically count challenges per stage
 const stageCounts = CHALLENGES.reduce((acc, challenge) => {
   const stage = challenge.stage;
@@ -100,6 +108,15 @@ const STATS = [
   { value: `${platformStats.totalLessons}`, label: "Lessons" },
   { value: `${roundedChallenges}+`, label: "Challenges" },
   { value: `${platformStats.totalModules}`, label: "Modules" },
+  { value: "263", label: "MDX Files" },
+  { value: "13", label: "Phases" },
+];
+
+// Social proof stats
+const SOCIAL_PROOF = [
+  { value: "100%", label: "Free to start" },
+  { value: "In-browser", label: "No setup required" },
+  { value: "Production", label: "Real-world patterns" },
 ];
 
 
@@ -169,6 +186,23 @@ export default function Home() {
                     <div key={i}>
                       <p className="text-[28px] font-semibold tracking-tight text-[var(--foreground)]">{stat.value}</p>
                       <p className="text-[14px] font-medium text-[var(--gray-400)] mt-0.5">{stat.label}</p>
+                    </div>
+                  ))}
+                </div>
+              </Reveal>
+
+              {/* Social Proof */}
+              <Reveal delayMs={350}>
+                <div className="flex items-center gap-6 pt-4">
+                  {SOCIAL_PROOF.map((item, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <svg className="h-4 w-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <div>
+                        <p className="text-[14px] font-semibold text-[var(--foreground)]">{item.value}</p>
+                        <p className="text-[12px] text-[var(--gray-400)]">{item.label}</p>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -296,7 +330,7 @@ export default function Home() {
             <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--gray-50)] p-8 lg:p-12">
               <div className="flex items-center gap-3 mb-6">
                 <span className="inline-flex items-center gap-2 rounded-full bg-[var(--foreground)] px-3 py-1.5 text-[12px] font-semibold text-white uppercase tracking-wide">
-                  New in 2025
+                  New in 2026
                 </span>
                 <span className="text-[14px] text-[var(--gray-400)]">Latest research techniques</span>
               </div>
@@ -340,6 +374,38 @@ export default function Home() {
         </div>
       </section>
 
+      {/* What's New Section */}
+      <section className="border-t border-[var(--border-subtle)] bg-[var(--gray-50)]/50">
+        <div className="mx-auto max-w-[1400px] px-6 py-16 lg:px-12 lg:py-20">
+          <Reveal>
+            <div className="flex items-end justify-between mb-8">
+              <div>
+                <h2 className="text-[32px] font-semibold tracking-tight text-[var(--foreground)] lg:text-[40px]">
+                  What's New
+                </h2>
+                <p className="mt-2 text-[19px] text-[var(--gray-500)]">
+                  Recent additions to the platform
+                </p>
+              </div>
+            </div>
+          </Reveal>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {WHATS_NEW.map((item, i) => (
+              <Reveal key={item.title} delayMs={i * 60}>
+                <div className="rounded-xl border border-[var(--border-default)] bg-white p-5 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-[15px] font-semibold text-[var(--foreground)]">{item.title}</h3>
+                    <span className="text-[11px] font-medium text-[var(--gray-400)] uppercase tracking-wide">{item.phase}</span>
+                  </div>
+                  <p className="text-[14px] text-[var(--gray-500)]">{item.desc}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Learning Path Section */}
       <section className="border-t border-[var(--border-subtle)] bg-[var(--gray-50)]/50">
         <div className="mx-auto max-w-[1400px] px-6 py-16 lg:px-12 lg:py-20">
@@ -355,27 +421,29 @@ export default function Home() {
           </Reveal>
 
           <Reveal delayMs={100}>
-            <div className="flex items-center justify-center gap-2 flex-wrap">
-              {LEARNING_PATH.map((stage, i) => (
-                <div key={stage.name} className="flex items-center">
-                  <div className="rounded-full border border-[var(--border-default)] bg-white px-5 py-2.5 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-                    <div className="flex items-center gap-2.5">
-                      <div className={`h-2 w-2 rounded-full ${stage.color}`} />
-                      <div>
-                        <p className="text-[15px] font-semibold text-[var(--foreground)]">{stage.name}</p>
-                        <p className="text-[13px] text-[var(--gray-400)]">{stage.count} challenges</p>
+            <div className="overflow-x-auto pb-4">
+              <div className="flex items-center gap-2 min-w-max justify-center">
+                {LEARNING_PATH.map((stage, i) => (
+                  <div key={stage.name} className="flex items-center">
+                    <div className="rounded-full border border-[var(--border-default)] bg-white px-4 py-2 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <div className={`h-2 w-2 rounded-full ${stage.color}`} />
+                        <div>
+                          <p className="text-[13px] font-semibold text-[var(--foreground)]">{stage.name}</p>
+                          <p className="text-[11px] text-[var(--gray-400)]">{stage.count}</p>
+                        </div>
                       </div>
                     </div>
+                    {i < LEARNING_PATH.length - 1 && (
+                      <div className="flex items-center justify-center mx-1">
+                        <svg className="h-4 w-4 text-[var(--gray-300)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                      </div>
+                    )}
                   </div>
-                  {i < LEARNING_PATH.length - 1 && (
-                    <div className="hidden sm:flex items-center justify-center mx-3">
-                      <svg className="h-5 w-5 text-[var(--gray-300)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </svg>
-                    </div>
-                  )}
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </Reveal>
 
@@ -526,10 +594,10 @@ export default function Home() {
           <Reveal>
             <div className="rounded-3xl border border-zinc-200 bg-white p-12 text-center lg:p-20 shadow-sm">
               <h2 className="text-3xl font-semibold tracking-tight text-zinc-900 lg:text-4xl">
-                Ready to build production RAG?
+                Build production RAG systems
               </h2>
               <p className="mx-auto mt-5 max-w-2xl text-lg text-zinc-500">
-                Join engineers building reliable, scalable RAG systems with the most comprehensive platform available.
+                Master retrieval, grounding, agents, and evaluation through 260+ interactive challenges. Earn certificates. Ship with confidence.
               </p>
               <div className="mt-10 flex items-center justify-center gap-4 flex-wrap">
                 <Link
@@ -542,10 +610,10 @@ export default function Home() {
                   </svg>
                 </Link>
                 <Link
-                  href="/challenges"
+                  href="/projects"
                   className="inline-flex h-14 items-center justify-center rounded-full border border-zinc-300 px-8 text-[15px] font-medium text-zinc-700 transition-all duration-200 hover:border-zinc-400 hover:bg-zinc-50"
                 >
-                  Browse Challenges
+                  View Projects
                 </Link>
               </div>
             </div>
@@ -601,6 +669,7 @@ export default function Home() {
               <ul className="space-y-3 text-sm text-zinc-500">
                 <li><Link href="/papers" className="hover:text-zinc-900 transition-colors">Research Papers</Link></li>
                 <li><Link href="/analytics" className="hover:text-zinc-900 transition-colors">Your Progress</Link></li>
+                <li><Link href="/leaderboard" className="hover:text-zinc-900 transition-colors">Leaderboard</Link></li>
               </ul>
             </div>
           </div>
