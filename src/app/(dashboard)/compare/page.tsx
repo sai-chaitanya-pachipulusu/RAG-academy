@@ -118,32 +118,31 @@ const DECISION_PRINCIPLES = [
 
 export default function ComparePage() {
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-5">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Compare</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-7 text-zinc-600 dark:text-zinc-300">
-          Decision-first comparisons. Each page helps you pick a default, understand when to deviate,
-          and link to challenges where you implement the technique.
+        <h1 className="text-xl font-semibold tracking-tight">Compare</h1>
+        <p className="mt-1 max-w-2xl text-sm text-zinc-500 dark:text-zinc-400">
+          Decision-first comparisons. Pick a default, understand when to deviate.
         </p>
       </header>
 
       {/* Quick Decisions */}
       <section>
-        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
           Quick Decisions
         </h2>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          &quot;Pick this default unless...&quot; — stop rabbit holes.
+        <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+          "Pick this default unless..." — stop rabbit holes.
         </p>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
           {DECISION_PRINCIPLES.map((d) => (
             <Link key={d.question} href={d.href}>
-              <Card className="h-full p-4 transition-colors hover:border-zinc-300 dark:hover:border-zinc-700">
+              <Card className="h-full p-3.5 transition-colors hover:border-zinc-300 dark:hover:border-zinc-700">
                 <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
                   {d.question}
                 </p>
-                <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
+                <p className="mt-1.5 text-xs text-zinc-600 dark:text-zinc-400">
                   <span className="font-medium text-emerald-600 dark:text-emerald-400">Default:</span>{" "}
                   {d.default}
                 </p>
@@ -160,15 +159,15 @@ export default function ComparePage() {
       {/* Comparison Pages */}
       {SECTIONS.map((section) => (
         <section key={section.title}>
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
             {section.title}
           </h2>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{section.desc}</p>
+          <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">{section.desc}</p>
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {section.pages.map((page) => (
               <Link key={page.href} href={page.href}>
-                <Card className="h-full p-4 transition-colors hover:border-zinc-300 dark:hover:border-zinc-700">
+                <Card className="h-full p-3.5 transition-colors hover:border-zinc-300 dark:hover:border-zinc-700">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
                       {page.label}
@@ -177,7 +176,7 @@ export default function ComparePage() {
                       {page.status}
                     </Badge>
                   </div>
-                  <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">{page.blurb}</p>
+                  <p className="mt-1.5 text-xs text-zinc-600 dark:text-zinc-400">{page.blurb}</p>
                 </Card>
               </Link>
             ))}
@@ -186,26 +185,26 @@ export default function ComparePage() {
       ))}
 
       {/* Next Steps */}
-      <Card className="p-5">
+      <Card className="p-4">
         <p className="text-sm font-medium">After comparing, implement</p>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-2 flex flex-wrap gap-2">
           <Link
             href="/challenges"
             className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
           >
-            Practice challenges →
+            Practice challenges
           </Link>
           <Link
             href="/projects"
             className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
           >
-            Production templates →
+            Production templates
           </Link>
           <Link
             href="/playbooks/rag-techniques-encyclopedia"
             className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
           >
-            Technique encyclopedia →
+            Technique encyclopedia
           </Link>
         </div>
       </Card>
