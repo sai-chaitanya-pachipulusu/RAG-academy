@@ -26,61 +26,48 @@ export default function AnalyticsPage() {
   }, []);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Analytics & Ranking
-        </h1>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-           Track your growth, analyze your learning patterns, and compare with the community.
+        <h1 className="text-xl font-semibold tracking-tight">Analytics & Ranking</h1>
+        <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+          Track your growth and compare with the community.
         </p>
       </header>
 
       {/* Tabs */}
-      <div className="flex overflow-x-auto border-b border-zinc-200 dark:border-zinc-800">
-        <div className="flex gap-6 px-1">
+      <div className="inline-flex gap-1 rounded-full border border-zinc-200 bg-zinc-50 p-1">
+        {(["progress", "leaderboard"] as const).map((tab) => (
           <button
-            onClick={() => setActiveTab("progress")}
-            className={`flex items-center gap-2 border-b-2 pb-3 text-sm font-medium transition-colors ${
-              activeTab === "progress"
-                ? "border-zinc-900 text-zinc-900 dark:border-zinc-100 dark:text-zinc-100"
-                : "border-transparent text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all ${
+              activeTab === tab
+                ? "bg-white text-zinc-900 shadow-sm"
+                : "text-zinc-500 hover:text-zinc-900"
             }`}
           >
-            <span>📊</span>
-             My Progress
+            {tab === "progress" ? "My Progress" : "Leaderboard"}
           </button>
-          <button
-            onClick={() => setActiveTab("leaderboard")}
-            className={`flex items-center gap-2 border-b-2 pb-3 text-sm font-medium transition-colors ${
-              activeTab === "leaderboard"
-                ? "border-zinc-900 text-zinc-900 dark:border-zinc-100 dark:text-zinc-100"
-                : "border-transparent text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-            }`}
-          >
-            <span>🏆</span>
-             Leaderboard
-          </button>
-        </div>
+        ))}
       </div>
 
       <main>
         {activeTab === "progress" && (
-           <div className="flex flex-col gap-8">
-             {userId ? (
-               <AnalyticsDashboard userId={userId} />
-             ) : (
-               <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-8 text-center dark:border-zinc-800 dark:bg-zinc-900">
-                 <p className="text-zinc-600 dark:text-zinc-400">
-                   Please sign in to view your analytics
-                 </p>
-               </div>
-             )}
-           </div>
+          <div className="flex flex-col gap-4">
+            {userId ? (
+              <AnalyticsDashboard userId={userId} />
+            ) : (
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-6 text-center dark:border-zinc-800 dark:bg-zinc-900">
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  Please sign in to view your analytics
+                </p>
+              </div>
+            )}
+          </div>
         )}
 
         {activeTab === "leaderboard" && (
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-4">
             <Leaderboard />
           </div>
         )}

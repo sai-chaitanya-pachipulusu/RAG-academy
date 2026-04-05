@@ -11,102 +11,73 @@ export default function ProgressPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("overview");
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Your Progress</h1>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          Track your RAG mastery journey across all challenges and skills.
+        <h1 className="text-xl font-semibold tracking-tight">Your Progress</h1>
+        <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+          Track your RAG mastery journey.
         </p>
       </div>
 
       {/* View Toggle */}
-      <div className="flex items-center justify-center">
-        <div className="inline-flex gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-800">
+      <div className="inline-flex gap-1 rounded-full border border-zinc-200 bg-zinc-50 p-1">
+        {([
+          { id: "overview" as const, label: "Overview" },
+          { id: "skills" as const, label: "Skill Tree" },
+          { id: "streak" as const, label: "Streaks" },
+        ]).map((tab) => (
           <button
-            onClick={() => setViewMode("overview")}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
-              viewMode === "overview"
-                ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-zinc-100"
-                : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+            key={tab.id}
+            onClick={() => setViewMode(tab.id)}
+            className={`rounded-full px-3.5 py-1.5 text-xs font-medium transition-all ${
+              viewMode === tab.id
+                ? "bg-white text-zinc-900 shadow-sm"
+                : "text-zinc-500 hover:text-zinc-900"
             }`}
           >
-            <span>📊</span>
-            Overview
+            {tab.label}
           </button>
-          <button
-            onClick={() => setViewMode("skills")}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
-              viewMode === "skills"
-                ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-zinc-100"
-                : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-            }`}
-          >
-            <span>🌳</span>
-            Skill Tree
-          </button>
-          <button
-            onClick={() => setViewMode("streak")}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
-              viewMode === "streak"
-                ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-zinc-100"
-                : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-            }`}
-          >
-            <span>🔥</span>
-            Streaks
-          </button>
-        </div>
+        ))}
       </div>
 
       {/* Content */}
-      {viewMode === "overview" && (
-        <div className="flex flex-col gap-8">
-          <ProgressAnalytics />
-        </div>
-      )}
+      {viewMode === "overview" && <ProgressAnalytics />}
 
       {viewMode === "skills" && <SkillTree />}
 
       {viewMode === "streak" && (
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           <div>
             <DailyStreak />
           </div>
-          <div className="space-y-6">
-            <div className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-              <h3 className="flex items-center gap-2 font-semibold text-zinc-900 dark:text-zinc-100">
-                <span>🏅</span>
-                Streak Milestones
-              </h3>
-              <p className="mt-2 text-sm text-zinc-500">
-                Unlock achievements by maintaining your learning streak
+          <div className="space-y-4">
+            <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Streak Milestones</h3>
+              <p className="mt-1 text-xs text-zinc-500">
+                Unlock achievements by maintaining your streak
               </p>
-              <div className="mt-4">
+              <div className="mt-3">
                 <StreakMilestones />
               </div>
             </div>
 
-            <div className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-              <h3 className="flex items-center gap-2 font-semibold text-zinc-900 dark:text-zinc-100">
-                <span>💡</span>
-                Streak Tips
-              </h3>
-              <ul className="mt-4 space-y-3 text-sm text-zinc-600 dark:text-zinc-400">
-                <li className="flex gap-2">
-                  <span>✓</span>
-                  <span>Complete at least one challenge or quiz daily</span>
+            <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Streak Tips</h3>
+              <ul className="mt-2 space-y-1.5 text-xs text-zinc-600 dark:text-zinc-400">
+                <li className="flex gap-1.5">
+                  <span className="text-emerald-500">+</span>
+                  <span>Complete at least one challenge daily</span>
                 </li>
-                <li className="flex gap-2">
-                  <span>✓</span>
+                <li className="flex gap-1.5">
+                  <span className="text-emerald-500">+</span>
                   <span>Use freeze days when you need a break</span>
                 </li>
-                <li className="flex gap-2">
-                  <span>✓</span>
+                <li className="flex gap-1.5">
+                  <span className="text-emerald-500">+</span>
                   <span>Set a consistent time each day for learning</span>
                 </li>
-                <li className="flex gap-2">
-                  <span>✓</span>
+                <li className="flex gap-1.5">
+                  <span className="text-emerald-500">+</span>
                   <span>Enable streak reminders in settings</span>
                 </li>
               </ul>
