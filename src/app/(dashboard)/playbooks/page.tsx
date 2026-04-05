@@ -7,15 +7,11 @@ export default async function PlaybooksPage() {
   const playbooks = await listPlaybooks();
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <header>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">Playbooks</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-          Production Playbooks
-        </h1>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          Decision-first guides you can ship. Each playbook explains why, when,
-          tradeoffs, metrics, and failure modes.
+        <h1 className="text-xl font-semibold tracking-tight">Production Playbooks</h1>
+        <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+          Decision-first guides you can ship.
         </p>
       </header>
 
