@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/Badge";
@@ -19,38 +21,8 @@ type Template = {
 
 const TEMPLATES: Template[] = [
   {
-    name: "Python FastAPI + LangChain",
-    desc: "Production-ready RAG API with hybrid retrieval, reranking, and evaluation harness.",
-    stack: ["Python 3.11+", "FastAPI", "LangChain", "OpenAI", "Chroma/Pinecone"],
-    repoUrl: "https://github.com/sai-chaitanya-pachipulusu/RAG-academy-templates/tree/main/python-fastapi-rag",
-    features: [
-      "Hybrid retrieval (dense + BM25)",
-      "Cross-encoder reranking",
-      "Citation-grounded generation",
-      "Golden set evaluation",
-      "Rate limiting + logging",
-    ],
-    status: "coming",
-    difficulty: "Intermediate",
-  },
-  {
-    name: "Node.js/TypeScript + Express",
-    desc: "TypeScript RAG baseline with the same architecture, ready for serverless deployment.",
-    stack: ["Node.js 18+", "TypeScript", "Express", "OpenAI", "Chroma"],
-    repoUrl: "https://github.com/sai-chaitanya-pachipulusu/RAG-academy-templates/tree/main/node-typescript-rag",
-    features: [
-      "Same pipeline architecture",
-      "Full TypeScript types",
-      "LLM-based reranking",
-      "Streaming support",
-      "Evaluation metrics",
-    ],
-    status: "coming",
-    difficulty: "Intermediate",
-  },
-  {
     name: "Next.js Full-Stack RAG",
-    desc: "Complete RAG application with UI, API, and database — the same architecture as RAG Academy.",
+    desc: "Complete RAG application with UI, API, and database. The same architecture as RAG Academy.",
     stack: ["Next.js 16", "React", "Supabase", "Polar.sh", "Vercel"],
     repoUrl: "https://github.com/sai-chaitanya-pachipulusu/RAG-academy",
     features: [
@@ -99,7 +71,7 @@ const PROJECT_TRACKS: ProjectTrack[] = [
       "Proper index serialization",
       "Recall@10 > 0.95 on test set",
     ],
-    icon: "🗄️",
+    icon: "DB",
   },
   {
     id: "rag-pipeline",
@@ -121,7 +93,7 @@ const PROJECT_TRACKS: ProjectTrack[] = [
       "Top-k retrieval works",
       "Cited answers from context",
     ],
-    icon: "🔗",
+    icon: "RAG",
   },
   {
     id: "reranker",
@@ -142,7 +114,7 @@ const PROJECT_TRACKS: ProjectTrack[] = [
       "MMR increases diversity without hurting relevance",
       "Precision@5 improvement > 10%",
     ],
-    icon: "🎯",
+    icon: "RR",
   },
   {
     id: "evaluator",
@@ -165,7 +137,7 @@ const PROJECT_TRACKS: ProjectTrack[] = [
       "Results are reproducible",
       "Report includes confidence intervals",
     ],
-    icon: "📊",
+    icon: "EV",
   },
   {
     id: "agent",
@@ -187,7 +159,7 @@ const PROJECT_TRACKS: ProjectTrack[] = [
       "Self-correction improves answer quality",
       "Handles failure cases gracefully",
     ],
-    icon: "🤖",
+    icon: "AG",
   },
   {
     id: "graph-rag",
@@ -209,7 +181,7 @@ const PROJECT_TRACKS: ProjectTrack[] = [
       "Answers require reasoning across nodes",
       "Handles missing edges gracefully",
     ],
-    icon: "🕸️",
+    icon: "GR",
   },
 ];
 
@@ -336,7 +308,9 @@ export default function ProjectsPage() {
             <Card key={track.id} className="p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
-                  <span className="text-2xl">{track.icon}</span>
+                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-zinc-100 text-xs font-bold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                    {track.icon}
+                  </span>
                   <div>
                     <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                       {track.title}
@@ -427,7 +401,7 @@ export default function ProjectsPage() {
           </div>
         </div>
 
-        <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <div className="mt-4 grid gap-4 md:grid-cols-1 lg:grid-cols-1">
           {TEMPLATES.map((t) => (
             <Card key={t.name} className="flex flex-col gap-4 p-5">
               <div className="flex items-start justify-between gap-3">
