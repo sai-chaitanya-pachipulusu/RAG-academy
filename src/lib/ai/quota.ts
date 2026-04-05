@@ -58,7 +58,7 @@ function parseQuota(raw: string | null, userId: string): UserReviewQuota {
 }
 
 async function saveQuota(quota: UserReviewQuota): Promise<void> {
-  const redis = getRedisClient();
+  const redis = await getRedisClient();
   const key = quotaKey(quota.userId);
   const ttl = Math.max(0, Math.ceil((quota.resetsAt - Date.now()) / 1000)) + 86400;
 
@@ -92,7 +92,7 @@ function getFallbackQuota(userId: string): UserReviewQuota {
 // ── Public API (async) ──────────────────────────────────────────────────────
 
 export async function getUserQuota(userId: string): Promise<UserReviewQuota> {
-  const redis = getRedisClient();
+  const redis = await getRedisClient();
 
   if (redis) {
     const raw = await redis.get(quotaKey(userId));
@@ -196,7 +196,7 @@ export async function setUnlimitedAccess(
 }
 
 export async function resetUserQuota(userId: string): Promise<void> {
-  const redis = getRedisClient();
+  const redis = await getRedisClient();
   if (redis) {
     await redis.del(quotaKey(userId));
   }
@@ -208,7 +208,7 @@ export async function getAllQuotaStats(): Promise<{
   totalUsedToday: number;
   averageUsage: number;
 }> {
-  const redis = getRedisClient();
+  const redis = await getRedisClient();
 
   if (redis) {
     const keys = await redis.keys(`${QUOTA_KEY_PREFIX}*`);
@@ -249,7 +249,7 @@ export async function getAllQuotaStats(): Promise<{
 }
 
 export async function cleanupExpiredQuotas(): Promise<number> {
-  const redis = getRedisClient();
+  const redis = await getRedisClient();
 
   if (redis) {
     const keys = await redis.keys(`${QUOTA_KEY_PREFIX}*`);
