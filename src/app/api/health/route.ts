@@ -55,7 +55,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<HealthStat
 
   // Check Redis
   try {
-    const redis = getRedisClient();
+    const redis = await getRedisClient();
     if (redis) {
       const result = await redis.ping();
       checks.push({ name: "redis", status: result === "PONG" ? "pass" : "warn", message: result });
