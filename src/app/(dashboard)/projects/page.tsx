@@ -3,7 +3,9 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { ProjectChecklist } from "@/components/projects/ProjectChecklist";
+import { TrackProgress } from "@/components/projects/TrackProgress";
 import { LIVE_DATA_CHALLENGES } from "@/lib/challenges/defs/liveProjects";
+import { useSupabaseAuth } from "@/components/providers/SupabaseAuthProvider";
 
 type Template = {
   name: string;
@@ -212,6 +214,8 @@ const PROJECT_TRACKS: ProjectTrack[] = [
 ];
 
 export default function ProjectsPage() {
+  const { user } = useSupabaseAuth();
+
   return (
     <div className="flex flex-col gap-10">
       <header>
@@ -398,6 +402,13 @@ export default function ProjectsPage() {
                 </p>
                 <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300">{track.outcome}</p>
               </div>
+
+              <TrackProgress
+                trackId={track.id}
+                trackTitle={track.title}
+                challenges={track.challenges}
+                userId={user?.id ?? null}
+              />
             </Card>
           ))}
         </div>
