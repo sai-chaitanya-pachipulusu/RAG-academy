@@ -38,12 +38,12 @@ const FEATURES = [
   },
 ];
 
-// Featured challenges - curated selection
+// Featured challenges - curated selection that actually exist
 const FEATURED_CHALLENGES = [
   { slug: "hyde-search", title: "HyDE Search", difficulty: "medium", category: "Query Transforms" },
-  { slug: "rerank-cascade", title: "Rerank Cascade", difficulty: "medium", category: "Post-Retrieval" },
+  { slug: "reranker-cascade", title: "Rerank Cascade", difficulty: "medium", category: "Post-Retrieval" },
   { slug: "graphrag-knowledge-graph", title: "GraphRAG", difficulty: "hard", category: "Graph RAG" },
-  { slug: "mia-rag-mindscape", title: "MiA-RAG", difficulty: "hard", category: "Advanced 2025" },
+  { slug: "end-to-end-rag-pipeline", title: "End-to-End RAG", difficulty: "hard", category: "Capstone" },
 ];
 
 // Advanced RAG 2025 techniques
@@ -81,8 +81,16 @@ const LEARNING_PATH = [
   { name: "Foundations", count: stageCounts["foundations"] || 0, color: "bg-zinc-900" },
   { name: "Pre-Retrieval", count: stageCounts["pre-retrieval"] || 0, color: "bg-zinc-800" },
   { name: "Retrieval", count: stageCounts["retrieval"] || 0, color: "bg-zinc-700" },
-  { name: "Post-Retrieval", count: stageCounts["post-retrieval"] || 0, color: "bg-zinc-600" },
-  { name: "Evaluation", count: stageCounts["evaluation-ops"] || 0, color: "bg-zinc-500" },
+  { name: "Query Transforms", count: stageCounts["query-transforms"] || 0, color: "bg-zinc-600" },
+  { name: "Advanced Retrieval", count: stageCounts["advanced-retrieval"] || 0, color: "bg-zinc-500" },
+  { name: "Post-Retrieval", count: stageCounts["post-retrieval"] || 0, color: "bg-zinc-400" },
+  { name: "Grounding & Safety", count: stageCounts["grounding-safety"] || 0, color: "bg-zinc-500" },
+  { name: "Agentic RAG", count: stageCounts["agentic-rag"] || 0, color: "bg-zinc-600" },
+  { name: "Graph RAG", count: stageCounts["graph-rag"] || 0, color: "bg-zinc-700" },
+  { name: "Multimodal", count: stageCounts["multimodal"] || 0, color: "bg-zinc-600" },
+  { name: "Fine-tuning", count: stageCounts["fine-tuning"] || 0, color: "bg-zinc-500" },
+  { name: "Production Ops", count: stageCounts["production-ops"] || 0, color: "bg-zinc-400" },
+  { name: "Evaluation Ops", count: stageCounts["evaluation-ops"] || 0, color: "bg-zinc-300" },
 ];
 
 // Dynamic stats from actual challenge data
@@ -115,7 +123,7 @@ export default function Home() {
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--accent-blue)]/60" />
                     <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--accent-blue)]" />
                   </span>
-                  Production-Ready RAG • 2025
+                  Production-Ready RAG • 2026
                 </div>
               </Reveal>
 
@@ -402,6 +410,68 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Projects Section */}
+      <section className="border-t border-[var(--border-subtle)]">
+        <div className="mx-auto max-w-[1400px] px-6 py-16 lg:px-12 lg:py-20">
+          <Reveal>
+            <div className="flex items-end justify-between mb-8">
+              <div>
+                <h2 className="text-[32px] font-semibold tracking-tight text-[var(--foreground)] lg:text-[40px]">
+                  Hands-On Projects
+                </h2>
+                <p className="mt-2 text-[19px] text-[var(--gray-500)]">
+                  Build production-grade systems with guided tracks and earn certificates
+                </p>
+              </div>
+              <Link
+                href="/projects"
+                className="hidden sm:inline-flex items-center gap-2 rounded-full border border-[var(--border-default)] bg-white px-5 py-2 text-[15px] font-medium text-[var(--foreground)] transition-all duration-200 hover:border-[var(--border-hover)] hover:bg-[var(--gray-50)] hover:shadow-sm"
+              >
+                View all projects
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </Link>
+            </div>
+          </Reveal>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              { title: "Build a Vector Database", challenges: 6, difficulty: "Intermediate", icon: "DB", desc: "Implement FAISS-like algorithms from scratch" },
+              { title: "Build a RAG Pipeline", challenges: 5, difficulty: "Beginner", icon: "RAG", desc: "End-to-end retrieval augmented generation" },
+              { title: "Build an Agent", challenges: 5, difficulty: "Advanced", icon: "AG", desc: "Agentic RAG with tool use and self-correction" },
+            ].map((project, i) => (
+              <Reveal key={project.title} delayMs={i * 60}>
+                <Link
+                  href="/projects"
+                  className="group block rounded-xl border border-[var(--border-default)] bg-white p-6 transition-all duration-200 hover:border-[var(--border-hover)] hover:shadow-md hover:-translate-y-0.5"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-[var(--gray-50)] text-xs font-bold text-[var(--gray-400)] group-hover:bg-[var(--foreground)] group-hover:text-white transition-colors">
+                      {project.icon}
+                    </span>
+                    <span className={`inline-flex px-2.5 py-1 rounded-full text-[12px] font-semibold uppercase tracking-wide ${
+                      project.difficulty === 'Advanced'
+                        ? 'bg-[var(--foreground)] text-white'
+                        : project.difficulty === 'Intermediate'
+                          ? 'bg-[var(--gray-100)] text-[var(--gray-400)]'
+                          : 'bg-emerald-50 text-emerald-600'
+                    }`}>
+                      {project.difficulty}
+                    </span>
+                  </div>
+                  <h3 className="text-[17px] font-semibold text-[var(--foreground)] mb-1 group-hover:text-[var(--accent-blue)] transition-colors">
+                    {project.title}
+                  </h3>
+                  <p className="text-[14px] text-[var(--gray-500)] mb-3">{project.desc}</p>
+                  <p className="text-[13px] text-[var(--gray-400)]">{project.challenges} challenges with certificate</p>
+                </Link>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Resources Grid */}
       <section className="border-t border-[var(--border-subtle)] bg-[var(--gray-50)]">
         <div className="mx-auto max-w-[1400px] px-6 py-16 lg:px-12 lg:py-20">
@@ -510,6 +580,7 @@ export default function Home() {
               <ul className="space-y-3 text-sm text-zinc-500">
                 <li><Link href="/learn" className="hover:text-zinc-900 transition-colors">Curriculum</Link></li>
                 <li><Link href="/challenges" className="hover:text-zinc-900 transition-colors">Challenges</Link></li>
+                <li><Link href="/projects" className="hover:text-zinc-900 transition-colors">Projects</Link></li>
                 <li><Link href="/playbooks" className="hover:text-zinc-900 transition-colors">Playbooks</Link></li>
               </ul>
             </div>
@@ -535,7 +606,7 @@ export default function Home() {
           </div>
 
           <div className="mt-16 pt-8 border-t border-zinc-100 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-zinc-400">
-            <p>© 2025 RAG Academy. All rights reserved.</p>
+            <p>© 2026 RAG Academy. All rights reserved.</p>
             <p>Built for production RAG engineers.</p>
           </div>
         </div>
