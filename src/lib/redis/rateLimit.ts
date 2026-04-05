@@ -22,7 +22,7 @@ export async function redisRateLimit(
   key: string,
   { windowMs, limit }: { windowMs: number; limit: number }
 ): Promise<RateLimitResult> {
-  const redis = getRedisClient();
+  const redis = await getRedisClient();
 
   // Fall back to in-memory if Redis is unavailable
   if (!redis) {
