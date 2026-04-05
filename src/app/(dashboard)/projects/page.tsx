@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { ProjectChecklist } from "@/components/projects/ProjectChecklist";
 import { TrackProgress } from "@/components/projects/TrackProgress";
+import { GuidedProjectMode } from "@/components/projects/GuidedProjectMode";
+import { PeerReviewSystem } from "@/components/projects/PeerReviewSystem";
 import { LIVE_DATA_CHALLENGES } from "@/lib/challenges/defs/liveProjects";
 import { useSupabaseAuth } from "@/components/providers/SupabaseAuthProvider";
 
@@ -383,6 +385,26 @@ export default function ProjectsPage() {
                 challenges={track.challenges}
                 userId={user?.id ?? null}
               />
+
+              <div className="mt-6 space-y-6">
+                <GuidedProjectMode
+                  trackTitle={track.title}
+                  steps={track.challenges.map((c, i) => ({
+                    title: `Step ${i + 1}: ${c.label}`,
+                    description: `Complete the ${c.label} challenge to build this component of the ${track.title} project.`,
+                    challengeSlug: c.slug,
+                    challengeLabel: c.label,
+                    expectedOutcome: track.outcome,
+                  }))}
+                />
+
+                <PeerReviewSystem
+                  projectId={track.id}
+                  projectTitle={track.title}
+                  rubric={track.rubric}
+                  userId={user?.id ?? null}
+                />
+              </div>
             </Card>
           ))}
         </div>
