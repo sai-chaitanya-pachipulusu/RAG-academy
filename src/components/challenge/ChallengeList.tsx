@@ -107,26 +107,26 @@ export function ChallengeList({ challenges }: { challenges: ChallengeMeta[] }) {
     <div className="flex flex-col gap-6">
       <div className="space-y-4 sm:grid sm:gap-3 sm:grid-cols-2">
         <div>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1.5 sm:mb-1">Search</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5 sm:mb-1">Search</p>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="BM25, HyDE, rerank, citations…"
-            className="h-12 sm:h-10 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-base sm:text-sm outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:focus:ring-zinc-600"
+            className="h-12 sm:h-10 w-full rounded-2xl border border-gray-200 bg-white px-4 text-base sm:text-sm outline-none focus:ring-2 focus:ring-[#8B5CF6]400 dark:border-gray-800 dark:bg-[#7C3AED] dark:focus:ring-[#8B5CF6]600"
           />
         </div>
 
         <div>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1.5 sm:mb-1">Filter by stage</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5 sm:mb-1">Filter by stage</p>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => setStage("all")}
               className={[
-                "rounded-full border px-3 py-2 sm:py-1 text-sm sm:text-xs font-medium transition-colors touch-target",
+                "rounded-full border px-3 py-2 sm:py-1 text-sm sm:text-xs font-medium transition-all duration-200-all duration-200 touch-target",
                 stage === "all"
-                  ? "border-zinc-950 bg-zinc-950 text-white dark:border-white/25 dark:bg-white/10"
-                  : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]",
+                  ? "border-gray-950 bg-[#7C3AED] text-white dark:border-white/25 dark:bg-white/10"
+                  : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06]",
               ].join(" ")}
             >
               All
@@ -137,10 +137,10 @@ export function ChallengeList({ challenges }: { challenges: ChallengeMeta[] }) {
                 type="button"
                 onClick={() => setStage(s.id)}
                 className={[
-                  "rounded-full border px-3 py-2 sm:py-1 text-sm sm:text-xs font-medium transition-colors touch-target",
+                  "rounded-full border px-3 py-2 sm:py-1 text-sm sm:text-xs font-medium transition-all duration-200-all duration-200 touch-target",
                   stage === s.id
-                    ? "border-zinc-950 bg-zinc-950 text-white dark:border-white/25 dark:bg-white/10"
-                    : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]",
+                    ? "border-gray-950 bg-[#7C3AED] text-white dark:border-white/25 dark:bg-white/10"
+                    : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06]",
                 ].join(" ")}
               >
                 {s.label}
@@ -159,7 +159,7 @@ export function ChallengeList({ challenges }: { challenges: ChallengeMeta[] }) {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h2 className="text-lg font-semibold tracking-tight">{b.stage.label}</h2>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                 {b.stage.blurb}
               </p>
             </div>
@@ -171,7 +171,7 @@ export function ChallengeList({ challenges }: { challenges: ChallengeMeta[] }) {
               <a
                 href={`#${slugifyId(`${b.stage.id}-${g.group}`)}`}
                 id={slugifyId(`${b.stage.id}-${g.group}`)}
-                className="text-xs font-semibold uppercase tracking-wider text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                className="text-xs font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer"
               >
                 {g.group}
               </a>
@@ -186,7 +186,7 @@ export function ChallengeList({ challenges }: { challenges: ChallengeMeta[] }) {
                     <CardLink
                       key={c.slug}
                       href={`/challenges/${c.slug}`}
-                      className="p-4 sm:p-5 touch-manipulation active:scale-[0.99] transition-transform"
+                      className="p-4 sm:p-5 touch-manipulation active:scale-[0.99] transition-all duration-200-transform cursor-pointer"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
@@ -194,7 +194,7 @@ export function ChallengeList({ challenges }: { challenges: ChallengeMeta[] }) {
                             {c.title}{" "}
                             {done ? <Badge variant="accent">Completed</Badge> : null}
                           </p>
-                          <p className="mt-1.5 text-sm text-zinc-600 dark:text-zinc-300 line-clamp-2">
+                          <p className="mt-1.5 text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
                             {c.description}
                           </p>
                         </div>
@@ -203,7 +203,7 @@ export function ChallengeList({ challenges }: { challenges: ChallengeMeta[] }) {
                         </Badge>
                       </div>
                       <div className="mt-3 flex items-center justify-between">
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
                           <span className={`inline-flex items-center gap-1 ${
                             status === "completed" ? "text-emerald-600" : 
                             status === "in_progress" ? "text-blue-600" : ""

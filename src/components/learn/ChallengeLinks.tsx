@@ -15,22 +15,22 @@ export function ChallengeLinks({ slugs, title = "Try these challenges" }: Props)
   if (challenges.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+    <div className="rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
       <p className="text-sm font-medium">{title}</p>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         {challenges.map((c) => (
           <Link
             key={c.slug}
             href={`/challenges/${c.slug}`}
-            className="rounded-2xl border border-zinc-200 p-4 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900/40"
+            className="rounded-2xl border border-gray-200 p-4 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900/40 cursor-pointer"
           >
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-medium">{c.title}</p>
-              <span className="rounded-full border border-zinc-200 px-2 py-0.5 text-xs text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
+              <span className="rounded-full border border-gray-200 px-2 py-0.5 text-xs text-gray-600 dark:border-gray-800 dark:text-gray-400">
                 {c.difficulty} · {c.xpReward} XP
               </span>
             </div>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
               {c.description}
             </p>
           </Link>

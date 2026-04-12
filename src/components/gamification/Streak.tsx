@@ -109,7 +109,7 @@ export function StreakDisplay() {
   const days = ["M", "T", "W", "T", "F", "S", "S"];
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-gradient-to-br from-orange-50 to-amber-50 p-4 dark:border-zinc-800 dark:from-orange-950/30 dark:to-amber-950/30">
+    <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-orange-50 to-amber-50 p-4 dark:border-gray-800 dark:from-orange-950/30 dark:to-amber-950/30">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
@@ -121,7 +121,7 @@ export function StreakDisplay() {
           </p>
         </div>
         <div className="text-right">
-          <p className="text-xs text-zinc-500">Best: {streak.longestStreak} days</p>
+          <p className="text-xs text-gray-500">Best: {streak.longestStreak} days</p>
         </div>
       </div>
 
@@ -134,10 +134,10 @@ export function StreakDisplay() {
                 className={`h-6 w-6 rounded-md transition-all ${
                   streak.weeklyActivity[i]
                     ? "bg-emerald-500 shadow-sm shadow-emerald-500/30"
-                    : "bg-zinc-200 dark:bg-zinc-800"
+                    : "bg-gray-200 dark:bg-[#7C3AED]"
                 }`}
               />
-              <span className="text-[10px] text-zinc-500">{day}</span>
+              <span className="text-[10px] text-gray-500">{day}</span>
             </div>
           ))}
         </div>

@@ -166,7 +166,7 @@ export function PersonalizedRecommendations({
       case "hard":
         return "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400";
       default:
-        return "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400";
+        return "bg-gray-100 text-gray-700 dark:bg-[#7C3AED] dark:text-gray-400";
     }
   };
 
@@ -174,7 +174,7 @@ export function PersonalizedRecommendations({
     return (
       <div className="space-y-2">
         {showTitle && (
-          <h3 className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+          <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">
             Recommended for you
           </h3>
         )}
@@ -182,7 +182,7 @@ export function PersonalizedRecommendations({
           <Link
             key={challenge.slug}
             href={`/challenges/${challenge.slug}`}
-            className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-white p-3 transition-all hover:border-zinc-300 hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+            className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 transition-all duration-200-all duration-200 hover:border-gray-300 hover:shadow-sm dark:border-gray-800 dark:bg-gray-900 cursor-pointer"
           >
             <span
               className={`rounded-md px-2 py-0.5 text-[10px] font-medium uppercase ${getDifficultyColor(
@@ -192,13 +192,13 @@ export function PersonalizedRecommendations({
               {challenge.difficulty}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+              <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
                 {challenge.title}
               </p>
-              <p className="truncate text-xs text-zinc-500">{reason}</p>
+              <p className="truncate text-xs text-gray-500">{reason}</p>
             </div>
             <svg
-              className="h-4 w-4 text-zinc-400"
+              className="h-4 w-4 text-gray-400"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -217,21 +217,21 @@ export function PersonalizedRecommendations({
   }
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
       {showTitle && (
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
               <span>🎯</span>
               Recommended for You
             </h2>
-            <p className="mt-1 text-sm text-zinc-500">
+            <p className="mt-1 text-sm text-gray-500">
               Based on your goals and progress
             </p>
           </div>
           <Link
             href="/challenges"
-            className="text-sm font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+            className="text-sm font-medium text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 cursor-pointer"
           >
             View all →
           </Link>
@@ -243,10 +243,10 @@ export function PersonalizedRecommendations({
           <Link
             key={challenge.slug}
             href={`/challenges/${challenge.slug}`}
-            className="group flex items-center gap-4 rounded-xl border border-zinc-100 bg-zinc-50/50 p-4 transition-all hover:border-zinc-200 hover:bg-zinc-50 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-800/50 dark:hover:border-zinc-700 dark:hover:bg-zinc-800"
+            className="group flex items-center gap-4 rounded-xl border border-gray-100 bg-gray-50/50 p-4 transition-all duration-200-all duration-200 hover:border-gray-200 hover:bg-gray-50 hover:shadow-md dark:border-gray-800 dark:bg-[#7C3AED]/50 dark:hover:border-gray-700 dark:hover:bg-[#7C3AED] cursor-pointer"
           >
             {/* Rank indicator */}
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-sm font-bold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-sm font-bold text-gray-500 dark:bg-[#7C3AED] dark:text-gray-400">
               {index + 1}
             </div>
 
@@ -260,12 +260,12 @@ export function PersonalizedRecommendations({
                 >
                   {challenge.difficulty}
                 </span>
-                <span className="text-xs text-zinc-400">{challenge.group}</span>
+                <span className="text-xs text-gray-400">{challenge.group}</span>
               </div>
-              <p className="mt-1 font-medium text-zinc-900 dark:text-zinc-100">
+              <p className="mt-1 font-medium text-gray-900 dark:text-gray-100">
                 {challenge.title}
               </p>
-              <p className="mt-0.5 flex items-center gap-1 text-xs text-zinc-500">
+              <p className="mt-0.5 flex items-center gap-1 text-xs text-gray-500">
                 <span className="text-amber-500">★</span>
                 {reason}
               </p>
@@ -277,7 +277,7 @@ export function PersonalizedRecommendations({
                 +{challenge.xpReward || 50} XP
               </span>
               <svg
-                className="h-5 w-5 text-zinc-300 transition-transform group-hover:translate-x-1 dark:text-zinc-600"
+                className="h-5 w-5 text-gray-300 transition-all duration-200-transform group-hover:translate-x-1 dark:text-gray-600 cursor-pointer"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"

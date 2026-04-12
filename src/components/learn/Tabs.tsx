@@ -29,8 +29,8 @@ export function Tabs({ children }: Readonly<{ children: React.ReactNode }>) {
   const safeActive = Math.min(Math.max(active, 0), tabs.length - 1);
 
   return (
-    <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800">
-      <div className="flex flex-wrap gap-2 border-b border-zinc-200 p-2 dark:border-zinc-800">
+    <div className="rounded-2xl border border-gray-200 dark:border-gray-800">
+      <div className="flex flex-wrap gap-2 border-b border-gray-200 p-2 dark:border-gray-800">
         {tabs.map((t, idx) => {
           const on = idx === safeActive;
           return (
@@ -41,8 +41,8 @@ export function Tabs({ children }: Readonly<{ children: React.ReactNode }>) {
               className={[
                 "rounded-full px-3 py-1 text-xs font-medium transition-colors",
                 on
-                  ? "bg-zinc-950 text-white dark:bg-white dark:text-black"
-                  : "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900",
+                  ? "bg-[#7C3AED] text-white dark:bg-white dark:text-black"
+                  : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-900",
               ].join(" ")}
             >
               {t.label}

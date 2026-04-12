@@ -114,10 +114,10 @@ export function PeerReviewSystem({ projectId, projectTitle, rubric, userId }: Pe
       <Card className="p-5">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
               Peer Reviews
             </h3>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               {reviews.length} review{reviews.length !== 1 ? "s" : ""} submitted
               {averageScore > 0 && ` · Average score: ${averageScore}/10`}
             </p>
@@ -125,7 +125,7 @@ export function PeerReviewSystem({ projectId, projectTitle, rubric, userId }: Pe
           {userId && (
             <button
               onClick={() => setShowForm(!showForm)}
-              className="inline-flex h-8 items-center justify-center rounded-full bg-zinc-950 px-3 text-xs font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+              className="inline-flex h-8 items-center justify-center rounded-full bg-[#7C3AED] px-3 text-xs font-medium text-white hover:bg-[#7C3AED] dark:bg-white dark:text-black dark:hover:bg-[#7C3AED] cursor-pointer"
             >
               {showForm ? "Cancel" : "Write Review"}
             </button>
@@ -138,10 +138,10 @@ export function PeerReviewSystem({ projectId, projectTitle, rubric, userId }: Pe
             {reviews.slice(0, 3).map((review) => (
               <div
                 key={review.id}
-                className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3"
+                className="rounded-lg border border-gray-200 dark:border-gray-800 p-3"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
                     {review.reviewerName}
                   </span>
                   <Badge variant={review.overallScore >= 7 ? "accent" : "muted"}>
@@ -149,7 +149,7 @@ export function PeerReviewSystem({ projectId, projectTitle, rubric, userId }: Pe
                   </Badge>
                 </div>
                 {review.feedback && (
-                  <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
+                  <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">
                     {review.feedback}
                   </p>
                 )}
@@ -162,17 +162,17 @@ export function PeerReviewSystem({ projectId, projectTitle, rubric, userId }: Pe
       {/* Review Form */}
       {showForm && (
         <Card className="p-5">
-          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
             Review: {projectTitle}
           </h3>
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             Score each criterion from 0-10
           </p>
 
           <div className="mt-4 space-y-3">
             {criteria.map((c) => (
               <div key={c.id} className="flex items-center justify-between">
-                <span className="text-xs text-zinc-700 dark:text-zinc-300">
+                <span className="text-xs text-gray-700 dark:text-gray-300">
                   {c.label}
                 </span>
                 <div className="flex items-center gap-1">
@@ -180,10 +180,10 @@ export function PeerReviewSystem({ projectId, projectTitle, rubric, userId }: Pe
                     <button
                       key={score}
                       onClick={() => updateScore(c.id, score)}
-                      className={`w-7 h-7 rounded text-xs font-medium transition-colors ${
+                      className={`w-7 h-7 rounded text-xs font-medium transition-all duration-200-all duration-200 ${
                         c.score === score
-                          ? "bg-zinc-900 text-white dark:bg-white dark:text-black"
-                          : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
+                          ? "bg-[#8B5CF6] text-white dark:bg-white dark:text-black"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-[#7C3AED] dark:text-gray-400 dark:hover:bg-gray-700"
                       }`}
                     >
                       {score}
@@ -195,14 +195,14 @@ export function PeerReviewSystem({ projectId, projectTitle, rubric, userId }: Pe
           </div>
 
           <div className="mt-4">
-            <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+            <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
               Feedback (optional)
             </label>
             <textarea
               value={feedback}
               onChange={(e) => setFeedback(e.target.value)}
               rows={3}
-              className="mt-1 w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-500"
+              className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]500"
               placeholder="What did you like? What could be improved?"
             />
           </div>
@@ -211,7 +211,7 @@ export function PeerReviewSystem({ projectId, projectTitle, rubric, userId }: Pe
             <button
               onClick={handleSubmitReview}
               disabled={isSubmitting || criteria.every((c) => c.score === 0)}
-              className="inline-flex h-9 items-center justify-center rounded-full bg-zinc-950 px-4 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex h-9 items-center justify-center rounded-full bg-[#7C3AED] px-4 text-sm font-medium text-white hover:bg-[#7C3AED] dark:bg-white dark:text-black dark:hover:bg-[#7C3AED] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? "Submitting..." : "Submit Review"}
             </button>

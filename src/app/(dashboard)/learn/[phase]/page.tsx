@@ -21,7 +21,7 @@ export default async function PhaseLessonsPage({ params }: Props) {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="text-xs text-gray-500 dark:text-gray-400">
           Learn / {formatPhaseLabel(phase)}
         </p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">

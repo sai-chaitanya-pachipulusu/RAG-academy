@@ -160,22 +160,22 @@ function PaymentTestPageContent() {
     <div className="mx-auto max-w-5xl p-6">
       {/* Header */}
       <div className="mb-8">
-        <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-          <Link href="/settings" className="hover:text-zinc-900 dark:hover:text-zinc-200">
+        <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+          <Link href="/settings" className="hover:text-gray-900 dark:hover:text-gray-200 cursor-pointer">
             Settings
           </Link>
           <span>/</span>
-          <Link href="/settings/billing" className="hover:text-zinc-900 dark:hover:text-zinc-200">
+          <Link href="/settings/billing" className="hover:text-gray-900 dark:hover:text-gray-200 cursor-pointer">
             Billing
           </Link>
           <span>/</span>
-          <span className="text-zinc-900 dark:text-zinc-200">Test</span>
+          <span className="text-gray-900 dark:text-gray-200">Test</span>
         </div>
         
-        <h1 className="mt-4 text-3xl font-bold text-zinc-900 dark:text-zinc-100">
+        <h1 className="mt-4 text-3xl font-bold text-gray-900 dark:text-gray-100">
           Payment Testing
         </h1>
-        <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+        <p className="mt-2 text-gray-600 dark:text-gray-400">
           Test payment flows with Polar sandbox environment
         </p>
         
@@ -215,10 +215,10 @@ function PaymentTestPageContent() {
         >
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">
                 Environment Validation
               </h3>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 {envValidation.valid
                   ? "All required configuration is present"
                   : `${envValidation.summary?.failed || 0} failed, ${envValidation.summary?.warnings || 0} warnings`}
@@ -227,7 +227,7 @@ function PaymentTestPageContent() {
             <button
               onClick={validateEnvironment}
               disabled={isValidating}
-              className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+              className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-[#7C3AED] dark:text-gray-300 cursor-pointer"
             >
               {isValidating ? "Checking..." : "Re-check"}
             </button>
@@ -241,11 +241,11 @@ function PaymentTestPageContent() {
                 .map((check: any, i: number) => (
                   <div key={i} className="flex items-center gap-2 text-sm">
                     <span>{check.status === "fail" ? "❌" : "⚠️"}</span>
-                    <span className="text-zinc-700 dark:text-zinc-300">{check.message}</span>
+                    <span className="text-gray-700 dark:text-gray-300">{check.message}</span>
                   </div>
                 ))}
               {envValidation.checks.filter((c: any) => c.status !== "pass").length > 3 && (
-                <p className="text-sm text-zinc-500">
+                <p className="text-sm text-gray-500">
                   and{" "}
                   {envValidation.checks.filter((c: any) => c.status !== "pass").length - 3} more...
                 </p>
@@ -256,7 +256,7 @@ function PaymentTestPageContent() {
       )}
       
       {/* Tabs */}
-      <div className="mb-6 border-b border-zinc-200 dark:border-zinc-800">
+      <div className="mb-6 border-b border-gray-200 dark:border-gray-800">
         <div className="flex gap-4">
           {[
             { id: "checkout", label: "Test Checkout", icon: "💳" },
@@ -270,7 +270,7 @@ function PaymentTestPageContent() {
               className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition ${
                 activeTab === tab.id
                   ? "border-indigo-500 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400"
-                  : "border-transparent text-zinc-600 hover:border-zinc-300 hover:text-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-700 dark:hover:text-zinc-200"
+                  : "border-transparent text-gray-600 hover:border-gray-300 hover:text-gray-900 dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-200"
               }`}
             >
               <span>{tab.icon}</span>
@@ -285,14 +285,14 @@ function PaymentTestPageContent() {
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Checkout Form */}
           <div className="space-y-6">
-            <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-              <h2 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+            <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+              <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
                 Create Test Checkout
               </h2>
               
               {/* Tier Selection */}
               <div className="mb-4">
-                <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Select Plan
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -306,7 +306,7 @@ function PaymentTestPageContent() {
                       className={`rounded-lg border px-3 py-2 text-sm font-medium capitalize transition ${
                         selectedTier === tier
                           ? "border-indigo-500 bg-indigo-50 text-indigo-700 dark:border-indigo-400 dark:bg-indigo-950/30 dark:text-indigo-300"
-                          : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+                          : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
                       }`}
                     >
                       {tier}
@@ -318,7 +318,7 @@ function PaymentTestPageContent() {
               {/* Period Selection */}
               {selectedTier !== "lifetime" && (
                 <div className="mb-4">
-                  <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Billing Period
                   </label>
                   <div className="grid grid-cols-2 gap-2">
@@ -329,7 +329,7 @@ function PaymentTestPageContent() {
                         className={`rounded-lg border px-3 py-2 text-sm font-medium capitalize transition ${
                           selectedPeriod === period
                             ? "border-indigo-500 bg-indigo-50 text-indigo-700 dark:border-indigo-400 dark:bg-indigo-950/30 dark:text-indigo-300"
-                            : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+                            : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
                         }`}
                       >
                         {period}
@@ -361,8 +361,8 @@ function PaymentTestPageContent() {
               </button>
               
               {!user && (
-                <p className="mt-2 text-center text-xs text-zinc-500">
-                  <Link href="/login" className="text-indigo-600 hover:underline">
+                <p className="mt-2 text-center text-xs text-gray-500">
+                  <Link href="/login" className="text-indigo-600 hover:underline cursor-pointer">
                     Sign in
                   </Link>{" "}
                   to test payment flows
@@ -395,7 +395,7 @@ function PaymentTestPageContent() {
                     href={checkoutResult.checkout.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500"
+                    className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 cursor-pointer"
                   >
                     Open Checkout
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -420,19 +420,19 @@ function PaymentTestPageContent() {
       {/* Webhooks Tab */}
       {activeTab === "webhooks" && (
         <div className="grid gap-6 lg:grid-cols-2">
-          <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-            <h2 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+          <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
               Simulate Webhook Event
             </h2>
             
             <div className="mb-4">
-              <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Event Type
               </label>
               <select
                 value={selectedWebhookEvent}
                 onChange={(e) => setSelectedWebhookEvent(e.target.value)}
-                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900"
               >
                 <option value="subscription.created">subscription.created</option>
                 <option value="subscription.updated">subscription.updated</option>
@@ -447,17 +447,17 @@ function PaymentTestPageContent() {
             <button
               onClick={simulateWebhook}
               disabled={isSimulatingWebhook}
-              className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50"
+              className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50 cursor-pointer"
             >
               {isSimulatingWebhook ? "Simulating..." : "Simulate Webhook"}
             </button>
             
             {webhookResult && (
               <div className="mt-4">
-                <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                <h4 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                   Result
                 </h4>
-                <pre className="max-h-64 overflow-auto rounded-lg bg-zinc-100 p-3 text-xs dark:bg-zinc-800">
+                <pre className="max-h-64 overflow-auto rounded-lg bg-gray-100 p-3 text-xs dark:bg-[#7C3AED]">
                   {JSON.stringify(webhookResult, null, 2)}
                 </pre>
               </div>
@@ -465,25 +465,25 @@ function PaymentTestPageContent() {
           </div>
           
           <div className="space-y-4">
-            <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-              <h3 className="mb-3 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+            <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+              <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-gray-100">
                 Webhook Configuration
               </h3>
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-zinc-600 dark:text-zinc-400">Endpoint URL</span>
-                  <code className="rounded bg-zinc-100 px-2 py-0.5 text-xs dark:bg-zinc-800">
+                  <span className="text-gray-600 dark:text-gray-400">Endpoint URL</span>
+                  <code className="rounded bg-gray-100 px-2 py-0.5 text-xs dark:bg-[#7C3AED]">
                     {typeof window !== "undefined"
                     ? `${window.location.origin}/api/webhooks/polar`
                       : "/api/webhooks/polar"}
                   </code>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-zinc-600 dark:text-zinc-400">Method</span>
+                  <span className="text-gray-600 dark:text-gray-400">Method</span>
                   <span className="font-medium text-emerald-600">POST</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-zinc-600 dark:text-zinc-400">Content-Type</span>
+                  <span className="text-gray-600 dark:text-gray-400">Content-Type</span>
                   <span className="font-medium">application/json</span>
                 </div>
               </div>
@@ -550,16 +550,16 @@ function PaymentTestPageContent() {
                 className={`rounded-xl border p-4 text-left transition hover:shadow-md ${
                   activeScenario === scenario.id
                     ? "border-indigo-500 bg-indigo-50 dark:border-indigo-400 dark:bg-indigo-950/20"
-                    : "border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+                    : "border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900"
                 }`}
               >
                 <div className="flex items-start gap-3">
                   <span className="text-2xl">{scenario.icon}</span>
                   <div>
-                    <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">
                       {scenario.title}
                     </h3>
-                    <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                    <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                       {scenario.description}
                     </p>
                   </div>
@@ -569,11 +569,11 @@ function PaymentTestPageContent() {
           </div>
           
           {scenarioResult && (
-            <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-              <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+            <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+              <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
                 Scenario: {scenarioResult.scenario}
               </h3>
-              <p className="mb-4 text-zinc-600 dark:text-zinc-400">
+              <p className="mb-4 text-gray-600 dark:text-gray-400">
                 {scenarioResult.description}
               </p>
               
@@ -582,12 +582,12 @@ function PaymentTestPageContent() {
                   {scenarioResult.steps.map((step: any) => (
                     <div
                       key={step.step}
-                      className="flex items-center gap-3 rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800/50"
+                      className="flex items-center gap-3 rounded-lg bg-gray-50 p-3 dark:bg-[#7C3AED]/50"
                     >
                       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-xs font-medium text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">
                         {step.step}
                       </span>
-                      <span className="text-sm text-zinc-700 dark:text-zinc-300">
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
                         {step.action}
                       </span>
                     </div>
@@ -605,10 +605,10 @@ function PaymentTestPageContent() {
               
               {scenarioResult.expectedResult && (
                 <div className="mt-4">
-                  <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Expected Result:
                   </p>
-                  <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
                     {scenarioResult.expectedResult}
                   </p>
                 </div>
@@ -621,23 +621,23 @@ function PaymentTestPageContent() {
       {/* Logs Tab */}
       {activeTab === "logs" && (
         <div className="space-y-6">
-          <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                 Recent Webhook Logs
               </h2>
               <Link
                 href="/admin/payments"
-                className="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
+                className="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 cursor-pointer"
               >
                 View Full Dashboard →
               </Link>
             </div>
             
-            <div className="mt-4 rounded-lg border border-zinc-200 bg-zinc-50 p-8 text-center dark:border-zinc-800 dark:bg-zinc-900/50">
-              <p className="text-zinc-600 dark:text-zinc-400">
+            <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-8 text-center dark:border-gray-800 dark:bg-gray-900/50">
+              <p className="text-gray-600 dark:text-gray-400">
                 Webhook logs are available in the{" "}
-                <Link href="/admin/payments" className="text-indigo-600 hover:underline dark:text-indigo-400">
+                <Link href="/admin/payments" className="text-indigo-600 hover:underline dark:text-indigo-400 cursor-pointer">
                   Payment Debug Dashboard
                 </Link>
               </p>

@@ -210,24 +210,24 @@ export function ExportImportUI() {
   };
 
   return (
-    <div className="space-y-4 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-      <h3 className="flex items-center gap-2 font-semibold text-zinc-900 dark:text-zinc-100">
+    <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#7C3AED]">
+      <h3 className="flex items-center gap-2 font-semibold text-gray-900 dark:text-gray-100">
         <span>Export / Import Progress</span>
       </h3>
       
-      <p className="text-sm text-zinc-500">
+      <p className="text-sm text-gray-500">
         Save your progress to a file or restore from a previous backup.
       </p>
 
       <div className="flex flex-wrap gap-3">
         <button
           onClick={handleExport}
-          className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
+          className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 cursor-pointer"
         >
           <span>Export to File</span>
         </button>
 
-        <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800">
+        <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-[#7C3AED]">
           <span>{importing ? "Importing..." : "Import from File"}</span>
           <input
             type="file"
@@ -290,13 +290,13 @@ export function BackupReminder({ daysPlayed }: { daysPlayed: number }) {
             URL.revokeObjectURL(url);
             setDismissed(true);
           }}
-          className="rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700"
+          className="rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700 cursor-pointer"
         >
           Export
         </button>
         <button
           onClick={() => setDismissed(true)}
-          className="text-xs text-blue-600 hover:underline dark:text-blue-400"
+          className="text-xs text-blue-600 hover:underline dark:text-blue-400 cursor-pointer"
         >
           Dismiss
         </button>

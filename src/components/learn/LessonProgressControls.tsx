@@ -54,13 +54,13 @@ export function LessonProgressControls({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="muted">{CURRICULUM_STAGE_LABELS[stage]}</Badge>
-            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+            <span className="text-xs text-gray-500 dark:text-gray-400">
               ~{estimatedMinutes} min
             </span>
-            <span className="text-xs text-zinc-400">·</span>
-            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+            <span className="text-xs text-gray-400">·</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
               Status:{" "}
-              <span className="font-medium text-zinc-950 dark:text-zinc-50">
+              <span className="font-medium text-gray-950 dark:text-gray-50">
                 {status.replace("_", " ")}
               </span>
             </span>
@@ -68,13 +68,13 @@ export function LessonProgressControls({
 
           {outcomes.length > 0 ? (
             <div className="mt-3">
-              <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+              <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
                 Outcomes
               </p>
-              <ul className="mt-2 space-y-1 text-sm text-zinc-600 dark:text-zinc-300">
+              <ul className="mt-2 space-y-1 text-sm text-gray-600 dark:text-gray-300">
                 {outcomes.map((o) => (
                   <li key={o} className="flex gap-2">
-                    <span className="mt-[0.42rem] size-1.5 shrink-0 rounded-full bg-zinc-300 dark:bg-white/20" />
+                    <span className="mt-[0.42rem] size-1.5 shrink-0 rounded-full bg-gray-300 dark:bg-white/20" />
                     <span className="min-w-0">{o}</span>
                   </li>
                 ))}
@@ -97,7 +97,7 @@ export function LessonProgressControls({
                 return next;
               });
             }}
-            className="inline-flex h-9 items-center justify-center rounded-full bg-zinc-950 px-4 text-sm font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+            className="inline-flex h-9 items-center justify-center rounded-full bg-[#7C3AED] px-4 text-sm font-medium text-white hover:bg-[#7C3AED] disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-[#7C3AED]"
           >
             {completed ? "Completed" : "Mark complete"}
           </button>
@@ -114,13 +114,13 @@ export function LessonProgressControls({
                 return next;
               });
             }}
-            className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-950 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50 dark:hover:bg-zinc-900"
+            className="inline-flex h-9 items-center justify-center rounded-full border border-gray-200 bg-white px-4 text-sm font-medium text-gray-950 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-800 dark:bg-[#7C3AED] dark:text-gray-50 dark:hover:bg-gray-900"
           >
             Reset
           </button>
           <Link
             href="/plan"
-            className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-950 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50 dark:hover:bg-zinc-900"
+            className="inline-flex h-9 items-center justify-center rounded-full border border-gray-200 bg-white px-4 text-sm font-medium text-gray-950 hover:bg-gray-50 dark:border-gray-800 dark:bg-[#7C3AED] dark:text-gray-50 dark:hover:bg-gray-900 cursor-pointer"
           >
             Plan
           </Link>

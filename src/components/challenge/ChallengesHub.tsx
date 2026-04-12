@@ -21,7 +21,7 @@ export function ChallengesHub() {
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Practice Hub</h1>
-          <p className="mt-0.5 text-sm text-zinc-500">
+          <p className="mt-0.5 text-sm text-gray-500">
             {TABS.find(t => t.id === activeTab)?.label === "Challenges" && "Bite-sized coding problems"}
             {TABS.find(t => t.id === activeTab)?.label === "Projects" && "End-to-end portfolio builds"}
             {TABS.find(t => t.id === activeTab)?.label === "Interview Prep" && "Timed technical assessments"}
@@ -29,15 +29,15 @@ export function ChallengesHub() {
         </div>
       </div>
 
-      <div className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-zinc-50 p-1">
+      <div className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 p-1">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`relative rounded-full px-4 py-1.5 text-xs font-medium transition-all ${
               activeTab === tab.id
-                ? "bg-white text-zinc-900 shadow-sm"
-                : "text-zinc-500 hover:text-zinc-900"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500 hover:text-gray-900"
             }`}
           >
             {tab.label}

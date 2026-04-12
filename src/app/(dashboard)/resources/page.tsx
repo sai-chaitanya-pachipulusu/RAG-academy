@@ -31,7 +31,7 @@ export default function ResourcesPage() {
     <div className="flex flex-col gap-4">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Learning Resources</h1>
-        <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
           Curated tutorials, papers, and documentation.
         </p>
       </header>
@@ -42,12 +42,12 @@ export default function ResourcesPage() {
           <h2 className="text-base font-semibold">Featured Resources</h2>
           <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {featured.map((resource: LearningResource) => (
-              <a key={resource.id} href={resource.url} target="_blank" rel="noopener noreferrer" className="group rounded-lg border border-zinc-200 bg-white p-3 transition-all hover:border-zinc-300 hover:shadow-sm">
+              <a key={resource.id} href={resource.url} target="_blank" rel="noopener noreferrer" className="group rounded-lg border border-gray-200 bg-white p-3 transition-all duration-200-all duration-200 hover:border-gray-300 hover:shadow-sm cursor-pointer">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-zinc-500">{resource.source}</span>
+                  <span className="text-xs font-medium text-gray-500">{resource.source}</span>
                 </div>
-                <h3 className="mt-1 text-sm font-semibold group-hover:text-blue-600 transition-colors">{resource.title}</h3>
-                <p className="mt-0.5 text-xs text-zinc-500 line-clamp-2">{resource.description}</p>
+                <h3 className="mt-1 text-sm font-semibold group-hover:text-blue-600 transition-all duration-200-all duration-200 cursor-pointer">{resource.title}</h3>
+                <p className="mt-0.5 text-xs text-gray-500 line-clamp-2">{resource.description}</p>
               </a>
             ))}
           </div>
@@ -56,10 +56,10 @@ export default function ResourcesPage() {
 
       {/* Search & Filters */}
       <section className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <input type="text" placeholder="Search resources..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 rounded-lg border border-zinc-200 bg-white px-3 text-xs placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none dark:border-zinc-800 dark:bg-zinc-950 dark:focus:border-zinc-600" />
+        <input type="text" placeholder="Search resources..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 rounded-lg border border-gray-200 bg-white px-3 text-xs placeholder:text-gray-400 focus:border-[#8B5CF6]400 focus:outline-none dark:border-gray-800 dark:bg-[#7C3AED] dark:focus:border-[#8B5CF6]600" />
         <div className="flex flex-wrap gap-1">
           {filters.map((f) => (
-            <button key={f.value} onClick={() => setFilter(f.value)} className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${filter === f.value ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"}`}>
+            <button key={f.value} onClick={() => setFilter(f.value)} className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-all duration-200-all duration-200 ${filter === f.value ? "bg-[#8B5CF6] text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-[#7C3AED] dark:text-gray-400 dark:hover:bg-gray-700"}`}>
               {f.label}
             </button>
           ))}
@@ -68,26 +68,26 @@ export default function ResourcesPage() {
 
       {/* Results */}
       <section>
-        <p className="mb-2 text-xs text-zinc-500">{filteredResources.length} resources</p>
+        <p className="mb-2 text-xs text-gray-500">{filteredResources.length} resources</p>
         <ResourcesGrid resources={filteredResources} title={filter === "all" ? "All Resources" : `${filter} Resources`} />
       </section>
 
       {/* Learning Paths */}
-      <section className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
+      <section className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
         <h2 className="text-base font-semibold">Suggested Learning Paths</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-md border border-emerald-200 bg-white p-3 dark:border-emerald-900/50 dark:bg-zinc-950">
+          <div className="rounded-md border border-emerald-200 bg-white p-3 dark:border-emerald-900/50 dark:bg-[#7C3AED]">
             <h3 className="text-sm font-medium text-emerald-800 dark:text-emerald-200">Beginner Path</h3>
-            <ol className="mt-2 space-y-1 text-xs text-zinc-600 dark:text-zinc-400">
+            <ol className="mt-2 space-y-1 text-xs text-gray-600 dark:text-gray-400">
               <li>1. Watch 3Blue1Brown Vectors video</li>
               <li>2. Read OpenAI Embeddings Guide</li>
               <li>3. Complete Foundations challenges</li>
               <li>4. Build your first RAG app</li>
             </ol>
           </div>
-          <div className="rounded-md border border-purple-200 bg-white p-3 dark:border-purple-900/50 dark:bg-zinc-950">
+          <div className="rounded-md border border-purple-200 bg-white p-3 dark:border-purple-900/50 dark:bg-[#7C3AED]">
             <h3 className="text-sm font-medium text-purple-800 dark:text-purple-200">Advanced Path</h3>
-            <ol className="mt-2 space-y-1 text-xs text-zinc-600 dark:text-zinc-400">
+            <ol className="mt-2 space-y-1 text-xs text-gray-600 dark:text-gray-400">
               <li>1. Read the original RAG paper</li>
               <li>2. Study FAISS internals</li>
               <li>3. Implement cross-encoder reranking</li>

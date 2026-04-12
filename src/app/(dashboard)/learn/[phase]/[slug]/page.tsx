@@ -28,21 +28,21 @@ export default async function LessonPage({ params }: Props) {
   return (
     <div className="flex flex-col gap-6">
       <header>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="text-xs text-gray-500 dark:text-gray-400">
           Learn / {formatPhaseLabel(lesson.phase)} / {lesson.slug}
         </p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">
           {lesson.title}
         </h1>
         {lesson.description ? (
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             {lesson.description}
           </p>
         ) : null}
         <div className="mt-3">
           <Link
             href={`/learn/${phase}`}
-            className="text-sm font-medium text-zinc-950 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-500 dark:text-zinc-50 dark:decoration-white/25 dark:hover:decoration-white/50"
+            className="text-sm font-medium text-gray-950 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-500 dark:text-gray-50 dark:decoration-white/25 dark:hover:decoration-white/50 cursor-pointer"
           >
             Back to phase →
           </Link>
@@ -64,13 +64,13 @@ export default async function LessonPage({ params }: Props) {
       <section className="grid gap-3 sm:grid-cols-2">
         {prev ? (
           <CardLink href={`/learn/${prev.phase}/${prev.slug}`}>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Previous lesson</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Previous lesson</p>
             <p className="mt-1 text-sm font-medium">{prev.title}</p>
           </CardLink>
         ) : (
           <Card>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Previous lesson</p>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Previous lesson</p>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
               You’re at the start of this phase.
             </p>
           </Card>
@@ -78,25 +78,25 @@ export default async function LessonPage({ params }: Props) {
 
         {next ? (
           <CardLink href={`/learn/${next.phase}/${next.slug}`}>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Next lesson</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Next lesson</p>
             <p className="mt-1 text-sm font-medium">{next.title}</p>
           </CardLink>
         ) : (
           <Card>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Next lesson</p>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Next lesson</p>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
               End of phase. Jump to the next phase or follow the Study Plan.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Link
                 href="/plan"
-                className="text-sm font-medium text-zinc-950 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-500 dark:text-zinc-50 dark:decoration-white/25 dark:hover:decoration-white/50"
+                className="text-sm font-medium text-gray-950 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-500 dark:text-gray-50 dark:decoration-white/25 dark:hover:decoration-white/50 cursor-pointer"
               >
                 Study Plan →
               </Link>
               <Link
                 href="/learn"
-                className="text-sm font-medium text-zinc-950 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-500 dark:text-zinc-50 dark:decoration-white/25 dark:hover:decoration-white/50"
+                className="text-sm font-medium text-gray-950 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-500 dark:text-gray-50 dark:decoration-white/25 dark:hover:decoration-white/50 cursor-pointer"
               >
                 All phases →
               </Link>

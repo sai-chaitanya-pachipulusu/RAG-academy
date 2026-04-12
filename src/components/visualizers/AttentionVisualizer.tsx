@@ -63,19 +63,19 @@ export function AttentionVisualizer({
   return (
     <Card className="p-6">
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{title}</h3>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{description}</p>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
+        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{description}</p>
       </div>
 
       {/* Controls */}
       <div className="mb-4 flex flex-wrap items-center gap-4">
-        <div className="flex rounded-lg border border-zinc-200 p-1 dark:border-zinc-700">
+        <div className="flex rounded-lg border border-gray-200 p-1 dark:border-gray-700">
           <button
             onClick={() => setOrdering("natural")}
             className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
               ordering === "natural"
-                ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900"
-                : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+                ? "bg-[#8B5CF6] text-white dark:bg-white dark:text-gray-900"
+                : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
             }`}
           >
             Natural Order
@@ -84,8 +84,8 @@ export function AttentionVisualizer({
             onClick={() => setOrdering("optimized")}
             className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
               ordering === "optimized"
-                ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900"
-                : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+                ? "bg-[#8B5CF6] text-white dark:bg-white dark:text-gray-900"
+                : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
             }`}
           >
             Optimized Order
@@ -98,22 +98,22 @@ export function AttentionVisualizer({
             onChange={(e) => setShowBars(e.target.checked)}
             className="rounded"
           />
-          <span className="text-zinc-600 dark:text-zinc-400">Show attention bars</span>
+          <span className="text-gray-600 dark:text-gray-400">Show attention bars</span>
         </label>
       </div>
 
       {/* Stats */}
       <div className="mb-4 grid grid-cols-3 gap-3">
-        <div className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
-          <p className="text-xs text-zinc-500">Avg Attention</p>
-          <p className="text-xl font-bold text-zinc-900 dark:text-zinc-100">{(avgAttention * 100).toFixed(0)}%</p>
+        <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+          <p className="text-xs text-gray-500">Avg Attention</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{(avgAttention * 100).toFixed(0)}%</p>
         </div>
-        <div className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
-          <p className="text-xs text-zinc-500">Min Attention</p>
+        <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+          <p className="text-xs text-gray-500">Min Attention</p>
           <p className="text-xl font-bold text-red-600">{(minAttention * 100).toFixed(0)}%</p>
         </div>
-        <div className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
-          <p className="text-xs text-zinc-500">Max Attention</p>
+        <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+          <p className="text-xs text-gray-500">Max Attention</p>
           <p className="text-xl font-bold text-green-600">{(maxAttention * 100).toFixed(0)}%</p>
         </div>
       </div>
@@ -122,8 +122,8 @@ export function AttentionVisualizer({
       <div className="mb-4 flex gap-4">
         {/* Position chart */}
         <div className="flex-1">
-          <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">Attention by Position</h4>
-          <div className="flex h-32 items-end gap-1 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900/50">
+          <h4 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Attention by Position</h4>
+          <div className="flex h-32 items-end gap-1 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/50">
             {context.map((chunk, idx) => (
               <div
                 key={chunk.id}
@@ -134,35 +134,35 @@ export function AttentionVisualizer({
                   style={{ height: `${chunk.attention * 100}%` }}
                   title={`Position ${idx + 1}: ${(chunk.attention * 100).toFixed(0)}%`}
                 />
-                <span className="text-[10px] text-zinc-500">{idx + 1}</span>
+                <span className="text-[10px] text-gray-500">{idx + 1}</span>
               </div>
             ))}
           </div>
-          <p className="mt-1 text-center text-xs text-zinc-500">Position in context</p>
+          <p className="mt-1 text-center text-xs text-gray-500">Position in context</p>
         </div>
       </div>
 
       {/* Context chunks */}
       <div className="space-y-2">
-        <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Context Chunks</h4>
+        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Context Chunks</h4>
         {context.map((chunk, idx) => (
           <div
             key={chunk.id}
             className={`flex items-center gap-3 rounded-lg border p-3 transition-all ${getAttentionBg(chunk.attention)}`}
           >
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-xs font-bold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-bold text-gray-700 dark:bg-gray-700 dark:text-gray-300">
               {idx + 1}
             </span>
-            <p className="flex-1 text-sm text-zinc-700 dark:text-zinc-300">{chunk.text}</p>
+            <p className="flex-1 text-sm text-gray-700 dark:text-gray-300">{chunk.text}</p>
             {showBars && (
               <div className="flex w-32 items-center gap-2">
-                <div className="h-2 flex-1 rounded-full bg-zinc-200 dark:bg-zinc-700">
+                <div className="h-2 flex-1 rounded-full bg-gray-200 dark:bg-gray-700">
                   <div
                     className={`h-full rounded-full transition-all ${getAttentionColor(chunk.attention)}`}
                     style={{ width: `${chunk.attention * 100}%` }}
                   />
                 </div>
-                <span className="w-10 text-right text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                <span className="w-10 text-right text-xs font-medium text-gray-600 dark:text-gray-400">
                   {(chunk.attention * 100).toFixed(0)}%
                 </span>
               </div>

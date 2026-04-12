@@ -117,11 +117,11 @@ export function SearchBar({ variant = "header", placeholder = "Search..." }: Sea
     }
   };
 
-  const baseInputClasses = "w-full rounded-xl border bg-white text-sm outline-none transition-all dark:bg-zinc-900";
+  const baseInputClasses = "w-full rounded-xl border bg-white text-sm outline-none transition-all duration-200-all duration-200 dark:bg-gray-900";
   const variantClasses = {
-    header: "border-zinc-200 px-4 py-2 focus:border-zinc-400 dark:border-zinc-800 dark:focus:border-zinc-600",
-    inline: "border-zinc-200 px-4 py-3 focus:border-zinc-400 focus:ring-4 focus:ring-zinc-100 dark:border-zinc-800",
-    floating: "border-zinc-200 px-4 py-3 shadow-lg focus:border-zinc-400 focus:ring-4 focus:ring-zinc-100 dark:border-zinc-800",
+    header: "border-gray-200 px-4 py-2 focus:border-[#8B5CF6]400 dark:border-gray-800 dark:focus:border-[#8B5CF6]600",
+    inline: "border-gray-200 px-4 py-3 focus:border-[#8B5CF6]400 focus:ring-4 focus:ring-[#8B5CF6]100 dark:border-gray-800",
+    floating: "border-gray-200 px-4 py-3 shadow-lg focus:border-[#8B5CF6]400 focus:ring-4 focus:ring-[#8B5CF6]100 dark:border-gray-800",
   };
 
   return (
@@ -129,7 +129,7 @@ export function SearchBar({ variant = "header", placeholder = "Search..." }: Sea
       {/* Input */}
       <div className="relative">
         <svg
-          className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+          className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -154,14 +154,14 @@ export function SearchBar({ variant = "header", placeholder = "Search..." }: Sea
           placeholder={placeholder}
           className={`${baseInputClasses} ${variantClasses[variant]} pl-10 pr-16`}
         />
-        <kbd className="absolute right-3 top-1/2 -translate-y-1/2 rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[10px] text-zinc-400 dark:border-zinc-700 dark:bg-zinc-800">
+        <kbd className="absolute right-3 top-1/2 -translate-y-1/2 rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] text-gray-400 dark:border-gray-700 dark:bg-[#7C3AED]">
           ⌘K
         </kbd>
       </div>
 
       {/* Results dropdown */}
       {isOpen && results.length > 0 && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-gray-900">
           {results.map((result, index) => (
             <button
               key={result.id}
@@ -170,31 +170,31 @@ export function SearchBar({ variant = "header", placeholder = "Search..." }: Sea
                 setIsOpen(false);
                 setQuery("");
               }}
-              className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors ${
+              className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-all duration-200-all duration-200 ${
                 index === selectedIndex
-                  ? "bg-zinc-100 dark:bg-zinc-800"
-                  : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                  ? "bg-gray-100 dark:bg-[#7C3AED]"
+                  : "hover:bg-gray-50 dark:hover:bg-[#7C3AED]/50"
               }`}
             >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-sm dark:bg-zinc-800">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-sm dark:bg-[#7C3AED]">
                 {result.icon}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
                   {result.title}
                 </p>
                 {result.subtitle && (
-                  <p className="truncate text-xs text-zinc-500">{result.subtitle}</p>
+                  <p className="truncate text-xs text-gray-500">{result.subtitle}</p>
                 )}
               </div>
-              <span className="shrink-0 rounded bg-zinc-100 px-2 py-0.5 text-[10px] uppercase text-zinc-500 dark:bg-zinc-800">
+              <span className="shrink-0 rounded bg-gray-100 px-2 py-0.5 text-[10px] uppercase text-gray-500 dark:bg-[#7C3AED]">
                 {result.type}
               </span>
             </button>
           ))}
           
           {/* Footer hint */}
-          <div className="flex items-center justify-between border-t border-zinc-100 px-4 py-2 text-[10px] text-zinc-400 dark:border-zinc-800">
+          <div className="flex items-center justify-between border-t border-gray-100 px-4 py-2 text-[10px] text-gray-400 dark:border-gray-800">
             <span>↑↓ Navigate</span>
             <span>↵ Select</span>
             <span>ESC Close</span>
@@ -204,9 +204,9 @@ export function SearchBar({ variant = "header", placeholder = "Search..." }: Sea
 
       {/* No results message */}
       {isOpen && query.trim() && results.length === 0 && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-2 rounded-xl border border-zinc-200 bg-white p-6 text-center shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-sm text-zinc-500">No results for "{query}"</p>
-          <p className="mt-1 text-xs text-zinc-400">Try a different search term</p>
+        <div className="absolute left-0 right-0 top-full z-50 mt-2 rounded-xl border border-gray-200 bg-white p-6 text-center shadow-xl dark:border-gray-800 dark:bg-gray-900">
+          <p className="text-sm text-gray-500">No results for "{query}"</p>
+          <p className="mt-1 text-xs text-gray-400">Try a different search term</p>
         </div>
       )}
     </div>
@@ -232,7 +232,7 @@ export function SearchButton() {
     <>
       <button
         onClick={() => setShowSearch(true)}
-        className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-500 transition-all hover:border-zinc-300 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
+        className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500 transition-all duration-200-all duration-200 hover:border-gray-300 hover:bg-gray-100 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700 cursor-pointer"
       >
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path
@@ -243,7 +243,7 @@ export function SearchButton() {
           />
         </svg>
         <span className="hidden sm:inline">Search</span>
-        <kbd className="hidden rounded border border-zinc-200 bg-white px-1.5 py-0.5 text-[10px] sm:inline dark:border-zinc-700 dark:bg-zinc-800">
+        <kbd className="hidden rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[10px] sm:inline dark:border-gray-700 dark:bg-[#7C3AED]">
           ⌘K
         </kbd>
       </button>

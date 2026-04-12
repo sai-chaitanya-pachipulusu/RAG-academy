@@ -25,7 +25,7 @@ export default function InterviewPage() {
     <div className="mx-auto max-w-3xl">
       <header className="mb-4">
         <h1 className="text-xl font-semibold tracking-tight">Interview Mode</h1>
-        <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
           Practice technical interviews with AI-powered feedback.
         </p>
       </header>
@@ -33,8 +33,8 @@ export default function InterviewPage() {
       {userId ? (
         <InterviewMode userId={userId} />
       ) : (
-        <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-6 text-center dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-6 text-center dark:border-gray-800 dark:bg-gray-900">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             Please sign in to use Interview Mode
           </p>
         </div>

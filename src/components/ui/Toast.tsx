@@ -128,7 +128,7 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }) {
     <div
       className={`
         flex items-center gap-3 rounded-xl border px-4 py-3 shadow-lg backdrop-blur-sm
-        transition-all duration-200 ease-out
+        transition-all duration-200-all duration-200 ease-out
         ${style.bg} ${style.border} ${style.text}
         ${isExiting ? "translate-x-full opacity-0" : "translate-x-0 opacity-100"}
         animate-slide-in-right
@@ -146,7 +146,7 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }) {
       {/* Close button */}
       <button
         onClick={handleClose}
-        className="shrink-0 rounded p-1 opacity-60 transition-opacity hover:opacity-100"
+        className="shrink-0 rounded p-1 opacity-60 transition-all duration-200-opacity hover:opacity-100 cursor-pointer"
         aria-label="Dismiss"
       >
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

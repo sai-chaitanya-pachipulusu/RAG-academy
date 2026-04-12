@@ -109,7 +109,7 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
   if (!isFree && subscriptionLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-zinc-200 border-t-zinc-900" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-zinc-900" />
       </div>
     );
   }
@@ -318,7 +318,7 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
         <div className="flex items-center gap-1.5 text-[13px]">
           <Link
             href="/challenges"
-            className="font-medium text-[var(--accent-blue)] hover:underline underline-offset-2"
+            className="font-medium text-[var(--accent-blue)] hover:underline underline-offset-2 cursor-pointer"
           >
             Challenges
           </Link>
@@ -457,7 +457,7 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
                 type="button"
                 onClick={() => run("test")}
                 disabled={running !== null}
-                className="inline-flex h-8 items-center justify-center rounded-full bg-[var(--foreground)] px-4 text-[14px] font-medium text-white hover:bg-[var(--gray-500)] disabled:opacity-60 shadow-sm transition-all duration-200 active:scale-[0.98]"
+                className="inline-flex h-8 items-center justify-center rounded-full bg-[var(--foreground)] px-4 text-[14px] font-medium text-white hover:bg-[var(--gray-500)] disabled:opacity-60 shadow-sm transition-all duration-200-all duration-200 active:scale-[0.98] cursor-pointer"
               >
                 {running === "test" ? (
                   <>
@@ -475,7 +475,7 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
                 type="button"
                 onClick={submit}
                 disabled={running !== null || completed}
-                className="inline-flex h-8 items-center justify-center rounded-full bg-emerald-600 px-4 text-[14px] font-medium text-white hover:bg-emerald-500 disabled:opacity-60 shadow-sm transition-all duration-200 active:scale-[0.98]"
+                className="inline-flex h-8 items-center justify-center rounded-full bg-emerald-600 px-4 text-[14px] font-medium text-white hover:bg-emerald-500 disabled:opacity-60 shadow-sm transition-all duration-200-all duration-200 active:scale-[0.98] cursor-pointer"
               >
                 {running === "submit" ? "Submitting…" : "Submit"}
               </button>
@@ -498,7 +498,7 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
                   }
                 }}
                 disabled={running !== null}
-                className="inline-flex h-8 items-center justify-center rounded-full border border-[var(--border-default)] bg-white px-4 text-[14px] font-medium text-[var(--gray-400)] hover:border-[var(--border-hover)] hover:bg-[var(--gray-50)] hover:text-[var(--foreground)] disabled:opacity-60 transition-all duration-200 active:scale-[0.98]"
+                className="inline-flex h-8 items-center justify-center rounded-full border border-[var(--border-default)] bg-white px-4 text-[14px] font-medium text-[var(--gray-400)] hover:border-[var(--border-hover)] hover:bg-[var(--gray-50)] hover:text-[var(--foreground)] disabled:opacity-60 transition-all duration-200-all duration-200 active:scale-[0.98] cursor-pointer"
               >
                 Reset
               </button>
@@ -680,7 +680,7 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
                   )
                 }
                 disabled={revealedHints >= challenge.hints.length}
-                className="inline-flex h-7 items-center justify-center rounded-full border border-[var(--border-default)] bg-white px-3 text-[13px] font-medium text-[var(--foreground)] hover:bg-[var(--gray-50)] hover:border-[var(--border-hover)] disabled:opacity-60 transition-all duration-200 active:scale-[0.98]"
+                className="inline-flex h-7 items-center justify-center rounded-full border border-[var(--border-default)] bg-white px-3 text-[13px] font-medium text-[var(--foreground)] hover:bg-[var(--gray-50)] hover:border-[var(--border-hover)] disabled:opacity-60 transition-all duration-200-all duration-200 active:scale-[0.98] cursor-pointer"
               >
                 Reveal hint
               </button>
@@ -759,13 +759,13 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
             <div className="mt-2 flex flex-wrap gap-2">
               <Link
                 href="/challenges"
-                className="text-[14px] font-medium text-[var(--accent-blue)] hover:underline underline-offset-2"
+                className="text-[14px] font-medium text-[var(--accent-blue)] hover:underline underline-offset-2 cursor-pointer"
               >
                 All challenges →
               </Link>
               <Link
                 href="/plan"
-                className="text-[14px] font-medium text-[var(--accent-blue)] hover:underline underline-offset-2"
+                className="text-[14px] font-medium text-[var(--accent-blue)] hover:underline underline-offset-2 cursor-pointer"
               >
                 Study Plan →
               </Link>
@@ -783,7 +783,7 @@ export function ChallengeIDE({ challenge, children, prev, next }: Props) {
               <Link
                 key={slug}
                 href={`/challenges/${slug}`}
-                className="rounded-full border border-[var(--border-default)] bg-white px-3 py-1 text-[13px] font-medium text-[var(--gray-500)] transition-all duration-200 hover:border-[var(--accent-blue)]/30 hover:bg-[var(--accent-blue)]/5 hover:text-[var(--accent-blue)]"
+                className="rounded-full border border-[var(--border-default)] bg-white px-3 py-1 text-[13px] font-medium text-[var(--gray-500)] transition-all duration-200-all duration-200 hover:border-[var(--accent-blue)]/30 hover:bg-[var(--accent-blue)]/5 hover:text-[var(--accent-blue)] cursor-pointer"
               >
                 {slug} →
               </Link>

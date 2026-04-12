@@ -216,7 +216,7 @@ function OptionRow<T extends string>({
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-sm font-medium text-zinc-950 dark:text-zinc-50">{label}</p>
+      <p className="text-sm font-medium text-gray-950 dark:text-gray-50">{label}</p>
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {options.map((o) => {
           const selected = o.value === value;
@@ -229,8 +229,8 @@ function OptionRow<T extends string>({
               className={[
                 "rounded-2xl border px-4 py-3 text-left text-sm transition-colors",
                 selected
-                  ? "border-zinc-950 bg-zinc-950 text-white dark:border-white/25 dark:bg-white/10"
-                  : "border-zinc-200 bg-white/60 text-zinc-900 hover:bg-white dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-100 dark:hover:bg-white/[0.06]",
+                  ? "border-gray-950 bg-[#7C3AED] text-white dark:border-white/25 dark:bg-white/10"
+                  : "border-gray-200 bg-white/60 text-gray-900 hover:bg-white dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-100 dark:hover:bg-white/[0.06]",
               ].join(" ")}
             >
               <div className="flex items-center justify-between gap-3">
@@ -238,7 +238,7 @@ function OptionRow<T extends string>({
                 {selected ? <Badge variant="muted">selected</Badge> : null}
               </div>
               {o.hint ? (
-                <p className="mt-1 text-xs leading-5 text-zinc-600 dark:text-zinc-300">
+                <p className="mt-1 text-xs leading-5 text-gray-600 dark:text-gray-300">
                   {o.hint}
                 </p>
               ) : null}
@@ -266,7 +266,7 @@ export function VectorDbDecisionWizard() {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-sm font-medium">Decision wizard</p>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
               This is a heuristic decision tree. Final answer is always: benchmark with
               your data + your filters + your latency budget.
             </p>
@@ -331,7 +331,7 @@ export function VectorDbDecisionWizard() {
       {result.warnings.length > 0 ? (
         <Card className="p-5">
           <p className="text-sm font-medium">Potential conflicts</p>
-          <ul className="mt-2 list-disc space-y-2 pl-6 text-sm text-zinc-700 dark:text-zinc-300">
+          <ul className="mt-2 list-disc space-y-2 pl-6 text-sm text-gray-700 dark:text-gray-300">
             {result.warnings.map((w) => (
               <li key={w}>{w}</li>
             ))}
@@ -345,7 +345,7 @@ export function VectorDbDecisionWizard() {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-sm font-semibold tracking-tight">{r.db.name}</p>
-                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   Default: {r.db.defaultMode.replace("_", " ")}
                 </p>
               </div>
@@ -353,10 +353,10 @@ export function VectorDbDecisionWizard() {
             </div>
 
             <div className="mt-3">
-              <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+              <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
                 Why it fits
               </p>
-              <ul className="mt-2 list-disc space-y-1 pl-6 text-sm text-zinc-700 dark:text-zinc-300">
+              <ul className="mt-2 list-disc space-y-1 pl-6 text-sm text-gray-700 dark:text-gray-300">
                 {r.reasons.slice(0, 4).map((x) => (
                   <li key={x}>{x}</li>
                 ))}
@@ -364,10 +364,10 @@ export function VectorDbDecisionWizard() {
             </div>
 
             <div className="mt-3">
-              <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+              <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
                 Watchouts
               </p>
-              <ul className="mt-2 list-disc space-y-1 pl-6 text-sm text-zinc-700 dark:text-zinc-300">
+              <ul className="mt-2 list-disc space-y-1 pl-6 text-sm text-gray-700 dark:text-gray-300">
                 {r.db.watchouts.map((x) => (
                   <li key={x}>{x}</li>
                 ))}

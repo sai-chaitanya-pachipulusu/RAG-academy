@@ -74,45 +74,43 @@ const stageCounts = CHALLENGES.reduce((acc, challenge) => {
 }, {} as Record<string, number>);
 
 const LEARNING_PATH = [
-  { name: "Foundations", count: stageCounts["foundations"] || 0, color: "bg-zinc-900" },
-  { name: "Pre-Retrieval", count: stageCounts["pre-retrieval"] || 0, color: "bg-zinc-800" },
-  { name: "Retrieval", count: stageCounts["retrieval"] || 0, color: "bg-zinc-700" },
-  { name: "Query Transforms", count: stageCounts["query-transforms"] || 0, color: "bg-zinc-600" },
-  { name: "Advanced Retrieval", count: stageCounts["advanced-retrieval"] || 0, color: "bg-zinc-500" },
-  { name: "Post-Retrieval", count: stageCounts["post-retrieval"] || 0, color: "bg-zinc-400" },
-  { name: "Grounding & Safety", count: stageCounts["grounding-safety"] || 0, color: "bg-zinc-500" },
-  { name: "Agentic RAG", count: stageCounts["agentic-rag"] || 0, color: "bg-zinc-600" },
-  { name: "Graph RAG", count: stageCounts["graph-rag"] || 0, color: "bg-zinc-700" },
-  { name: "Multimodal", count: stageCounts["multimodal"] || 0, color: "bg-zinc-600" },
-  { name: "Fine-tuning", count: stageCounts["fine-tuning"] || 0, color: "bg-zinc-500" },
-  { name: "Production Ops", count: stageCounts["production-ops"] || 0, color: "bg-zinc-400" },
-  { name: "Evaluation Ops", count: stageCounts["evaluation-ops"] || 0, color: "bg-zinc-300" },
+  { name: "Foundations", count: stageCounts["foundations"] || 0, color: "bg-gray-900" },
+  { name: "Pre-Retrieval", count: stageCounts["pre-retrieval"] || 0, color: "bg-[#7C3AED]" },
+  { name: "Retrieval", count: stageCounts["retrieval"] || 0, color: "bg-gray-700" },
+  { name: "Query Transforms", count: stageCounts["query-transforms"] || 0, color: "bg-gray-600" },
+  { name: "Advanced Retrieval", count: stageCounts["advanced-retrieval"] || 0, color: "bg-gray-500" },
+  { name: "Post-Retrieval", count: stageCounts["post-retrieval"] || 0, color: "bg-gray-400" },
+  { name: "Grounding & Safety", count: stageCounts["grounding-safety"] || 0, color: "bg-gray-500" },
+  { name: "Agentic RAG", count: stageCounts["agentic-rag"] || 0, color: "bg-gray-600" },
+  { name: "Graph RAG", count: stageCounts["graph-rag"] || 0, color: "bg-gray-700" },
+  { name: "Multimodal", count: stageCounts["multimodal"] || 0, color: "bg-gray-600" },
+  { name: "Fine-tuning", count: stageCounts["fine-tuning"] || 0, color: "bg-gray-500" },
+  { name: "Production Ops", count: stageCounts["production-ops"] || 0, color: "bg-gray-400" },
+  { name: "Evaluation Ops", count: stageCounts["evaluation-ops"] || 0, color: "bg-gray-300" },
 ];
 
 const platformStats = getPlatformStats();
-const roundedChallenges = Math.floor(platformStats.totalChallenges / 5) * 5;
 const STATS = [
   { value: `${platformStats.totalLessons}`, label: "Lessons" },
-  { value: `${roundedChallenges}+`, label: "Challenges" },
+  { value: `${platformStats.totalChallenges}+`, label: "Challenges" },
   { value: `${platformStats.totalModules}`, label: "Modules" },
-  { value: "263", label: "MDX Files" },
-  { value: "13", label: "Phases" },
+  { value: `${platformStats.totalStages}`, label: "Phases" },
 ];
 
 export default function Home() {
   const { user } = useSupabaseAuth();
 
   return (
-    <div className="relative min-h-screen bg-white text-zinc-900">
+    <div className="relative min-h-screen bg-white text-gray-900">
       <PricingBanner />
 
       {/* Hero */}
-      <section className="relative border-b border-zinc-100">
+      <section className="relative border-b border-gray-100">
         <div className="mx-auto max-w-[1200px] px-6 py-10 lg:px-8 lg:py-14">
           <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
             <div className="space-y-4">
               <Reveal>
-                <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-500">
+                <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-500">
                   <span className="relative flex h-1.5 w-1.5">
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-500/60" />
                     <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-blue-500" />
@@ -122,13 +120,13 @@ export default function Home() {
               </Reveal>
 
               <Reveal delayMs={60}>
-                <h1 className="text-3xl font-semibold tracking-tight lg:text-4xl">
+                <h1 className="text-3xl font-semibold tracking-tight lg:text-4xl font-heading text-gray-900">
                   Master RAG engineering.
                 </h1>
               </Reveal>
 
               <Reveal delayMs={100}>
-                <p className="max-w-lg text-base text-zinc-500">
+                <p className="max-w-lg text-base text-gray-500">
                   From fundamentals to cutting-edge research. Build production-ready
                   RAG systems with interactive labs and real-world challenges.
                 </p>
@@ -138,7 +136,7 @@ export default function Home() {
                 <div className="flex items-center gap-2">
                   <Link
                     href={user ? "/learn" : "/login"}
-                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-zinc-900 px-5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-[#8B5CF6] px-5 text-sm font-medium text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] cursor-pointer"
                   >
                     {user ? "Continue Learning" : "Get Started Free"}
                     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -147,7 +145,7 @@ export default function Home() {
                   </Link>
                   <Link
                     href="/challenges"
-                    className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-200 bg-white px-5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                    className="inline-flex h-9 items-center justify-center rounded-full border-2 border-[#8B5CF6] bg-transparent px-5 text-sm font-medium text-[#8B5CF6] transition-all duration-200-all duration-200 hover:bg-[#8B5CF6]/5 cursor-pointer"
                   >
                     Explore Challenges
                   </Link>
@@ -158,8 +156,8 @@ export default function Home() {
                 <div className="flex items-center gap-6 pt-1">
                   {STATS.map((stat, i) => (
                     <div key={i}>
-                      <p className="text-xl font-semibold tracking-tight">{stat.value}</p>
-                      <p className="text-xs font-medium text-zinc-400">{stat.label}</p>
+                      <p className="text-xl font-semibold tracking-tight text-[#8B5CF6]">{stat.value}</p>
+                      <p className="text-xs font-medium text-gray-400">{stat.label}</p>
                     </div>
                   ))}
                 </div>
@@ -168,9 +166,9 @@ export default function Home() {
 
             <Reveal delayMs={120}>
               <div className="hidden lg:block">
-                <div className="w-[340px] rounded-xl border border-zinc-200 bg-zinc-50 p-5">
+                <div className="w-[340px] rounded-xl border border-gray-200 bg-gray-50 p-5">
                   <div className="flex flex-col items-center gap-5">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-zinc-900 text-white">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#8B5CF6] text-white">
                       <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
                         <path d="M12 2L2 7L12 12L22 7L12 2Z" />
                         <path d="M2 17L12 22L22 17" />
@@ -178,13 +176,13 @@ export default function Home() {
                       </svg>
                     </div>
                     <div className="text-center">
-                      <p className="text-xs font-medium text-zinc-400 uppercase tracking-wide">RAG Academy</p>
-                      <p className="text-sm text-zinc-500">Learn by building</p>
+                      <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">RAG Academy</p>
+                      <p className="text-sm text-gray-500">Learn by building</p>
                     </div>
                     <div className="grid grid-cols-3 gap-2 w-full">
                       {["Retrieve", "Augment", "Generate"].map((step) => (
-                        <div key={step} className="rounded-md border border-zinc-200 bg-white px-2 py-2 text-center">
-                          <p className="text-[11px] font-medium text-zinc-400 uppercase">{step}</p>
+                        <div key={step} className="rounded-md border border-gray-200 bg-white px-2 py-2 text-center">
+                          <p className="text-[11px] font-medium text-gray-400 uppercase">{step}</p>
                         </div>
                       ))}
                     </div>
@@ -197,17 +195,17 @@ export default function Home() {
       </section>
 
       {/* Features */}
-      <section className="border-b border-zinc-100">
+      <section className="border-b border-gray-100">
         <div className="mx-auto max-w-[1200px] px-6 py-8 lg:px-8">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {FEATURES.map((feature, i) => (
               <Reveal key={feature.title} delayMs={i * 40}>
-                <div className="group rounded-lg border border-zinc-200 bg-white p-4 transition-all hover:border-zinc-300 hover:shadow-sm">
-                  <div className="mb-3 inline-flex h-8 w-8 items-center justify-center rounded-md bg-zinc-50 text-zinc-400 transition-colors group-hover:bg-zinc-900 group-hover:text-white">
+                <div className="group rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200-all duration-200 hover:border-[#8B5CF6]/30 hover:shadow-md cursor-pointer">
+                  <div className="mb-3 inline-flex h-8 w-8 items-center justify-center rounded-md bg-[#8B5CF6]/10 text-[#8B5CF6] transition-all duration-200-all duration-200 group-hover:bg-[#8B5CF6] group-hover:text-white cursor-pointer">
                     {feature.icon}
                   </div>
-                  <h3 className="mb-1 text-sm font-semibold">{feature.title}</h3>
-                  <p className="text-sm leading-snug text-zinc-500">{feature.description}</p>
+                  <h3 className="mb-1 text-sm font-semibold font-heading">{feature.title}</h3>
+                  <p className="text-sm leading-snug text-gray-500">{feature.description}</p>
                 </div>
               </Reveal>
             ))}
@@ -216,16 +214,16 @@ export default function Home() {
       </section>
 
       {/* Popular Challenges */}
-      <section className="border-b border-zinc-100 bg-zinc-50/50">
+      <section className="border-b border-gray-100 bg-gray-50/50">
         <div className="mx-auto max-w-[1200px] px-6 py-8 lg:px-8">
           <div className="flex items-end justify-between mb-6">
             <div>
-              <h2 className="text-xl font-semibold tracking-tight">Popular Challenges</h2>
-              <p className="mt-1 text-sm text-zinc-500">Community favorites to get started</p>
+              <h2 className="text-xl font-semibold tracking-tight font-heading">Popular Challenges</h2>
+              <p className="mt-1 text-sm text-gray-500">Community favorites to get started</p>
             </div>
             <Link
               href="/challenges"
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-4 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-1.5 text-sm font-medium text-gray-700 transition-all duration-200-all duration-200 hover:bg-[#8B5CF6]/5 hover:border-[#8B5CF6]/30 cursor-pointer"
             >
               View all
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -239,21 +237,21 @@ export default function Home() {
               <Reveal key={challenge.slug} delayMs={i * 40}>
                 <Link
                   href={`/challenges/${challenge.slug}`}
-                  className="group block rounded-lg border border-zinc-200 bg-white p-4 transition-all hover:border-zinc-300 hover:shadow-sm"
+                  className="group block rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200-all duration-200 hover:border-[#8B5CF6]/30 hover:shadow-md cursor-pointer"
                 >
                   <div className="mb-3">
                     <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide ${
                       challenge.difficulty === 'hard'
-                        ? 'bg-zinc-900 text-white'
-                        : 'bg-zinc-100 text-zinc-500'
+                        ? 'bg-[#8B5CF6] text-white'
+                        : 'bg-gray-100 text-gray-500'
                     }`}>
                       {challenge.difficulty}
                     </span>
                   </div>
-                  <h3 className="text-sm font-semibold mb-0.5 group-hover:text-blue-600 transition-colors">
+                  <h3 className="text-sm font-semibold mb-0.5 group-hover:text-[#8B5CF6] transition-all duration-200-all duration-200 font-heading cursor-pointer">
                     {challenge.title}
                   </h3>
-                  <p className="text-xs text-zinc-400">{challenge.category}</p>
+                  <p className="text-xs text-gray-400">{challenge.category}</p>
                 </Link>
               </Reveal>
             ))}
@@ -262,28 +260,28 @@ export default function Home() {
       </section>
 
       {/* Advanced RAG 2026 */}
-      <section className="border-b border-zinc-100">
+      <section className="border-b border-gray-100">
         <div className="mx-auto max-w-[1200px] px-6 py-8 lg:px-8">
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-6 lg:p-8">
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-6 lg:p-8">
             <div className="flex items-center gap-2 mb-4">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-900 px-2.5 py-1 text-[11px] font-semibold text-white uppercase tracking-wide">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#8B5CF6] px-2.5 py-1 text-[11px] font-semibold text-white uppercase tracking-wide">
                 New in 2026
               </span>
-              <span className="text-xs text-zinc-400">Latest research techniques</span>
+              <span className="text-xs text-gray-400">Latest research techniques</span>
             </div>
 
-            <h2 className="text-xl font-semibold tracking-tight mb-2">Advanced RAG Architectures</h2>
-            <p className="text-sm text-zinc-500 mb-6 max-w-2xl">
+            <h2 className="text-xl font-semibold tracking-tight mb-2 font-heading">Advanced RAG Architectures</h2>
+            <p className="text-sm text-gray-500 mb-6 max-w-2xl">
               Master cutting-edge techniques from the latest research papers.
             </p>
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {ADVANCED_2026.map((tech, i) => (
                 <Reveal key={tech.title} delayMs={i * 40}>
-                  <div className="rounded-lg border border-zinc-200 bg-white p-4 transition-all hover:shadow-sm">
-                    <h3 className="text-sm font-semibold mb-0.5">{tech.title}</h3>
-                    <p className="text-[11px] text-zinc-400 mb-1.5">{tech.subtitle}</p>
-                    <p className="text-xs text-zinc-500 leading-snug">{tech.description}</p>
+                  <div className="rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200-all duration-200 hover:border-[#8B5CF6]/30 hover:shadow-md cursor-pointer">
+                    <h3 className="text-sm font-semibold mb-0.5 font-heading">{tech.title}</h3>
+                    <p className="text-[11px] text-gray-400 mb-1.5">{tech.subtitle}</p>
+                    <p className="text-xs text-gray-500 leading-snug">{tech.description}</p>
                   </div>
                 </Reveal>
               ))}
@@ -292,13 +290,13 @@ export default function Home() {
             <div className="mt-6 flex items-center gap-3 flex-wrap">
               <Link
                 href="/challenges?search=rag"
-                className="inline-flex h-8 items-center justify-center rounded-full bg-zinc-900 px-5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+                className="inline-flex h-8 items-center justify-center rounded-full bg-[#8B5CF6] px-5 text-sm font-medium text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] cursor-pointer"
               >
                 Explore Advanced Challenges
               </Link>
               <Link
                 href="/playbooks"
-                className="text-sm font-medium text-blue-600 hover:underline underline-offset-2"
+                className="text-sm font-medium text-[#8B5CF6] hover:underline underline-offset-2 cursor-pointer"
               >
                 Read Playbooks
               </Link>
@@ -308,24 +306,24 @@ export default function Home() {
       </section>
 
       {/* What's New */}
-      <section className="border-b border-zinc-100 bg-zinc-50/50">
+      <section className="border-b border-gray-100 bg-gray-50/50">
         <div className="mx-auto max-w-[1200px] px-6 py-8 lg:px-8">
           <div className="flex items-end justify-between mb-6">
             <div>
-              <h2 className="text-xl font-semibold tracking-tight">What's New</h2>
-              <p className="mt-1 text-sm text-zinc-500">Recent additions to the platform</p>
+              <h2 className="text-xl font-semibold tracking-tight font-heading">What's New</h2>
+              <p className="mt-1 text-sm text-gray-500">Recent additions to the platform</p>
             </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {WHATS_NEW.map((item, i) => (
               <Reveal key={item.title} delayMs={i * 40}>
-                <div className="rounded-lg border border-zinc-200 bg-white p-4 transition-all hover:shadow-sm">
+                <div className="rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200-all duration-200 hover:shadow-sm cursor-pointer">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-semibold">{item.title}</h3>
-                    <span className="text-[10px] font-medium text-zinc-400 uppercase">{item.phase}</span>
+                    <span className="text-[10px] font-medium text-gray-400 uppercase">{item.phase}</span>
                   </div>
-                  <p className="text-xs text-zinc-500">{item.desc}</p>
+                  <p className="text-xs text-gray-500">{item.desc}</p>
                 </div>
               </Reveal>
             ))}
@@ -334,11 +332,11 @@ export default function Home() {
       </section>
 
       {/* Learning Path */}
-      <section className="border-b border-zinc-100">
+      <section className="border-b border-gray-100">
         <div className="mx-auto max-w-[1200px] px-6 py-8 lg:px-8">
           <div className="text-center mb-6">
             <h2 className="text-xl font-semibold tracking-tight">Your Learning Journey</h2>
-            <p className="mt-1 text-sm text-zinc-500">13 phases from fundamentals to production</p>
+            <p className="mt-1 text-sm text-gray-500">13 phases from fundamentals to production</p>
           </div>
 
           <Reveal delayMs={60}>
@@ -346,17 +344,17 @@ export default function Home() {
               <div className="flex items-center gap-1.5 min-w-max justify-center">
                 {LEARNING_PATH.map((stage, i) => (
                   <div key={stage.name} className="flex items-center">
-                    <div className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 transition-all hover:shadow-sm">
+                    <div className="rounded-full border border-gray-200 bg-white px-3 py-1.5 transition-all duration-200-all duration-200 hover:shadow-sm cursor-pointer">
                       <div className="flex items-center gap-1.5">
                         <div className={`h-1.5 w-1.5 rounded-full ${stage.color}`} />
                         <div>
                           <p className="text-xs font-semibold">{stage.name}</p>
-                          <p className="text-[10px] text-zinc-400">{stage.count}</p>
+                          <p className="text-[10px] text-gray-400">{stage.count}</p>
                         </div>
                       </div>
                     </div>
                     {i < LEARNING_PATH.length - 1 && (
-                      <svg className="h-3 w-3 text-zinc-300 mx-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="h-3 w-3 text-gray-300 mx-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                       </svg>
                     )}
@@ -368,7 +366,7 @@ export default function Home() {
 
           <Reveal delayMs={100}>
             <div className="text-center mt-6">
-              <Link href="/learn" className="text-sm font-medium text-blue-600 hover:underline underline-offset-2">
+              <Link href="/learn" className="text-sm font-medium text-blue-600 hover:underline underline-offset-2 cursor-pointer">
                 View full curriculum
               </Link>
             </div>
@@ -377,16 +375,16 @@ export default function Home() {
       </section>
 
       {/* Projects */}
-      <section className="border-b border-zinc-100 bg-zinc-50/50">
+      <section className="border-b border-gray-100 bg-gray-50/50">
         <div className="mx-auto max-w-[1200px] px-6 py-8 lg:px-8">
           <div className="flex items-end justify-between mb-6">
             <div>
               <h2 className="text-xl font-semibold tracking-tight">Hands-On Projects</h2>
-              <p className="mt-1 text-sm text-zinc-500">Build production systems, earn certificates</p>
+              <p className="mt-1 text-sm text-gray-500">Build production systems, earn certificates</p>
             </div>
             <Link
               href="/projects"
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-4 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-1.5 text-sm font-medium text-gray-700 transition-all duration-200-all duration-200 hover:bg-gray-50 cursor-pointer"
             >
               View all
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -404,27 +402,27 @@ export default function Home() {
               <Reveal key={project.title} delayMs={i * 40}>
                 <Link
                   href="/projects"
-                  className="group block rounded-lg border border-zinc-200 bg-white p-4 transition-all hover:border-zinc-300 hover:shadow-sm"
+                  className="group block rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200-all duration-200 hover:border-gray-300 hover:shadow-sm cursor-pointer"
                 >
                   <div className="flex items-start justify-between mb-3">
-                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-md bg-zinc-50 text-[10px] font-bold text-zinc-400 group-hover:bg-zinc-900 group-hover:text-white transition-colors">
+                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-md bg-gray-50 text-[10px] font-bold text-gray-400 group-hover:bg-gray-900 group-hover:text-white transition-all duration-200-all duration-200 cursor-pointer">
                       {project.icon}
                     </span>
                     <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
                       project.difficulty === 'Advanced'
-                        ? 'bg-zinc-900 text-white'
+                        ? 'bg-[#8B5CF6] text-white'
                         : project.difficulty === 'Intermediate'
-                          ? 'bg-zinc-100 text-zinc-500'
+                          ? 'bg-gray-100 text-gray-500'
                           : 'bg-emerald-50 text-emerald-600'
                     }`}>
                       {project.difficulty}
                     </span>
                   </div>
-                  <h3 className="text-sm font-semibold mb-0.5 group-hover:text-blue-600 transition-colors">
+                  <h3 className="text-sm font-semibold mb-0.5 group-hover:text-blue-600 transition-all duration-200-all duration-200 cursor-pointer">
                     {project.title}
                   </h3>
-                  <p className="text-xs text-zinc-500 mb-2">{project.desc}</p>
-                  <p className="text-[11px] text-zinc-400">{project.challenges} challenges with certificate</p>
+                  <p className="text-xs text-gray-500 mb-2">{project.desc}</p>
+                  <p className="text-[11px] text-gray-400">{project.challenges} challenges with certificate</p>
                 </Link>
               </Reveal>
             ))}
@@ -433,14 +431,14 @@ export default function Home() {
       </section>
 
       {/* RAG Pipeline */}
-      <section className="border-b border-zinc-100">
+      <section className="border-b border-gray-100">
         <div className="mx-auto max-w-[1200px] px-6 py-8 lg:px-8">
           <Reveal>
             <div className="mb-6 max-w-lg">
               <h2 className="text-xl font-semibold tracking-tight">
-                A production RAG system, <span className="text-zinc-300">step by step.</span>
+                A production RAG system, <span className="text-gray-300">step by step.</span>
               </h2>
-              <p className="mt-2 text-sm text-zinc-500">
+              <p className="mt-2 text-sm text-gray-500">
                 Scroll through the pipeline to understand how each component works together.
               </p>
             </div>
@@ -450,12 +448,12 @@ export default function Home() {
       </section>
 
       {/* Resources */}
-      <section className="border-b border-zinc-100 bg-zinc-50/50">
+      <section className="border-b border-gray-100 bg-gray-50/50">
         <div className="mx-auto max-w-[1200px] px-6 py-8 lg:px-8">
           <div className="grid gap-3 md:grid-cols-3">
             <Link
               href="/playbooks"
-              className="group rounded-lg border border-zinc-200 bg-white p-5 transition-all hover:border-zinc-300 hover:shadow-sm"
+              className="group rounded-lg border border-gray-200 bg-white p-5 transition-all duration-200-all duration-200 hover:border-gray-300 hover:shadow-sm cursor-pointer"
             >
               <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-md bg-blue-50 text-blue-600">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -463,12 +461,12 @@ export default function Home() {
                 </svg>
               </div>
               <h3 className="font-semibold text-sm mb-1">Production Playbooks</h3>
-              <p className="text-xs text-zinc-500">Decision matrices, troubleshooting guides, best practices</p>
+              <p className="text-xs text-gray-500">Decision matrices, troubleshooting guides, best practices</p>
             </Link>
 
             <Link
               href="/compare/vector-dbs"
-              className="group rounded-lg border border-zinc-200 bg-white p-5 transition-all hover:border-zinc-300 hover:shadow-sm"
+              className="group rounded-lg border border-gray-200 bg-white p-5 transition-all duration-200-all duration-200 hover:border-gray-300 hover:shadow-sm cursor-pointer"
             >
               <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-md bg-purple-50 text-purple-600">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -476,12 +474,12 @@ export default function Home() {
                 </svg>
               </div>
               <h3 className="font-semibold text-sm mb-1">Tool Comparisons</h3>
-              <p className="text-xs text-zinc-500">Vector databases, embedding models, framework comparisons</p>
+              <p className="text-xs text-gray-500">Vector databases, embedding models, framework comparisons</p>
             </Link>
 
             <Link
               href="/learn"
-              className="group rounded-lg border border-zinc-200 bg-white p-5 transition-all hover:border-zinc-300 hover:shadow-sm"
+              className="group rounded-lg border border-gray-200 bg-white p-5 transition-all duration-200-all duration-200 hover:border-gray-300 hover:shadow-sm cursor-pointer"
             >
               <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-md bg-emerald-50 text-emerald-600">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -489,7 +487,7 @@ export default function Home() {
                 </svg>
               </div>
               <h3 className="font-semibold text-sm mb-1">Structured Curriculum</h3>
-              <p className="text-xs text-zinc-500">13 stages from foundations to advanced production patterns</p>
+              <p className="text-xs text-gray-500">13 stages from foundations to advanced production patterns</p>
             </Link>
           </div>
         </div>
@@ -499,26 +497,26 @@ export default function Home() {
       <section>
         <div className="mx-auto max-w-[1200px] px-6 py-12 lg:px-8">
           <Reveal>
-            <div className="rounded-xl border border-zinc-200 bg-white p-8 text-center lg:p-12 shadow-sm">
+            <div className="rounded-xl border border-gray-200 bg-white p-8 text-center lg:p-12 shadow-sm">
               <h2 className="text-2xl font-semibold tracking-tight lg:text-3xl">
                 Build production RAG systems
               </h2>
-              <p className="mx-auto mt-3 max-w-xl text-sm text-zinc-500">
+              <p className="mx-auto mt-3 max-w-xl text-sm text-gray-500">
                 Master retrieval, grounding, agents, and evaluation through 260+ interactive challenges. Earn certificates. Ship with confidence.
               </p>
               <div className="mt-6 flex items-center justify-center gap-3 flex-wrap">
                 <Link
                   href={user ? "/learn" : "/login"}
-                  className="group inline-flex h-10 items-center justify-center gap-2 rounded-full bg-zinc-900 px-6 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+                  className="group inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#8B5CF6] px-6 text-sm font-medium text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] cursor-pointer"
                 >
                   Start Learning Free
-                  <svg className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-3.5 w-3.5 transition-all duration-200-transform group-hover:translate-x-0.5 cursor-pointer" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                   </svg>
                 </Link>
                 <Link
                   href="/projects"
-                  className="inline-flex h-10 items-center justify-center rounded-full border border-zinc-200 px-6 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                  className="inline-flex h-10 items-center justify-center rounded-full border border-gray-200 px-6 text-sm font-medium text-gray-700 transition-all duration-200-all duration-200 hover:bg-gray-50 cursor-pointer"
                 >
                   View Projects
                 </Link>
@@ -529,12 +527,12 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-zinc-100">
+      <footer className="border-t border-gray-100">
         <div className="mx-auto max-w-[1200px] px-6 py-10 lg:px-8">
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-zinc-900 text-white">
+                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#8B5CF6] text-white">
                   <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M12 2L2 7L12 12L22 7L12 2Z" />
                     <path d="M2 17L12 22L22 17" />
@@ -543,41 +541,41 @@ export default function Home() {
                 </div>
                 <span className="font-semibold text-sm">RAG Academy</span>
               </div>
-              <p className="text-xs text-zinc-500 leading-relaxed">
+              <p className="text-xs text-gray-500 leading-relaxed">
                 The complete platform for learning production RAG systems.
               </p>
             </div>
 
             <div>
               <h4 className="font-semibold text-sm mb-3">Learn</h4>
-              <ul className="space-y-2 text-xs text-zinc-500">
-                <li><Link href="/learn" className="hover:text-zinc-900 transition-colors">Curriculum</Link></li>
-                <li><Link href="/challenges" className="hover:text-zinc-900 transition-colors">Challenges</Link></li>
-                <li><Link href="/projects" className="hover:text-zinc-900 transition-colors">Projects</Link></li>
-                <li><Link href="/playbooks" className="hover:text-zinc-900 transition-colors">Playbooks</Link></li>
+              <ul className="space-y-2 text-xs text-gray-500">
+                <li><Link href="/learn" className="hover:text-gray-900 transition-all duration-200-all duration-200 cursor-pointer">Curriculum</Link></li>
+                <li><Link href="/challenges" className="hover:text-gray-900 transition-all duration-200-all duration-200 cursor-pointer">Challenges</Link></li>
+                <li><Link href="/projects" className="hover:text-gray-900 transition-all duration-200-all duration-200 cursor-pointer">Projects</Link></li>
+                <li><Link href="/playbooks" className="hover:text-gray-900 transition-all duration-200-all duration-200 cursor-pointer">Playbooks</Link></li>
               </ul>
             </div>
 
             <div>
               <h4 className="font-semibold text-sm mb-3">Compare</h4>
-              <ul className="space-y-2 text-xs text-zinc-500">
-                <li><Link href="/compare/vector-dbs" className="hover:text-zinc-900 transition-colors">Vector DBs</Link></li>
-                <li><Link href="/compare/embeddings" className="hover:text-zinc-900 transition-colors">Embeddings</Link></li>
-                <li><Link href="/compare/frameworks" className="hover:text-zinc-900 transition-colors">Frameworks</Link></li>
+              <ul className="space-y-2 text-xs text-gray-500">
+                <li><Link href="/compare/vector-dbs" className="hover:text-gray-900 transition-all duration-200-all duration-200 cursor-pointer">Vector DBs</Link></li>
+                <li><Link href="/compare/embeddings" className="hover:text-gray-900 transition-all duration-200-all duration-200 cursor-pointer">Embeddings</Link></li>
+                <li><Link href="/compare/frameworks" className="hover:text-gray-900 transition-all duration-200-all duration-200 cursor-pointer">Frameworks</Link></li>
               </ul>
             </div>
 
             <div>
               <h4 className="font-semibold text-sm mb-3">Resources</h4>
-              <ul className="space-y-2 text-xs text-zinc-500">
-                <li><Link href="/papers" className="hover:text-zinc-900 transition-colors">Research Papers</Link></li>
-                <li><Link href="/analytics" className="hover:text-zinc-900 transition-colors">Your Progress</Link></li>
-                <li><Link href="/leaderboard" className="hover:text-zinc-900 transition-colors">Leaderboard</Link></li>
+              <ul className="space-y-2 text-xs text-gray-500">
+                <li><Link href="/papers" className="hover:text-gray-900 transition-all duration-200-all duration-200 cursor-pointer">Research Papers</Link></li>
+                <li><Link href="/analytics" className="hover:text-gray-900 transition-all duration-200-all duration-200 cursor-pointer">Your Progress</Link></li>
+                <li><Link href="/leaderboard" className="hover:text-gray-900 transition-all duration-200-all duration-200 cursor-pointer">Leaderboard</Link></li>
               </ul>
             </div>
           </div>
 
-          <div className="mt-10 pt-6 border-t border-zinc-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-400">
+          <div className="mt-10 pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-400">
             <p>© 2026 RAG Academy. All rights reserved.</p>
             <p>Built for production RAG engineers.</p>
           </div>

@@ -302,7 +302,7 @@ function AccessibilityStyles() {
       .a11y-reduced-motion * {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
+        transition-all duration-200-duration: 0.01ms !important;
       }
 
       /* Dyslexia Friendly Font */
@@ -405,10 +405,10 @@ export function AccessibilityControls() {
       {/* Toggle Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-all ${
+        className={`flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-all duration-200-all duration-200 ${
           isAccessibilityMode
             ? 'bg-blue-600 text-white'
-            : 'bg-white text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
+            : 'bg-white text-gray-700 dark:bg-[#7C3AED] dark:text-gray-300'
         }`}
         aria-label="Accessibility settings"
         aria-expanded={isOpen}
@@ -437,12 +437,12 @@ export function AccessibilityControls() {
 
       {/* Controls Panel */}
       {isOpen && (
-        <div className="absolute bottom-16 right-0 w-80 rounded-xl border border-zinc-200 bg-white p-4 shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="absolute bottom-16 right-0 w-80 rounded-xl border border-gray-200 bg-white p-4 shadow-xl dark:border-gray-800 dark:bg-gray-900">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="font-semibold">Accessibility</h3>
             <button
               onClick={() => setIsOpen(false)}
-              className="rounded-lg p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              className="rounded-lg p-1 hover:bg-gray-100 dark:hover:bg-[#7C3AED] cursor-pointer"
               aria-label="Close accessibility panel"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -454,7 +454,7 @@ export function AccessibilityControls() {
           <div className="space-y-4">
             {/* Visual Section */}
             <section>
-              <h4 className="mb-2 text-xs font-medium uppercase text-zinc-500">Visual</h4>
+              <h4 className="mb-2 text-xs font-medium uppercase text-gray-500">Visual</h4>
               <div className="space-y-2">
                 <Toggle
                   label="High Contrast"
@@ -481,7 +481,7 @@ export function AccessibilityControls() {
 
             {/* Cognitive Section */}
             <section>
-              <h4 className="mb-2 text-xs font-medium uppercase text-zinc-500">Cognitive</h4>
+              <h4 className="mb-2 text-xs font-medium uppercase text-gray-500">Cognitive</h4>
               <div className="space-y-2">
                 <Toggle
                   label="Reading Guide"
@@ -498,7 +498,7 @@ export function AccessibilityControls() {
 
             {/* Motor Section */}
             <section>
-              <h4 className="mb-2 text-xs font-medium uppercase text-zinc-500">Motor</h4>
+              <h4 className="mb-2 text-xs font-medium uppercase text-gray-500">Motor</h4>
               <div className="space-y-2">
                 <Toggle
                   label="Keyboard Navigation"
@@ -511,7 +511,7 @@ export function AccessibilityControls() {
             {/* Reset */}
             <button
               onClick={resetSettings}
-              className="w-full rounded-lg border border-zinc-200 py-2 text-sm font-medium transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800"
+              className="w-full rounded-lg border border-gray-200 py-2 text-sm font-medium transition-all duration-200-all duration-200 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-[#7C3AED] cursor-pointer"
             >
               Reset to Defaults
             </button>
@@ -542,12 +542,12 @@ function Toggle({
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={`relative h-6 w-11 rounded-full transition-colors ${
-          checked ? 'bg-blue-600' : 'bg-zinc-200 dark:bg-zinc-700'
+        className={`relative h-6 w-11 rounded-full transition-all duration-200-all duration-200 ${
+          checked ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
         }`}
       >
         <span
-          className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+          className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-all duration-200-transform ${
             checked ? 'translate-x-5' : 'translate-x-0'
           }`}
         />

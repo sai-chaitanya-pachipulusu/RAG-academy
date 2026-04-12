@@ -13,7 +13,7 @@ const CATEGORY_STYLES: Record<DiscussionCategory, { label: string; color: string
   optimization: { label: "Optimization", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300", icon: "⚡" },
   bug_report: { label: "Bug Report", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300", icon: "🐛" },
   tip: { label: "Tip", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300", icon: "💡" },
-  general: { label: "General", color: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300", icon: "💬" },
+  general: { label: "General", color: "bg-gray-100 text-gray-700 dark:bg-[#7C3AED] dark:text-gray-300", icon: "💬" },
 };
 
 interface ThreadDetailProps {
@@ -72,7 +72,7 @@ export function ThreadDetail({
       {/* Back Button */}
       <button
         onClick={onBack}
-        className="flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+        className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900 dark:hover:text-white cursor-pointer"
       >
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -102,13 +102,13 @@ export function ThreadDetail({
             </div>
             
             {/* Title */}
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               {thread.title}
             </h2>
             
             {/* Author & Date */}
-            <div className="mt-1 flex items-center gap-2 text-sm text-zinc-500">
-              <span className="font-medium text-zinc-700 dark:text-zinc-300">{thread.userName}</span>
+            <div className="mt-1 flex items-center gap-2 text-sm text-gray-500">
+              <span className="font-medium text-gray-700 dark:text-gray-300">{thread.userName}</span>
               <span>•</span>
               <span>{formatDate(thread.createdAt)}</span>
             </div>
@@ -124,13 +124,13 @@ export function ThreadDetail({
         </div>
         
         {/* Content */}
-        <div className="mt-4 text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">
+        <div className="mt-4 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
           {thread.content}
         </div>
         
         {/* Code Snippet */}
         {thread.codeSnippet && (
-          <pre className="mt-4 overflow-x-auto rounded-lg bg-zinc-900 p-4 text-sm text-zinc-100">
+          <pre className="mt-4 overflow-x-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100">
             <code>{thread.codeSnippet}</code>
           </pre>
         )}
@@ -141,7 +141,7 @@ export function ThreadDetail({
             {thread.tags.map(tag => (
               <span 
                 key={tag}
-                className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+                className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400"
               >
                 #{tag}
               </span>
@@ -151,12 +151,12 @@ export function ThreadDetail({
 
         {/* Thread Actions (for author) */}
         {isThreadAuthor && onMarkResolved && (
-          <div className="mt-4 flex items-center gap-2 pt-4 border-t border-zinc-200 dark:border-zinc-800">
+          <div className="mt-4 flex items-center gap-2 pt-4 border-t border-gray-200 dark:border-gray-800">
             <button
               onClick={() => onMarkResolved(thread.id, !thread.isResolved)}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-200-all duration-200 ${
                 thread.isResolved
-                  ? "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400"
+                  ? "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-[#7C3AED] dark:text-gray-400"
                   : "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300"
               }`}
             >
@@ -168,22 +168,22 @@ export function ThreadDetail({
       
       {/* Replies Section */}
       <div>
-        <h3 className="mb-3 font-medium text-zinc-900 dark:text-white">
+        <h3 className="mb-3 font-medium text-gray-900 dark:text-white">
           {replies.length} {replies.length === 1 ? "Reply" : "Replies"}
         </h3>
         
         {isLoading ? (
           <Card className="p-8">
             <div className="flex items-center justify-center">
-              <svg className="h-6 w-6 animate-spin text-zinc-400" fill="none" viewBox="0 0 24 24">
+              <svg className="h-6 w-6 animate-spin text-gray-400" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
-              <span className="ml-2 text-sm text-zinc-500">Loading replies...</span>
+              <span className="ml-2 text-sm text-gray-500">Loading replies...</span>
             </div>
           </Card>
         ) : replies.length === 0 ? (
-          <Card className="p-4 text-center text-sm text-zinc-500">
+          <Card className="p-4 text-center text-sm text-gray-500">
             No replies yet. Be the first to contribute!
           </Card>
         ) : (
@@ -211,7 +211,7 @@ export function ThreadDetail({
         />
       ) : (
         <Card className="p-4">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             💬 Sign in to post a reply
           </p>
         </Card>
@@ -295,26 +295,26 @@ function ReplyCard({ reply, thread, currentUserId, onVote, onAcceptAnswer }: Rep
           )}
           
           {/* Author & Date */}
-          <div className="flex items-center gap-2 text-sm text-zinc-500">
-            <span className="font-medium text-zinc-700 dark:text-zinc-300">{reply.userName}</span>
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <span className="font-medium text-gray-700 dark:text-gray-300">{reply.userName}</span>
             <span>•</span>
             <span>{formatDate(reply.createdAt)}</span>
             {isReplyAuthor && (
               <>
                 <span>•</span>
-                <span className="text-xs text-zinc-400">(you)</span>
+                <span className="text-xs text-gray-400">(you)</span>
               </>
             )}
           </div>
           
           {/* Content */}
-          <div className="mt-2 text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">
+          <div className="mt-2 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
             {reply.content}
           </div>
           
           {/* Code Snippet */}
           {reply.codeSnippet && (
-            <pre className="mt-3 overflow-x-auto rounded-lg bg-zinc-900 p-3 text-sm text-zinc-100">
+            <pre className="mt-3 overflow-x-auto rounded-lg bg-gray-900 p-3 text-sm text-gray-100">
               <code>{reply.codeSnippet}</code>
             </pre>
           )}
@@ -323,7 +323,7 @@ function ReplyCard({ reply, thread, currentUserId, onVote, onAcceptAnswer }: Rep
           {isThreadAuthor && onAcceptAnswer && !reply.isAcceptedAnswer && (
             <button
               onClick={handleAccept}
-              className="mt-3 flex items-center gap-1.5 rounded-lg bg-zinc-100 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
+              className="mt-3 flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-200 dark:bg-[#7C3AED] dark:text-gray-400 dark:hover:bg-gray-700 cursor-pointer"
             >
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -337,8 +337,8 @@ function ReplyCard({ reply, thread, currentUserId, onVote, onAcceptAnswer }: Rep
         {onVote && (
           <div className="flex flex-col items-center gap-1">
             <button 
-              className={`text-sm hover:scale-110 transition-transform ${
-                displayUserVote === 1 ? "text-orange-500" : "text-zinc-400 hover:text-zinc-600"
+              className={`text-sm hover:scale-110 transition-all duration-200-transform ${
+                displayUserVote === 1 ? "text-orange-500" : "text-gray-400 hover:text-gray-600"
               } ${isVoting ? "opacity-50" : ""}`}
               onClick={() => handleVote(1)}
               disabled={isVoting}
@@ -346,13 +346,13 @@ function ReplyCard({ reply, thread, currentUserId, onVote, onAcceptAnswer }: Rep
               ▲
             </button>
             <span className={`text-sm font-semibold ${
-              displayUserVote !== 0 ? "text-orange-600 dark:text-orange-400" : "text-zinc-600 dark:text-zinc-400"
+              displayUserVote !== 0 ? "text-orange-600 dark:text-orange-400" : "text-gray-600 dark:text-gray-400"
             }`}>
               {displayVotes}
             </span>
             <button 
-              className={`text-sm hover:scale-110 transition-transform ${
-                displayUserVote === -1 ? "text-indigo-500" : "text-zinc-400 hover:text-zinc-600"
+              className={`text-sm hover:scale-110 transition-all duration-200-transform ${
+                displayUserVote === -1 ? "text-indigo-500" : "text-gray-400 hover:text-gray-600"
               } ${isVoting ? "opacity-50" : ""}`}
               onClick={() => handleVote(-1)}
               disabled={isVoting}
@@ -406,8 +406,8 @@ function VoteButtons({ item, onVote }: VoteButtonsProps) {
   return (
     <div className="flex flex-col items-center gap-1">
       <button 
-        className={`text-xl hover:scale-110 transition-transform ${
-          displayUserVote === 1 ? "text-orange-500" : "text-zinc-400 hover:text-zinc-600"
+        className={`text-xl hover:scale-110 transition-all duration-200-transform ${
+          displayUserVote === 1 ? "text-orange-500" : "text-gray-400 hover:text-gray-600"
         } ${isVoting ? "opacity-50" : ""}`}
         onClick={() => handleVote(1)}
         disabled={isVoting}
@@ -415,13 +415,13 @@ function VoteButtons({ item, onVote }: VoteButtonsProps) {
         ▲
       </button>
       <span className={`text-lg font-bold ${
-        displayUserVote !== 0 ? "text-orange-600 dark:text-orange-400" : "text-zinc-700 dark:text-zinc-300"
+        displayUserVote !== 0 ? "text-orange-600 dark:text-orange-400" : "text-gray-700 dark:text-gray-300"
       }`}>
         {displayVotes}
       </span>
       <button 
-        className={`text-xl hover:scale-110 transition-transform ${
-          displayUserVote === -1 ? "text-indigo-500" : "text-zinc-400 hover:text-zinc-600"
+        className={`text-xl hover:scale-110 transition-all duration-200-transform ${
+          displayUserVote === -1 ? "text-indigo-500" : "text-gray-400 hover:text-gray-600"
         } ${isVoting ? "opacity-50" : ""}`}
         onClick={() => handleVote(-1)}
         disabled={isVoting}

@@ -53,7 +53,7 @@ export function SubmissionHistory({ challengeSlug, onLoadCode }: Props) {
 
   if (!user) {
     return (
-      <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-center text-sm text-zinc-500">
+      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-center text-sm text-gray-500">
         Sign in to see your submission history
       </div>
     );
@@ -61,10 +61,10 @@ export function SubmissionHistory({ challengeSlug, onLoadCode }: Props) {
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-zinc-200 p-4">
+      <div className="rounded-xl border border-gray-200 p-4">
         <div className="flex items-center gap-2">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600"></span>
-          <span className="text-sm text-zinc-500">Loading submissions...</span>
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-zinc-600"></span>
+          <span className="text-sm text-gray-500">Loading submissions...</span>
         </div>
       </div>
     );
@@ -72,20 +72,20 @@ export function SubmissionHistory({ challengeSlug, onLoadCode }: Props) {
 
   if (submissions.length === 0) {
     return (
-      <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-center text-sm text-zinc-500">
+      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-center text-sm text-gray-500">
         No submissions yet. Submit your code to see history here.
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white">
-      <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-800">
+    <div className="rounded-xl border border-gray-200 bg-white">
+      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-800">
           <span>📋</span>
           Submission History
         </h3>
-        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">
+        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
           {submissions.length} submissions
         </span>
       </div>
@@ -98,15 +98,15 @@ export function SubmissionHistory({ challengeSlug, onLoadCode }: Props) {
           return (
             <div
               key={sub.id}
-              className={`border-b border-zinc-100 last:border-b-0 ${
-                idx % 2 === 0 ? "bg-white" : "bg-zinc-50/50"
+              className={`border-b border-gray-100 last:border-b-0 ${
+                idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"
               }`}
             >
               {/* Summary row */}
               <button
                 type="button"
                 onClick={() => setExpanded(isExpanded ? null : sub.id)}
-                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-zinc-50 transition-colors"
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-all duration-200-all duration-200 cursor-pointer"
               >
                 <div className="flex items-center gap-3">
                   <span
@@ -115,11 +115,11 @@ export function SubmissionHistory({ challengeSlug, onLoadCode }: Props) {
                     {config.icon}
                   </span>
                   <div>
-                    <span className={`text-sm font-medium ${sub.passed ? "text-emerald-700" : "text-zinc-700"}`}>
+                    <span className={`text-sm font-medium ${sub.passed ? "text-emerald-700" : "text-gray-700"}`}>
                       {config.label}
                     </span>
                     {sub.executionTimeMs && (
-                      <span className="ml-2 text-xs text-zinc-400">
+                      <span className="ml-2 text-xs text-gray-400">
                         {sub.executionTimeMs}ms
                       </span>
                     )}
@@ -131,27 +131,27 @@ export function SubmissionHistory({ challengeSlug, onLoadCode }: Props) {
                       Score: {sub.score > 100 ? 100 : sub.score}
                     </span>
                   )}
-                  <span className="text-xs text-zinc-400">{formatTimeAgo(sub.submittedAt)}</span>
-                  <span className="text-zinc-400">{isExpanded ? "▲" : "▼"}</span>
+                  <span className="text-xs text-gray-400">{formatTimeAgo(sub.submittedAt)}</span>
+                  <span className="text-gray-400">{isExpanded ? "▲" : "▼"}</span>
                 </div>
               </button>
 
               {/* Expanded code view */}
               {isExpanded && (
-                <div className="border-t border-zinc-100 bg-zinc-900 p-3">
+                <div className="border-t border-gray-100 bg-gray-900 p-3">
                   <div className="mb-2 flex items-center justify-between">
-                    <span className="text-xs text-zinc-400">Code ({sub.language})</span>
+                    <span className="text-xs text-gray-400">Code ({sub.language})</span>
                     {onLoadCode && (
                       <button
                         type="button"
                         onClick={() => onLoadCode(sub.code)}
-                        className="rounded bg-zinc-700 px-2 py-1 text-xs text-zinc-200 hover:bg-zinc-600 transition-colors"
+                        className="rounded bg-gray-700 px-2 py-1 text-xs text-gray-200 hover:bg-gray-600 transition-all duration-200-all duration-200 cursor-pointer"
                       >
                         Load this code
                       </button>
                     )}
                   </div>
-                  <pre className="max-h-48 overflow-auto rounded bg-zinc-950 p-2 text-xs text-zinc-100">
+                  <pre className="max-h-48 overflow-auto rounded bg-[#7C3AED] p-2 text-xs text-gray-100">
                     {sub.code}
                   </pre>
                   {sub.errorMessage && (

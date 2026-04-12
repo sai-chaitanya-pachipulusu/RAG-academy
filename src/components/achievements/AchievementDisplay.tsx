@@ -65,7 +65,7 @@ export function AchievementUnlock({
   }, [autoClose, autoCloseDelay, onClose]);
 
   const rarityColors = {
-    common: "from-zinc-500 to-zinc-600",
+    common: "from-[#8B5CF6]-500 to-[#8B5CF6]-600",
     rare: "from-blue-500 to-blue-600",
     epic: "from-purple-500 to-purple-600",
     legendary: "from-amber-400 to-amber-600",
@@ -79,11 +79,11 @@ export function AchievementUnlock({
       className="fixed inset-x-0 top-4 z-50 mx-auto max-w-md px-4"
     >
       <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${rarityColors[achievement.rarity]} p-1 shadow-2xl`}>
-        <div className="rounded-xl bg-white p-6 dark:bg-zinc-900">
+        <div className="rounded-xl bg-white p-6 dark:bg-gray-900">
           {/* Close button */}
           <button
             onClick={onClose}
-            className="absolute right-3 top-3 rounded-full p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800"
+            className="absolute right-3 top-3 rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-[#7C3AED] cursor-pointer"
           >
             <X className="h-4 w-4" />
           </button>
@@ -93,7 +93,7 @@ export function AchievementUnlock({
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: "spring" }}
+              transition-all duration-200={{ delay: 0.2, type: "spring" }}
               className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-amber-100 to-amber-200 text-4xl dark:from-amber-900/50 dark:to-amber-800/50"
             >
               {achievement.icon}
@@ -102,15 +102,15 @@ export function AchievementUnlock({
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
+              transition-all duration-200={{ delay: 0.3 }}
             >
-              <p className="mb-1 text-sm font-medium text-zinc-500 dark:text-zinc-400">
+              <p className="mb-1 text-sm font-medium text-gray-500 dark:text-gray-400">
                 Achievement Unlocked!
               </p>
-              <h3 className="mb-2 text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+              <h3 className="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {achievement.name}
               </h3>
-              <p className="mb-4 text-zinc-600 dark:text-zinc-400">
+              <p className="mb-4 text-gray-600 dark:text-gray-400">
                 {achievement.description}
               </p>
 
@@ -132,7 +132,7 @@ export function AchievementUnlock({
         <motion.div
           initial={{ x: "-100%" }}
           animate={{ x: "200%" }}
-          transition={{ duration: 1.5, delay: 0.5 }}
+          transition-all duration-200={{ duration: 1.5, delay: 0.5 }}
           className="absolute inset-0 -skew-x-12 bg-gradient-to-r from-transparent via-white/20 to-transparent"
         />
       </div>
@@ -160,7 +160,7 @@ export function AchievementCard({
 
   return (
     <Card
-      className={`relative overflow-hidden transition-all ${
+      className={`relative overflow-hidden transition-all duration-200-all duration-200 ${
         isUnlocked
           ? "opacity-100"
           : "opacity-60 grayscale"
@@ -170,7 +170,7 @@ export function AchievementCard({
       <div
         className={`absolute left-0 top-0 h-full w-1 ${
           achievement.rarity === "common"
-            ? "bg-zinc-400"
+            ? "bg-gray-400"
             : achievement.rarity === "rare"
             ? "bg-blue-500"
             : achievement.rarity === "epic"
@@ -184,23 +184,23 @@ export function AchievementCard({
           {/* Icon */}
           <div
             className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl ${
-              isUnlocked ? getRarityBgColor(achievement.rarity) : "bg-zinc-100 dark:bg-zinc-800"
+              isUnlocked ? getRarityBgColor(achievement.rarity) : "bg-gray-100 dark:bg-[#7C3AED]"
             }`}
           >
-            {isUnlocked ? achievement.icon : <Lock className="h-5 w-5 text-zinc-400" />}
+            {isUnlocked ? achievement.icon : <Lock className="h-5 w-5 text-gray-400" />}
           </div>
 
           {/* Content */}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h4 className="truncate font-semibold text-zinc-900 dark:text-zinc-100">
+              <h4 className="truncate font-semibold text-gray-900 dark:text-gray-100">
                 {achievement.name}
               </h4>
               {isUnlocked && (
                 <Check className="h-4 w-4 shrink-0 text-green-500" />
               )}
             </div>
-            <p className="mb-2 text-sm text-zinc-600 dark:text-zinc-400">
+            <p className="mb-2 text-sm text-gray-600 dark:text-gray-400">
               {achievement.description}
             </p>
 
@@ -213,7 +213,7 @@ export function AchievementCard({
               >
                 {getRarityLabel(achievement.rarity)}
               </span>
-              <span className="inline-flex items-center rounded bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+              <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400">
                 {getCategoryLabel(achievement.category)}
               </span>
               {isUnlocked && (
@@ -229,11 +229,11 @@ export function AchievementCard({
         {/* Progress bar */}
         {showProgress && !isUnlocked && progress > 0 && (
           <div className="mt-3">
-            <div className="mb-1 flex justify-between text-xs text-zinc-500">
+            <div className="mb-1 flex justify-between text-xs text-gray-500">
               <span>Progress</span>
               <span>{progress}%</span>
             </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${progress}%` }}
@@ -245,7 +245,7 @@ export function AchievementCard({
 
         {/* Unlock date */}
         {isUnlocked && userAchievement?.unlockedAt && (
-          <p className="mt-2 text-xs text-zinc-400">
+          <p className="mt-2 text-xs text-gray-400">
             Unlocked {new Date(userAchievement.unlockedAt).toLocaleDateString()}
           </p>
         )}
@@ -308,10 +308,10 @@ export function AchievementGallery({
               <Trophy className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {progress.unlockedCount}/{progress.totalAchievements}
               </p>
-              <p className="text-xs text-zinc-500">Achievements</p>
+              <p className="text-xs text-gray-500">Achievements</p>
             </div>
           </div>
         </Card>
@@ -322,10 +322,10 @@ export function AchievementGallery({
               <Sparkles className="h-5 w-5 text-green-600 dark:text-green-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {progress.totalXPEarned.toLocaleString()}
               </p>
-              <p className="text-xs text-zinc-500">XP Earned</p>
+              <p className="text-xs text-gray-500">XP Earned</p>
             </div>
           </div>
         </Card>
@@ -336,10 +336,10 @@ export function AchievementGallery({
               <Star className="h-5 w-5 text-purple-600 dark:text-purple-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {progress.byRarity.legendary.unlocked}
               </p>
-              <p className="text-xs text-zinc-500">Legendary</p>
+              <p className="text-xs text-gray-500">Legendary</p>
             </div>
           </div>
         </Card>
@@ -350,10 +350,10 @@ export function AchievementGallery({
               <Target className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {Math.round((progress.unlockedCount / progress.totalAchievements) * 100)}%
               </p>
-              <p className="text-xs text-zinc-500">Complete</p>
+              <p className="text-xs text-gray-500">Complete</p>
             </div>
           </div>
         </Card>
@@ -365,10 +365,10 @@ export function AchievementGallery({
           <button
             key={category}
             onClick={() => onCategoryChange?.(category)}
-            className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+            className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-200-all duration-200 ${
               selectedCategory === category
                 ? "bg-indigo-600 text-white"
-                : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-[#7C3AED] dark:text-gray-300 dark:hover:bg-gray-700"
             }`}
           >
             {CATEGORY_ICONS[category]}
@@ -390,8 +390,8 @@ export function AchievementGallery({
 
       {filteredAchievements.length === 0 && (
         <div className="py-12 text-center">
-          <Trophy className="mx-auto mb-4 h-12 w-12 text-zinc-300 dark:text-zinc-700" />
-          <p className="text-zinc-500 dark:text-zinc-400">
+          <Trophy className="mx-auto mb-4 h-12 w-12 text-gray-300 dark:text-gray-700" />
+          <p className="text-gray-500 dark:text-gray-400">
             No achievements found in this category.
           </p>
         </div>
@@ -417,12 +417,12 @@ export function AchievementProgressBar({ progress, compact = false }: Achievemen
       <div className="flex items-center gap-3">
         <div className="flex-1">
           <div className="mb-1 flex justify-between text-xs">
-            <span className="text-zinc-600 dark:text-zinc-400">Achievements</span>
-            <span className="font-medium text-zinc-900 dark:text-zinc-100">
+            <span className="text-gray-600 dark:text-gray-400">Achievements</span>
+            <span className="font-medium text-gray-900 dark:text-gray-100">
               {progress.unlockedCount}/{progress.totalAchievements}
             </span>
           </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${percentage}%` }}
@@ -438,13 +438,13 @@ export function AchievementProgressBar({ progress, compact = false }: Achievemen
   return (
     <Card className="p-4">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Achievement Progress</h3>
+        <h3 className="font-semibold text-gray-900 dark:text-gray-100">Achievement Progress</h3>
         <span className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
           {percentage}%
         </span>
       </div>
 
-      <div className="mb-4 h-3 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+      <div className="mb-4 h-3 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${percentage}%` }}
@@ -454,11 +454,11 @@ export function AchievementProgressBar({ progress, compact = false }: Achievemen
 
       <div className="grid grid-cols-4 gap-2 text-center">
         {(["common", "rare", "epic", "legendary"] as AchievementRarity[]).map((rarity) => (
-          <div key={rarity} className="rounded-lg bg-zinc-50 p-2 dark:bg-zinc-900">
+          <div key={rarity} className="rounded-lg bg-gray-50 p-2 dark:bg-gray-900">
             <p className={`text-lg font-bold ${getRarityColor(rarity)}`}>
               {progress.byRarity[rarity].unlocked}
             </p>
-            <p className="text-[10px] uppercase tracking-wide text-zinc-500">
+            <p className="text-[10px] uppercase tracking-wide text-gray-500">
               {getRarityLabel(rarity)}
             </p>
           </div>
@@ -486,8 +486,8 @@ export function RecentAchievements({ userAchievements, maxDisplay = 3 }: RecentA
   if (recentUnlocked.length === 0) {
     return (
       <Card className="p-4">
-        <h3 className="mb-3 font-semibold text-zinc-900 dark:text-zinc-100">Recent Achievements</h3>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        <h3 className="mb-3 font-semibold text-gray-900 dark:text-gray-100">Recent Achievements</h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
           Complete challenges to unlock achievements!
         </p>
       </Card>
@@ -496,7 +496,7 @@ export function RecentAchievements({ userAchievements, maxDisplay = 3 }: RecentA
 
   return (
     <Card className="p-4">
-      <h3 className="mb-3 font-semibold text-zinc-900 dark:text-zinc-100">Recent Achievements</h3>
+      <h3 className="mb-3 font-semibold text-gray-900 dark:text-gray-100">Recent Achievements</h3>
       <div className="space-y-3">
         {recentUnlocked.map((ua) => {
           const achievement = ACHIEVEMENTS.find((a) => a.id === ua.achievementId);
@@ -508,10 +508,10 @@ export function RecentAchievements({ userAchievements, maxDisplay = 3 }: RecentA
                 {achievement.icon}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-zinc-900 dark:text-zinc-100">
+                <p className="truncate font-medium text-gray-900 dark:text-gray-100">
                   {achievement.name}
                 </p>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-gray-500">
                   {new Date(ua.unlockedAt).toLocaleDateString(undefined, {
                     month: "short",
                     day: "numeric",

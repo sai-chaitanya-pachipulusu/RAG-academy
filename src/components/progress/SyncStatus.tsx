@@ -42,8 +42,8 @@ const STATUS_CONFIG: Record<SyncStatusType, {
   idle: {
     icon: <Cloud className="w-4 h-4" />,
     label: "Ready to sync",
-    color: "text-zinc-500",
-    bgColor: "bg-zinc-100 dark:bg-zinc-800",
+    color: "text-gray-500",
+    bgColor: "bg-gray-100 dark:bg-[#7C3AED]",
   },
   syncing: {
     icon: <RefreshCw className="w-4 h-4" />,
@@ -105,7 +105,7 @@ export function SyncStatusBadge({ showLabel = true, className = "" }: SyncStatus
       whileTap={{ scale: 0.98 }}
       className={`
         inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
-        transition-colors duration-200
+        transition-all duration-200-colors duration-200
         ${config.bgColor} ${config.color}
         ${syncStatus.status !== "syncing" && isOnline ? "cursor-pointer hover:opacity-80" : "cursor-default"}
         ${className}
@@ -182,7 +182,7 @@ export function SyncStatusPanel({ className = "" }: SyncStatusPanelProps) {
           disabled={isSyncing || !isOnline}
           className={`
             px-3 py-1.5 rounded-md text-sm font-medium
-            transition-colors duration-200
+            transition-all duration-200-colors duration-200
             ${isSyncing || !isOnline
               ? "bg-muted text-muted-foreground cursor-not-allowed"
               : "bg-primary text-primary-foreground hover:bg-primary/90"
@@ -300,7 +300,7 @@ export function SyncStatusDot({ className = "" }: SyncStatusDotProps) {
       case "syncing": return "bg-blue-500 animate-pulse";
       case "error": return "bg-red-500";
       case "conflict": return "bg-orange-500";
-      default: return "bg-zinc-400";
+      default: return "bg-gray-400";
     }
   };
   
@@ -330,8 +330,8 @@ export function SyncDashboard({ className = "" }: SyncDashboardProps) {
         <button
           onClick={() => setShowHistory(!showHistory)}
           className="flex-1 px-3 py-2 rounded-md border text-sm font-medium
-            hover:bg-muted transition-colors
-            flex items-center justify-center gap-1.5"
+            hover:bg-muted transition-all duration-200-all duration-200
+            flex items-center justify-center gap-1.5 cursor-pointer"
         >
           <History className="w-4 h-4" />
           {showHistory ? "Hide History" : "View History"}
@@ -341,8 +341,8 @@ export function SyncDashboard({ className = "" }: SyncDashboardProps) {
           onClick={forceSync}
           disabled={!isOnline}
           className="flex-1 px-3 py-2 rounded-md border text-sm font-medium
-            hover:bg-muted transition-colors disabled:opacity-50
-            flex items-center justify-center gap-1.5"
+            hover:bg-muted transition-all duration-200-all duration-200 disabled:opacity-50
+            flex items-center justify-center gap-1.5 cursor-pointer"
         >
           <MoreHorizontal className="w-4 h-4" />
           More Options

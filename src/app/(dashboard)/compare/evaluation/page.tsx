@@ -94,11 +94,11 @@ export default function CompareEvaluationPage() {
   return (
     <div className="flex flex-col gap-6">
       <header>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">Compare / Evaluation</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">Compare / Evaluation</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">
           Evaluation + Observability
         </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-7 text-zinc-600 dark:text-zinc-300">
+        <p className="mt-2 max-w-2xl text-sm leading-7 text-gray-600 dark:text-gray-300">
           If you can&apos;t measure retrieval quality and groundedness, you can&apos;t improve it. Start small:
           a 25–50 question golden set + Recall@k + citation/grounding checks.
         </p>
@@ -109,7 +109,7 @@ export default function CompareEvaluationPage() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-medium">Minimum viable eval workflow</p>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               Follow this sequence to go from &quot;it seems to work&quot; to &quot;I can prove it works.&quot;
             </p>
           </div>
@@ -119,17 +119,17 @@ export default function CompareEvaluationPage() {
           {EVAL_WORKFLOW_STEPS.map((s, i) => (
             <div
               key={s.step}
-              className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 dark:border-zinc-800"
+              className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 dark:border-gray-800"
             >
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-900 text-xs font-bold text-white dark:bg-zinc-100 dark:text-zinc-900">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gray-900 text-xs font-bold text-white dark:bg-[#8B5CF6] dark:text-white">
                 {s.step}
               </span>
               <div>
-                <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100">{s.title}</p>
-                <p className="text-[10px] text-zinc-500 dark:text-zinc-400">~{s.time}</p>
+                <p className="text-xs font-medium text-gray-900 dark:text-gray-100">{s.title}</p>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400">~{s.time}</p>
               </div>
               {i < EVAL_WORKFLOW_STEPS.length - 1 && (
-                <span className="ml-1 text-zinc-300 dark:text-zinc-700">→</span>
+                <span className="ml-1 text-gray-300 dark:text-gray-700">→</span>
               )}
             </div>
           ))}
@@ -147,51 +147,51 @@ export default function CompareEvaluationPage() {
         <div className="flex items-center justify-between gap-3 p-5">
           <div>
             <p className="text-sm font-medium">Evaluation frameworks comparison</p>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               Pick based on your needs: offline evals vs. production tracing vs. CI integration.
             </p>
           </div>
           <Badge variant="muted">quick matrix</Badge>
         </div>
-        <div className="overflow-x-auto border-t border-zinc-200 dark:border-white/10">
+        <div className="overflow-x-auto border-t border-gray-200 dark:border-white/10">
           <table className="w-full min-w-[980px] border-separate border-spacing-0 text-sm">
             <thead>
-              <tr className="text-left text-xs text-zinc-500 dark:text-zinc-400">
+              <tr className="text-left text-xs text-gray-500 dark:text-gray-400">
                 {["Tool", "Best for", "Metrics", "Tracing", "Notes"].map((h) => (
                   <th
                     key={h}
-                    className="border-b border-zinc-200 px-3 py-2 dark:border-white/10"
+                    className="border-b border-gray-200 px-3 py-2 dark:border-white/10"
                   >
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="text-zinc-800 dark:text-zinc-200">
+            <tbody className="text-gray-800 dark:text-gray-200">
               {TOOLS.map((t) => (
                 <tr key={t.tool}>
-                  <td className="border-b border-zinc-200 px-3 py-3 align-top dark:border-white/10">
+                  <td className="border-b border-gray-200 px-3 py-3 align-top dark:border-white/10">
                     <a
                       href={t.link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-medium text-zinc-950 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-500 dark:text-zinc-50 dark:decoration-zinc-700 dark:hover:decoration-zinc-500"
+                      className="font-medium text-gray-950 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-500 dark:text-gray-50 dark:decoration-zinc-700 dark:hover:decoration-zinc-500 cursor-pointer"
                     >
                       {t.tool}
                     </a>
                   </td>
-                  <td className="border-b border-zinc-200 px-3 py-3 align-top dark:border-white/10">
+                  <td className="border-b border-gray-200 px-3 py-3 align-top dark:border-white/10">
                     {t.bestFor}
                   </td>
-                  <td className="border-b border-zinc-200 px-3 py-3 align-top dark:border-white/10">
+                  <td className="border-b border-gray-200 px-3 py-3 align-top dark:border-white/10">
                     {t.metrics}
                   </td>
-                  <td className="border-b border-zinc-200 px-3 py-3 align-top dark:border-white/10">
+                  <td className="border-b border-gray-200 px-3 py-3 align-top dark:border-white/10">
                     <Badge variant={t.tracing === "Yes" ? "accent" : t.tracing === "Partial" ? "muted" : "default"}>
                       {t.tracing}
                     </Badge>
                   </td>
-                  <td className="border-b border-zinc-200 px-3 py-3 align-top dark:border-white/10">
+                  <td className="border-b border-gray-200 px-3 py-3 align-top dark:border-white/10">
                     {t.notes}
                   </td>
                 </tr>
@@ -202,11 +202,11 @@ export default function CompareEvaluationPage() {
       </Card>
 
       {/* Decision Callout */}
-      <Card className="border-emerald-200/50 bg-gradient-to-br from-emerald-50 to-white p-5 dark:border-emerald-900/30 dark:from-emerald-950/20 dark:to-zinc-950">
+      <Card className="border-emerald-200/50 bg-gradient-to-br from-emerald-50 to-white p-5 dark:border-emerald-900/30 dark:from-emerald-950/20 dark:to-[#8B5CF6]-950">
         <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
           Default recommendation
         </p>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
           Start with <strong>Ragas</strong> for offline eval (it&apos;s free and RAG-specific). Add{" "}
           <strong>LangSmith</strong> or <strong>Phoenix</strong> when you need production tracing.
           Use <strong>DeepEval</strong> if you want eval-as-unit-tests in CI.
@@ -219,31 +219,31 @@ export default function CompareEvaluationPage() {
         <div className="mt-3 flex flex-wrap gap-2">
           <Link
             href="/challenges/evaluator-recall-at-k"
-            className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+            className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06] cursor-pointer"
           >
             Recall@k
           </Link>
           <Link
             href="/challenges/evaluator-mrr"
-            className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+            className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06] cursor-pointer"
           >
             MRR
           </Link>
           <Link
             href="/challenges/evaluator-ndcg"
-            className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+            className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06] cursor-pointer"
           >
             nDCG
           </Link>
           <Link
             href="/challenges/faithfulness-judge"
-            className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+            className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06] cursor-pointer"
           >
             Faithfulness Judge
           </Link>
           <Link
             href="/projects"
-            className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+            className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06] cursor-pointer"
           >
             Production templates →
           </Link>

@@ -114,30 +114,30 @@ export function MicroTaskView({ challengeSlug, onTaskComplete, onAllComplete }: 
   return (
     <div className="flex flex-col gap-6">
       {/* Hero Header */}
-      <div className="rounded-2xl border border-zinc-200 bg-white p-6 lg:p-8">
+      <div className="rounded-2xl border border-gray-200 bg-white p-6 lg:p-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <span className="text-4xl">🧩</span>
             <div>
-              <h3 className="text-xl font-bold text-zinc-900 lg:text-2xl">Step-by-Step Mode</h3>
-              <p className="mt-1 text-zinc-500">Break down the challenge into manageable micro-tasks</p>
+              <h3 className="text-xl font-bold text-gray-900 lg:text-2xl">Step-by-Step Mode</h3>
+              <p className="mt-1 text-gray-500">Break down the challenge into manageable micro-tasks</p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-3xl font-bold text-zinc-900">{completedCount}/{tasks.length}</p>
-            <p className="text-sm text-zinc-500">tasks complete</p>
+            <p className="text-3xl font-bold text-gray-900">{completedCount}/{tasks.length}</p>
+            <p className="text-sm text-gray-500">tasks complete</p>
           </div>
         </div>
 
         {/* Progress Bar */}
         <div className="mt-6">
-          <div className="flex items-center justify-between text-sm font-medium text-zinc-500">
+          <div className="flex items-center justify-between text-sm font-medium text-gray-500">
             <span>Progress</span>
             <span>{Math.round(progress)}%</span>
           </div>
-          <div className="mt-2 h-3 overflow-hidden rounded-full bg-zinc-100">
+          <div className="mt-2 h-3 overflow-hidden rounded-full bg-gray-100">
             <div
-              className="h-full bg-indigo-600 transition-all duration-500 ease-out"
+              className="h-full bg-indigo-600 transition-all duration-200-all duration-500 ease-out cursor-pointer"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -149,19 +149,19 @@ export function MicroTaskView({ challengeSlug, onTaskComplete, onAllComplete }: 
             <button
               key={task.id}
               onClick={() => goToTask(i)}
-              className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200-all duration-200 ${
                 i === currentTaskIndex
                   ? "border-indigo-600 bg-indigo-600 text-white shadow-sm"
                   : completedTasks[i]
                     ? "border-emerald-200 bg-emerald-100 text-emerald-800"
-                    : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50"
+                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
               }`}
             >
               {completedTasks[i] ? (
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600/20 text-xs text-emerald-700">✓</span>
               ) : (
                 <span className={`flex h-5 w-5 items-center justify-center rounded-full text-xs ${
-                  i === currentTaskIndex ? "bg-white/20 text-white" : "bg-zinc-100 text-zinc-500"
+                  i === currentTaskIndex ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"
                 }`}>{i + 1}</span>
               )}
               <span className="hidden sm:inline">{task.title}</span>
@@ -181,10 +181,10 @@ export function MicroTaskView({ challengeSlug, onTaskComplete, onAllComplete }: 
                 {currentTaskIndex + 1}
               </span>
               <div>
-                <h4 className="text-xl font-bold text-zinc-900">
+                <h4 className="text-xl font-bold text-gray-900">
                   {currentTask.title}
                 </h4>
-                <p className="mt-1 text-sm text-zinc-500">
+                <p className="mt-1 text-sm text-gray-500">
                   ⏱️ Estimated: ~{currentTask.estimatedMinutes} minutes
                 </p>
               </div>
@@ -202,7 +202,7 @@ export function MicroTaskView({ challengeSlug, onTaskComplete, onAllComplete }: 
           <h5 className="mb-2 text-sm font-semibold uppercase tracking-wider text-indigo-700">
             Your Task
           </h5>
-          <p className="text-lg text-zinc-800">{currentTask.description}</p>
+          <p className="text-lg text-gray-800">{currentTask.description}</p>
         </div>
 
         {/* Hints Section */}
@@ -210,7 +210,7 @@ export function MicroTaskView({ challengeSlug, onTaskComplete, onAllComplete }: 
           <div className="mb-6">
             <button
               onClick={() => setShowHints(!showHints)}
-              className="flex items-center gap-2 rounded-xl border-2 border-dashed border-amber-300 bg-amber-50 px-5 py-3 text-sm font-medium text-amber-800 transition-all hover:border-amber-400 hover:bg-amber-100"
+              className="flex items-center gap-2 rounded-xl border-2 border-dashed border-amber-300 bg-amber-50 px-5 py-3 text-sm font-medium text-amber-800 transition-all duration-200-all duration-200 hover:border-amber-400 hover:bg-amber-100 cursor-pointer"
             >
               <span className="text-lg">💡</span>
               {showHints ? "Hide Hints" : `Show ${currentTask.hints.length} Hints`}
@@ -237,9 +237,9 @@ export function MicroTaskView({ challengeSlug, onTaskComplete, onAllComplete }: 
 
         {/* Code Editor */}
         <div className="mb-6">
-          <div className="flex items-center justify-between rounded-t-xl bg-zinc-100 border border-zinc-200 border-b-0 px-4 py-3">
+          <div className="flex items-center justify-between rounded-t-xl bg-gray-100 border border-gray-200 border-b-0 px-4 py-3">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-zinc-700">Your Solution</span>
+              <span className="text-sm font-medium text-gray-700">Your Solution</span>
             </div>
             <div className="flex gap-1.5">
               <span className="h-3 w-3 rounded-full bg-red-500"></span>
@@ -250,7 +250,7 @@ export function MicroTaskView({ challengeSlug, onTaskComplete, onAllComplete }: 
           <textarea
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            className="h-64 w-full resize-none rounded-b-xl border border-zinc-200 bg-white p-4 font-mono text-sm leading-relaxed text-zinc-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="h-64 w-full resize-none rounded-b-xl border border-gray-200 bg-white p-4 font-mono text-sm leading-relaxed text-gray-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
             spellCheck={false}
             placeholder="Write your code here..."
           />
@@ -259,15 +259,15 @@ export function MicroTaskView({ challengeSlug, onTaskComplete, onAllComplete }: 
         {/* Output */}
         {output && (
           <div className="mb-6">
-            <div className="rounded-t-xl bg-zinc-100 border border-zinc-200 border-b-0 px-4 py-2">
-              <span className="text-sm font-medium text-zinc-700">Output</span>
+            <div className="rounded-t-xl bg-gray-100 border border-gray-200 border-b-0 px-4 py-2">
+              <span className="text-sm font-medium text-gray-700">Output</span>
             </div>
-            <div className={`rounded-b-xl border border-zinc-200 p-4 font-mono text-sm ${
+            <div className={`rounded-b-xl border border-gray-200 p-4 font-mono text-sm ${
               output.includes("✓") 
                 ? "bg-emerald-50 text-emerald-900 border-emerald-200" 
                 : output.includes("❌") 
                   ? "bg-red-50 text-red-900 border-red-200"
-                  : "bg-white text-zinc-800"
+                  : "bg-white text-gray-800"
             }`}>
               <pre className="whitespace-pre-wrap">{output}</pre>
             </div>
@@ -280,14 +280,14 @@ export function MicroTaskView({ challengeSlug, onTaskComplete, onAllComplete }: 
             <button
               onClick={goToPrevTask}
               disabled={currentTaskIndex === 0}
-              className="rounded-xl border-2 border-zinc-200 px-5 py-3 text-sm font-medium text-zinc-600 transition-all hover:bg-zinc-50 disabled:opacity-30 dark:border-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-900"
+              className="rounded-xl border-2 border-gray-200 px-5 py-3 text-sm font-medium text-gray-600 transition-all duration-200-all duration-200 hover:bg-gray-50 disabled:opacity-30 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-gray-900 cursor-pointer"
             >
               ← Previous
             </button>
             <button
               onClick={goToNextTask}
               disabled={currentTaskIndex === tasks.length - 1}
-              className="rounded-xl border-2 border-zinc-200 px-5 py-3 text-sm font-medium text-zinc-600 transition-all hover:bg-zinc-50 disabled:opacity-30 dark:border-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-900"
+              className="rounded-xl border-2 border-gray-200 px-5 py-3 text-sm font-medium text-gray-600 transition-all duration-200-all duration-200 hover:bg-gray-50 disabled:opacity-30 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-gray-900 cursor-pointer"
             >
               Next →
             </button>
@@ -296,7 +296,7 @@ export function MicroTaskView({ challengeSlug, onTaskComplete, onAllComplete }: 
           <button
             onClick={handleRun}
             disabled={isRunning}
-            className="rounded-xl bg-indigo-600 px-8 py-3 text-sm font-semibold text-white shadow-lg transition-all hover:bg-indigo-500 disabled:opacity-50"
+            className="rounded-xl bg-indigo-600 px-8 py-3 text-sm font-semibold text-white shadow-lg transition-all duration-200-all duration-200 hover:bg-indigo-500 disabled:opacity-50 cursor-pointer"
           >
             {isRunning ? (
               <span className="flex items-center gap-2">
@@ -312,7 +312,7 @@ export function MicroTaskView({ challengeSlug, onTaskComplete, onAllComplete }: 
 
       {/* All Complete Celebration */}
       {completedTasks.every(Boolean) && (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-8 text-center text-zinc-900">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-8 text-center text-gray-900">
           <span className="text-6xl">🎉</span>
           <h3 className="mt-4 text-2xl font-bold">All Micro-Tasks Complete!</h3>
           <p className="mt-2 text-emerald-800">
@@ -320,7 +320,7 @@ export function MicroTaskView({ challengeSlug, onTaskComplete, onAllComplete }: 
           </p>
           <button
             onClick={() => window.location.reload()}
-            className="mt-6 rounded-xl bg-emerald-600 px-8 py-3 font-semibold text-white shadow-sm transition-all hover:bg-emerald-500"
+            className="mt-6 rounded-xl bg-emerald-600 px-8 py-3 font-semibold text-white shadow-sm transition-all duration-200-all duration-200 hover:bg-emerald-500 cursor-pointer"
           >
             Try Full Challenge →
           </button>
@@ -345,10 +345,10 @@ export function MicroTaskToggle({
   return (
     <button
       onClick={onToggleAction}
-      className={`flex items-center gap-3 rounded-xl border px-5 py-3 text-sm font-medium transition-all ${
+      className={`flex items-center gap-3 rounded-xl border px-5 py-3 text-sm font-medium transition-all duration-200-all duration-200 ${
         isEnabled
           ? "border-indigo-200 bg-indigo-50 text-indigo-700"
-          : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900"
+          : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"
       }`}
     >
       <span className="text-lg">🧩</span>

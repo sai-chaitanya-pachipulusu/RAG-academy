@@ -43,7 +43,7 @@ function SettingsContent() {
             </div>
             <button
               onClick={() => setShowSuccess(false)}
-              className="rounded-md p-1 text-emerald-500 hover:bg-emerald-100 dark:hover:bg-emerald-900"
+              className="rounded-md p-1 text-emerald-500 hover:bg-emerald-100 dark:hover:bg-emerald-900 cursor-pointer"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -55,21 +55,21 @@ function SettingsContent() {
 
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
-        <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
           Manage your account, preferences, and data.
         </p>
       </header>
 
       {/* Subscription */}
-      <section className="rounded-lg border border-zinc-200 bg-white p-4">
-        <h2 className="mb-3 text-sm font-semibold text-zinc-900">Subscription</h2>
+      <section className="rounded-lg border border-gray-200 bg-white p-4">
+        <h2 className="mb-3 text-sm font-semibold text-gray-900">Subscription</h2>
         
         {user ? (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-zinc-500">Current Plan</p>
-                <p className="text-sm font-semibold text-zinc-900 capitalize">
+                <p className="text-xs text-gray-500">Current Plan</p>
+                <p className="text-sm font-semibold text-gray-900 capitalize">
                   {subscription?.tier || "Free"}
                   {subscription?.isActive && subscription.tier !== "free" && (
                     <span className="ml-2 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
@@ -81,14 +81,14 @@ function SettingsContent() {
               {hasPaidAccess ? (
                 <button
                   disabled
-                  className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-500"
+                  className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-500"
                 >
                   Manage Subscription
                 </button>
               ) : (
                 <Link
                   href="/pricing"
-                  className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-500"
+                  className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-500 cursor-pointer"
                 >
                   Upgrade to Pro
                 </Link>
@@ -96,7 +96,7 @@ function SettingsContent() {
             </div>
             
             {subscription?.currentPeriodEnd && subscription.tier !== "lifetime" && (
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-gray-500">
                 {subscription.status === "canceled" ? "Access until: " : "Renews: "}
                 {new Date(subscription.currentPeriodEnd).toLocaleDateString("en-US", {
                   year: "numeric",
@@ -113,13 +113,13 @@ function SettingsContent() {
             )}
             
             {!hasPaidAccess && (
-              <div className="mt-2 rounded-md bg-zinc-50 p-3">
-                <p className="text-xs text-zinc-600">
+              <div className="mt-2 rounded-md bg-gray-50 p-3">
+                <p className="text-xs text-gray-600">
                   Upgrade to Pro to unlock all {stats.totalChallenges}+ challenges.
                 </p>
                 <Link
                   href="/pricing"
-                  className="mt-1 inline-flex text-xs font-medium text-indigo-600 hover:text-indigo-500"
+                  className="mt-1 inline-flex text-xs font-medium text-indigo-600 hover:text-indigo-500 cursor-pointer"
                 >
                   View pricing
                 </Link>
@@ -127,13 +127,13 @@ function SettingsContent() {
             )}
           </div>
         ) : (
-          <div className="rounded-md bg-zinc-50 p-3">
-            <p className="text-xs text-zinc-600">
+          <div className="rounded-md bg-gray-50 p-3">
+            <p className="text-xs text-gray-600">
               Sign in to manage your subscription and sync progress.
             </p>
             <Link
               href="/login?redirect=/settings"
-              className="mt-1 inline-flex text-xs font-medium text-indigo-600 hover:text-indigo-500"
+              className="mt-1 inline-flex text-xs font-medium text-indigo-600 hover:text-indigo-500 cursor-pointer"
             >
               Sign in
             </Link>
@@ -145,8 +145,8 @@ function SettingsContent() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Spaced Repetition */}
-        <section className="rounded-lg border border-zinc-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-semibold text-zinc-900">Spaced Repetition</h2>
+        <section className="rounded-lg border border-gray-200 bg-white p-4">
+          <h2 className="mb-3 text-sm font-semibold text-gray-900">Spaced Repetition</h2>
           <ReviewStats />
           <div className="mt-3">
             <ReviewDashboard />
@@ -167,7 +167,7 @@ function SettingsContent() {
                   window.location.reload();
                 }
               }}
-              className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
+              className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 cursor-pointer"
             >
               Reset All Progress
             </button>
@@ -182,13 +182,13 @@ function SettingsLoading() {
   return (
     <div className="flex flex-col gap-4">
       <header>
-        <div className="h-6 w-32 bg-zinc-200 dark:bg-zinc-800 rounded animate-pulse"></div>
-        <div className="h-3 w-48 bg-zinc-200 dark:bg-zinc-800 rounded animate-pulse mt-1"></div>
+        <div className="h-6 w-32 bg-gray-200 dark:bg-[#7C3AED] rounded animate-pulse"></div>
+        <div className="h-3 w-48 bg-gray-200 dark:bg-[#7C3AED] rounded animate-pulse mt-1"></div>
       </header>
-      <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
+      <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-4">
         <div className="space-y-3">
-          <div className="h-5 w-24 bg-zinc-200 dark:bg-zinc-800 rounded animate-pulse"></div>
-          <div className="h-16 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse"></div>
+          <div className="h-5 w-24 bg-gray-200 dark:bg-[#7C3AED] rounded animate-pulse"></div>
+          <div className="h-16 bg-gray-100 dark:bg-[#7C3AED] rounded animate-pulse"></div>
         </div>
       </div>
     </div>

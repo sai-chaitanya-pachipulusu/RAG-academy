@@ -147,7 +147,7 @@ return (
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="block w-full rounded-2xl border border-black/10 bg-white px-6 py-5 text-lg outline-none transition-all focus:border-black/30 focus:bg-black/[0.02] shadow-sm"
+                className="block w-full rounded-2xl border border-black/10 bg-white px-6 py-5 text-lg outline-none transition-all duration-200-all duration-200 focus:border-black/30 focus:bg-black/[0.02] shadow-sm cursor-pointer"
                 placeholder="you@company.com"
               />
             </div>
@@ -163,7 +163,7 @@ return (
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
-                className="block w-full rounded-2xl border border-black/10 bg-white px-6 py-5 text-lg outline-none transition-all focus:border-black/30 focus:bg-black/[0.02] shadow-sm"
+                className="block w-full rounded-2xl border border-black/10 bg-white px-6 py-5 text-lg outline-none transition-all duration-200-all duration-200 focus:border-black/30 focus:bg-black/[0.02] shadow-sm cursor-pointer"
                 placeholder="••••••••"
               />
             </div>
@@ -171,7 +171,7 @@ return (
             <button
               type="submit"
               disabled={loading || authLoading}
-              className="flex w-full items-center justify-center gap-4 rounded-2xl bg-black py-6 text-lg font-medium text-white transition-all hover:bg-black/90 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-4 rounded-2xl bg-black py-6 text-lg font-medium text-white transition-all duration-200-all duration-200 hover:bg-black/90 disabled:opacity-50 cursor-pointer"
             >
               {loading ? (
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/20 border-t-white" />
@@ -209,7 +209,7 @@ return (
                 setError(null);
                 setSuccess(null);
               }}
-              className="text-lg text-black/50 hover:text-black transition-colors font-light"
+              className="text-lg text-black/50 hover:text-black transition-all duration-200-all duration-200 font-light cursor-pointer"
             >
               {isSignUp ? (
                 <>Already have an account? <span className="font-medium text-black underline underline-offset-4">Sign in</span></>

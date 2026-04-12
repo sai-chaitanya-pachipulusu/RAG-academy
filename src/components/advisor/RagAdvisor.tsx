@@ -93,8 +93,8 @@ export function RagAdvisor() {
     <div className="space-y-6">
       {/* Header */}
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-zinc-900">RAG Problem Advisor</h2>
-        <p className="mt-2 text-zinc-600">
+        <h2 className="text-2xl font-bold text-gray-900">RAG Problem Advisor</h2>
+        <p className="mt-2 text-gray-600">
           Describe your RAG problem and get personalized recommendations
         </p>
       </div>
@@ -107,7 +107,7 @@ export function RagAdvisor() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Describe your RAG problem... e.g., 'My retrieval quality is poor' or 'How do I reduce hallucinations?'"
-            className="w-full min-h-[120px] rounded-xl border border-zinc-200 bg-white p-4 text-sm outline-none transition-all focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100 resize-none"
+            className="w-full min-h-[120px] rounded-xl border border-gray-200 bg-white p-4 text-sm outline-none transition-all duration-200-all duration-200 focus:border-[#8B5CF6]400 focus:ring-2 focus:ring-[#8B5CF6]100 resize-none cursor-pointer"
           />
           {input && (
             <button
@@ -117,7 +117,7 @@ export function RagAdvisor() {
                 setRecommendation(null);
                 setCategory(null);
               }}
-              className="absolute right-3 top-3 rounded-lg bg-zinc-100 px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-200"
+              className="absolute right-3 top-3 rounded-lg bg-gray-100 px-2 py-1 text-xs text-gray-500 hover:bg-gray-200 cursor-pointer"
             >
               Clear
             </button>
@@ -127,7 +127,7 @@ export function RagAdvisor() {
         <button
           type="submit"
           disabled={!input.trim() || isAnalyzing}
-          className="w-full rounded-xl bg-zinc-900 px-4 py-3 font-semibold text-white transition-all hover:bg-zinc-800 disabled:opacity-50"
+          className="w-full rounded-xl bg-[#8B5CF6] px-4 py-3 font-semibold text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] disabled:opacity-50 cursor-pointer"
         >
           {isAnalyzing ? "Analyzing..." : "Get Recommendations"}
         </button>
@@ -136,7 +136,7 @@ export function RagAdvisor() {
       {/* Example Problems */}
       {!recommendation && (
         <div className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
             Common Problems (click to try)
           </p>
           <div className="flex flex-wrap gap-2">
@@ -144,7 +144,7 @@ export function RagAdvisor() {
               <button
                 key={i}
                 onClick={() => handleExampleClick(example)}
-                className="rounded-lg bg-zinc-50 px-3 py-1.5 text-xs text-zinc-600 transition-all hover:bg-zinc-100"
+                className="rounded-lg bg-gray-50 px-3 py-1.5 text-xs text-gray-600 transition-all duration-200-all duration-200 hover:bg-gray-100 cursor-pointer"
               >
                 {example}
               </button>
@@ -157,17 +157,17 @@ export function RagAdvisor() {
       {recommendation && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
           {/* Diagnosis Card */}
-          <div className="rounded-xl border border-zinc-200 bg-gradient-to-br from-zinc-50 to-white p-5">
+          <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-[#8B5CF6]-50 to-white p-5">
             <div className="flex items-center gap-2 mb-2">
-              <span className="rounded-md bg-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-600">
+              <span className="rounded-md bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-600">
                 {category ? CATEGORY_LABELS[category] : "General"}
               </span>
               <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${DIFFICULTY_COLORS[recommendation.difficulty]}`}>
                 {recommendation.difficulty}
               </span>
             </div>
-            <h3 className="font-bold text-zinc-900">{recommendation.problem}</h3>
-            <p className="mt-2 text-sm text-zinc-600">{recommendation.diagnosis}</p>
+            <h3 className="font-bold text-gray-900">{recommendation.problem}</h3>
+            <p className="mt-2 text-sm text-gray-600">{recommendation.diagnosis}</p>
           </div>
 
           {/* Quick Tips */}
@@ -187,7 +187,7 @@ export function RagAdvisor() {
 
           {/* Recommended Challenges */}
           <div>
-            <h4 className="font-semibold text-zinc-900">
+            <h4 className="font-semibold text-gray-900">
               Recommended Challenges
             </h4>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -195,15 +195,15 @@ export function RagAdvisor() {
                 <Link
                   key={i}
                   href={`/challenges/${challenge.slug}`}
-                  className="group rounded-xl border border-zinc-200 bg-white p-4 transition-all hover:border-zinc-300 hover:shadow-md"
+                  className="group rounded-xl border border-gray-200 bg-white p-4 transition-all duration-200-all duration-200 hover:border-gray-300 hover:shadow-md cursor-pointer"
                 >
                   <div className="flex items-start justify-between">
-                    <h5 className="font-semibold text-zinc-900 group-hover:text-zinc-700">
+                    <h5 className="font-semibold text-gray-900 group-hover:text-gray-700 cursor-pointer">
                       {challenge.title}
                     </h5>
-                    <span className="text-zinc-400 transition-transform group-hover:translate-x-1">→</span>
+                    <span className="text-gray-400 transition-all duration-200-transform group-hover:translate-x-1 cursor-pointer">→</span>
                   </div>
-                  <p className="mt-1 text-xs text-zinc-500">{challenge.reason}</p>
+                  <p className="mt-1 text-xs text-gray-500">{challenge.reason}</p>
                 </Link>
               ))}
             </div>
@@ -211,7 +211,7 @@ export function RagAdvisor() {
 
           {/* Related Playbooks */}
           <div>
-            <h4 className="font-semibold text-zinc-900">
+            <h4 className="font-semibold text-gray-900">
               Related Playbooks
             </h4>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -219,7 +219,7 @@ export function RagAdvisor() {
                 <Link
                   key={i}
                   href={`/playbooks/${playbook.slug}`}
-                  className="rounded-lg bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 transition-all hover:bg-indigo-100"
+                  className="rounded-lg bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 transition-all duration-200-all duration-200 hover:bg-indigo-100 cursor-pointer"
                 >
                   {playbook.title}
                 </Link>
@@ -236,7 +236,7 @@ export function RagAdvisor() {
                 setCategory(null);
                 inputRef.current?.focus();
               }}
-              className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-600 transition-all hover:bg-zinc-200"
+              className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-600 transition-all duration-200-all duration-200 hover:bg-gray-200 cursor-pointer"
             >
               Ask Another Question
             </button>

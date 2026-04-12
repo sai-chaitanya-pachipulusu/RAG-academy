@@ -48,17 +48,17 @@ export function InterviewTimer({ isActive, duration, onTimeUp }: Props) {
   if (!isActive) return null;
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-gradient-to-r from-zinc-50 to-zinc-100 p-4 dark:border-zinc-800 dark:from-zinc-900 dark:to-zinc-950">
+    <div className="rounded-xl border border-gray-200 bg-gradient-to-r from-[#8B5CF6]-50 to-[#8B5CF6]-100 p-4 dark:border-gray-800 dark:from-[#8B5CF6]-900 dark:to-[#8B5CF6]-950">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-lg">⏱️</span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+          <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
             Interview Mode
           </span>
         </div>
         <button
           onClick={() => setIsPaused(!isPaused)}
-          className="rounded-full bg-zinc-200 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+          className="rounded-full bg-gray-200 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-300 dark:bg-[#7C3AED] dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer"
         >
           {isPaused ? "Resume" : "Pause"}
         </button>
@@ -69,14 +69,14 @@ export function InterviewTimer({ isActive, duration, onTimeUp }: Props) {
       </div>
 
       {/* Progress bar */}
-      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-[#7C3AED]">
         <div
-          className={`h-full transition-all duration-1000 ${getBgColorClass()}`}
+          className={`h-full transition-all duration-200-all duration-1000 ${getBgColorClass()}`}
           style={{ width: `${progress}%` }}
         />
       </div>
 
-      <p className="mt-2 text-center text-xs text-zinc-500">
+      <p className="mt-2 text-center text-xs text-gray-500">
         {timeLeft === 0
           ? "Time's up!"
           : isPaused
@@ -113,10 +113,10 @@ export function InterviewModeToggle({
   return (
     <button
       onClick={onToggle}
-      className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+      className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200-all duration-200 ${
         isEnabled
           ? "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300"
-          : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
+          : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-[#7C3AED] dark:text-gray-400 dark:hover:bg-gray-700"
       }`}
     >
       <span>⏱️</span>

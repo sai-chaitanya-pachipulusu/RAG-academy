@@ -43,10 +43,10 @@ function SRSSkeleton() {
     <div className="space-y-4">
       <div className="grid grid-cols-4 gap-2">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-16 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-800" />
+          <div key={i} className="h-16 animate-pulse rounded-lg bg-gray-200 dark:bg-[#7C3AED]" />
         ))}
       </div>
-      <div className="h-64 animate-pulse rounded-xl bg-zinc-200 dark:bg-zinc-800" />
+      <div className="h-64 animate-pulse rounded-xl bg-gray-200 dark:bg-[#7C3AED]" />
     </div>
   );
 }
@@ -154,7 +154,7 @@ export function SRSReviewWidget({ userId }: SRSReviewWidgetProps) {
       {/* Review Card */}
       <Card className="overflow-hidden">
         {/* Header */}
-        <div className="border-b border-zinc-100 bg-zinc-50/50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
+        <div className="border-b border-gray-100 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-gray-900/50">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -164,11 +164,11 @@ export function SRSReviewWidget({ userId }: SRSReviewWidgetProps) {
               }`}>
                 {currentItem.interval < 1 ? 'Learning' : 'Review'}
               </span>
-              <span className="text-xs text-zinc-500">
+              <span className="text-xs text-gray-500">
                 {currentItem.repetitions} repetitions
               </span>
             </div>
-            <div className="flex items-center gap-1 text-xs text-zinc-500">
+            <div className="flex items-center gap-1 text-xs text-gray-500">
               <Target className="h-3 w-3" />
               EF: {currentItem.easeFactor.toFixed(2)}
             </div>
@@ -181,19 +181,19 @@ export function SRSReviewWidget({ userId }: SRSReviewWidgetProps) {
             href={`/challenges/${currentItem.challengeSlug}`}
             className="group block"
           >
-            <h3 className="text-lg font-semibold group-hover:text-blue-600 dark:group-hover:text-blue-400">
+            <h3 className="text-lg font-semibold group-hover:text-blue-600 dark:group-hover:text-blue-400 cursor-pointer">
               {currentItem.challengeSlug}
             </h3>
           </Link>
 
           {!showAnswer ? (
             <div className="mt-6 text-center">
-              <p className="text-sm text-zinc-500">
+              <p className="text-sm text-gray-500">
                 Can you solve this challenge from memory?
               </p>
               <button
                 onClick={() => setShowAnswer(true)}
-                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#8B5CF6] px-6 py-2.5 text-sm font-medium text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] dark:bg-[#8B5CF6] dark:text-white dark:hover:bg-[#7C3AED] cursor-pointer"
               >
                 <CheckCircle className="h-4 w-4" />
                 Show Answer
@@ -205,7 +205,7 @@ export function SRSReviewWidget({ userId }: SRSReviewWidgetProps) {
               animate={{ opacity: 1, y: 0 }}
               className="mt-6"
             >
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 How well did you remember the solution?
               </p>
 
@@ -249,7 +249,7 @@ export function SRSReviewWidget({ userId }: SRSReviewWidgetProps) {
       </Card>
 
       {/* Queue Info */}
-      <p className="text-center text-xs text-zinc-500">
+      <p className="text-center text-xs text-gray-500">
         {dueItems.length} items remaining in queue
       </p>
     </div>
@@ -310,7 +310,7 @@ function RatingButton({
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center rounded-lg p-3 transition-colors ${colors[color]}`}
+      className={`flex flex-col items-center rounded-lg p-3 transition-all duration-200-all duration-200 ${colors[color]}`}
     >
       <span className="font-semibold">{label}</span>
       <span className="text-xs opacity-70">{description}</span>
@@ -324,19 +324,19 @@ function IntervalPreview({ item }: { item: SRSItem }) {
   return (
     <div className="mt-4 grid grid-cols-4 gap-2 text-center text-xs">
       <div>
-        <p className="text-zinc-400">Again</p>
+        <p className="text-gray-400">Again</p>
         <p className="font-medium text-red-600">{previews.again}</p>
       </div>
       <div>
-        <p className="text-zinc-400">Hard</p>
+        <p className="text-gray-400">Hard</p>
         <p className="font-medium text-amber-600">{previews.hard}</p>
       </div>
       <div>
-        <p className="text-zinc-400">Good</p>
+        <p className="text-gray-400">Good</p>
         <p className="font-medium text-blue-600">{previews.good}</p>
       </div>
       <div>
-        <p className="text-zinc-400">Easy</p>
+        <p className="text-gray-400">Easy</p>
         <p className="font-medium text-emerald-600">{previews.easy}</p>
       </div>
     </div>
@@ -356,30 +356,30 @@ function SRSComplete({
         <CheckCircle className="h-8 w-8 text-emerald-600" />
       </div>
       <h3 className="mt-4 text-lg font-semibold">All Caught Up!</h3>
-      <p className="mt-2 text-sm text-zinc-500">
+      <p className="mt-2 text-sm text-gray-500">
         You've completed all your scheduled reviews for now.
       </p>
       
       {stats && (
         <div className="mt-6 grid grid-cols-3 gap-4">
-          <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-900/50">
+          <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-900/50">
             <p className="text-2xl font-bold">{stats.totalItems}</p>
-            <p className="text-xs text-zinc-500">Total Items</p>
+            <p className="text-xs text-gray-500">Total Items</p>
           </div>
-          <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-900/50">
+          <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-900/50">
             <p className="text-2xl font-bold">{stats.retentionRate}%</p>
-            <p className="text-xs text-zinc-500">Retention</p>
+            <p className="text-xs text-gray-500">Retention</p>
           </div>
-          <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-900/50">
+          <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-900/50">
             <p className="text-2xl font-bold">{stats.averageEaseFactor.toFixed(2)}</p>
-            <p className="text-xs text-zinc-500">Avg Ease</p>
+            <p className="text-xs text-gray-500">Avg Ease</p>
           </div>
         </div>
       )}
 
       <button
         onClick={onRefresh}
-        className="mt-6 inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+        className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[#8B5CF6] px-4 py-2 text-sm font-medium text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] dark:bg-[#8B5CF6] dark:text-white dark:hover:bg-[#7C3AED] cursor-pointer"
       >
         <RotateCcw className="h-4 w-4" />
         Check for New Reviews

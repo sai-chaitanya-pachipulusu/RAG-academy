@@ -80,7 +80,7 @@ export function ActivityHeatmap({ activityData: propData }: Props) {
   };
 
   const levelColors = [
-    "bg-zinc-100 dark:bg-zinc-800", // 0
+    "bg-gray-100 dark:bg-[#7C3AED]", // 0
     "bg-emerald-200 dark:bg-emerald-900", // 1
     "bg-emerald-400 dark:bg-emerald-700", // 2
     "bg-emerald-500 dark:bg-emerald-600", // 3
@@ -119,17 +119,17 @@ export function ActivityHeatmap({ activityData: propData }: Props) {
   );
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+    <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#7C3AED]">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Activity</h3>
-        <span className="text-xs text-zinc-500">
+        <span className="text-xs text-gray-500">
           {totalContributions} contributions in the last year
         </span>
       </div>
 
       <div className="mt-4 overflow-x-auto">
         {/* Month labels */}
-        <div className="mb-1 flex text-[10px] text-zinc-400">
+        <div className="mb-1 flex text-[10px] text-gray-400">
           <div className="w-4" /> {/* Spacer for day labels */}
           {monthLabels.map((m, i) => (
             <div
@@ -146,7 +146,7 @@ export function ActivityHeatmap({ activityData: propData }: Props) {
 
         <div className="flex gap-0.5">
           {/* Day labels */}
-          <div className="flex flex-col gap-0.5 text-[10px] text-zinc-400">
+          <div className="flex flex-col gap-0.5 text-[10px] text-gray-400">
             <div className="h-[10px]" />
             <div className="h-[10px]">Mon</div>
             <div className="h-[10px]" />
@@ -180,7 +180,7 @@ export function ActivityHeatmap({ activityData: propData }: Props) {
       </div>
 
       {/* Legend */}
-      <div className="mt-3 flex items-center justify-end gap-1 text-[10px] text-zinc-400">
+      <div className="mt-3 flex items-center justify-end gap-1 text-[10px] text-gray-400">
         <span>Less</span>
         {levelColors.map((color, i) => (
           <div key={i} className={`h-[10px] w-[10px] rounded-sm ${color}`} />

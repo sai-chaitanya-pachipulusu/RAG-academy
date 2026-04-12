@@ -27,29 +27,29 @@ export function MobileInput({
   return (
     <div className="w-full">
       {label && (
-        <label className="mb-2 block text-sm font-medium text-zinc-700">
+        <label className="mb-2 block text-sm font-medium text-gray-700">
           {label}
         </label>
       )}
       <div className="relative">
         {icon && (
-          <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400">
+          <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
             {icon}
           </div>
         )}
         <input
           className={cn(
-            "w-full rounded-xl border bg-white transition-all duration-200",
-            "text-base text-zinc-900 placeholder:text-zinc-400",
-            "focus:outline-none focus:ring-2 focus:ring-zinc-900/10",
+            "w-full rounded-xl border bg-white transition-all duration-200-all duration-200",
+            "text-base text-gray-900 placeholder:text-gray-400",
+            "focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]900/10",
             "min-h-[52px] px-4 py-3.5",
             "sm:min-h-[48px] sm:py-3 sm:text-sm",
             icon && "pl-12",
             error
               ? "border-red-500 focus:border-red-500 focus:ring-red-500/10"
               : isFocused
-              ? "border-zinc-900"
-              : "border-zinc-200",
+              ? "border-[#8B5CF6]"
+              : "border-gray-200",
             className
           )}
           onFocus={(e) => {
@@ -65,7 +65,7 @@ export function MobileInput({
       </div>
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       {helperText && !error && (
-        <p className="mt-2 text-sm text-zinc-500">{helperText}</p>
+        <p className="mt-2 text-sm text-gray-500">{helperText}</p>
       )}
     </div>
   );
@@ -115,7 +115,7 @@ export function MobileTextarea({
   return (
     <div className="w-full">
       {label && (
-        <label className="mb-2 block text-sm font-medium text-zinc-700">
+        <label className="mb-2 block text-sm font-medium text-gray-700">
           {label}
         </label>
       )}
@@ -123,16 +123,16 @@ export function MobileTextarea({
         ref={textareaRef}
         rows={minRows}
         className={cn(
-          "w-full resize-none rounded-xl border bg-white transition-all duration-200",
-          "text-base text-zinc-900 placeholder:text-zinc-400",
-          "focus:outline-none focus:ring-2 focus:ring-zinc-900/10",
+          "w-full resize-none rounded-xl border bg-white transition-all duration-200-all duration-200",
+          "text-base text-gray-900 placeholder:text-gray-400",
+          "focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]900/10",
           "min-h-[120px] px-4 py-3.5",
           "sm:min-h-[100px] sm:py-3 sm:text-sm",
           error
             ? "border-red-500 focus:border-red-500 focus:ring-red-500/10"
             : isFocused
-            ? "border-zinc-900"
-            : "border-zinc-200",
+            ? "border-[#8B5CF6]"
+            : "border-gray-200",
           className
         )}
         onFocus={(e) => {
@@ -147,7 +147,7 @@ export function MobileTextarea({
       />
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       {helperText && !error && (
-        <p className="mt-2 text-sm text-zinc-500">{helperText}</p>
+        <p className="mt-2 text-sm text-gray-500">{helperText}</p>
       )}
     </div>
   );
@@ -179,23 +179,23 @@ export function MobileSelect({
   return (
     <div className="w-full">
       {label && (
-        <label className="mb-2 block text-sm font-medium text-zinc-700">
+        <label className="mb-2 block text-sm font-medium text-gray-700">
           {label}
         </label>
       )}
       <div className="relative">
         <select
           className={cn(
-            "w-full appearance-none rounded-xl border bg-white transition-all duration-200",
-            "text-base text-zinc-900",
-            "focus:outline-none focus:ring-2 focus:ring-zinc-900/10",
+            "w-full appearance-none rounded-xl border bg-white transition-all duration-200-all duration-200",
+            "text-base text-gray-900",
+            "focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]900/10",
             "min-h-[52px] px-4 py-3.5 pr-12",
             "sm:min-h-[48px] sm:py-3 sm:text-sm",
             error
               ? "border-red-500 focus:border-red-500 focus:ring-red-500/10"
               : isFocused
-              ? "border-zinc-900"
-              : "border-zinc-200",
+              ? "border-[#8B5CF6]"
+              : "border-gray-200",
             className
           )}
           onFocus={(e) => {
@@ -215,7 +215,7 @@ export function MobileSelect({
           ))}
         </select>
         {/* Custom arrow */}
-        <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400">
+        <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
           <svg
             className="h-5 w-5"
             fill="none"
@@ -233,7 +233,7 @@ export function MobileSelect({
       </div>
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       {helperText && !error && (
-        <p className="mt-2 text-sm text-zinc-500">{helperText}</p>
+        <p className="mt-2 text-sm text-gray-500">{helperText}</p>
       )}
     </div>
   );
@@ -261,14 +261,14 @@ export function MobileCheckbox({
         />
         <div
           className={cn(
-            "h-7 w-7 rounded-lg border-2 transition-all duration-200",
-            "border-zinc-300 bg-white",
-            "peer-checked:border-zinc-900 peer-checked:bg-zinc-900",
-            "peer-focus:ring-2 peer-focus:ring-zinc-900/20"
+            "h-7 w-7 rounded-lg border-2 transition-all duration-200-all duration-200",
+            "border-gray-300 bg-white",
+            "peer-checked:border-[#8B5CF6] peer-checked:bg-gray-900",
+            "peer-focus:ring-2 peer-focus:ring-[#8B5CF6]900/20"
           )}
         >
           <svg
-            className="h-full w-full scale-0 text-white transition-transform duration-200 peer-checked:scale-100"
+            className="h-full w-full scale-0 text-white transition-all duration-200-transform duration-200 peer-checked:scale-100 cursor-pointer"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -283,9 +283,9 @@ export function MobileCheckbox({
         </div>
       </div>
       <div className="flex-1 pt-0.5">
-        <span className="text-base font-medium text-zinc-900">{label}</span>
+        <span className="text-base font-medium text-gray-900">{label}</span>
         {description && (
-          <p className="mt-1 text-sm text-zinc-500">{description}</p>
+          <p className="mt-1 text-sm text-gray-500">{description}</p>
         )}
       </div>
     </label>
@@ -314,19 +314,19 @@ export function MobileRadio({
         />
         <div
           className={cn(
-            "h-7 w-7 rounded-full border-2 transition-all duration-200",
-            "border-zinc-300 bg-white",
-            "peer-checked:border-zinc-900 peer-checked:bg-zinc-900",
-            "peer-focus:ring-2 peer-focus:ring-zinc-900/20"
+            "h-7 w-7 rounded-full border-2 transition-all duration-200-all duration-200",
+            "border-gray-300 bg-white",
+            "peer-checked:border-[#8B5CF6] peer-checked:bg-gray-900",
+            "peer-focus:ring-2 peer-focus:ring-[#8B5CF6]900/20"
           )}
         >
-          <div className="h-full w-full scale-0 rounded-full bg-white transition-transform duration-200 peer-checked:scale-50" />
+          <div className="h-full w-full scale-0 rounded-full bg-white transition-all duration-200-transform duration-200 peer-checked:scale-50 cursor-pointer" />
         </div>
       </div>
       <div className="flex-1 pt-0.5">
-        <span className="text-base font-medium text-zinc-900">{label}</span>
+        <span className="text-base font-medium text-gray-900">{label}</span>
         {description && (
-          <p className="mt-1 text-sm text-zinc-500">{description}</p>
+          <p className="mt-1 text-sm text-gray-500">{description}</p>
         )}
       </div>
     </label>
@@ -352,10 +352,10 @@ export function MobileFormSection({
       {(title || description) && (
         <div className="space-y-1">
           {title && (
-            <h3 className="text-lg font-semibold text-zinc-900">{title}</h3>
+            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
           )}
           {description && (
-            <p className="text-sm text-zinc-500">{description}</p>
+            <p className="text-sm text-gray-500">{description}</p>
           )}
         </div>
       )}
@@ -377,7 +377,7 @@ export function MobileFormActions({
   return (
     <div
       className={cn(
-        "sticky bottom-0 -mx-4 border-t border-zinc-200 bg-white/95 p-4 backdrop-blur-lg",
+        "sticky bottom-0 -mx-4 border-t border-gray-200 bg-white/95 p-4 backdrop-blur-lg",
         "sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0",
         className
       )}

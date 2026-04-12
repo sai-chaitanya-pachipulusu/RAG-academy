@@ -10,7 +10,7 @@ export default async function PlaybooksPage() {
     <div className="flex flex-col gap-4">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Production Playbooks</h1>
-        <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
           Decision-first guides you can ship.
         </p>
       </header>
@@ -28,7 +28,7 @@ export default async function PlaybooksPage() {
             >
               <p className="text-sm font-medium">{p.title}</p>
               {p.description ? (
-                <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+                <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
                   {p.description}
                 </p>
               ) : null}

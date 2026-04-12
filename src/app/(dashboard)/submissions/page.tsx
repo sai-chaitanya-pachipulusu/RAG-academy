@@ -53,18 +53,18 @@ export default function SubmissionsPage() {
 
   const challengesWithSubmissions = useMemo(() => { const slugs = new Set(submissions.map((s) => s.challengeSlug)); return challenges.filter((c) => slugs.has(c.slug)); }, [submissions, challenges]);
 
-  if (!user) return <div className="flex items-center justify-center py-20"><p className="text-sm text-zinc-500">Sign in to view submissions</p></div>;
-  if (loading) return <div className="flex items-center justify-center py-20"><p className="text-sm text-zinc-500">Loading submissions...</p></div>;
+  if (!user) return <div className="flex items-center justify-center py-20"><p className="text-sm text-gray-500">Sign in to view submissions</p></div>;
+  if (loading) return <div className="flex items-center justify-center py-20"><p className="text-sm text-gray-500">Loading submissions...</p></div>;
 
   return (
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Submission History</h1>
-        <p className="mt-0.5 text-sm text-zinc-500">Track your code submissions across challenges.</p>
+        <p className="mt-0.5 text-sm text-gray-500">Track your code submissions across challenges.</p>
       </div>
 
       {viewMode !== "list" && (
-        <button onClick={() => { setViewMode("list"); setSelectedSubmission(null); setCompareSubmissions(null); }} className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-900">
+        <button onClick={() => { setViewMode("list"); setSelectedSubmission(null); setCompareSubmissions(null); }} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 cursor-pointer">
           <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           Back to all submissions
         </button>
@@ -76,15 +76,15 @@ export default function SubmissionsPage() {
         <Card className="p-3">
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <label className="mb-0.5 block text-[11px] font-medium text-zinc-500">Challenge</label>
-              <select value={challengeFilter} onChange={(e) => setChallengeFilter(e.target.value)} className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs dark:border-zinc-700 dark:bg-zinc-900">
+              <label className="mb-0.5 block text-[11px] font-medium text-gray-500">Challenge</label>
+              <select value={challengeFilter} onChange={(e) => setChallengeFilter(e.target.value)} className="w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs dark:border-gray-700 dark:bg-gray-900">
                 <option value="all">All</option>
                 {challengesWithSubmissions.map((c) => <option key={c.slug} value={c.slug}>{c.title}</option>)}
               </select>
             </div>
             <div>
-              <label className="mb-0.5 block text-[11px] font-medium text-zinc-500">Status</label>
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as SubmissionStatus | "all")} className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs dark:border-zinc-700 dark:bg-zinc-900">
+              <label className="mb-0.5 block text-[11px] font-medium text-gray-500">Status</label>
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as SubmissionStatus | "all")} className="w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs dark:border-gray-700 dark:bg-gray-900">
                 <option value="all">All</option>
                 <option value="accepted">Accepted</option>
                 <option value="wrong_answer">Wrong Answer</option>
@@ -94,16 +94,16 @@ export default function SubmissionsPage() {
               </select>
             </div>
             <div>
-              <label className="mb-0.5 block text-[11px] font-medium text-zinc-500">Sort</label>
-              <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortOption)} className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs dark:border-zinc-700 dark:bg-zinc-900">
+              <label className="mb-0.5 block text-[11px] font-medium text-gray-500">Sort</label>
+              <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortOption)} className="w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs dark:border-gray-700 dark:bg-gray-900">
                 <option value="date">Date</option>
                 <option value="executionTime">Execution Time</option>
                 <option value="score">Score</option>
               </select>
             </div>
             <div>
-              <label className="mb-0.5 block text-[11px] font-medium text-zinc-500">Date Range</label>
-              <select value={dateRange} onChange={(e) => setDateRange(e.target.value as typeof dateRange)} className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs dark:border-zinc-700 dark:bg-zinc-900">
+              <label className="mb-0.5 block text-[11px] font-medium text-gray-500">Date Range</label>
+              <select value={dateRange} onChange={(e) => setDateRange(e.target.value as typeof dateRange)} className="w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs dark:border-gray-700 dark:bg-gray-900">
                 <option value="all">All Time</option>
                 <option value="7days">7 Days</option>
                 <option value="30days">30 Days</option>

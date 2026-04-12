@@ -74,17 +74,17 @@ export function ResearchFeed() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Research</h1>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
             Live feed from papers + practitioner blogs + community posts.
           </p>
         </div>
 
         <div className="w-full sm:w-96">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Search</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Search</p>
             <Link
               href="/research/papers"
-              className="text-xs font-medium text-zinc-950 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-500 dark:text-zinc-50 dark:decoration-white/25 dark:hover:decoration-white/50"
+              className="text-xs font-medium text-gray-950 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-500 dark:text-gray-50 dark:decoration-white/25 dark:hover:decoration-white/50 cursor-pointer"
             >
               Papers reading list →
             </Link>
@@ -93,7 +93,7 @@ export function ResearchFeed() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="RAG evaluation, caching, reranking…"
-            className="mt-1 h-10 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:focus:ring-zinc-600"
+            className="mt-1 h-10 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-[#8B5CF6]400 dark:border-gray-800 dark:bg-[#7C3AED] dark:focus:ring-[#8B5CF6]600"
           />
         </div>
       </div>
@@ -111,7 +111,7 @@ export function ResearchFeed() {
 
       {loading ? (
         <Card>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             Loading feed…
           </p>
         </Card>
@@ -128,17 +128,17 @@ export function ResearchFeed() {
             >
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-zinc-950 dark:text-zinc-50">
+                  <p className="text-sm font-medium text-gray-950 dark:text-gray-50">
                     {i.title}
                   </p>
                   {i.summary ? (
-                    <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+                    <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
                       {i.summary.slice(0, 240)}
                       {i.summary.length > 240 ? "…" : ""}
                     </p>
                   ) : null}
                 </div>
-                <div className="shrink-0 text-xs text-zinc-500 dark:text-zinc-400">
+                <div className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
                   <p>{i.source}</p>
                   {i.publishedAt ? (
                     <p className="mt-1">

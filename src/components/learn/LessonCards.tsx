@@ -43,10 +43,10 @@ export function LessonCards({ lessons }: { lessons: LessonCardMeta[] }) {
                 {statusBadge}
               </div>
             </div>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
               {l.description}
             </p>
-            <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
               {l.estimatedMinutes} min · lesson {l.order}
             </p>
           </CardLink>

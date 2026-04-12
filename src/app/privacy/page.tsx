@@ -11,15 +11,15 @@ export default function PrivacyPage() {
       <div className="mx-auto max-w-3xl px-6 py-16">
         <Link
           href="/"
-          className="mb-8 inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-900"
+          className="mb-8 inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 cursor-pointer"
         >
           ← Back to Home
         </Link>
 
-        <h1 className="text-3xl font-bold tracking-tight text-zinc-900">
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">
           Privacy Policy
         </h1>
-        <p className="mt-2 text-sm text-zinc-500">
+        <p className="mt-2 text-sm text-gray-500">
           Last updated: January 15, 2026
         </p>
 
@@ -248,8 +248,8 @@ export default function PrivacyPage() {
           </ul>
         </div>
 
-        <div className="mt-12 border-t border-zinc-200 pt-8">
-          <Link href="/terms" className="text-sm text-zinc-500 hover:text-zinc-900">
+        <div className="mt-12 border-t border-gray-200 pt-8">
+          <Link href="/terms" className="text-sm text-gray-500 hover:text-gray-900 cursor-pointer">
             Terms of Service →
           </Link>
         </div>

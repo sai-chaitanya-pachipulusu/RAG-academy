@@ -61,14 +61,14 @@ function ContinueLearningCard() {
       <TouchCard className="p-5">
         <div className="text-center">
           <div className="mb-3 flex justify-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-100 text-3xl">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-3xl">
               🎉
             </div>
           </div>
-          <h3 className="text-lg font-semibold text-zinc-900">
+          <h3 className="text-lg font-semibold text-gray-900">
             All caught up!
           </h3>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-sm text-gray-500">
             You've completed all available challenges. Check back soon for
             more!
           </p>
@@ -89,13 +89,13 @@ function ContinueLearningCard() {
     <TouchCard href={`/challenges/${continueChallenge.slug}`} className="p-5">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs font-medium text-zinc-500">
+          <p className="text-xs font-medium text-gray-500">
             Continue Learning
           </p>
-          <h3 className="mt-1 text-lg font-semibold text-zinc-900">
+          <h3 className="mt-1 text-lg font-semibold text-gray-900">
             {continueChallenge.title}
           </h3>
-          <p className="mt-1 line-clamp-2 text-sm text-zinc-600">
+          <p className="mt-1 line-clamp-2 text-sm text-gray-600">
             {continueChallenge.description}
           </p>
           <div className="mt-3 flex items-center gap-2">
@@ -105,17 +105,17 @@ function ContinueLearningCard() {
                   ? "bg-emerald-100 text-emerald-700"
                   : status === "in_progress"
                   ? "bg-blue-100 text-blue-700"
-                  : "bg-zinc-100 text-zinc-600"
+                  : "bg-gray-100 text-gray-600"
               }`}
             >
               {status.replace("_", " ")}
             </span>
-            <span className="text-xs text-zinc-400">
+            <span className="text-xs text-gray-400">
               {continueChallenge.xpReward} XP
             </span>
           </div>
         </div>
-        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-2xl">
+        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-gray-100 text-2xl">
           {status === "completed" ? "✅" : status === "in_progress" ? "📝" : "🆕"}
         </div>
       </div>
@@ -144,7 +144,7 @@ function RecentActivity() {
   if (recentActivity.length === 0) {
     return (
       <TouchCard className="p-5">
-        <p className="text-center text-sm text-zinc-500">
+        <p className="text-center text-sm text-gray-500">
           No recent activity. Start your first challenge!
         </p>
         <Link href="/challenges">
@@ -198,17 +198,17 @@ function RecentActivity() {
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="truncate text-sm font-medium text-zinc-900">
+                <p className="truncate text-sm font-medium text-gray-900">
                   {slug}
                 </p>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-gray-500">
                   {progress.status === "completed"
                     ? "Completed"
                     : `${progress.attempts || 0} attempts`}
                 </p>
               </div>
               <svg
-                className="h-5 w-5 flex-shrink-0 text-zinc-400"
+                className="h-5 w-5 flex-shrink-0 text-gray-400"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -237,12 +237,12 @@ function StreakWidget() {
     <TouchCard className="p-5">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs font-medium text-zinc-500">Current Streak</p>
+          <p className="text-xs font-medium text-gray-500">Current Streak</p>
           <div className="flex items-baseline gap-1">
-            <span className="text-3xl font-bold text-zinc-900">
+            <span className="text-3xl font-bold text-gray-900">
               {streakDays}
             </span>
-            <span className="text-sm text-zinc-500">days</span>
+            <span className="text-sm text-gray-500">days</span>
           </div>
 
         </div>
@@ -267,24 +267,24 @@ export default function MobileDashboardPage() {
   const level = getLevelInfo(xp);
 
   return (
-    <div className="min-h-screen bg-zinc-50 pb-24">
+    <div className="min-h-screen bg-gray-50 pb-24">
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-zinc-200 bg-white/95 px-4 py-4 backdrop-blur-lg">
+      <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 px-4 py-4 backdrop-blur-lg">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-zinc-900">
+            <h1 className="text-xl font-bold text-gray-900">
               Hi, {user?.email?.split("@")[0] || "Learner"}!
             </h1>
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-gray-500">
               Level {level.level} · {xp} XP
             </p>
           </div>
           <Link
             href="/settings"
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100"
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100"
           >
             <svg
-              className="h-5 w-5 text-zinc-600"
+              className="h-5 w-5 text-gray-600"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -352,7 +352,7 @@ export default function MobileDashboardPage() {
 
         {/* Continue Learning */}
         <section>
-          <h2 className="mb-3 text-lg font-semibold text-zinc-900">
+          <h2 className="mb-3 text-lg font-semibold text-gray-900">
             Continue Learning
           </h2>
           <ContinueLearningCard />
@@ -360,7 +360,7 @@ export default function MobileDashboardPage() {
 
         {/* Streak */}
         <section>
-          <h2 className="mb-3 text-lg font-semibold text-zinc-900">
+          <h2 className="mb-3 text-lg font-semibold text-gray-900">
             Your Streak
           </h2>
           <StreakWidget />
@@ -369,12 +369,12 @@ export default function MobileDashboardPage() {
         {/* Recent Activity */}
         <section>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-zinc-900">
+            <h2 className="text-lg font-semibold text-gray-900">
               Recent Activity
             </h2>
             <Link
               href="/submissions"
-              className="text-sm font-medium text-zinc-600"
+              className="text-sm font-medium text-gray-600"
             >
               View All
             </Link>
@@ -384,7 +384,7 @@ export default function MobileDashboardPage() {
 
         {/* Quick Actions */}
         <section>
-          <h2 className="mb-3 text-lg font-semibold text-zinc-900">
+          <h2 className="mb-3 text-lg font-semibold text-gray-900">
             Quick Actions
           </h2>
           <div className="grid grid-cols-2 gap-3">
@@ -393,8 +393,8 @@ export default function MobileDashboardPage() {
                 <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-2xl">
                   💻
                 </div>
-                <p className="font-medium text-zinc-900">Practice</p>
-                <p className="text-xs text-zinc-500">Solve challenges</p>
+                <p className="font-medium text-gray-900">Practice</p>
+                <p className="text-xs text-gray-500">Solve challenges</p>
               </TouchCard>
             </Link>
             <Link href="/learn">
@@ -402,8 +402,8 @@ export default function MobileDashboardPage() {
                 <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-purple-100 text-2xl">
                   📚
                 </div>
-                <p className="font-medium text-zinc-900">Learn</p>
-                <p className="text-xs text-zinc-500">Study concepts</p>
+                <p className="font-medium text-gray-900">Learn</p>
+                <p className="text-xs text-gray-500">Study concepts</p>
               </TouchCard>
             </Link>
             <Link href="/stats">
@@ -411,8 +411,8 @@ export default function MobileDashboardPage() {
                 <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-2xl">
                   📊
                 </div>
-                <p className="font-medium text-zinc-900">Stats</p>
-                <p className="text-xs text-zinc-500">Track progress</p>
+                <p className="font-medium text-gray-900">Stats</p>
+                <p className="text-xs text-gray-500">Track progress</p>
               </TouchCard>
             </Link>
             <Link href="/leaderboard">
@@ -420,8 +420,8 @@ export default function MobileDashboardPage() {
                 <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100 text-2xl">
                   🏆
                 </div>
-                <p className="font-medium text-zinc-900">Leaderboard</p>
-                <p className="text-xs text-zinc-500">See rankings</p>
+                <p className="font-medium text-gray-900">Leaderboard</p>
+                <p className="text-xs text-gray-500">See rankings</p>
               </TouchCard>
             </Link>
           </div>

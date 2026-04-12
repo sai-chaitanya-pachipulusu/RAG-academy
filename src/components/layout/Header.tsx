@@ -38,9 +38,9 @@ export function Header() {
         {/* Logo */}
         <Link
           href="/"
-          className="group flex items-center gap-2.5 transition-opacity hover:opacity-80"
+          className="group flex items-center gap-2.5 transition-all duration-200-opacity hover:opacity-80 cursor-pointer"
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--foreground)] text-white shadow-sm transition-transform duration-200 group-hover:scale-105">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--foreground)] text-white shadow-sm transition-all duration-200-transform duration-200 group-hover:scale-105 cursor-pointer">
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2L2 7L12 12L22 7L12 2Z" />
               <path d="M2 17L12 22L22 17" />
@@ -56,7 +56,7 @@ export function Header() {
             <Link
               key={link.href}
               href={link.href}
-              className={`relative rounded-full px-4 py-1.5 text-[15px] font-medium transition-all duration-200 ${
+              className={`relative rounded-full px-4 py-1.5 text-[15px] font-medium transition-all duration-200-all duration-200 ${
                 isActive(link.href)
                   ? "bg-white text-[var(--foreground)] shadow-sm"
                   : "text-[var(--gray-400)] hover:text-[var(--foreground)]"
@@ -87,7 +87,7 @@ export function Header() {
               key={link.href}
               href={link.href}
               onClick={() => setMobileMenuOpen(false)}
-              className={`rounded-lg px-4 py-3 text-[17px] font-medium transition-all duration-200 ${
+              className={`rounded-lg px-4 py-3 text-[17px] font-medium transition-all duration-200-all duration-200 ${
                 isActive(link.href)
                   ? "bg-[var(--gray-100)] text-[var(--foreground)]"
                   : "text-[var(--gray-500)] hover:bg-[var(--gray-50)]"
@@ -97,7 +97,7 @@ export function Header() {
             </Link>
           ))}
         </nav>
-        <div className="mt-4 border-t border-zinc-100 pt-4 sm:hidden">
+        <div className="mt-4 border-t border-gray-100 pt-4 sm:hidden">
           <HeaderAuth />
         </div>
       </MobileMenu>

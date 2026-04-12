@@ -62,9 +62,9 @@ export function ProgressiveHints({
   };
 
   return (
-    <div className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
+    <div className="space-y-4 rounded-xl border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-gray-900/50">
       <div className="flex items-center justify-between">
-        <h3 className="flex items-center gap-2 font-semibold text-zinc-800 dark:text-zinc-200">
+        <h3 className="flex items-center gap-2 font-semibold text-gray-800 dark:text-gray-200">
           <span>💡</span>
           <span>Hints</span>
         </h3>
@@ -101,12 +101,12 @@ export function ProgressiveHints({
       {state.revealedCount < hints.length && (
         <button
           onClick={revealNextHint}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-600 transition hover:bg-blue-50 dark:border-blue-800 dark:bg-zinc-900 dark:text-blue-400 dark:hover:bg-blue-950/30"
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-600 transition hover:bg-blue-50 dark:border-blue-800 dark:bg-gray-900 dark:text-blue-400 dark:hover:bg-blue-950/30 cursor-pointer"
         >
           <span>💡</span>
           <span>Reveal Hint {state.revealedCount + 1}</span>
           {getNextHintCost()! > 0 && (
-            <span className="ml-1 text-xs text-zinc-500">
+            <span className="ml-1 text-xs text-gray-500">
               (-{getNextHintCost()} XP)
             </span>
           )}
@@ -115,17 +115,17 @@ export function ProgressiveHints({
 
       {/* All hints revealed indicator */}
       {state.revealedCount >= hints.length && !state.solutionRevealed && (
-        <p className="text-center text-xs text-zinc-500">
+        <p className="text-center text-xs text-gray-500">
           All hints revealed
         </p>
       )}
 
       {/* Solution section */}
-      <div className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
+      <div className="border-t border-gray-200 pt-4 dark:border-gray-800">
         {!state.solutionRevealed ? (
           <button
             onClick={revealSolution}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 px-4 py-3 text-sm font-medium text-amber-700 transition hover:shadow dark:border-amber-800 dark:from-amber-950/30 dark:to-yellow-950/30 dark:text-amber-400"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 px-4 py-3 text-sm font-medium text-amber-700 transition hover:shadow dark:border-amber-800 dark:from-amber-950/30 dark:to-yellow-950/30 dark:text-amber-400 cursor-pointer"
           >
             <span>🔓</span>
             <span>Reveal Solution</span>
@@ -143,7 +143,7 @@ export function ProgressiveHints({
                 -{SOLUTION_COST} XP
               </span>
             </div>
-            <pre className="overflow-auto rounded bg-zinc-900 p-3 text-xs text-emerald-400">
+            <pre className="overflow-auto rounded bg-gray-900 p-3 text-xs text-emerald-400">
               {solutionCode}
             </pre>
             <p className="mt-2 text-[10px] text-amber-600/70 dark:text-amber-400/70">
@@ -155,7 +155,7 @@ export function ProgressiveHints({
 
       {/* XP warning */}
       {state.totalXPSpent === 0 && (
-        <p className="text-center text-xs text-zinc-400">
+        <p className="text-center text-xs text-gray-400">
           💪 First hint is free! Subsequent hints cost XP.
         </p>
       )}
@@ -179,7 +179,7 @@ export function HintIndicator({
           className={`h-1.5 w-3 rounded-full ${
             i < hintsUsed
               ? "bg-blue-400"
-              : "bg-zinc-200 dark:bg-zinc-700"
+              : "bg-gray-200 dark:bg-gray-700"
           }`}
         />
       ))}

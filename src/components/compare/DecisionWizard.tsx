@@ -64,14 +64,14 @@ export function DecisionWizard({ config }: DecisionWizardProps) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-medium">{config.title}</p>
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             {config.description}
           </p>
         </div>
         {answeredCount > 0 && (
           <button
             onClick={reset}
-            className="text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+            className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer"
           >
             Start over
           </button>
@@ -81,15 +81,15 @@ export function DecisionWizard({ config }: DecisionWizardProps) {
       {/* Progress */}
       {answeredCount > 0 && !recommendation && (
         <div className="mt-3 flex items-center gap-2">
-          <div className="h-1 flex-1 rounded-full bg-zinc-200 dark:bg-zinc-800">
+          <div className="h-1 flex-1 rounded-full bg-gray-200 dark:bg-[#7C3AED]">
             <div
-              className="h-1 rounded-full bg-zinc-900 transition-all dark:bg-zinc-100"
+              className="h-1 rounded-full bg-gray-900 transition-all duration-200-all duration-200 dark:bg-gray-100 cursor-pointer"
               style={{
                 width: `${(answeredCount / config.questions.length) * 100}%`,
               }}
             />
           </div>
-          <span className="text-xs text-zinc-500 dark:text-zinc-400">
+          <span className="text-xs text-gray-500 dark:text-gray-400">
             {answeredCount}/{config.questions.length}
           </span>
         </div>
@@ -98,7 +98,7 @@ export function DecisionWizard({ config }: DecisionWizardProps) {
       {/* Current question */}
       {question && !recommendation && (
         <div className="mt-4">
-          <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
             {question.question}
           </p>
           <div className="mt-3 space-y-2">
@@ -106,10 +106,10 @@ export function DecisionWizard({ config }: DecisionWizardProps) {
               <button
                 key={option.value}
                 onClick={() => handleSelect(option.value)}
-                className={`w-full rounded-lg border p-3 text-left text-sm transition-colors ${
+                className={`w-full rounded-lg border p-3 text-left text-sm transition-all duration-200-all duration-200 ${
                   answers[currentQuestion] === option.value
-                    ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
-                    : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700"
+                    ? "border-[#8B5CF6] bg-[#8B5CF6] text-white dark:border-gray-100 dark:bg-[#8B5CF6] dark:text-white"
+                    : "border-gray-200 bg-white hover:border-gray-300 dark:border-gray-800 dark:bg-[#7C3AED] dark:hover:border-gray-700"
                 }`}
               >
                 {option.label}
@@ -128,7 +128,7 @@ export function DecisionWizard({ config }: DecisionWizardProps) {
               {recommendation.title}
             </p>
           </div>
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
             {recommendation.description}
           </p>
 
@@ -139,7 +139,7 @@ export function DecisionWizard({ config }: DecisionWizardProps) {
               </p>
               <ul className="mt-1 space-y-1">
                 {recommendation.pros.map((pro, i) => (
-                  <li key={i} className="flex items-start gap-2 text-xs text-zinc-600 dark:text-zinc-400">
+                  <li key={i} className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400">
                     <span className="text-emerald-500">✓</span>
                     {pro}
                   </li>
@@ -152,7 +152,7 @@ export function DecisionWizard({ config }: DecisionWizardProps) {
               </p>
               <ul className="mt-1 space-y-1">
                 {recommendation.cons.map((con, i) => (
-                  <li key={i} className="flex items-start gap-2 text-xs text-zinc-600 dark:text-zinc-400">
+                  <li key={i} className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400">
                     <span className="text-amber-500">!</span>
                     {con}
                   </li>
@@ -167,7 +167,7 @@ export function DecisionWizard({ config }: DecisionWizardProps) {
                 <a
                   key={link.href}
                   href={link.href}
-                  className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 dark:hover:bg-emerald-900/30"
+                  className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 dark:hover:bg-emerald-900/30 cursor-pointer"
                 >
                   {link.label}
                 </a>

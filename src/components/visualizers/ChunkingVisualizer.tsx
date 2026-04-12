@@ -182,8 +182,8 @@ export function ChunkingVisualizer({
   return (
     <Card className="p-6">
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{title}</h3>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{description}</p>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
+        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{description}</p>
       </div>
 
       {/* Strategy selector */}
@@ -194,8 +194,8 @@ export function ChunkingVisualizer({
             onClick={() => setStrategy(key as keyof typeof STRATEGIES)}
             className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
               strategy === key
-                ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900"
-                : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                ? "bg-[#8B5CF6] text-white dark:bg-white dark:text-gray-900"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-[#7C3AED] dark:text-gray-300 dark:hover:bg-gray-700"
             }`}
           >
             {label}
@@ -205,21 +205,21 @@ export function ChunkingVisualizer({
 
       {/* Stats */}
       <div className="mb-4 grid grid-cols-4 gap-3">
-        <div className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
-          <p className="text-xs text-zinc-500">Chunks</p>
-          <p className="text-xl font-bold text-zinc-900 dark:text-zinc-100">{stats.count}</p>
+        <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+          <p className="text-xs text-gray-500">Chunks</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{stats.count}</p>
         </div>
-        <div className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
-          <p className="text-xs text-zinc-500">Avg Tokens</p>
-          <p className="text-xl font-bold text-zinc-900 dark:text-zinc-100">{stats.avgTokens}</p>
+        <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+          <p className="text-xs text-gray-500">Avg Tokens</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{stats.avgTokens}</p>
         </div>
-        <div className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
-          <p className="text-xs text-zinc-500">Min Tokens</p>
-          <p className="text-xl font-bold text-zinc-900 dark:text-zinc-100">{stats.minTokens}</p>
+        <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+          <p className="text-xs text-gray-500">Min Tokens</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{stats.minTokens}</p>
         </div>
-        <div className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
-          <p className="text-xs text-zinc-500">Max Tokens</p>
-          <p className="text-xl font-bold text-zinc-900 dark:text-zinc-100">{stats.maxTokens}</p>
+        <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+          <p className="text-xs text-gray-500">Max Tokens</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{stats.maxTokens}</p>
         </div>
       </div>
 
@@ -227,8 +227,8 @@ export function ChunkingVisualizer({
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Original text with highlighting */}
         <div>
-          <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">Original Document</h4>
-          <div className="h-[400px] overflow-auto rounded-lg border border-zinc-200 bg-white p-3 text-sm dark:border-zinc-700 dark:bg-zinc-900">
+          <h4 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Original Document</h4>
+          <div className="h-[400px] overflow-auto rounded-lg border border-gray-200 bg-white p-3 text-sm dark:border-gray-700 dark:bg-gray-900">
             <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed">
               {chunks.map((chunk, idx) => (
                 <span
@@ -252,8 +252,8 @@ export function ChunkingVisualizer({
 
         {/* Chunk list */}
         <div>
-          <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">Chunks ({chunks.length})</h4>
-          <div className="h-[400px] space-y-2 overflow-auto rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900/50">
+          <h4 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Chunks ({chunks.length})</h4>
+          <div className="h-[400px] space-y-2 overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/50">
             {chunks.map((chunk, idx) => (
               <div
                 key={idx}
@@ -264,12 +264,12 @@ export function ChunkingVisualizer({
                 onMouseLeave={() => setHoveredChunk(null)}
               >
                 <div className="mb-1 flex items-center justify-between">
-                  <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                  <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
                     Chunk {idx + 1}
                   </span>
-                  <span className="text-xs text-zinc-500">{chunk.tokens} tokens</span>
+                  <span className="text-xs text-gray-500">{chunk.tokens} tokens</span>
                 </div>
-                <p className="line-clamp-3 text-xs text-zinc-600 dark:text-zinc-400">
+                <p className="line-clamp-3 text-xs text-gray-600 dark:text-gray-400">
                   {chunk.text.slice(0, 150)}...
                 </p>
               </div>

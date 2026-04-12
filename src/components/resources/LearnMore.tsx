@@ -25,7 +25,7 @@ const TYPE_COLORS: Record<LearningResource["type"], string> = {
   video: "bg-red-100 text-red-700",
   article: "bg-blue-100 text-blue-700",
   paper: "bg-purple-100 text-purple-700",
-  github: "bg-zinc-100 text-zinc-700",
+  github: "bg-gray-100 text-gray-700",
   course: "bg-emerald-100 text-emerald-700",
   documentation: "bg-amber-100 text-amber-700",
 };
@@ -54,14 +54,14 @@ export function LearnMoreSection({ challengeSlug, topics, limit = 3 }: Props) {
   if (resources.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-gradient-to-br from-indigo-50/50 to-purple-50/50 p-4">
+    <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-indigo-50/50 to-purple-50/50 p-4">
       <div className="flex items-center gap-2">
         <span className="text-lg">📖</span>
-        <h3 className="text-sm font-semibold text-zinc-900">
+        <h3 className="text-sm font-semibold text-gray-900">
           Learn More
         </h3>
       </div>
-      <p className="mt-1 text-xs text-zinc-500">
+      <p className="mt-1 text-xs text-gray-500">
         Curated resources to deepen your understanding
       </p>
 
@@ -72,13 +72,13 @@ export function LearnMoreSection({ challengeSlug, topics, limit = 3 }: Props) {
             href={resource.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="group block rounded-lg border border-zinc-200 bg-white p-3 transition-all hover:border-indigo-300 hover:shadow-sm"
+            className="group block rounded-lg border border-gray-200 bg-white p-3 transition-all duration-200-all duration-200 hover:border-indigo-300 hover:shadow-sm cursor-pointer"
           >
             <div className="flex items-start gap-3">
               <span className="text-xl">{TYPE_ICONS[resource.type]}</span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-zinc-900 group-hover:text-indigo-600 truncate">
+                  <p className="text-sm font-medium text-gray-900 group-hover:text-indigo-600 truncate cursor-pointer">
                     {resource.title}
                   </p>
                   <span
@@ -87,20 +87,20 @@ export function LearnMoreSection({ challengeSlug, topics, limit = 3 }: Props) {
                     {resource.type}
                   </span>
                 </div>
-                <p className="mt-1 text-xs text-zinc-500 line-clamp-2">
+                <p className="mt-1 text-xs text-gray-500 line-clamp-2">
                   {resource.description}
                 </p>
                 <div className="mt-2 flex items-center gap-3 text-[10px]">
-                  <span className="text-zinc-400">{resource.source}</span>
+                  <span className="text-gray-400">{resource.source}</span>
                   {resource.duration && (
-                    <span className="text-zinc-400">⏱ {resource.duration}</span>
+                    <span className="text-gray-400">⏱ {resource.duration}</span>
                   )}
                   <span className={DIFFICULTY_COLORS[resource.difficulty]}>
                     {resource.difficulty}
                   </span>
                 </div>
               </div>
-              <span className="text-zinc-400 group-hover:text-indigo-500">→</span>
+              <span className="text-gray-400 group-hover:text-indigo-500 cursor-pointer">→</span>
             </div>
           </a>
         ))}
@@ -119,7 +119,7 @@ export function ResourcesGrid({
 }) {
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
         {title}
       </h2>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -129,7 +129,7 @@ export function ResourcesGrid({
             href={resource.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="group relative overflow-hidden rounded-xl border border-zinc-200 bg-white p-4 transition-all hover:border-indigo-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-indigo-800"
+            className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 transition-all duration-200-all duration-200 hover:border-indigo-300 hover:shadow-md dark:border-gray-800 dark:bg-[#7C3AED] dark:hover:border-indigo-800 cursor-pointer"
           >
             {resource.featured && (
               <span className="absolute right-2 top-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
@@ -146,11 +146,11 @@ export function ResourcesGrid({
               </span>
             </div>
 
-            <h3 className="mt-3 text-sm font-semibold text-zinc-900 group-hover:text-indigo-600 dark:text-zinc-100 dark:group-hover:text-indigo-400">
+            <h3 className="mt-3 text-sm font-semibold text-gray-900 group-hover:text-indigo-600 dark:text-gray-100 dark:group-hover:text-indigo-400 cursor-pointer">
               {resource.title}
             </h3>
 
-            <p className="mt-2 text-xs text-zinc-500 line-clamp-2">
+            <p className="mt-2 text-xs text-gray-500 line-clamp-2">
               {resource.description}
             </p>
 
@@ -158,7 +158,7 @@ export function ResourcesGrid({
               {resource.topics.slice(0, 3).map((topic) => (
                 <span
                   key={topic}
-                  className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+                  className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400"
                 >
                   {topic}
                 </span>
@@ -166,7 +166,7 @@ export function ResourcesGrid({
             </div>
 
             <div className="mt-3 flex items-center justify-between text-[10px]">
-              <span className="text-zinc-400">{resource.source}</span>
+              <span className="text-gray-400">{resource.source}</span>
               <span className={DIFFICULTY_COLORS[resource.difficulty]}>
                 {resource.difficulty}
               </span>
@@ -188,7 +188,7 @@ export function ResourceLink({ resourceId }: { resourceId: string }) {
       href={resource.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-xs font-medium text-zinc-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:border-indigo-800"
+      className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-0.5 text-xs font-medium text-gray-700 transition-all duration-200-all duration-200 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-gray-800 dark:bg-[#7C3AED] dark:text-gray-300 dark:hover:border-indigo-800 cursor-pointer"
     >
       {TYPE_ICONS[resource.type]} {resource.source}
     </a>

@@ -35,18 +35,18 @@ export function LessonPreviewList({ lessons }: { lessons: LessonPreview[] }) {
           <li key={l.slug}>
             <Link
               href={`/learn/${l.phase}/${l.slug}`}
-              className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-zinc-50 dark:hover:bg-white/[0.06]"
+              className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-gray-50 dark:hover:bg-white/[0.06] cursor-pointer"
             >
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-zinc-950 dark:text-zinc-50">
+                <p className="truncate text-sm font-medium text-gray-950 dark:text-gray-50">
                   {l.title}
                 </p>
-                <p className="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400">
+                <p className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">
                   {l.description}
                 </p>
               </div>
               <div className="shrink-0 flex items-center gap-2">
-                <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
                   {l.estimatedMinutes}m
                 </span>
                 {badge}

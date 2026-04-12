@@ -157,11 +157,11 @@ export function CodeComparison({
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
             Code Comparison
           </h2>
           {challengeTitle && (
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               {challengeTitle}
             </p>
           )}
@@ -170,7 +170,7 @@ export function CodeComparison({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-white/10 dark:hover:text-zinc-300"
+            className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-white/10 dark:hover:text-gray-300 cursor-pointer"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -184,8 +184,8 @@ export function CodeComparison({
         <Card className="p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Older Submission</p>
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Older Submission</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                 {formatDate(older.submittedAt)}
               </p>
             </div>
@@ -193,11 +193,11 @@ export function CodeComparison({
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
             <div>
-              <span className="text-zinc-500">Time:</span>{" "}
+              <span className="text-gray-500">Time:</span>{" "}
               <span className="font-medium">{older.executionTimeMs ? `${older.executionTimeMs}ms` : "N/A"}</span>
             </div>
             <div>
-              <span className="text-zinc-500">Score:</span>{" "}
+              <span className="text-gray-500">Score:</span>{" "}
               <span className="font-medium">{older.score != null ? Math.min(older.score, 100) : "N/A"}</span>
             </div>
           </div>
@@ -206,8 +206,8 @@ export function CodeComparison({
         <Card className="p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Newer Submission</p>
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Newer Submission</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                 {formatDate(newer.submittedAt)}
               </p>
             </div>
@@ -215,11 +215,11 @@ export function CodeComparison({
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
             <div>
-              <span className="text-zinc-500">Time:</span>{" "}
+              <span className="text-gray-500">Time:</span>{" "}
               <span className="font-medium">{newer.executionTimeMs ? `${newer.executionTimeMs}ms` : "N/A"}</span>
             </div>
             <div>
-              <span className="text-zinc-500">Score:</span>{" "}
+              <span className="text-gray-500">Score:</span>{" "}
               <span className="font-medium">{newer.score != null ? Math.min(newer.score, 100) : "N/A"}</span>
             </div>
           </div>
@@ -227,9 +227,9 @@ export function CodeComparison({
       </div>
 
       {/* Diff Stats */}
-      <div className="flex items-center justify-between rounded-lg bg-zinc-50 p-3 dark:bg-zinc-900">
+      <div className="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-gray-900">
         <div className="flex items-center gap-4 text-sm">
-          <span className="text-zinc-600 dark:text-zinc-400">
+          <span className="text-gray-600 dark:text-gray-400">
             Time between: <span className="font-medium">{timeDiffMinutes} minutes</span>
           </span>
           <span className="text-emerald-600 dark:text-emerald-400">
@@ -245,20 +245,20 @@ export function CodeComparison({
             onClick={() => setShowLineNumbers(!showLineNumbers)}
             className={`rounded px-2 py-1 text-xs font-medium ${
               showLineNumbers
-                ? "bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-200"
-                : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                ? "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
+                : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-[#7C3AED]"
             }`}
           >
             Line Numbers
           </button>
-          <div className="flex rounded-lg border border-zinc-200 dark:border-zinc-700">
+          <div className="flex rounded-lg border border-gray-200 dark:border-gray-700">
             <button
               type="button"
               onClick={() => setViewMode("unified")}
               className={`px-3 py-1 text-xs font-medium ${
                 viewMode === "unified"
-                  ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
-                  : "text-zinc-600 dark:text-zinc-400"
+                  ? "bg-gray-100 text-gray-900 dark:bg-[#7C3AED] dark:text-gray-100"
+                  : "text-gray-600 dark:text-gray-400"
               }`}
             >
               Unified
@@ -268,8 +268,8 @@ export function CodeComparison({
               onClick={() => setViewMode("side-by-side")}
               className={`px-3 py-1 text-xs font-medium ${
                 viewMode === "side-by-side"
-                  ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
-                  : "text-zinc-600 dark:text-zinc-400"
+                  ? "bg-gray-100 text-gray-900 dark:bg-[#7C3AED] dark:text-gray-100"
+                  : "text-gray-600 dark:text-gray-400"
               }`}
             >
               Split
@@ -280,7 +280,7 @@ export function CodeComparison({
 
       {/* Diff View */}
       {viewMode === "unified" ? (
-        <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
+        <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="max-h-[600px] overflow-auto">
             <table className="w-full text-sm">
               <tbody>
@@ -297,10 +297,10 @@ export function CodeComparison({
                   >
                     {showLineNumbers && (
                       <>
-                        <td className="w-12 select-none border-r border-zinc-200 bg-zinc-50 px-2 py-0.5 text-right text-xs text-zinc-400 dark:border-zinc-700 dark:bg-zinc-900">
+                        <td className="w-12 select-none border-r border-gray-200 bg-gray-50 px-2 py-0.5 text-right text-xs text-gray-400 dark:border-gray-700 dark:bg-gray-900">
                           {line.lineNum1 || ""}
                         </td>
-                        <td className="w-12 select-none border-r border-zinc-200 bg-zinc-50 px-2 py-0.5 text-right text-xs text-zinc-400 dark:border-zinc-700 dark:bg-zinc-900">
+                        <td className="w-12 select-none border-r border-gray-200 bg-gray-50 px-2 py-0.5 text-right text-xs text-gray-400 dark:border-gray-700 dark:bg-gray-900">
                           {line.lineNum2 || ""}
                         </td>
                       </>
@@ -308,7 +308,7 @@ export function CodeComparison({
                     <td className="w-8 select-none px-2 py-0.5 text-center">
                       {line.type === "added" && <span className="text-emerald-600">+</span>}
                       {line.type === "removed" && <span className="text-red-600">-</span>}
-                      {line.type === "same" && <span className="text-zinc-300"> </span>}
+                      {line.type === "same" && <span className="text-gray-300"> </span>}
                     </td>
                     <td className="px-2 py-0.5">
                       <code
@@ -317,7 +317,7 @@ export function CodeComparison({
                             ? "text-emerald-800 dark:text-emerald-300"
                             : line.type === "removed"
                             ? "text-red-800 dark:text-red-300"
-                            : "text-zinc-700 dark:text-zinc-300"
+                            : "text-gray-700 dark:text-gray-300"
                         }`}
                       >
                         {line.content || " "}
@@ -332,25 +332,25 @@ export function CodeComparison({
       ) : (
         <div className="grid grid-cols-2 gap-4">
           {/* Old code */}
-          <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
-            <div className="border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
+          <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
               Older
             </div>
             <div className="max-h-[600px] overflow-auto">
               <pre className="p-3 text-sm">
-                <code className="text-zinc-700 dark:text-zinc-300">{older.code}</code>
+                <code className="text-gray-700 dark:text-gray-300">{older.code}</code>
               </pre>
             </div>
           </div>
 
           {/* New code */}
-          <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
-            <div className="border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
+          <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
               Newer
             </div>
             <div className="max-h-[600px] overflow-auto">
               <pre className="p-3 text-sm">
-                <code className="text-zinc-700 dark:text-zinc-300">{newer.code}</code>
+                <code className="text-gray-700 dark:text-gray-300">{newer.code}</code>
               </pre>
             </div>
           </div>

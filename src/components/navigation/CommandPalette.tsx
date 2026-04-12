@@ -112,10 +112,10 @@ export function CommandPalette() {
       />
 
       {/* Dialog */}
-      <div className="relative w-full max-w-lg rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-white/10 dark:bg-zinc-900">
+      <div className="relative w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-white/10 dark:bg-gray-900">
         {/* Search Input */}
-        <div className="flex items-center gap-3 border-b border-zinc-200 px-4 py-3 dark:border-white/10">
-          <svg className="h-5 w-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <div className="flex items-center gap-3 border-b border-gray-200 px-4 py-3 dark:border-white/10">
+          <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
           </svg>
           <input
@@ -124,10 +124,10 @@ export function CommandPalette() {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search challenges, pages..."
-            className="flex-1 bg-transparent text-sm text-zinc-900 placeholder-zinc-400 outline-none dark:text-zinc-100"
+            className="flex-1 bg-transparent text-sm text-gray-900 placeholder-zinc-400 outline-none dark:text-gray-100"
             autoFocus
           />
-          <kbd className="rounded border border-zinc-200 bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-400">
+          <kbd className="rounded border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500 dark:border-white/10 dark:bg-[#7C3AED] dark:text-gray-400">
             ESC
           </kbd>
         </div>
@@ -135,7 +135,7 @@ export function CommandPalette() {
         {/* Results */}
         <div className="max-h-80 overflow-y-auto p-2">
           {filteredItems.length === 0 ? (
-            <div className="px-3 py-8 text-center text-sm text-zinc-500">
+            <div className="px-3 py-8 text-center text-sm text-gray-500">
               No results found for "{query}"
             </div>
           ) : (
@@ -152,28 +152,28 @@ export function CommandPalette() {
                   className={[
                     "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
                     index === selectedIndex
-                      ? "bg-zinc-100 dark:bg-white/10"
-                      : "hover:bg-zinc-50 dark:hover:bg-white/5",
+                      ? "bg-gray-100 dark:bg-white/10"
+                      : "hover:bg-gray-50 dark:hover:bg-white/5",
                   ].join(" ")}
                 >
                   {/* Category Icon */}
-                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-sm dark:bg-white/10">
+                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gray-100 text-sm dark:bg-white/10">
                     {item.category === "challenge" ? "📝" : item.category === "page" ? "📄" : "⚡"}
                   </span>
                   
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                    <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
                       {item.title}
                     </p>
                     {item.subtitle && (
-                      <p className="truncate text-xs text-zinc-500">
+                      <p className="truncate text-xs text-gray-500">
                         {item.subtitle}
                       </p>
                     )}
                   </div>
 
                   {/* Category Badge */}
-                  <span className="flex-shrink-0 rounded-md bg-zinc-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500 dark:bg-white/10 dark:text-zinc-400">
+                  <span className="flex-shrink-0 rounded-md bg-gray-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:bg-white/10 dark:text-gray-400">
                     {item.category}
                   </span>
                 </button>
@@ -183,11 +183,11 @@ export function CommandPalette() {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between border-t border-zinc-200 px-4 py-2 text-[11px] text-zinc-400 dark:border-white/10">
+        <div className="flex items-center justify-between border-t border-gray-200 px-4 py-2 text-[11px] text-gray-400 dark:border-white/10">
           <div className="flex items-center gap-2">
-            <kbd className="rounded border border-zinc-200 bg-zinc-100 px-1 py-0.5 dark:border-white/10 dark:bg-zinc-800">↑↓</kbd>
+            <kbd className="rounded border border-gray-200 bg-gray-100 px-1 py-0.5 dark:border-white/10 dark:bg-[#7C3AED]">↑↓</kbd>
             <span>Navigate</span>
-            <kbd className="ml-2 rounded border border-zinc-200 bg-zinc-100 px-1 py-0.5 dark:border-white/10 dark:bg-zinc-800">↵</kbd>
+            <kbd className="ml-2 rounded border border-gray-200 bg-gray-100 px-1 py-0.5 dark:border-white/10 dark:bg-[#7C3AED]">↵</kbd>
             <span>Select</span>
           </div>
           <span>⌘K to toggle</span>

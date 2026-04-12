@@ -53,17 +53,17 @@ export function CurriculumView() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-semibold tracking-tight">Study Plan</h2>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                Weekly schedule to stay on track.
             </p>
           </div>
-          <div className="flex rounded-lg bg-zinc-100 p-1 dark:bg-zinc-800">
+          <div className="flex rounded-lg bg-gray-100 p-1 dark:bg-[#7C3AED]">
             <button
               onClick={() => setTrack("deep")}
               className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
                 track === "deep"
-                  ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-100"
-                  : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+                  ? "bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100"
+                  : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
               }`}
             >
               Deep Dive (8 weeks)
@@ -72,8 +72,8 @@ export function CurriculumView() {
               onClick={() => setTrack("fast")}
               className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
                 track === "fast"
-                  ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-100"
-                  : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+                  ? "bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100"
+                  : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
               }`}
             >
               Fast Track (4 weeks)

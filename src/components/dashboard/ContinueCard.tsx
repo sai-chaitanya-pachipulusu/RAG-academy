@@ -69,11 +69,11 @@ export function ContinueCard() {
     <Card className="p-5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">Continue</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Continue</p>
           <h2 className="mt-1 text-lg font-semibold tracking-tight">
             {next ? next.label : "You’re caught up"}
           </h2>
-          <p className="mt-2 text-sm leading-7 text-zinc-600 dark:text-zinc-300">
+          <p className="mt-2 text-sm leading-7 text-gray-600 dark:text-gray-300">
             {next
               ? "Next recommended step from the Study Plan."
               : "Pick a Compare lab or start a Project to go deeper."}
@@ -83,21 +83,21 @@ export function ContinueCard() {
           {next ? (
             <Link
               href={next.href}
-              className="inline-flex h-9 items-center justify-center rounded-full bg-zinc-950 px-4 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+              className="inline-flex h-9 items-center justify-center rounded-full bg-[#7C3AED] px-4 text-sm font-medium text-white hover:bg-[#7C3AED] dark:bg-white dark:text-black dark:hover:bg-[#7C3AED] cursor-pointer"
             >
               Continue →
             </Link>
           ) : (
             <Link
               href="/projects"
-              className="inline-flex h-9 items-center justify-center rounded-full bg-zinc-950 px-4 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+              className="inline-flex h-9 items-center justify-center rounded-full bg-[#7C3AED] px-4 text-sm font-medium text-white hover:bg-[#7C3AED] dark:bg-white dark:text-black dark:hover:bg-[#7C3AED] cursor-pointer"
             >
               Start a project →
             </Link>
           )}
           <Link
             href="/plan"
-            className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-950 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50 dark:hover:bg-zinc-900"
+            className="inline-flex h-9 items-center justify-center rounded-full border border-gray-200 bg-white px-4 text-sm font-medium text-gray-950 hover:bg-gray-50 dark:border-gray-800 dark:bg-[#7C3AED] dark:text-gray-50 dark:hover:bg-gray-900 cursor-pointer"
           >
             Study Plan
           </Link>

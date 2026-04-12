@@ -106,7 +106,7 @@ export function PDFLayoutAnalyzer() {
               <Upload className="h-8 w-8 text-blue-600" />
             </div>
             <h3 className="mt-4 text-lg font-semibold">Upload PDF for Analysis</h3>
-            <p className="mt-2 text-sm text-zinc-500">
+            <p className="mt-2 text-sm text-gray-500">
               Detect tables, images, columns, and extract structured content
             </p>
 
@@ -118,17 +118,17 @@ export function PDFLayoutAnalyzer() {
                   onChange={handleFileChange}
                   className="hidden"
                 />
-                <div className="rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-50 px-8 py-6 transition-colors hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900/50">
+                <div className="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 px-8 py-6 transition-all duration-200-all duration-200 hover:border-gray-400 dark:border-gray-700 dark:bg-gray-900/50 cursor-pointer">
                   {file ? (
                     <div className="flex items-center gap-3">
                       <FileText className="h-6 w-6 text-blue-600" />
                       <span className="font-medium">{file.name}</span>
-                      <span className="text-sm text-zinc-500">
+                      <span className="text-sm text-gray-500">
                         ({(file.size / 1024 / 1024).toFixed(2)} MB)
                       </span>
                     </div>
                   ) : (
-                    <span className="text-zinc-500">Click to select PDF file</span>
+                    <span className="text-gray-500">Click to select PDF file</span>
                   )}
                 </div>
               </label>
@@ -144,7 +144,7 @@ export function PDFLayoutAnalyzer() {
             <button
               onClick={analyzePDF}
               disabled={!file || isAnalyzing}
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#8B5CF6] px-6 py-3 text-sm font-medium text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] disabled:opacity-50 disabled:cursor-not-allowed dark:bg-[#8B5CF6] dark:text-white dark:hover:bg-[#7C3AED]"
             >
               {isAnalyzing ? (
                 <>
@@ -167,7 +167,7 @@ export function PDFLayoutAnalyzer() {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-semibold">{result.filename}</h3>
-                <p className="text-sm text-zinc-500">
+                <p className="text-sm text-gray-500">
                   {result.pageCount} pages • {result.detectedTables.length} tables •{" "}
                   {result.detectedImages.length} images
                 </p>
@@ -177,7 +177,7 @@ export function PDFLayoutAnalyzer() {
                   setResult(null);
                   setFile(null);
                 }}
-                className="text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                className="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer"
               >
                 Analyze another
               </button>
@@ -192,10 +192,10 @@ export function PDFLayoutAnalyzer() {
                 <button
                   key={strategy}
                   onClick={() => setSelectedStrategy(strategy)}
-                  className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                  className={`rounded-lg px-3 py-1.5 text-sm transition-all duration-200-all duration-200 ${
                     selectedStrategy === strategy
                       ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                      : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-[#7C3AED] dark:text-gray-400"
                   }`}
                 >
                   {strategy.replace("_", " ")}
@@ -216,15 +216,15 @@ export function PDFLayoutAnalyzer() {
                 {result.detectedTables.map((table, index) => (
                   <div
                     key={index}
-                    className="rounded-lg border border-zinc-100 p-3 dark:border-zinc-800"
+                    className="rounded-lg border border-gray-100 p-3 dark:border-gray-800"
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-medium">Table {index + 1}</span>
-                      <span className="text-sm text-zinc-500">
+                      <span className="text-sm text-gray-500">
                         Page {table.page} • {table.rows}×{table.columns}
                       </span>
                     </div>
-                    <div className="mt-2 text-sm text-zinc-500">
+                    <div className="mt-2 text-sm text-gray-500">
                       Confidence: {Math.round(table.confidence * 100)}%
                     </div>
                   </div>
@@ -245,16 +245,16 @@ export function PDFLayoutAnalyzer() {
                 {result.detectedImages.map((image, index) => (
                   <div
                     key={index}
-                    className="rounded-lg border border-zinc-100 p-3 dark:border-zinc-800"
+                    className="rounded-lg border border-gray-100 p-3 dark:border-gray-800"
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-medium capitalize">{image.type}</span>
-                      <span className="text-sm text-zinc-500">
+                      <span className="text-sm text-gray-500">
                         Page {image.page}
                       </span>
                     </div>
                     {image.caption && (
-                      <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+                      <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                         {image.caption}
                       </p>
                     )}
@@ -276,7 +276,7 @@ export function PDFLayoutAnalyzer() {
                 {result.textBlocks.slice(0, 10).map((block, index) => (
                   <div
                     key={index}
-                    className="rounded-lg border border-zinc-100 p-3 dark:border-zinc-800"
+                    className="rounded-lg border border-gray-100 p-3 dark:border-gray-800"
                   >
                     <div className="flex items-center gap-2">
                       {block.isHeading && (
@@ -284,7 +284,7 @@ export function PDFLayoutAnalyzer() {
                           H{block.headingLevel}
                         </span>
                       )}
-                      <span className="text-sm text-zinc-500">
+                      <span className="text-sm text-gray-500">
                         Page {block.page}
                       </span>
                     </div>
@@ -292,7 +292,7 @@ export function PDFLayoutAnalyzer() {
                   </div>
                 ))}
                 {result.textBlocks.length > 10 && (
-                  <p className="text-center text-sm text-zinc-500">
+                  <p className="text-center text-sm text-gray-500">
                     +{result.textBlocks.length - 10} more blocks
                   </p>
                 )}
@@ -306,7 +306,7 @@ export function PDFLayoutAnalyzer() {
             <div className="mt-3 flex gap-3">
               <button
                 onClick={() => copyToClipboard(JSON.stringify(result, null, 2))}
-                className="flex items-center gap-2 rounded-lg border border-zinc-200 px-4 py-2 text-sm transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+                className="flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm transition-all duration-200-all duration-200 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900 cursor-pointer"
               >
                 <Copy className="h-4 w-4" />
                 Copy JSON
@@ -322,7 +322,7 @@ export function PDFLayoutAnalyzer() {
                   a.download = `${result.filename.replace(".pdf", "")}_layout.json`;
                   a.click();
                 }}
-                className="flex items-center gap-2 rounded-lg border border-zinc-200 px-4 py-2 text-sm transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+                className="flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm transition-all duration-200-all duration-200 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900 cursor-pointer"
               >
                 <Download className="h-4 w-4" />
                 Download JSON
@@ -359,13 +359,13 @@ function CollapsibleSection({
         className="flex w-full items-center justify-between p-4 text-left"
       >
         <div className="flex items-center gap-3">
-          <span className="text-zinc-500">{icon}</span>
+          <span className="text-gray-500">{icon}</span>
           <span className="font-semibold">{title}</span>
         </div>
         {isExpanded ? (
-          <ChevronUp className="h-5 w-5 text-zinc-400" />
+          <ChevronUp className="h-5 w-5 text-gray-400" />
         ) : (
-          <ChevronDown className="h-5 w-5 text-zinc-400" />
+          <ChevronDown className="h-5 w-5 text-gray-400" />
         )}
       </button>
       <AnimatePresence>
@@ -374,9 +374,9 @@ function CollapsibleSection({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition-all duration-200={{ duration: 0.2 }}
           >
-            <div className="border-t border-zinc-100 p-4 dark:border-zinc-800">
+            <div className="border-t border-gray-100 p-4 dark:border-gray-800">
               {children}
             </div>
           </motion.div>

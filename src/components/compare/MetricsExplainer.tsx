@@ -93,23 +93,23 @@ export function MetricsExplainer() {
     <Card className="p-5">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium">Metrics Reference</p>
-        <div className="flex gap-1 rounded-full border border-zinc-200 p-1 dark:border-zinc-800">
+        <div className="flex gap-1 rounded-full border border-gray-200 p-1 dark:border-gray-800">
           <button
             onClick={() => setActiveTab("retrieval")}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-all duration-200-all duration-200 ${
               activeTab === "retrieval"
-                ? "bg-zinc-950 text-white dark:bg-white dark:text-black"
-                : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                ? "bg-[#7C3AED] text-white dark:bg-white dark:text-black"
+                : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-[#7C3AED]"
             }`}
           >
             Retrieval
           </button>
           <button
             onClick={() => setActiveTab("generation")}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-all duration-200-all duration-200 ${
               activeTab === "generation"
-                ? "bg-zinc-950 text-white dark:bg-white dark:text-black"
-                : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                ? "bg-[#7C3AED] text-white dark:bg-white dark:text-black"
+                : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-[#7C3AED]"
             }`}
           >
             Generation
@@ -121,11 +121,11 @@ export function MetricsExplainer() {
         {metrics.map((m) => (
           <div
             key={m.name}
-            className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800"
+            className="rounded-lg border border-gray-200 p-3 dark:border-gray-800"
           >
             <div className="flex items-start justify-between gap-2">
               <div>
-                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                   {m.name}
                 </p>
                 <code className="mt-1 block text-xs text-emerald-600 dark:text-emerald-400">
@@ -134,16 +134,16 @@ export function MetricsExplainer() {
               </div>
               <Badge variant="muted">{m.range}</Badge>
             </div>
-            <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
+            <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">
               {m.explanation}
             </p>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-500">
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">
               <span className="font-medium">When to use:</span> {m.when}
             </p>
             {m.challenge && (
               <a
                 href={m.challenge}
-                className="mt-2 inline-block text-xs font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-500 dark:text-zinc-100 dark:decoration-zinc-700 dark:hover:decoration-zinc-500"
+                className="mt-2 inline-block text-xs font-medium text-gray-900 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-500 dark:text-gray-100 dark:decoration-zinc-700 dark:hover:decoration-zinc-500 cursor-pointer"
               >
                 Implement this metric →
               </a>

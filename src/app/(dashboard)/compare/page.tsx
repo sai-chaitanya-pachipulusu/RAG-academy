@@ -121,32 +121,32 @@ export default function ComparePage() {
     <div className="flex flex-col gap-5">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Compare</h1>
-        <p className="mt-1 max-w-2xl text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
           Decision-first comparisons. Pick a default, understand when to deviate.
         </p>
       </header>
 
       {/* Quick Decisions */}
       <section>
-        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
           Quick Decisions
         </h2>
-        <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
           "Pick this default unless..." — stop rabbit holes.
         </p>
 
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           {DECISION_PRINCIPLES.map((d) => (
             <Link key={d.question} href={d.href}>
-              <Card className="h-full p-3.5 transition-colors hover:border-zinc-300 dark:hover:border-zinc-700">
-                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+              <Card className="h-full p-3.5 transition-all duration-200-all duration-200 hover:border-gray-300 dark:hover:border-gray-700 cursor-pointer">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                   {d.question}
                 </p>
-                <p className="mt-1.5 text-xs text-zinc-600 dark:text-zinc-400">
+                <p className="mt-1.5 text-xs text-gray-600 dark:text-gray-400">
                   <span className="font-medium text-emerald-600 dark:text-emerald-400">Default:</span>{" "}
                   {d.default}
                 </p>
-                <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+                <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
                   <span className="font-medium text-amber-600 dark:text-amber-400">Unless:</span>{" "}
                   {d.unless}
                 </p>
@@ -159,24 +159,24 @@ export default function ComparePage() {
       {/* Comparison Pages */}
       {SECTIONS.map((section) => (
         <section key={section.title}>
-          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
             {section.title}
           </h2>
-          <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">{section.desc}</p>
+          <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">{section.desc}</p>
 
           <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {section.pages.map((page) => (
               <Link key={page.href} href={page.href}>
-                <Card className="h-full p-3.5 transition-colors hover:border-zinc-300 dark:hover:border-zinc-700">
+                <Card className="h-full p-3.5 transition-all duration-200-all duration-200 hover:border-gray-300 dark:hover:border-gray-700 cursor-pointer">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                       {page.label}
                     </p>
                     <Badge variant={page.status === "live" ? "accent" : "muted"}>
                       {page.status}
                     </Badge>
                   </div>
-                  <p className="mt-1.5 text-xs text-zinc-600 dark:text-zinc-400">{page.blurb}</p>
+                  <p className="mt-1.5 text-xs text-gray-600 dark:text-gray-400">{page.blurb}</p>
                 </Card>
               </Link>
             ))}
@@ -190,19 +190,19 @@ export default function ComparePage() {
         <div className="mt-2 flex flex-wrap gap-2">
           <Link
             href="/challenges"
-            className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+            className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06] cursor-pointer"
           >
             Practice challenges
           </Link>
           <Link
             href="/projects"
-            className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+            className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06] cursor-pointer"
           >
             Production templates
           </Link>
           <Link
             href="/playbooks/rag-techniques-encyclopedia"
-            className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+            className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06] cursor-pointer"
           >
             Technique encyclopedia
           </Link>

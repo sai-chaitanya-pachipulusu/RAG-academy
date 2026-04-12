@@ -97,7 +97,7 @@ export function GuidedLearning({ challengeSlug, title, difficulty, onStartChalle
             <div key={stage.id} className="flex items-center">
               <button
                 onClick={() => setCurrentStage(stage.id)}
-                className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-all ${
+                className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-all duration-200-all duration-200 ${
                   currentStage === stage.id
                     ? "bg-white text-violet-700"
                     : stagesCompleted.has(stage.id)
@@ -117,17 +117,17 @@ export function GuidedLearning({ challengeSlug, title, difficulty, onStartChalle
       </div>
 
       {/* Stage Content */}
-      <div className="rounded-2xl border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="rounded-2xl border border-gray-200 bg-white p-8 dark:border-gray-800 dark:bg-[#7C3AED]">
         
         {/* Stage 1: Motivation */}
         {currentStage === "motivation" && (
           <div className="space-y-8">
             <div>
-              <h3 className="flex items-center gap-3 text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+              <h3 className="flex items-center gap-3 text-2xl font-bold text-gray-900 dark:text-gray-100">
                 <span className="text-3xl">🎯</span>
                 Why Learn This?
               </h3>
-              <p className="mt-2 text-zinc-500">Understanding the "why" makes the "how" much easier</p>
+              <p className="mt-2 text-gray-500">Understanding the "why" makes the "how" much easier</p>
             </div>
 
             {/* Real-world usage */}
@@ -138,14 +138,14 @@ export function GuidedLearning({ challengeSlug, title, difficulty, onStartChalle
 
             {/* Problems it solves */}
             <div>
-              <h4 className="mb-4 font-semibold text-zinc-900 dark:text-zinc-100">💡 Problems You'll Be Able to Solve:</h4>
+              <h4 className="mb-4 font-semibold text-gray-900 dark:text-gray-100">💡 Problems You'll Be Able to Solve:</h4>
               <div className="grid gap-3">
                 {content.motivation.problems.map((problem, i) => (
-                  <div key={i} className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
+                  <div key={i} className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
                     <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">
                       {i + 1}
                     </span>
-                    <p className="text-zinc-700 dark:text-zinc-300">{problem}</p>
+                    <p className="text-gray-700 dark:text-gray-300">{problem}</p>
                   </div>
                 ))}
               </div>
@@ -159,7 +159,7 @@ export function GuidedLearning({ challengeSlug, title, difficulty, onStartChalle
 
             <button
               onClick={() => completeStage("motivation")}
-              className="w-full rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 py-4 text-lg font-semibold text-white shadow-lg transition-all hover:from-violet-500 hover:to-indigo-500"
+              className="w-full rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 py-4 text-lg font-semibold text-white shadow-lg transition-all duration-200-all duration-200 hover:from-violet-500 hover:to-indigo-500 cursor-pointer"
             >
               I'm Motivated! Show Me The Concept →
             </button>
@@ -170,11 +170,11 @@ export function GuidedLearning({ challengeSlug, title, difficulty, onStartChalle
         {currentStage === "analogy" && (
           <div className="space-y-8">
             <div>
-              <h3 className="flex items-center gap-3 text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+              <h3 className="flex items-center gap-3 text-2xl font-bold text-gray-900 dark:text-gray-100">
                 <span className="text-3xl">🧠</span>
                 Build Your Mental Model
               </h3>
-              <p className="mt-2 text-zinc-500">Connect new concepts to things you already understand</p>
+              <p className="mt-2 text-gray-500">Connect new concepts to things you already understand</p>
             </div>
 
             {/* Main analogy */}
@@ -204,11 +204,11 @@ export function GuidedLearning({ challengeSlug, title, difficulty, onStartChalle
             </div>
 
             {/* Growth mindset message */}
-            <div className="flex items-start gap-4 rounded-xl bg-zinc-100 p-6 dark:bg-zinc-900">
+            <div className="flex items-start gap-4 rounded-xl bg-gray-100 p-6 dark:bg-gray-900">
               <span className="text-3xl">💪</span>
               <div>
-                <h4 className="font-semibold text-zinc-900 dark:text-zinc-100">Remember</h4>
-                <p className="mt-1 text-zinc-600 dark:text-zinc-400">
+                <h4 className="font-semibold text-gray-900 dark:text-gray-100">Remember</h4>
+                <p className="mt-1 text-gray-600 dark:text-gray-400">
                   {content.encouragement[Math.floor(Math.random() * content.encouragement.length)]}
                 </p>
               </div>
@@ -217,13 +217,13 @@ export function GuidedLearning({ challengeSlug, title, difficulty, onStartChalle
             <div className="flex gap-4">
               <button
                 onClick={() => setCurrentStage("motivation")}
-                className="rounded-xl border-2 border-zinc-200 px-6 py-4 font-medium text-zinc-600 transition-all hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-400"
+                className="rounded-xl border-2 border-gray-200 px-6 py-4 font-medium text-gray-600 transition-all duration-200-all duration-200 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-400 cursor-pointer"
               >
                 ← Back
               </button>
               <button
                 onClick={() => completeStage("analogy")}
-                className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 py-4 text-lg font-semibold text-white shadow-lg transition-all hover:from-violet-500 hover:to-indigo-500"
+                className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 py-4 text-lg font-semibold text-white shadow-lg transition-all duration-200-all duration-200 hover:from-violet-500 hover:to-indigo-500 cursor-pointer"
               >
                 Got It! Show Me An Example →
               </button>
@@ -235,26 +235,26 @@ export function GuidedLearning({ challengeSlug, title, difficulty, onStartChalle
         {currentStage === "example" && (
           <div className="space-y-8">
             <div>
-              <h3 className="flex items-center gap-3 text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+              <h3 className="flex items-center gap-3 text-2xl font-bold text-gray-900 dark:text-gray-100">
                 <span className="text-3xl">📖</span>
                 Worked Example
               </h3>
-              <p className="mt-2 text-zinc-500">Watch how an expert solves a similar problem</p>
+              <p className="mt-2 text-gray-500">Watch how an expert solves a similar problem</p>
             </div>
 
             {/* Problem statement */}
-            <div className="rounded-xl bg-zinc-100 p-6 dark:bg-zinc-900">
-              <h4 className="font-semibold text-zinc-900 dark:text-zinc-100">📋 Problem</h4>
-              <p className="mt-2 text-lg text-zinc-700 dark:text-zinc-300">{content.example.problem}</p>
+            <div className="rounded-xl bg-gray-100 p-6 dark:bg-gray-900">
+              <h4 className="font-semibold text-gray-900 dark:text-gray-100">📋 Problem</h4>
+              <p className="mt-2 text-lg text-gray-700 dark:text-gray-300">{content.example.problem}</p>
             </div>
 
             {/* Step-by-step solution */}
             <div className="space-y-4">
-              <h4 className="font-semibold text-zinc-900 dark:text-zinc-100">🔍 Solution Walkthrough</h4>
+              <h4 className="font-semibold text-gray-900 dark:text-gray-100">🔍 Solution Walkthrough</h4>
               
               {content.example.steps.map((step, i) => (
-                <div key={i} className="rounded-xl border border-zinc-200 overflow-hidden dark:border-zinc-800">
-                  <div className="bg-zinc-800 p-4">
+                <div key={i} className="rounded-xl border border-gray-200 overflow-hidden dark:border-gray-800">
+                  <div className="bg-[#7C3AED] p-4">
                     <code className="text-sm text-emerald-400">{step.code}</code>
                   </div>
                   <div className="bg-emerald-50 p-4 dark:bg-emerald-950/30">
@@ -283,13 +283,13 @@ export function GuidedLearning({ challengeSlug, title, difficulty, onStartChalle
             <div className="flex gap-4">
               <button
                 onClick={() => setCurrentStage("analogy")}
-                className="rounded-xl border-2 border-zinc-200 px-6 py-4 font-medium text-zinc-600 transition-all hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-400"
+                className="rounded-xl border-2 border-gray-200 px-6 py-4 font-medium text-gray-600 transition-all duration-200-all duration-200 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-400 cursor-pointer"
               >
                 ← Back
               </button>
               <button
                 onClick={() => completeStage("example")}
-                className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 py-4 text-lg font-semibold text-white shadow-lg transition-all hover:from-violet-500 hover:to-indigo-500"
+                className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 py-4 text-lg font-semibold text-white shadow-lg transition-all duration-200-all duration-200 hover:from-violet-500 hover:to-indigo-500 cursor-pointer"
               >
                 I Understand! Let Me Practice →
               </button>
@@ -301,11 +301,11 @@ export function GuidedLearning({ challengeSlug, title, difficulty, onStartChalle
         {currentStage === "practice" && (
           <div className="space-y-8">
             <div>
-              <h3 className="flex items-center gap-3 text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+              <h3 className="flex items-center gap-3 text-2xl font-bold text-gray-900 dark:text-gray-100">
                 <span className="text-3xl">✍️</span>
                 Guided Practice
               </h3>
-              <p className="mt-2 text-zinc-500">Apply what you've learned with training wheels</p>
+              <p className="mt-2 text-gray-500">Apply what you've learned with training wheels</p>
             </div>
 
             <div className="rounded-xl bg-indigo-50 p-6 dark:bg-indigo-950/30">
@@ -314,12 +314,12 @@ export function GuidedLearning({ challengeSlug, title, difficulty, onStartChalle
             </div>
 
             {/* Simplified practice area */}
-            <div className="rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-50 p-8 text-center dark:border-zinc-700 dark:bg-zinc-900">
+            <div className="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-8 text-center dark:border-gray-700 dark:bg-gray-900">
               <span className="text-5xl">🎯</span>
-              <h4 className="mt-4 text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+              <h4 className="mt-4 text-xl font-semibold text-gray-900 dark:text-gray-100">
                 Ready for the Challenge?
               </h4>
-              <p className="mt-2 text-zinc-500">
+              <p className="mt-2 text-gray-500">
                 You've built context, seen examples, and understand the pattern.<br/>
                 Now it's time to write the code yourself!
               </p>
@@ -352,7 +352,7 @@ export function GuidedLearning({ challengeSlug, title, difficulty, onStartChalle
             <div className="flex gap-4">
               <button
                 onClick={() => setCurrentStage("example")}
-                className="rounded-xl border-2 border-zinc-200 px-6 py-4 font-medium text-zinc-600 transition-all hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-400"
+                className="rounded-xl border-2 border-gray-200 px-6 py-4 font-medium text-gray-600 transition-all duration-200-all duration-200 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-400 cursor-pointer"
               >
                 ← Review Example
               </button>
@@ -361,7 +361,7 @@ export function GuidedLearning({ challengeSlug, title, difficulty, onStartChalle
                   completeStage("practice");
                   onStartChallenge?.();
                 }}
-                className="flex-1 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 py-4 text-lg font-semibold text-white shadow-lg transition-all hover:from-emerald-500 hover:to-teal-500"
+                className="flex-1 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 py-4 text-lg font-semibold text-white shadow-lg transition-all duration-200-all duration-200 hover:from-emerald-500 hover:to-teal-500 cursor-pointer"
               >
                 🚀 Start the Challenge!
               </button>
@@ -373,15 +373,15 @@ export function GuidedLearning({ challengeSlug, title, difficulty, onStartChalle
         {currentStage === "challenge" && (
           <div className="space-y-8 text-center">
             <span className="text-6xl">🎉</span>
-            <h3 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
               You're Ready!
             </h3>
-            <p className="text-lg text-zinc-600 dark:text-zinc-400">
+            <p className="text-lg text-gray-600 dark:text-gray-400">
               You've completed all preparation stages. Now tackle the full challenge with confidence!
             </p>
             <button
               onClick={onStartChallenge}
-              className="w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 py-4 text-lg font-semibold text-white shadow-lg transition-all hover:from-emerald-500 hover:to-teal-500"
+              className="w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 py-4 text-lg font-semibold text-white shadow-lg transition-all duration-200-all duration-200 hover:from-emerald-500 hover:to-teal-500 cursor-pointer"
             >
               Open Challenge Editor →
             </button>
@@ -394,7 +394,7 @@ export function GuidedLearning({ challengeSlug, title, difficulty, onStartChalle
 
 // Styling helper for creating a toggle button in parent components
 export const guidedLearningToggleStyles = {
-  enabled: "flex items-center gap-3 rounded-xl px-5 py-3 text-sm font-medium transition-all bg-violet-100 text-violet-700 ring-2 ring-violet-300 dark:bg-violet-950/50 dark:text-violet-300 dark:ring-violet-800",
-  disabled: "flex items-center gap-3 rounded-xl px-5 py-3 text-sm font-medium transition-all bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700",
+  enabled: "flex items-center gap-3 rounded-xl px-5 py-3 text-sm font-medium transition-all duration-200-all duration-200 bg-violet-100 text-violet-700 ring-2 ring-violet-300 dark:bg-violet-950/50 dark:text-violet-300 dark:ring-violet-800",
+  disabled: "flex items-center gap-3 rounded-xl px-5 py-3 text-sm font-medium transition-all duration-200-all duration-200 bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-[#7C3AED] dark:text-gray-400 dark:hover:bg-gray-700",
 };
 

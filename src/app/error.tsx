@@ -29,7 +29,7 @@ export default function ErrorBoundary({
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6 text-center">
         <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
           <svg
@@ -47,39 +47,39 @@ export default function ErrorBoundary({
           </svg>
         </div>
 
-        <h2 className="text-xl font-semibold text-zinc-900 mb-2">
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">
           Something went wrong
         </h2>
 
-        <p className="text-zinc-600 mb-6">
+        <p className="text-gray-600 mb-6">
           An unexpected error occurred. Please try refreshing the page.
         </p>
 
         <div className="space-y-3">
           <button
             onClick={reset}
-            className="w-full px-4 py-2 bg-zinc-900 text-white rounded-md hover:bg-zinc-800 transition-colors"
+            className="w-full px-4 py-2 bg-[#8B5CF6] text-white rounded-md hover:bg-[#7C3AED] transition-all duration-200-all duration-200 cursor-pointer"
           >
             Try again
           </button>
 
           <Link
             href="/"
-            className="block w-full px-4 py-2 border border-zinc-300 text-zinc-700 rounded-md hover:bg-zinc-50 transition-colors"
+            className="block w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-all duration-200-all duration-200 cursor-pointer"
           >
             Go to homepage
           </Link>
 
           <button
             onClick={copyError}
-            className="w-full px-4 py-2 text-sm text-zinc-500 hover:text-zinc-700 transition-colors"
+            className="w-full px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-all duration-200-all duration-200 cursor-pointer"
           >
             {copied ? "✓ Error copied!" : "Copy error details"}
           </button>
         </div>
 
         {error.digest && (
-          <p className="mt-4 text-xs text-zinc-400">
+          <p className="mt-4 text-xs text-gray-400">
             Error ID: {error.digest}
           </p>
         )}

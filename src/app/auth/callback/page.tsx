@@ -6,10 +6,10 @@ export default function AuthCallbackPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-zinc-50 text-zinc-950 dark:bg-black dark:text-zinc-50">
+        <div className="min-h-screen bg-gray-50 text-gray-950 dark:bg-black dark:text-gray-50">
           <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center px-6 py-16">
-            <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-[#7C3AED]">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Finishing sign-in…
               </p>
             </div>

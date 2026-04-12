@@ -96,7 +96,7 @@ export function getIDEShortcuts({
 // Keyboard shortcuts help modal
 export function KeyboardShortcutsHelp({ shortcuts }: { shortcuts: Shortcut[] }) {
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+    <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#7C3AED]">
       <h3 className="flex items-center gap-2 text-sm font-semibold">
         <span>⌨️</span> Keyboard Shortcuts
       </h3>
@@ -106,26 +106,26 @@ export function KeyboardShortcutsHelp({ shortcuts }: { shortcuts: Shortcut[] }) 
             key={shortcut.description}
             className="flex items-center justify-between text-xs"
           >
-            <span className="text-zinc-600 dark:text-zinc-400">
+            <span className="text-gray-600 dark:text-gray-400">
               {shortcut.description}
             </span>
             <div className="flex gap-1">
               {shortcut.ctrl && (
-                <kbd className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] dark:bg-zinc-800">
+                <kbd className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] dark:bg-[#7C3AED]">
                   Ctrl
                 </kbd>
               )}
               {shortcut.shift && (
-                <kbd className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] dark:bg-zinc-800">
+                <kbd className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] dark:bg-[#7C3AED]">
                   Shift
                 </kbd>
               )}
               {shortcut.alt && (
-                <kbd className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] dark:bg-zinc-800">
+                <kbd className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] dark:bg-[#7C3AED]">
                   Alt
                 </kbd>
               )}
-              <kbd className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] dark:bg-zinc-800">
+              <kbd className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] dark:bg-[#7C3AED]">
                 {shortcut.key === "Enter" ? "↵" : shortcut.key.toUpperCase()}
               </kbd>
             </div>
@@ -145,13 +145,13 @@ export function ShortcutHint({
   label: string;
 }) {
   return (
-    <span className="inline-flex items-center gap-1 text-xs text-zinc-400">
+    <span className="inline-flex items-center gap-1 text-xs text-gray-400">
       <span className="hidden sm:inline">{label}</span>
       <span className="hidden sm:flex gap-0.5">
         {keys.map((key) => (
           <kbd
             key={key}
-            className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-[10px] dark:bg-zinc-800"
+            className="rounded bg-gray-100 px-1 py-0.5 font-mono text-[10px] dark:bg-[#7C3AED]"
           >
             {key}
           </kbd>

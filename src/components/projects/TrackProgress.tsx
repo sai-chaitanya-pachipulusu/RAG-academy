@@ -77,13 +77,13 @@ export function TrackProgress({ trackId, trackTitle, challenges, userId }: Track
     <div className="mt-3 space-y-2">
       {/* Progress Bar */}
       <div className="flex items-center gap-3">
-        <div className="flex-1 h-2 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
+        <div className="flex-1 h-2 rounded-full bg-gray-200 dark:bg-[#7C3AED] overflow-hidden">
           <div
-            className="h-2 rounded-full bg-emerald-500 transition-all duration-300"
+            className="h-2 rounded-full bg-emerald-500 transition-all duration-200-all duration-300 cursor-pointer"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
-        <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400 whitespace-nowrap">
+        <span className="text-xs font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap">
           {progress?.completedChallenges ?? 0}/{challenges.length}
         </span>
       </div>
@@ -96,10 +96,10 @@ export function TrackProgress({ trackId, trackTitle, challenges, userId }: Track
             <Link
               key={c.slug}
               href={`/challenges/${c.slug}`}
-              className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+              className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-all duration-200-all duration-200 ${
                 isCompleted
                   ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300"
-                  : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+                  : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06]"
               }`}
             >
               {isCompleted ? "✓ " : ""}{c.label}
@@ -114,7 +114,7 @@ export function TrackProgress({ trackId, trackTitle, challenges, userId }: Track
           {certificateUrl ? (
             <Link
               href={certificateUrl}
-              className="inline-flex items-center gap-1.5 h-8 rounded-full bg-emerald-600 px-3 text-xs font-medium text-white hover:bg-emerald-700 transition-colors"
+              className="inline-flex items-center gap-1.5 h-8 rounded-full bg-emerald-600 px-3 text-xs font-medium text-white hover:bg-emerald-700 transition-all duration-200-all duration-200 cursor-pointer"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
@@ -125,7 +125,7 @@ export function TrackProgress({ trackId, trackTitle, challenges, userId }: Track
             <button
               onClick={handleGenerateCertificate}
               disabled={generatingCert}
-              className="inline-flex items-center gap-1.5 h-8 rounded-full bg-emerald-600 px-3 text-xs font-medium text-white hover:bg-emerald-700 transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 h-8 rounded-full bg-emerald-600 px-3 text-xs font-medium text-white hover:bg-emerald-700 transition-all duration-200-all duration-200 disabled:opacity-50 cursor-pointer"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />

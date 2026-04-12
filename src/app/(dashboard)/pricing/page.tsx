@@ -43,7 +43,7 @@ export default function PricingPage() {
       {/* Header */}
       <div className="text-center">
         <h1 className="text-2xl font-semibold tracking-tight">Pricing</h1>
-        <p className="mt-1 text-sm text-zinc-500">Invest in your RAG engineering skills.</p>
+        <p className="mt-1 text-sm text-gray-500">Invest in your RAG engineering skills.</p>
       </div>
 
       {/* Phase Banner */}
@@ -61,19 +61,19 @@ export default function PricingPage() {
       )}
 
       {/* Billing Toggle */}
-      <div className="inline-flex gap-1 rounded-full border border-zinc-200 bg-zinc-50 p-1 self-center">
+      <div className="inline-flex gap-1 rounded-full border border-gray-200 bg-gray-50 p-1 self-center">
         <button
           onClick={() => setBillingCycle("monthly")}
-          className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all ${
-            billingCycle === "monthly" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500"
+          className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all duration-200-all duration-200 ${
+            billingCycle === "monthly" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
           }`}
         >
           Monthly
         </button>
         <button
           onClick={() => setBillingCycle("annual")}
-          className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all ${
-            billingCycle === "annual" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500"
+          className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all duration-200-all duration-200 ${
+            billingCycle === "annual" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
           }`}
         >
           Annual
@@ -95,9 +95,9 @@ export default function PricingPage() {
       </div>
 
       {/* Comparison */}
-      <div className="rounded-lg border border-zinc-200 overflow-hidden">
+      <div className="rounded-lg border border-gray-200 overflow-hidden">
         <table className="w-full text-xs">
-          <thead className="bg-zinc-50">
+          <thead className="bg-gray-50">
             <tr>
               <th className="text-left py-2 px-3 font-medium">Platform</th>
               <th className="text-center py-2 px-2 font-medium">Monthly</th>
@@ -113,16 +113,16 @@ export default function PricingPage() {
               <td className="py-2 px-2 text-center"><span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">RAG Only</span></td>
             </tr>
             <tr>
-              <td className="py-2 px-3 text-zinc-600">LeetCode Premium</td>
-              <td className="py-2 px-2 text-center text-zinc-500">$35</td>
-              <td className="py-2 px-2 text-center text-zinc-500">$159</td>
-              <td className="py-2 px-2 text-center text-zinc-400">DSA</td>
+              <td className="py-2 px-3 text-gray-600">LeetCode Premium</td>
+              <td className="py-2 px-2 text-center text-gray-500">$35</td>
+              <td className="py-2 px-2 text-center text-gray-500">$159</td>
+              <td className="py-2 px-2 text-center text-gray-400">DSA</td>
             </tr>
             <tr>
-              <td className="py-2 px-3 text-zinc-600">Educative.io</td>
-              <td className="py-2 px-2 text-center text-zinc-500">$59</td>
-              <td className="py-2 px-2 text-center text-zinc-500">$199</td>
-              <td className="py-2 px-2 text-center text-zinc-400">General</td>
+              <td className="py-2 px-3 text-gray-600">Educative.io</td>
+              <td className="py-2 px-2 text-center text-gray-500">$59</td>
+              <td className="py-2 px-2 text-center text-gray-500">$199</td>
+              <td className="py-2 px-2 text-center text-gray-400">General</td>
             </tr>
           </tbody>
         </table>
@@ -139,23 +139,23 @@ export default function PricingPage() {
             { q: "What's in the free tier?", a: `${currentPhase.tiers.free.freeChallengeCount} challenges, playbooks, and tool comparisons.` },
             { q: "Refunds?", a: "14-day money-back guarantee, no questions asked." },
           ].map((faq) => (
-            <div key={faq.q} className="rounded-lg border border-zinc-200 p-3">
+            <div key={faq.q} className="rounded-lg border border-gray-200 p-3">
               <h3 className="text-sm font-medium">{faq.q}</h3>
-              <p className="mt-1 text-xs text-zinc-500">{faq.a}</p>
+              <p className="mt-1 text-xs text-gray-500">{faq.a}</p>
             </div>
           ))}
         </div>
       </div>
 
       {/* CTA */}
-      <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-6 text-center">
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-6 text-center">
         <h2 className="text-lg font-semibold">Ready to master RAG engineering?</h2>
-        <p className="mt-1 text-sm text-zinc-500">Join engineers building production-ready RAG systems.</p>
+        <p className="mt-1 text-sm text-gray-500">Join engineers building production-ready RAG systems.</p>
         <div className="mt-4 flex items-center justify-center gap-3">
-          <Link href={user ? "/challenges" : "/login"} className="inline-flex h-9 items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-medium text-white hover:bg-zinc-800">
+          <Link href={user ? "/challenges" : "/login"} className="inline-flex h-9 items-center justify-center rounded-full bg-[#8B5CF6] px-6 text-sm font-medium text-white hover:bg-[#7C3AED] cursor-pointer">
             {user ? "Start Learning" : "Start Free"}
           </Link>
-          <Link href="/learn" className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-200 px-6 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+          <Link href="/learn" className="inline-flex h-9 items-center justify-center rounded-full border border-gray-200 px-6 text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer">
             View Curriculum
           </Link>
         </div>
@@ -179,34 +179,34 @@ function PricingCard({ tier, billingCycle, isPopular, isLifetime, user }: Pricin
   const checkoutUrl = isFree ? (user ? "/learn" : "/login") : `/checkout?tier=${tier.id}&billing=${isLifetime ? "lifetime" : billingCycle}`;
 
   return (
-    <div className={`rounded-lg border p-4 ${isPopular ? "border-indigo-500 shadow-sm" : "border-zinc-200"}`}>
+    <div className={`rounded-lg border p-4 ${isPopular ? "border-indigo-500 shadow-sm" : "border-gray-200"}`}>
       {isPopular && <div className="mb-2"><span className="inline-flex rounded-full bg-indigo-600 px-2.5 py-0.5 text-[10px] font-semibold text-white">Most Popular</span></div>}
       {tier.badge && !isPopular && <div className="mb-2"><span className="inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">{tier.badge}</span></div>}
       <h3 className="text-sm font-semibold">{tier.name}</h3>
       <div className="mt-2">
         {isFree ? <span className="text-2xl font-bold">Free</span> : isLifetime ? (
           <div>
-            {tier.strikethrough && <div className="text-xs text-zinc-500 line-through">{tier.strikethrough}</div>}
+            {tier.strikethrough && <div className="text-xs text-gray-500 line-through">{tier.strikethrough}</div>}
             <span className="text-2xl font-bold">{displayPrice}</span>
-            <p className="text-[10px] text-zinc-500">One-time</p>
+            <p className="text-[10px] text-gray-500">One-time</p>
           </div>
         ) : (
           <div>
-            {tier.strikethrough && billingCycle === "monthly" && <div className="text-xs text-zinc-500 line-through">{tier.strikethrough}</div>}
-            <span className="text-2xl font-bold">{displayPrice}</span><span className="text-xs text-zinc-500">/mo</span>
+            {tier.strikethrough && billingCycle === "monthly" && <div className="text-xs text-gray-500 line-through">{tier.strikethrough}</div>}
+            <span className="text-2xl font-bold">{displayPrice}</span><span className="text-xs text-gray-500">/mo</span>
             {billingCycle === "annual" && <p className="text-[10px] text-emerald-600">{tier.price.displayAnnual}/yr (save {savings.savingsPercent}%)</p>}
           </div>
         )}
       </div>
       {tier.note && <p className="mt-2 text-[10px] text-amber-700 bg-amber-50 rounded p-2">{tier.note}</p>}
-      <Link href={checkoutUrl} className={`mt-3 block w-full rounded-lg py-2 text-center text-xs font-semibold ${isPopular ? "bg-indigo-600 text-white" : "border border-zinc-200 text-zinc-900 hover:bg-zinc-50"}`}>
+      <Link href={checkoutUrl} className={`mt-3 block w-full rounded-lg py-2 text-center text-xs font-semibold ${isPopular ? "bg-indigo-600 text-white" : "border border-gray-200 text-gray-900 hover:bg-gray-50"}`}>
         {isFree ? "Start Free" : isLifetime ? "Get Lifetime" : "Subscribe"}
       </Link>
       <ul className="mt-3 space-y-1.5">
         {tier.features.map((feature) => (
           <li key={feature} className="flex items-start gap-2">
             <svg className="h-3.5 w-3.5 flex-shrink-0 text-emerald-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-            <span className="text-[11px] text-zinc-600">{feature}</span>
+            <span className="text-[11px] text-gray-600">{feature}</span>
           </li>
         ))}
       </ul>

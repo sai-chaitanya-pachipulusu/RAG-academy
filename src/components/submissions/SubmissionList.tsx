@@ -94,16 +94,16 @@ export function SubmissionList({
               setCompareMode(!compareMode);
               setCompareSelection([]);
             }}
-            className={`text-sm font-medium transition-colors ${
+            className={`text-sm font-medium transition-all duration-200-all duration-200 ${
               compareMode
                 ? "text-indigo-600 dark:text-indigo-400"
-                : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+                : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
             }`}
           >
             {compareMode ? "Cancel Compare" : "Compare Submissions"}
           </button>
           {compareMode && (
-            <span className="text-sm text-zinc-500">
+            <span className="text-sm text-gray-500">
               Select 2 submissions ({compareSelection.length}/2)
             </span>
           )}
@@ -111,7 +111,7 @@ export function SubmissionList({
             <button
               type="button"
               onClick={handleCompareClick}
-              className="rounded-lg bg-indigo-600 px-3 py-1 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
+              className="rounded-lg bg-indigo-600 px-3 py-1 text-sm font-medium text-white hover:bg-indigo-700 transition-all duration-200-all duration-200 cursor-pointer"
             >
               Compare Selected
             </button>
@@ -137,12 +137,12 @@ export function SubmissionList({
                   onSelect(submission);
                 }
               }}
-              className={`group rounded-xl border transition-all cursor-pointer ${
+              className={`group rounded-xl border transition-all duration-200-all duration-200 cursor-pointer ${
                 isSelected
                   ? "border-indigo-500 bg-indigo-50/50 dark:border-indigo-400 dark:bg-indigo-950/20"
                   : isCompareSelected
                   ? "border-indigo-300 bg-indigo-50/30 dark:border-indigo-600 dark:bg-indigo-950/10"
-                  : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-white/20"
+                  : "border-gray-200 bg-white hover:border-gray-300 dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-white/20"
               }`}
             >
               <div className="flex items-center justify-between gap-4 p-4">
@@ -157,7 +157,7 @@ export function SubmissionList({
                   {/* Challenge name & status */}
                   <div className="min-w-0">
                     {showChallengeName && challenge && (
-                      <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                      <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
                         {challenge.title}
                       </p>
                     )}
@@ -166,13 +166,13 @@ export function SubmissionList({
                         className={`text-sm font-medium ${
                           submission.passed
                             ? "text-emerald-700 dark:text-emerald-400"
-                            : "text-zinc-700 dark:text-zinc-300"
+                            : "text-gray-700 dark:text-gray-300"
                         }`}
                       >
                         {config.label}
                       </span>
                       {submission.testsTotal > 0 && (
-                        <span className="text-xs text-zinc-500">
+                        <span className="text-xs text-gray-500">
                           ({submission.testsPassed}/{submission.testsTotal} tests)
                         </span>
                       )}
@@ -188,11 +188,11 @@ export function SubmissionList({
                     </Badge>
                   )}
                   {submission.executionTimeMs && (
-                    <span className="text-zinc-500 dark:text-zinc-400">
+                    <span className="text-gray-500 dark:text-gray-400">
                       {submission.executionTimeMs}ms
                     </span>
                   )}
-                  <span className="text-zinc-400 dark:text-zinc-500" title={formatDate(submission.submittedAt)}>
+                  <span className="text-gray-400 dark:text-gray-500" title={formatDate(submission.submittedAt)}>
                     {formatTimeAgo(submission.submittedAt)}
                   </span>
                   {compareMode && (
@@ -200,7 +200,7 @@ export function SubmissionList({
                       className={`h-5 w-5 rounded border-2 flex items-center justify-center ${
                         isCompareSelected
                           ? "border-indigo-500 bg-indigo-500 text-white"
-                          : "border-zinc-300 dark:border-zinc-600"
+                          : "border-gray-300 dark:border-gray-600"
                       }`}
                     >
                       {isCompareSelected && "✓"}
@@ -214,8 +214,8 @@ export function SubmissionList({
       </div>
 
       {submissions.length === 0 && (
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-8 text-center dark:border-white/10 dark:bg-white/[0.03]">
-          <p className="text-zinc-500 dark:text-zinc-400">No submissions found</p>
+        <div className="rounded-xl border border-gray-200 bg-gray-50 p-8 text-center dark:border-white/10 dark:bg-white/[0.03]">
+          <p className="text-gray-500 dark:text-gray-400">No submissions found</p>
         </div>
       )}
     </div>

@@ -62,11 +62,11 @@ export default function CompareRetrievalPage() {
   return (
     <div className="flex flex-col gap-6">
       <header>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">Compare / Retrieval</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">Compare / Retrieval</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">
           Retrieval techniques (what to use when)
         </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-7 text-zinc-600 dark:text-zinc-300">
+        <p className="mt-2 max-w-2xl text-sm leading-7 text-gray-600 dark:text-gray-300">
           Retrieval is the highest-leverage layer. If the right evidence isn’t in your candidate set,
           generation cannot fix it.
         </p>
@@ -76,14 +76,14 @@ export default function CompareRetrievalPage() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-medium">Production default</p>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
               Start with hybrid retrieval, then add reranking. Only reach for “frontier” techniques when you
               have measured failures.
             </p>
           </div>
           <Badge variant="accent">baseline</Badge>
         </div>
-        <ol className="mt-4 list-decimal space-y-2 pl-6 text-sm text-zinc-700 dark:text-zinc-300">
+        <ol className="mt-4 list-decimal space-y-2 pl-6 text-sm text-gray-700 dark:text-gray-300">
           <li>BM25 + dense retrieval</li>
           <li>Fuse candidates (RRF is the safest default)</li>
           <li>Rerank top‑20/50 → keep 5–10</li>
@@ -96,36 +96,36 @@ export default function CompareRetrievalPage() {
           <p className="text-sm font-medium">Technique comparison</p>
           <Badge variant="muted">quick matrix</Badge>
         </div>
-        <div className="overflow-x-auto border-t border-zinc-200 dark:border-white/10">
+        <div className="overflow-x-auto border-t border-gray-200 dark:border-white/10">
           <table className="w-full min-w-[880px] border-separate border-spacing-0 text-sm">
             <thead>
-              <tr className="text-left text-xs text-zinc-500 dark:text-zinc-400">
+              <tr className="text-left text-xs text-gray-500 dark:text-gray-400">
                 {["Technique", "Fixes", "Use when", "Tradeoffs", "Default?"].map((h) => (
                   <th
                     key={h}
-                    className="border-b border-zinc-200 px-3 py-2 dark:border-white/10"
+                    className="border-b border-gray-200 px-3 py-2 dark:border-white/10"
                   >
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="text-zinc-800 dark:text-zinc-200">
+            <tbody className="text-gray-800 dark:text-gray-200">
               {ROWS.map((r) => (
                 <tr key={r.technique}>
-                  <td className="border-b border-zinc-200 px-3 py-3 align-top font-medium text-zinc-950 dark:border-white/10 dark:text-zinc-50">
+                  <td className="border-b border-gray-200 px-3 py-3 align-top font-medium text-gray-950 dark:border-white/10 dark:text-gray-50">
                     {r.technique}
                   </td>
-                  <td className="border-b border-zinc-200 px-3 py-3 align-top dark:border-white/10">
+                  <td className="border-b border-gray-200 px-3 py-3 align-top dark:border-white/10">
                     {r.fixes}
                   </td>
-                  <td className="border-b border-zinc-200 px-3 py-3 align-top dark:border-white/10">
+                  <td className="border-b border-gray-200 px-3 py-3 align-top dark:border-white/10">
                     {r.when}
                   </td>
-                  <td className="border-b border-zinc-200 px-3 py-3 align-top dark:border-white/10">
+                  <td className="border-b border-gray-200 px-3 py-3 align-top dark:border-white/10">
                     {r.tradeoffs}
                   </td>
-                  <td className="border-b border-zinc-200 px-3 py-3 align-top dark:border-white/10">
+                  <td className="border-b border-gray-200 px-3 py-3 align-top dark:border-white/10">
                     {r.default === "yes" ? (
                       <Badge variant="accent">yes</Badge>
                     ) : r.default === "maybe" ? (
@@ -143,13 +143,13 @@ export default function CompareRetrievalPage() {
 
       <Card className="p-5">
         <p className="text-sm font-medium">Fusion methods (for hybrid)</p>
-        <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-zinc-700 dark:text-zinc-300">
+        <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-gray-700 dark:text-gray-300">
           <li>
-            <span className="font-medium text-zinc-950 dark:text-zinc-50">RRF (Reciprocal Rank Fusion)</span>: robust,
+            <span className="font-medium text-gray-950 dark:text-gray-50">RRF (Reciprocal Rank Fusion)</span>: robust,
             parameter-light. Best default when combining retrievers.
           </li>
           <li>
-            <span className="font-medium text-zinc-950 dark:text-zinc-50">Weighted score fusion</span>: can win when tuned,
+            <span className="font-medium text-gray-950 dark:text-gray-50">Weighted score fusion</span>: can win when tuned,
             but requires score normalization and careful evaluation.
           </li>
         </ul>
@@ -159,7 +159,7 @@ export default function CompareRetrievalPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="p-5">
           <p className="mb-4 text-sm font-medium">RRF Fusion Animation</p>
-          <p className="mb-4 text-xs text-zinc-600 dark:text-zinc-400">
+          <p className="mb-4 text-xs text-gray-600 dark:text-gray-400">
             Watch how RRF combines rankings from BM25 and dense retrieval.
           </p>
           <RRFFusionAnimator />
@@ -167,7 +167,7 @@ export default function CompareRetrievalPage() {
         
         <Card className="p-5">
           <p className="mb-4 text-sm font-medium">Retrieval Score Heatmap</p>
-          <p className="mb-4 text-xs text-zinc-600 dark:text-zinc-400">
+          <p className="mb-4 text-xs text-gray-600 dark:text-gray-400">
             Visualize how queries match different documents.
           </p>
           <RetrievalHeatmap />
@@ -179,37 +179,37 @@ export default function CompareRetrievalPage() {
         <div className="mt-3 flex flex-wrap gap-2">
           <Link
             href="/challenges/bm25-from-scratch"
-            className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+            className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06] cursor-pointer"
           >
             BM25 from Scratch
           </Link>
           <Link
             href="/challenges/bm25-field-boosting"
-            className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+            className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06] cursor-pointer"
           >
             BM25 Field Boosting
           </Link>
           <Link
             href="/challenges/rrf-fusion"
-            className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+            className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06] cursor-pointer"
           >
             RRF Fusion
           </Link>
           <Link
             href="/challenges/weighted-rrf-fusion"
-            className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+            className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06] cursor-pointer"
           >
             Weighted RRF Fusion
           </Link>
           <Link
             href="/challenges/hyde-search"
-            className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+            className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06] cursor-pointer"
           >
             HyDE Search
           </Link>
           <Link
             href="/playbooks/rag-techniques-encyclopedia"
-            className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+            className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06] cursor-pointer"
           >
             Technique encyclopedia →
           </Link>

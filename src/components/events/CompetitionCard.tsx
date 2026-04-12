@@ -113,10 +113,10 @@ export function CompetitionCard({
                 {TYPE_ICONS[competition.type]}
               </div>
               <div>
-                <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100">
                   {competition.title}
                 </h3>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-gray-500">
                   Ends in {timeLeft.days}d {timeLeft.hours}h
                 </p>
               </div>
@@ -155,24 +155,24 @@ export function CompetitionCard({
       <div className="p-6">
         {/* Info Grid */}
         <div className="mb-6 grid grid-cols-3 gap-4">
-          <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-900">
-            <Clock className="mb-1 h-4 w-4 text-zinc-500" />
-            <p className="text-xs text-zinc-500">Time Remaining</p>
-            <p className="font-semibold text-zinc-900 dark:text-zinc-100">
+          <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-900">
+            <Clock className="mb-1 h-4 w-4 text-gray-500" />
+            <p className="text-xs text-gray-500">Time Remaining</p>
+            <p className="font-semibold text-gray-900 dark:text-gray-100">
               {timeLeft.days}d {timeLeft.hours}h {timeLeft.minutes}m
             </p>
           </div>
-          <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-900">
-            <Target className="mb-1 h-4 w-4 text-zinc-500" />
-            <p className="text-xs text-zinc-500">Challenges</p>
-            <p className="font-semibold text-zinc-900 dark:text-zinc-100">
+          <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-900">
+            <Target className="mb-1 h-4 w-4 text-gray-500" />
+            <p className="text-xs text-gray-500">Challenges</p>
+            <p className="font-semibold text-gray-900 dark:text-gray-100">
               {competition.challengeSlugs.length}
             </p>
           </div>
-          <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-900">
-            <Trophy className="mb-1 h-4 w-4 text-zinc-500" />
-            <p className="text-xs text-zinc-500">Scoring</p>
-            <p className="font-semibold text-zinc-900 dark:text-zinc-100 capitalize">
+          <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-900">
+            <Trophy className="mb-1 h-4 w-4 text-gray-500" />
+            <p className="text-xs text-gray-500">Scoring</p>
+            <p className="font-semibold text-gray-900 dark:text-gray-100 capitalize">
               {competition.scoringType.replace("_", " ")}
             </p>
           </div>
@@ -180,7 +180,7 @@ export function CompetitionCard({
 
         {/* Challenges List */}
         <div className="mb-6">
-          <h4 className="mb-3 font-medium text-zinc-900 dark:text-zinc-100">
+          <h4 className="mb-3 font-medium text-gray-900 dark:text-gray-100">
             Featured Challenges
           </h4>
           <div className="flex flex-wrap gap-2">
@@ -188,7 +188,7 @@ export function CompetitionCard({
               <Link
                 key={slug}
                 href={`/challenges/${slug}`}
-                className="rounded-full bg-indigo-50 px-3 py-1 text-sm text-indigo-700 transition-colors hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300"
+                className="rounded-full bg-indigo-50 px-3 py-1 text-sm text-indigo-700 transition-all duration-200-all duration-200 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300 cursor-pointer"
               >
                 {slug.replace(/-/g, " ")}
               </Link>
@@ -199,14 +199,14 @@ export function CompetitionCard({
         {/* Leaderboard Preview */}
         {showLeaderboard && leaderboard.length > 0 && (
           <div className="mb-6">
-            <h4 className="mb-3 font-medium text-zinc-900 dark:text-zinc-100">
+            <h4 className="mb-3 font-medium text-gray-900 dark:text-gray-100">
               Top Performers
             </h4>
             <div className="space-y-2">
               {leaderboard.slice(0, 3).map((entry) => (
                 <div
                   key={entry.userId}
-                  className="flex items-center justify-between rounded-lg bg-zinc-50 p-3 dark:bg-zinc-900"
+                  className="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-gray-900"
                 >
                   <div className="flex items-center gap-3">
                     <span
@@ -214,19 +214,19 @@ export function CompetitionCard({
                         entry.rank === 1
                           ? "bg-amber-100 text-amber-700"
                           : entry.rank === 2
-                          ? "bg-zinc-200 text-zinc-700"
+                          ? "bg-gray-200 text-gray-700"
                           : entry.rank === 3
                           ? "bg-orange-100 text-orange-700"
-                          : "bg-zinc-100 text-zinc-600"
+                          : "bg-gray-100 text-gray-600"
                       }`}
                     >
                       {entry.rank}
                     </span>
-                    <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                    <span className="font-medium text-gray-900 dark:text-gray-100">
                       {entry.username || `User ${entry.userId.slice(0, 6)}`}
                     </span>
                   </div>
-                  <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">
                     {entry.score.toLocaleString()}
                   </span>
                 </div>
@@ -241,7 +241,7 @@ export function CompetitionCard({
             <TouchButton
               onClick={handleRegister}
               disabled={!registrationStatus.can || isRegistering || isRegistered}
-              className="flex-1 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+              className="flex-1 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
             >
               {isRegistered
                 ? "Registered!"
@@ -254,7 +254,7 @@ export function CompetitionCard({
           )}
           {competition.status === "active" && (
             <Link href={`/competitions/${competition.id}`} className="flex-1">
-              <TouchButton className="w-full bg-indigo-600 text-white hover:bg-indigo-700">
+              <TouchButton className="w-full bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer">
                 View Competition
                 <ArrowRight className="ml-2 h-4 w-4" />
               </TouchButton>
@@ -296,7 +296,7 @@ export function WeeklyEventCard({ event, isCurrent = false }: WeeklyEventCardPro
             <span className="mb-2 inline-block rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
               {event.theme}
             </span>
-            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
               {event.challengeTitle}
             </h3>
           </div>
@@ -307,13 +307,13 @@ export function WeeklyEventCard({ event, isCurrent = false }: WeeklyEventCardPro
           </div>
         </div>
 
-        <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
           {event.description}
         </p>
 
         {isCurrent && (
-          <div className="mb-4 rounded-lg bg-zinc-50 p-3 dark:bg-zinc-900">
-            <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+          <div className="mb-4 rounded-lg bg-gray-50 p-3 dark:bg-gray-900">
+            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
               <Clock className="h-4 w-4" />
               <span>
                 Ends in {timeLeft.days}d {timeLeft.hours}h {timeLeft.minutes}m
@@ -371,8 +371,8 @@ export function CompetitionLeaderboard({ competitionId }: CompetitionLeaderboard
 
   return (
     <Card>
-      <div className="border-b border-zinc-200 bg-zinc-50 px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <h3 className="flex items-center gap-2 font-semibold text-zinc-900 dark:text-zinc-100">
+      <div className="border-b border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
+        <h3 className="flex items-center gap-2 font-semibold text-gray-900 dark:text-gray-100">
           <Trophy className="h-5 w-5 text-amber-500" />
           Leaderboard
         </h3>
@@ -389,10 +389,10 @@ export function CompetitionLeaderboard({ competitionId }: CompetitionLeaderboard
                   entry.rank === 1
                     ? "bg-amber-100 text-amber-700"
                     : entry.rank === 2
-                    ? "bg-zinc-200 text-zinc-700"
+                    ? "bg-gray-200 text-gray-700"
                     : entry.rank === 3
                     ? "bg-orange-100 text-orange-700"
-                    : "bg-zinc-100 text-zinc-600"
+                    : "bg-gray-100 text-gray-600"
                 }`}
               >
                 {entry.rank <= 3 ? (
@@ -409,20 +409,20 @@ export function CompetitionLeaderboard({ competitionId }: CompetitionLeaderboard
                     className="h-8 w-8 rounded-full object-cover"
                   />
                 ) : (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-200 dark:bg-zinc-700">
-                    <Users className="h-4 w-4 text-zinc-500" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700">
+                    <Users className="h-4 w-4 text-gray-500" />
                   </div>
                 )}
-                <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                <span className="font-medium text-gray-900 dark:text-gray-100">
                   {entry.username || `User ${entry.userId.slice(0, 6)}`}
                 </span>
               </div>
             </div>
             <div className="text-right">
-              <p className="font-bold text-zinc-900 dark:text-zinc-100">
+              <p className="font-bold text-gray-900 dark:text-gray-100">
                 {entry.score.toLocaleString()}
               </p>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-gray-500">
                 {entry.challengesCompleted} challenges
               </p>
             </div>
@@ -431,8 +431,8 @@ export function CompetitionLeaderboard({ competitionId }: CompetitionLeaderboard
 
         {leaderboard.length === 0 && (
           <div className="p-8 text-center">
-            <Trophy className="mx-auto mb-4 h-12 w-12 text-zinc-300" />
-            <p className="text-zinc-500">No entries yet. Be the first!</p>
+            <Trophy className="mx-auto mb-4 h-12 w-12 text-gray-300" />
+            <p className="text-gray-500">No entries yet. Be the first!</p>
           </div>
         )}
       </div>

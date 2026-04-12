@@ -95,7 +95,7 @@ export function Breadcrumbs() {
           <li key={item.href} className="flex items-center">
             {index > 0 && (
               <svg
-                className="mx-2 h-4 w-4 text-zinc-300 dark:text-zinc-700"
+                className="mx-2 h-4 w-4 text-gray-300 dark:text-gray-700"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -109,13 +109,13 @@ export function Breadcrumbs() {
               </svg>
             )}
             {item.current ? (
-              <span className="font-medium text-zinc-900 dark:text-zinc-100">
+              <span className="font-medium text-gray-900 dark:text-gray-100">
                 {item.label}
               </span>
             ) : (
               <Link
                 href={item.href}
-                className="text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                className="text-gray-500 transition-all duration-200-all duration-200 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 cursor-pointer"
               >
                 {item.label}
               </Link>
@@ -146,7 +146,7 @@ export function BreadcrumbsCompact() {
     <div className="flex items-center gap-2 text-sm">
       <Link
         href={parentPath}
-        className="flex items-center gap-1 text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+        className="flex items-center gap-1 text-gray-500 transition-all duration-200-all duration-200 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 cursor-pointer"
       >
         <svg
           className="h-4 w-4"
@@ -163,8 +163,8 @@ export function BreadcrumbsCompact() {
         </svg>
         {formatSlug(parentSegment)}
       </Link>
-      <span className="text-zinc-300 dark:text-zinc-700">/</span>
-      <span className="font-medium text-zinc-900 dark:text-zinc-100">
+      <span className="text-gray-300 dark:text-gray-700">/</span>
+      <span className="font-medium text-gray-900 dark:text-gray-100">
         {formatSlug(currentSegment)}
       </span>
     </div>

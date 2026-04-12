@@ -203,8 +203,8 @@ export default function EmailSettingsPage() {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900"></div>
-          <p className="text-zinc-600">Loading preferences...</p>
+          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-zinc-900"></div>
+          <p className="text-gray-600">Loading preferences...</p>
         </div>
       </div>
     );
@@ -217,7 +217,7 @@ export default function EmailSettingsPage() {
           <p className="text-red-600">Failed to load email preferences</p>
           <button
             onClick={loadPreferences}
-            className="mt-4 rounded-lg bg-zinc-900 px-4 py-2 text-white hover:bg-zinc-800"
+            className="mt-4 rounded-lg bg-[#8B5CF6] px-4 py-2 text-white hover:bg-[#7C3AED] cursor-pointer"
           >
             Try Again
           </button>
@@ -233,8 +233,8 @@ export default function EmailSettingsPage() {
     <div className="mx-auto max-w-4xl px-4 py-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-zinc-900">Email Settings</h1>
-        <p className="mt-2 text-zinc-600">
+        <h1 className="text-3xl font-bold text-gray-900">Email Settings</h1>
+        <p className="mt-2 text-gray-600">
           Manage your email preferences and notification settings
         </p>
       </div>
@@ -264,21 +264,21 @@ export default function EmailSettingsPage() {
       )}
 
       {/* Schedule Settings */}
-      <section className="mb-8 rounded-xl border border-zinc-200 bg-white p-6">
-        <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold text-zinc-900">
+      <section className="mb-8 rounded-xl border border-gray-200 bg-white p-6">
+        <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold text-gray-900">
           <span>⏰</span>
           Daily Reminder Schedule
         </h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-700">
+            <label className="mb-2 block text-sm font-medium text-gray-700">
               Preferred Time
             </label>
             <select
               value={preferences.preferred_time}
               onChange={(e) => handleTimeChange("preferred_time", e.target.value)}
               disabled={saving || preferences.unsubscribed_all}
-              className="w-full rounded-lg border border-zinc-300 px-4 py-2 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 disabled:bg-zinc-100"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-[#8B5CF6]900 focus:outline-none focus:ring-1 focus:ring-[#8B5CF6]900 disabled:bg-gray-100"
             >
               {generateTimeOptions().map((option) => (
                 <option key={option.value} value={option.value}>
@@ -286,19 +286,19 @@ export default function EmailSettingsPage() {
                 </option>
               ))}
             </select>
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-1 text-xs text-gray-500">
               When you'll receive daily streak reminders
             </p>
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-700">
+            <label className="mb-2 block text-sm font-medium text-gray-700">
               Timezone
             </label>
             <select
               value={preferences.timezone}
               onChange={(e) => handleTimeChange("timezone", e.target.value)}
               disabled={saving || preferences.unsubscribed_all}
-              className="w-full rounded-lg border border-zinc-300 px-4 py-2 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 disabled:bg-zinc-100"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-[#8B5CF6]900 focus:outline-none focus:ring-1 focus:ring-[#8B5CF6]900 disabled:bg-gray-100"
             >
               {timezones.map((tz) => (
                 <option key={tz} value={tz}>
@@ -311,8 +311,8 @@ export default function EmailSettingsPage() {
       </section>
 
       {/* Notification Settings */}
-      <section className="mb-8 rounded-xl border border-zinc-200 bg-white p-6">
-        <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold text-zinc-900">
+      <section className="mb-8 rounded-xl border border-gray-200 bg-white p-6">
+        <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold text-gray-900">
           <span>🔔</span>
           Notifications
         </h2>
@@ -320,13 +320,13 @@ export default function EmailSettingsPage() {
           {notificationSettings.map((setting) => (
             <div
               key={setting.key}
-              className="flex items-start justify-between rounded-lg border border-zinc-100 p-4 hover:bg-zinc-50"
+              className="flex items-start justify-between rounded-lg border border-gray-100 p-4 hover:bg-gray-50 cursor-pointer"
             >
               <div className="flex items-start gap-3">
                 <span className="text-2xl">{setting.icon}</span>
                 <div>
-                  <h3 className="font-medium text-zinc-900">{setting.label}</h3>
-                  <p className="text-sm text-zinc-600">{setting.description}</p>
+                  <h3 className="font-medium text-gray-900">{setting.label}</h3>
+                  <p className="text-sm text-gray-600">{setting.description}</p>
                 </div>
               </div>
               <label className="relative inline-flex cursor-pointer items-center">
@@ -337,8 +337,8 @@ export default function EmailSettingsPage() {
                   disabled={preferences.unsubscribed_all}
                   className="peer sr-only"
                 />
-                <div className="h-6 w-11 rounded-full bg-zinc-200 peer-checked:bg-zinc-900 peer-focus:ring-2 peer-focus:ring-zinc-300 peer-disabled:opacity-50"></div>
-                <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition peer-checked:translate-x-5"></div>
+                <div className="h-6 w-11 rounded-full bg-gray-200 peer-checked:bg-gray-900 peer-focus:ring-2 peer-focus:ring-[#8B5CF6]300 peer-disabled:opacity-50"></div>
+                <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition peer-checked:translate-x-5 cursor-pointer"></div>
               </label>
             </div>
           ))}
@@ -346,8 +346,8 @@ export default function EmailSettingsPage() {
       </section>
 
       {/* Marketing Settings */}
-      <section className="mb-8 rounded-xl border border-zinc-200 bg-white p-6">
-        <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold text-zinc-900">
+      <section className="mb-8 rounded-xl border border-gray-200 bg-white p-6">
+        <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold text-gray-900">
           <span>📬</span>
           Marketing & Updates
         </h2>
@@ -355,13 +355,13 @@ export default function EmailSettingsPage() {
           {marketingSettings.map((setting) => (
             <div
               key={setting.key}
-              className="flex items-start justify-between rounded-lg border border-zinc-100 p-4 hover:bg-zinc-50"
+              className="flex items-start justify-between rounded-lg border border-gray-100 p-4 hover:bg-gray-50 cursor-pointer"
             >
               <div className="flex items-start gap-3">
                 <span className="text-2xl">{setting.icon}</span>
                 <div>
-                  <h3 className="font-medium text-zinc-900">{setting.label}</h3>
-                  <p className="text-sm text-zinc-600">{setting.description}</p>
+                  <h3 className="font-medium text-gray-900">{setting.label}</h3>
+                  <p className="text-sm text-gray-600">{setting.description}</p>
                 </div>
               </div>
               <label className="relative inline-flex cursor-pointer items-center">
@@ -372,8 +372,8 @@ export default function EmailSettingsPage() {
                   disabled={preferences.unsubscribed_all}
                   className="peer sr-only"
                 />
-                <div className="h-6 w-11 rounded-full bg-zinc-200 peer-checked:bg-zinc-900 peer-focus:ring-2 peer-focus:ring-zinc-300 peer-disabled:opacity-50"></div>
-                <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition peer-checked:translate-x-5"></div>
+                <div className="h-6 w-11 rounded-full bg-gray-200 peer-checked:bg-gray-900 peer-focus:ring-2 peer-focus:ring-[#8B5CF6]300 peer-disabled:opacity-50"></div>
+                <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition peer-checked:translate-x-5 cursor-pointer"></div>
               </label>
             </div>
           ))}
@@ -381,23 +381,23 @@ export default function EmailSettingsPage() {
       </section>
 
       {/* Email Previews */}
-      <section className="mb-8 rounded-xl border border-zinc-200 bg-white p-6">
-        <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold text-zinc-900">
+      <section className="mb-8 rounded-xl border border-gray-200 bg-white p-6">
+        <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold text-gray-900">
           <span>👁️</span>
           Email Previews
         </h2>
-        <p className="mb-4 text-sm text-zinc-600">
+        <p className="mb-4 text-sm text-gray-600">
           See what each email type looks like
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
           {emailSettings.slice(0, 4).map((setting) => (
             <button
               key={`preview-${setting.key}`}
-              className="flex items-center gap-3 rounded-lg border border-zinc-200 p-3 text-left transition hover:border-zinc-400 hover:bg-zinc-50"
+              className="flex items-center gap-3 rounded-lg border border-gray-200 p-3 text-left transition hover:border-gray-400 hover:bg-gray-50 cursor-pointer"
               onClick={() => alert(`Preview for ${setting.label} would open in a modal`)}
             >
               <span className="text-xl">{setting.icon}</span>
-              <span className="text-sm font-medium text-zinc-700">{setting.label}</span>
+              <span className="text-sm font-medium text-gray-700">{setting.label}</span>
             </button>
           ))}
         </div>
@@ -415,7 +415,7 @@ export default function EmailSettingsPage() {
           <button
             onClick={() => handleToggle("unsubscribed_all")}
             disabled={saving}
-            className="rounded-lg bg-zinc-900 px-6 py-2 text-white transition hover:bg-zinc-800 disabled:opacity-50"
+            className="rounded-lg bg-[#8B5CF6] px-6 py-2 text-white transition hover:bg-[#7C3AED] disabled:opacity-50 cursor-pointer"
           >
             Resubscribe to Emails
           </button>
@@ -423,7 +423,7 @@ export default function EmailSettingsPage() {
           <button
             onClick={handleUnsubscribeAll}
             disabled={saving}
-            className="rounded-lg bg-red-600 px-6 py-2 text-white transition hover:bg-red-700 disabled:opacity-50"
+            className="rounded-lg bg-red-600 px-6 py-2 text-white transition hover:bg-red-700 disabled:opacity-50 cursor-pointer"
           >
             Unsubscribe from All
           </button>

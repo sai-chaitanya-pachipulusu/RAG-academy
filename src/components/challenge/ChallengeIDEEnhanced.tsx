@@ -69,7 +69,7 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
   if (!isFree && subscriptionLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-zinc-200 border-t-zinc-900" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-zinc-900" />
       </div>
     );
   }
@@ -337,12 +337,12 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
         <div>
           <Link
             href="/challenges"
-            className="text-xs font-medium text-zinc-950 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-500 dark:text-zinc-50 dark:decoration-white/25 dark:hover:decoration-white/50"
+            className="text-xs font-medium text-gray-950 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-500 dark:text-gray-50 dark:decoration-white/25 dark:hover:decoration-white/50 cursor-pointer"
           >
             Challenges →
           </Link>
-          <span className="px-2 text-xs text-zinc-400">/</span>
-          <span className="text-xs text-zinc-500 dark:text-zinc-400">
+          <span className="px-2 text-xs text-gray-400">/</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">
             {cleanGroupLabel(challenge.group)}
           </span>
         </div>
@@ -357,7 +357,7 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
                 Benchmark
               </Badge>
             )}
-            <span className="rounded-full border border-zinc-200 px-2 py-0.5 text-xs text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
+            <span className="rounded-full border border-gray-200 px-2 py-0.5 text-xs text-gray-600 dark:border-gray-800 dark:text-gray-400">
               {challenge.difficulty} · {challenge.xpReward} XP
             </span>
             {completed ? (
@@ -367,7 +367,7 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
             ) : null}
           </div>
         </div>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="text-sm text-gray-600 dark:text-gray-400">
           {challenge.description}
         </p>
 
@@ -375,25 +375,25 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
         {(challenge.realWorld || challenge.complexity) && (
           <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {challenge.complexity && (
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-2.5 dark:border-zinc-800 dark:bg-zinc-900/50">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Complexity</p>
+              <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-2.5 dark:border-gray-800 dark:bg-gray-900/50">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Complexity</p>
                 <div className="mt-1 flex flex-wrap gap-2">
-                  <code className="rounded bg-zinc-200/80 px-1.5 py-0.5 text-xs font-medium text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
+                  <code className="rounded bg-gray-200/80 px-1.5 py-0.5 text-xs font-medium text-gray-800 dark:bg-[#7C3AED] dark:text-gray-200">
                     Time: {challenge.complexity.time}
                   </code>
-                  <code className="rounded bg-zinc-200/80 px-1.5 py-0.5 text-xs font-medium text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
+                  <code className="rounded bg-gray-200/80 px-1.5 py-0.5 text-xs font-medium text-gray-800 dark:bg-[#7C3AED] dark:text-gray-200">
                     Space: {challenge.complexity.space}
                   </code>
                 </div>
                 {challenge.complexity.latency && (
-                  <p className="mt-1.5 text-[11px] text-zinc-500">⚡ {challenge.complexity.latency}</p>
+                  <p className="mt-1.5 text-[11px] text-gray-500">⚡ {challenge.complexity.latency}</p>
                 )}
               </div>
             )}
 
             {challenge.realWorld?.companies && challenge.realWorld.companies.length > 0 && (
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-2.5 dark:border-zinc-800 dark:bg-zinc-900/50">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Used By</p>
+              <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-2.5 dark:border-gray-800 dark:bg-gray-900/50">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Used By</p>
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   {challenge.realWorld.companies.map((company) => (
                     <span
@@ -408,8 +408,8 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
             )}
 
             {challenge.realWorld?.useCases && challenge.realWorld.useCases.length > 0 && (
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-2.5 dark:border-zinc-800 dark:bg-zinc-900/50">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Use Cases</p>
+              <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-2.5 dark:border-gray-800 dark:bg-gray-900/50">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Use Cases</p>
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   {challenge.realWorld.useCases.map((useCase) => (
                     <span
@@ -428,7 +428,7 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
 
       {/* Problem Description */}
       {children ? (
-        <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+        <section className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
           {children}
         </section>
       ) : null}
@@ -460,7 +460,7 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
       )}
 
       {/* IDE Section */}
-      <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
         {/* IDE Toolbar */}
         <IDEToolbar
           fontSize={fontSize}
@@ -484,7 +484,7 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
         {/* Editor + Output Area */}
         <div className={`${layout === "split" ? "grid lg:grid-cols-2" : "flex flex-col"}`}>
           {/* Code Editor */}
-          <div className={`${layout === "split" ? "border-r border-zinc-200 dark:border-zinc-800" : ""}`}>
+          <div className={`${layout === "split" ? "border-r border-gray-200 dark:border-gray-800" : ""}`}>
             <CodeEditor
               value={code}
               onChange={setCode}
@@ -499,7 +499,7 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
           </div>
 
           {/* Output Panel */}
-          <div className={`${layout === "stacked" ? "border-t border-zinc-200 dark:border-zinc-800" : ""}`}>
+          <div className={`${layout === "stacked" ? "border-t border-gray-200 dark:border-gray-800" : ""}`}>
             <div style={{ height: layout === "split" ? "clamp(500px, 60vh, 800px)" : "300px" }}>
               {stderr ? (
                 <div className="h-full overflow-auto p-4">
@@ -521,12 +521,12 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
 
         {/* Visual Output (if present) */}
         {meta?.visuals && (
-          <div className="border-t border-zinc-200 p-4 dark:border-zinc-800">
-            <p className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">Visual Output</p>
+          <div className="border-t border-gray-200 p-4 dark:border-gray-800">
+            <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Visual Output</p>
             {meta.visuals.type === "retrieval" ? (
               <RetrievalVisualizer data={meta.visuals} />
             ) : (
-              <pre className="overflow-auto rounded-lg bg-zinc-100 p-3 text-xs dark:bg-zinc-800">
+              <pre className="overflow-auto rounded-lg bg-gray-100 p-3 text-xs dark:bg-[#7C3AED]">
                 {JSON.stringify(meta.visuals, null, 2)}
               </pre>
             )}
@@ -534,14 +534,14 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
         )}
 
         {/* Status Bar */}
-        <div className="flex items-center justify-between border-t border-zinc-200 bg-zinc-50 px-4 py-2 dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+        <div className="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-4 py-2 dark:border-gray-800 dark:bg-gray-900">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             Status: {status.replace("_", " ")}
             {typeof progress?.attempts === "number" && progress.attempts > 0
               ? ` · attempts: ${progress.attempts}`
               : ""}
           </p>
-          <div className="flex items-center gap-2 text-xs text-zinc-500">
+          <div className="flex items-center gap-2 text-xs text-gray-500">
             <span>Python 3.11</span>
             <span>•</span>
             <span>Pyodide</span>
@@ -550,7 +550,7 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
       </section>
 
       {/* Hints Section */}
-      <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+      <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-800">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm font-medium">Hints</p>
           <button
@@ -561,19 +561,19 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
               )
             }
             disabled={revealedHints >= challenge.hints.length}
-            className="inline-flex h-8 items-center justify-center rounded-full border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-950 hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50 dark:hover:bg-zinc-900"
+            className="inline-flex h-8 items-center justify-center rounded-full border border-gray-200 bg-white px-3 text-xs font-medium text-gray-950 hover:bg-gray-50 disabled:opacity-60 dark:border-gray-800 dark:bg-[#7C3AED] dark:text-gray-50 dark:hover:bg-gray-900 cursor-pointer"
           >
             Reveal hint ({revealedHints}/{challenge.hints.length})
           </button>
         </div>
 
-        <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm text-zinc-700 dark:text-zinc-300">
+        <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm text-gray-700 dark:text-gray-300">
           {challenge.hints.slice(0, revealedHints).map((hint) => (
             <li key={hint}>{hint}</li>
           ))}
         </ol>
         {revealedHints === 0 ? (
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             Stuck? Reveal hints progressively.
           </p>
         ) : null}
@@ -590,7 +590,7 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
                 </p>
                 <button
                   onClick={() => setShowDiffView(false)}
-                  className="text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
+                  className="text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 cursor-pointer"
                 >
                   Hide diff
                 </button>
@@ -613,12 +613,12 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
                   </p>
                   <button
                     onClick={() => setShowDiffView(true)}
-                    className="text-xs font-medium text-emerald-700 underline hover:text-emerald-800 dark:text-emerald-300"
+                    className="text-xs font-medium text-emerald-700 underline hover:text-emerald-800 dark:text-emerald-300 cursor-pointer"
                   >
                     Compare with your code →
                   </button>
                 </div>
-                <pre className="overflow-x-auto rounded-lg bg-zinc-900 p-3 text-xs text-zinc-100">
+                <pre className="overflow-x-auto rounded-lg bg-gray-900 p-3 text-xs text-gray-100">
                   <code>{challenge.solution}</code>
                 </pre>
               </div>
@@ -640,14 +640,14 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
       <section className="grid gap-2 sm:grid-cols-2">
         {prev ? (
           <CardLink href={`/challenges/${prev.slug}`}>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Previous challenge</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Previous challenge</p>
             <p className="mt-1 text-sm font-medium">{prev.title}</p>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{prev.group}</p>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{prev.group}</p>
           </CardLink>
         ) : (
           <Card>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Previous challenge</p>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Previous challenge</p>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
               You're at the start of the challenge track.
             </p>
           </Card>
@@ -655,26 +655,26 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
 
         {next ? (
           <CardLink href={`/challenges/${next.slug}`}>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Next challenge</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Next challenge</p>
             <p className="mt-1 text-sm font-medium">{next.title}</p>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{next.group}</p>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{next.group}</p>
           </CardLink>
         ) : (
           <Card>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Next challenge</p>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Next challenge</p>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
               End of list. Browse all challenges or follow the Study Plan.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Link
                 href="/challenges"
-                className="text-sm font-medium text-zinc-950 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-500 dark:text-zinc-50 dark:decoration-white/25 dark:hover:decoration-white/50"
+                className="text-sm font-medium text-gray-950 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-500 dark:text-gray-50 dark:decoration-white/25 dark:hover:decoration-white/50 cursor-pointer"
               >
                 All challenges →
               </Link>
               <Link
                 href="/plan"
-                className="text-sm font-medium text-zinc-950 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-500 dark:text-zinc-50 dark:decoration-white/25 dark:hover:decoration-white/50"
+                className="text-sm font-medium text-gray-950 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-500 dark:text-gray-50 dark:decoration-white/25 dark:hover:decoration-white/50 cursor-pointer"
               >
                 Study Plan →
               </Link>
@@ -686,13 +686,13 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
       {/* Related Challenges */}
       {challenge.relatedChallenges && challenge.relatedChallenges.length > 0 && (
         <section className="mt-4">
-          <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Continue Learning</p>
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Continue Learning</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {challenge.relatedChallenges.map((slug) => (
               <Link
                 key={slug}
                 href={`/challenges/${slug}`}
-                className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/50"
+                className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-all duration-200-all duration-200 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-gray-800 dark:bg-[#7C3AED] dark:text-gray-300 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/50 cursor-pointer"
               >
                 {slug} →
               </Link>

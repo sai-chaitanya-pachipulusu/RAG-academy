@@ -29,21 +29,21 @@ export default function AnalyticsPage() {
     <div className="flex flex-col gap-4">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Analytics & Ranking</h1>
-        <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
           Track your growth and compare with the community.
         </p>
       </header>
 
       {/* Tabs */}
-      <div className="inline-flex gap-1 rounded-full border border-zinc-200 bg-zinc-50 p-1">
+      <div className="inline-flex gap-1 rounded-full border border-gray-200 bg-gray-50 p-1">
         {(["progress", "leaderboard"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all ${
               activeTab === tab
-                ? "bg-white text-zinc-900 shadow-sm"
-                : "text-zinc-500 hover:text-zinc-900"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500 hover:text-gray-900"
             }`}
           >
             {tab === "progress" ? "My Progress" : "Leaderboard"}
@@ -57,8 +57,8 @@ export default function AnalyticsPage() {
             {userId ? (
               <AnalyticsDashboard userId={userId} />
             ) : (
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-6 text-center dark:border-zinc-800 dark:bg-zinc-900">
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-6 text-center dark:border-gray-800 dark:bg-gray-900">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   Please sign in to view your analytics
                 </p>
               </div>

@@ -27,7 +27,7 @@ const TIME_FILTERS: TimeFilterOption[] = [
 
 function getRankBadge(rank: number) {
   if (rank === 1) return { icon: "🥇", bg: "bg-gradient-to-r from-yellow-400 to-amber-500", text: "text-yellow-900" };
-  if (rank === 2) return { icon: "🥈", bg: "bg-gradient-to-r from-gray-300 to-gray-400", text: "text-gray-800" };
+  if (rank === 2) return { icon: "🥈", bg: "bg-gradient-to-r from-[#8B5CF6]-300 to-[#8B5CF6]-400", text: "text-gray-800" };
   if (rank === 3) return { icon: "🥉", bg: "bg-gradient-to-r from-amber-600 to-orange-700", text: "text-amber-100" };
   return null;
 }
@@ -82,15 +82,15 @@ export function GlobalLeaderboard() {
   }, []);
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+    <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-[#7C3AED]">
       {/* Header */}
-      <div className="border-b border-zinc-100 bg-gradient-to-r from-indigo-50 to-purple-50 px-6 py-4 dark:border-zinc-800 dark:from-indigo-950/30 dark:to-purple-950/30">
+      <div className="border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-purple-50 px-6 py-4 dark:border-gray-800 dark:from-indigo-950/30 dark:to-purple-950/30">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="text-2xl">🏆</span>
             <div>
-              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Global Leaderboard</h2>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Global Leaderboard</h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 {isLiveData && isRealTime && (
                   <span className="mr-2 inline-flex items-center gap-1">
                     <span className="relative flex h-2 w-2">
@@ -106,15 +106,15 @@ export function GlobalLeaderboard() {
           </div>
           
           {/* Time filter */}
-          <div className="flex gap-1 rounded-lg bg-zinc-100 p-1 dark:bg-zinc-800">
+          <div className="flex gap-1 rounded-lg bg-gray-100 p-1 dark:bg-[#7C3AED]">
             {TIME_FILTERS.map((filter) => (
               <button
                 key={filter.id}
                 onClick={() => setTimeFilter(filter.id)}
-                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all duration-200-all duration-200 ${
                   timeFilter === filter.id
-                    ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white"
-                    : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+                    ? "bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white"
+                    : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
                 }`}
               >
                 {filter.label}
@@ -126,15 +126,15 @@ export function GlobalLeaderboard() {
 
       {/* Your Stats (if logged in) */}
       {user && (
-        <div className="border-b border-zinc-100 bg-indigo-50/50 px-6 py-3 dark:border-zinc-800 dark:bg-indigo-950/20">
+        <div className="border-b border-gray-100 bg-indigo-50/50 px-6 py-3 dark:border-gray-800 dark:bg-indigo-950/20">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-lg font-bold text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">
                 {userRank ? `#${userRank}` : "—"}
               </div>
               <div>
-                <p className="text-sm font-semibold text-zinc-900 dark:text-white">Your Rank</p>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">Your Rank</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   {state.xp.toLocaleString()} XP • {state.streak.streakDays} day streak
                 </p>
               </div>
@@ -143,7 +143,7 @@ export function GlobalLeaderboard() {
               <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
                 {state.xp.toLocaleString()}
               </p>
-              <p className="text-xs text-zinc-500">Total XP</p>
+              <p className="text-xs text-gray-500">Total XP</p>
             </div>
           </div>
         </div>
@@ -163,10 +163,10 @@ export function GlobalLeaderboard() {
             return (
               <div
                 key={entry.userId}
-                className={`flex items-center gap-4 px-6 py-3 transition-colors ${
+                className={`flex items-center gap-4 px-6 py-3 transition-all duration-200-all duration-200 ${
                   isCurrentUser
                     ? "bg-indigo-50 dark:bg-indigo-950/30"
-                    : "hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
+                    : "hover:bg-gray-50 dark:hover:bg-gray-900/50"
                 }`}
               >
                 {/* Rank */}
@@ -178,7 +178,7 @@ export function GlobalLeaderboard() {
                       {badge.icon}
                     </span>
                   ) : (
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-sm font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-sm font-semibold text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400">
                       {entry.rank}
                     </span>
                   )}
@@ -190,7 +190,7 @@ export function GlobalLeaderboard() {
                     <span className={`font-medium truncate ${
                       isCurrentUser
                         ? "text-indigo-700 dark:text-indigo-300"
-                        : "text-zinc-900 dark:text-white"
+                        : "text-gray-900 dark:text-white"
                     }`}>
                       {isCurrentUser ? "You" : entry.username}
                     </span>
@@ -200,7 +200,7 @@ export function GlobalLeaderboard() {
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     {entry.challengesCompleted} challenges completed
                   </p>
                 </div>
@@ -210,11 +210,11 @@ export function GlobalLeaderboard() {
                   <p className={`text-lg font-bold ${
                     badge
                       ? "text-indigo-600 dark:text-indigo-400"
-                      : "text-zinc-700 dark:text-zinc-300"
+                      : "text-gray-700 dark:text-gray-300"
                   }`}>
                     {formatXP(entry.xp)}
                   </p>
-                  <p className="text-[10px] uppercase tracking-wider text-zinc-400">XP</p>
+                  <p className="text-[10px] uppercase tracking-wider text-gray-400">XP</p>
                 </div>
               </div>
             );
@@ -223,7 +223,7 @@ export function GlobalLeaderboard() {
       )}
 
       {/* Footer */}
-      <div className="border-t border-zinc-100 bg-zinc-50 px-6 py-3 dark:border-zinc-800 dark:bg-zinc-900/50">
+      <div className="border-t border-gray-100 bg-gray-50 px-6 py-3 dark:border-gray-800 dark:bg-gray-900/50">
         {statusMessage && !isLiveData ? (
           <div className="text-center">
             <p className="text-xs text-amber-600 dark:text-amber-400 mb-2">
@@ -232,14 +232,14 @@ export function GlobalLeaderboard() {
             {!user && (
               <Link
                 href="/auth/login"
-                className="inline-flex h-8 items-center justify-center rounded-full bg-indigo-600 px-4 text-xs font-medium text-white hover:bg-indigo-500"
+                className="inline-flex h-8 items-center justify-center rounded-full bg-indigo-600 px-4 text-xs font-medium text-white hover:bg-indigo-500 cursor-pointer"
               >
                 Sign up to compete →
               </Link>
             )}
           </div>
         ) : (
-          <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="text-center text-xs text-gray-500 dark:text-gray-400">
             Complete challenges to climb the leaderboard • Earn XP and maintain streaks
           </p>
         )}
@@ -263,7 +263,7 @@ export function LeaderboardWidget() {
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#7C3AED]">
         <div className="flex items-center justify-center py-4">
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600"></div>
         </div>
@@ -272,9 +272,9 @@ export function LeaderboardWidget() {
   }
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-      <div className="border-b border-zinc-100 px-4 py-3 dark:border-zinc-800">
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+    <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-[#7C3AED]">
+      <div className="border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
           <span>🏆</span>
           <span>Top 5 This Week</span>
         </h3>
@@ -289,7 +289,7 @@ export function LeaderboardWidget() {
               <span className="text-sm">
                 {entry.rank === 1 ? "🥇" : entry.rank === 2 ? "🥈" : entry.rank === 3 ? "🥉" : `#${entry.rank}`}
               </span>
-              <span className="truncate text-sm text-zinc-700 dark:text-zinc-300">
+              <span className="truncate text-sm text-gray-700 dark:text-gray-300">
                 {entry.username}
               </span>
             </div>

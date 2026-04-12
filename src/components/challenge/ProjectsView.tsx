@@ -71,26 +71,26 @@ export function ProjectsView() {
     <div className="space-y-8">
       {/* Header */}
       <div className="max-w-xl space-y-2">
-        <h2 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
+        <h2 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
           Portfolio Projects
         </h2>
-        <p className="text-sm leading-relaxed text-zinc-500">
+        <p className="text-sm leading-relaxed text-gray-500">
           End-to-end builds for your GitHub portfolio.
         </p>
       </div>
 
       {/* Quality Criteria */}
       <Reveal>
-        <div className="rounded-2xl border border-zinc-100 bg-zinc-50/50 p-5">
-          <h3 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+        <div className="rounded-2xl border border-gray-100 bg-gray-50/50 p-5">
+          <h3 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">
             Professional Standards
           </h3>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {QUALITY_CRITERIA.map((criteria, i) => (
               <div key={i} className="space-y-1">
-                <div className="h-px w-4 bg-zinc-200" />
-                <h4 className="text-xs font-bold text-zinc-900">{criteria.title}</h4>
-                <p className="text-[11px] leading-relaxed text-zinc-500">{criteria.description}</p>
+                <div className="h-px w-4 bg-gray-200" />
+                <h4 className="text-xs font-bold text-gray-900">{criteria.title}</h4>
+                <p className="text-[11px] leading-relaxed text-gray-500">{criteria.description}</p>
               </div>
             ))}
           </div>
@@ -101,18 +101,18 @@ export function ProjectsView() {
       <div className="grid gap-4 lg:grid-cols-2">
         {PROJECTS.map((project, i) => (
           <Reveal key={project.id} delayMs={i * 50}>
-            <Card className="group h-full overflow-hidden !p-0 transition-all duration-200 hover:shadow-lg hover:shadow-zinc-100/50">
+            <Card className="group h-full overflow-hidden !p-0 transition-all duration-200-all duration-200 hover:shadow-lg hover:shadow-zinc-100/50 cursor-pointer">
               <div className="flex h-full flex-col">
                 {/* Header */}
-                <div className="border-b border-zinc-100 bg-zinc-50/30 p-4">
+                <div className="border-b border-gray-100 bg-gray-50/30 p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900 text-white text-sm font-bold">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#8B5CF6] text-white text-sm font-bold">
                         {String(project.id).padStart(2, '0')}
                       </div>
                       <div>
-                        <h3 className="text-sm font-bold text-zinc-900">{project.title}</h3>
-                        <p className="text-xs text-zinc-500">{project.tagline}</p>
+                        <h3 className="text-sm font-bold text-gray-900">{project.title}</h3>
+                        <p className="text-xs text-gray-500">{project.tagline}</p>
                       </div>
                     </div>
                     <span className={`rounded-full px-3 py-1 text-xs font-bold ${
@@ -129,14 +129,14 @@ export function ProjectsView() {
 
                 {/* Content */}
                 <div className="flex flex-1 flex-col p-4">
-                  <p className="text-xs leading-relaxed text-zinc-600">
+                  <p className="text-xs leading-relaxed text-gray-600">
                     {project.description}
                   </p>
 
                   {/* Key Features */}
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {project.keyFeatures.map((feature) => (
-                      <span key={feature} className="rounded-md bg-zinc-50 px-2 py-0.5 text-[10px] font-medium text-zinc-600">
+                      <span key={feature} className="rounded-md bg-gray-50 px-2 py-0.5 text-[10px] font-medium text-gray-600">
                         {feature}
                       </span>
                     ))}
@@ -144,18 +144,18 @@ export function ProjectsView() {
 
                   {/* Stats */}
                   <div className="mt-auto pt-4">
-                    <div className="grid grid-cols-3 gap-3 rounded-lg border border-zinc-100 bg-zinc-50/50 p-3">
+                    <div className="grid grid-cols-3 gap-3 rounded-lg border border-gray-100 bg-gray-50/50 p-3">
                       <div>
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-400">Time</p>
-                        <p className="mt-0.5 text-xs font-bold text-zinc-900">{project.timeline}</p>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Time</p>
+                        <p className="mt-0.5 text-xs font-bold text-gray-900">{project.timeline}</p>
                       </div>
                       <div>
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-400">Target</p>
-                        <p className="mt-0.5 text-xs font-bold text-zinc-900">{project.metric}</p>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Target</p>
+                        <p className="mt-0.5 text-xs font-bold text-gray-900">{project.metric}</p>
                       </div>
                       <div>
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-400">Stack</p>
-                        <p className="mt-0.5 text-[10px] font-semibold text-zinc-600 truncate">{project.tech.join("+")}</p>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Stack</p>
+                        <p className="mt-0.5 text-[10px] font-semibold text-gray-600 truncate">{project.tech.join("+")}</p>
                       </div>
                     </div>
                   </div>
@@ -168,14 +168,14 @@ export function ProjectsView() {
 
       {/* Pro Tip */}
       <Reveal>
-        <div className="mx-auto max-w-xl rounded-xl border border-zinc-100 bg-white p-5 text-center">
-          <h3 className="text-sm font-bold text-zinc-900">Portfolio Tip</h3>
-          <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+        <div className="mx-auto max-w-xl rounded-xl border border-gray-100 bg-white p-5 text-center">
+          <h3 className="text-sm font-bold text-gray-900">Portfolio Tip</h3>
+          <p className="mt-1 text-xs leading-relaxed text-gray-500">
             Include an Architecture Diagram and Benchmarking Table with Recall@k metrics.
           </p>
           <Link
             href="/learn"
-            className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-zinc-900 underline underline-offset-4"
+            className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-gray-900 underline underline-offset-4"
           >
             Learn the fundamentals first
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -61,14 +61,14 @@ export function ExecutionStats({ challengeSlug, latestRun }: Props) {
   const maxTime = Math.max(...stats.map((s) => s.executionTime), 1);
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-gradient-to-br from-zinc-50 to-white p-4 dark:border-zinc-800 dark:from-zinc-900 dark:to-zinc-950">
+    <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-[#8B5CF6]-50 to-white p-4 dark:border-gray-800 dark:from-[#8B5CF6]-900 dark:to-[#8B5CF6]-950">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+        <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
           Your Performance
         </p>
         <button
           onClick={() => setShowGraph(!showGraph)}
-          className="text-xs text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
+          className="text-xs text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 cursor-pointer"
         >
           {showGraph ? "Hide Graph" : "Show Graph"}
         </button>
@@ -79,19 +79,19 @@ export function ExecutionStats({ challengeSlug, latestRun }: Props) {
           <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
             {successRate}%
           </p>
-          <p className="text-[10px] text-zinc-500">Success Rate</p>
+          <p className="text-[10px] text-gray-500">Success Rate</p>
         </div>
         <div className="text-center">
           <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
             {avgTime}ms
           </p>
-          <p className="text-[10px] text-zinc-500">Avg Time</p>
+          <p className="text-[10px] text-gray-500">Avg Time</p>
         </div>
         <div className="text-center">
           <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
             {stats.length}
           </p>
-          <p className="text-[10px] text-zinc-500">Attempts</p>
+          <p className="text-[10px] text-gray-500">Attempts</p>
         </div>
       </div>
 
@@ -106,12 +106,12 @@ export function ExecutionStats({ challengeSlug, latestRun }: Props) {
       {/* Simple bar graph */}
       {showGraph && (
         <div className="mt-4">
-          <p className="mb-2 text-[10px] text-zinc-500">Execution Time (last 20 runs)</p>
+          <p className="mb-2 text-[10px] text-gray-500">Execution Time (last 20 runs)</p>
           <div className="flex h-16 items-end gap-0.5">
             {stats.map((stat, i) => (
               <div
                 key={i}
-                className="flex-1 rounded-t transition-all"
+                className="flex-1 rounded-t transition-all duration-200-all duration-200 cursor-pointer"
                 style={{
                   height: `${(stat.executionTime / maxTime) * 100}%`,
                   minHeight: "4px",

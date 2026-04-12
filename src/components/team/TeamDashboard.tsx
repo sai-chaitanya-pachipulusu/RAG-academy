@@ -62,7 +62,7 @@ type Tab = "members" | "invites" | "settings" | "activity";
 const ROLE_ICONS: Record<TeamRole, React.ReactNode> = {
   owner: <Crown className="h-4 w-4 text-amber-500" />,
   admin: <Shield className="h-4 w-4 text-blue-500" />,
-  member: <User className="h-4 w-4 text-zinc-400" />,
+  member: <User className="h-4 w-4 text-gray-400" />,
 };
 
 const ROLE_LABELS: Record<TeamRole, string> = {
@@ -194,11 +194,11 @@ export function TeamDashboard({ subscriptionId }: TeamDashboardProps) {
   if (!overview) {
     return (
       <Card className="p-8 text-center">
-        <Users className="mx-auto mb-4 h-12 w-12 text-zinc-300" />
-        <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+        <Users className="mx-auto mb-4 h-12 w-12 text-gray-300" />
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
           No Team Found
         </h3>
-        <p className="text-zinc-500">
+        <p className="text-gray-500">
           You are not currently a member of any team.
         </p>
       </Card>
@@ -214,23 +214,23 @@ export function TeamDashboard({ subscriptionId }: TeamDashboardProps) {
       <Card className="p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
               {overview.teamName || "Team Dashboard"}
             </h2>
-            <p className="text-zinc-500">
+            <p className="text-gray-500">
               {overview.activeMembers} of {overview.maxSeats} seats used
             </p>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
-              <p className="text-sm text-zinc-500">Available Seats</p>
+              <p className="text-sm text-gray-500">Available Seats</p>
               <p className="text-2xl font-bold text-green-600">{overview.availableSeats}</p>
             </div>
             {!isAdmin && (
               <TouchButton
                 variant="ghost"
                 onClick={handleLeaveTeam}
-                className="text-red-600 hover:bg-red-50"
+                className="text-red-600 hover:bg-red-50 cursor-pointer"
               >
                 <LogOut className="mr-2 h-4 w-4" />
                 Leave Team
@@ -241,9 +241,9 @@ export function TeamDashboard({ subscriptionId }: TeamDashboardProps) {
 
         {/* Progress bar */}
         <div className="mt-4">
-          <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
             <div
-              className="h-full rounded-full bg-indigo-500 transition-all"
+              className="h-full rounded-full bg-indigo-500 transition-all duration-200-all duration-200 cursor-pointer"
               style={{
                 width: `${(overview.activeMembers / overview.maxSeats) * 100}%`,
               }}
@@ -253,7 +253,7 @@ export function TeamDashboard({ subscriptionId }: TeamDashboardProps) {
       </Card>
 
       {/* Tabs */}
-      <div className="border-b border-zinc-200 dark:border-zinc-800">
+      <div className="border-b border-gray-200 dark:border-gray-800">
         <nav className="flex gap-6">
           {[
             { id: "members" as Tab, label: "Members", icon: Users },
@@ -264,10 +264,10 @@ export function TeamDashboard({ subscriptionId }: TeamDashboardProps) {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 border-b-2 px-1 py-3 text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2 border-b-2 px-1 py-3 text-sm font-medium transition-all duration-200-all duration-200 ${
                 activeTab === tab.id
                   ? "border-indigo-600 text-indigo-600"
-                  : "border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                  : "border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
               }`}
             >
               <tab.icon className="h-4 w-4" />
@@ -299,7 +299,7 @@ export function TeamDashboard({ subscriptionId }: TeamDashboardProps) {
                     className="flex items-center justify-between p-4"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-[#7C3AED]">
                         {member.avatarUrl ? (
                           <img
                             src={member.avatarUrl}
@@ -307,14 +307,14 @@ export function TeamDashboard({ subscriptionId }: TeamDashboardProps) {
                             className="h-10 w-10 rounded-full object-cover"
                           />
                         ) : (
-                          <User className="h-5 w-5 text-zinc-400" />
+                          <User className="h-5 w-5 text-gray-400" />
                         )}
                       </div>
                       <div>
-                        <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                        <p className="font-medium text-gray-900 dark:text-gray-100">
                           {member.username || member.email}
                         </p>
-                        <div className="flex items-center gap-2 text-sm text-zinc-500">
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
                           {ROLE_ICONS[member.role]}
                           <span>{ROLE_LABELS[member.role]}</span>
                           {member.xp !== undefined && (
@@ -334,7 +334,7 @@ export function TeamDashboard({ subscriptionId }: TeamDashboardProps) {
                           onChange={(e) =>
                             handleUpdateRole(member.id, e.target.value as TeamRole)
                           }
-                          className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                          className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900"
                         >
                           <option value="member">Member</option>
                           <option value="admin">Admin</option>
@@ -343,7 +343,7 @@ export function TeamDashboard({ subscriptionId }: TeamDashboardProps) {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleRemoveMember(member.id)}
-                          className="text-red-600 hover:bg-red-50"
+                          className="text-red-600 hover:bg-red-50 cursor-pointer"
                         >
                           <X className="h-4 w-4" />
                         </TouchButton>
@@ -373,13 +373,13 @@ export function TeamDashboard({ subscriptionId }: TeamDashboardProps) {
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
                     placeholder="Enter email address"
-                    className="flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                    className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
                     required
                   />
                   <TouchButton
                     type="submit"
                     disabled={isSendingInvite}
-                    className="bg-indigo-600 text-white hover:bg-indigo-700"
+                    className="bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer"
                   >
                     <UserPlus className="mr-2 h-4 w-4" />
                     {isSendingInvite ? "Sending..." : "Send Invite"}
@@ -392,8 +392,8 @@ export function TeamDashboard({ subscriptionId }: TeamDashboardProps) {
             <Card>
               {invites.length === 0 ? (
                 <div className="p-8 text-center">
-                  <Mail className="mx-auto mb-4 h-12 w-12 text-zinc-300" />
-                  <p className="text-zinc-500">No pending invites</p>
+                  <Mail className="mx-auto mb-4 h-12 w-12 text-gray-300" />
+                  <p className="text-gray-500">No pending invites</p>
                 </div>
               ) : (
                 <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -403,14 +403,14 @@ export function TeamDashboard({ subscriptionId }: TeamDashboardProps) {
                       className="flex items-center justify-between p-4"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
-                          <Mail className="h-5 w-5 text-zinc-400" />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-[#7C3AED]">
+                          <Mail className="h-5 w-5 text-gray-400" />
                         </div>
                         <div>
-                          <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                          <p className="font-medium text-gray-900 dark:text-gray-100">
                             {invite.email}
                           </p>
-                          <p className="flex items-center gap-1 text-sm text-zinc-500">
+                          <p className="flex items-center gap-1 text-sm text-gray-500">
                             <Clock className="h-3 w-3" />
                             Expires {new Date(invite.expiresAt).toLocaleDateString()}
                           </p>
@@ -422,7 +422,7 @@ export function TeamDashboard({ subscriptionId }: TeamDashboardProps) {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleRevokeInvite(invite.id)}
-                          className="text-red-600 hover:bg-red-50"
+                          className="text-red-600 hover:bg-red-50 cursor-pointer"
                         >
                           <X className="mr-2 h-4 w-4" />
                           Revoke
@@ -447,20 +447,20 @@ export function TeamDashboard({ subscriptionId }: TeamDashboardProps) {
               <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
                 {activity.length === 0 ? (
                   <div className="p-8 text-center">
-                    <Activity className="mx-auto mb-4 h-12 w-12 text-zinc-300" />
-                    <p className="text-zinc-500">No activity yet</p>
+                    <Activity className="mx-auto mb-4 h-12 w-12 text-gray-300" />
+                    <p className="text-gray-500">No activity yet</p>
                   </div>
                 ) : (
                   activity.map((item) => (
                     <div key={item.id} className="flex items-center gap-3 p-4">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
-                        <Activity className="h-4 w-4 text-zinc-400" />
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 dark:bg-[#7C3AED]">
+                        <Activity className="h-4 w-4 text-gray-400" />
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm text-zinc-900 dark:text-zinc-100">
+                        <p className="text-sm text-gray-900 dark:text-gray-100">
                           {item.action.replace(/_/g, " ")}
                         </p>
-                        <p className="text-xs text-zinc-500">
+                        <p className="text-xs text-gray-500">
                           {new Date(item.createdAt).toLocaleString()}
                         </p>
                       </div>
@@ -481,7 +481,7 @@ export function TeamDashboard({ subscriptionId }: TeamDashboardProps) {
           >
             <Card className="p-6 space-y-6">
               <div>
-                <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Team Name
                 </label>
                 <input
@@ -491,13 +491,13 @@ export function TeamDashboard({ subscriptionId }: TeamDashboardProps) {
                     handleUpdateSettings({ teamName: e.target.value })
                   }
                   disabled={!isAdmin}
-                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
                   placeholder="Enter team name"
                 />
               </div>
 
               <div className="space-y-4">
-                <h4 className="font-medium text-zinc-900 dark:text-zinc-100">
+                <h4 className="font-medium text-gray-900 dark:text-gray-100">
                   Team Features
                 </h4>
 
@@ -534,13 +534,13 @@ export function TeamDashboard({ subscriptionId }: TeamDashboardProps) {
                         handleUpdateSettings({ [setting.key]: e.target.checked })
                       }
                       disabled={!isAdmin}
-                      className="mt-1 h-4 w-4 rounded border-zinc-300 text-indigo-600"
+                      className="mt-1 h-4 w-4 rounded border-gray-300 text-indigo-600"
                     />
                     <div>
-                      <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                      <p className="font-medium text-gray-900 dark:text-gray-100">
                         {setting.label}
                       </p>
-                      <p className="text-sm text-zinc-500">{setting.description}</p>
+                      <p className="text-sm text-gray-500">{setting.description}</p>
                     </div>
                   </label>
                 ))}

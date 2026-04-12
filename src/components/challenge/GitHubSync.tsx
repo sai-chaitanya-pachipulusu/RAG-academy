@@ -69,26 +69,26 @@ ${code}
     <div className="space-y-2">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900"
+        className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-all duration-200-all duration-200 hover:bg-gray-50 dark:border-gray-800 dark:bg-[#7C3AED] dark:text-gray-300 dark:hover:bg-gray-900 cursor-pointer"
       >
         <span>💾</span>
         Export Solution
       </button>
 
       {isOpen && (
-        <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#7C3AED]">
           <h4 className="text-sm font-semibold">Export Options</h4>
 
           <div className="mt-4 space-y-3">
             {/* Download as Markdown */}
             <button
               onClick={handleExport}
-              className="flex w-full items-center gap-3 rounded-lg border border-zinc-200 p-3 text-left transition-all hover:border-indigo-300 hover:bg-indigo-50 dark:border-zinc-800 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/20"
+              className="flex w-full items-center gap-3 rounded-lg border border-gray-200 p-3 text-left transition-all duration-200-all duration-200 hover:border-indigo-300 hover:bg-indigo-50 dark:border-gray-800 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/20 cursor-pointer"
             >
               <span className="text-xl">📄</span>
               <div>
                 <p className="text-sm font-medium">Download as Markdown</p>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-gray-500">
                   Save {challengeSlug}.md to your computer
                 </p>
               </div>
@@ -97,25 +97,25 @@ ${code}
             {/* Copy to Clipboard */}
             <button
               onClick={handleCopyToClipboard}
-              className="flex w-full items-center gap-3 rounded-lg border border-zinc-200 p-3 text-left transition-all hover:border-indigo-300 hover:bg-indigo-50 dark:border-zinc-800 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/20"
+              className="flex w-full items-center gap-3 rounded-lg border border-gray-200 p-3 text-left transition-all duration-200-all duration-200 hover:border-indigo-300 hover:bg-indigo-50 dark:border-gray-800 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/20 cursor-pointer"
             >
               <span className="text-xl">📋</span>
               <div>
                 <p className="text-sm font-medium">Copy Code to Clipboard</p>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-gray-500">
                   Paste into your own repository
                 </p>
               </div>
             </button>
 
             {/* GitHub Instructions */}
-            <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900">
-              <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+            <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900">
+              <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
                 💡 Pro Tip: Create a GitHub repository
               </p>
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className="mt-1 text-xs text-gray-500">
                 Track all your RAG Academy solutions in a repo called{" "}
-                <code className="rounded bg-zinc-200 px-1 dark:bg-zinc-800">
+                <code className="rounded bg-gray-200 px-1 dark:bg-[#7C3AED]">
                   rag-academy-solutions
                 </code>
                 . Great for showcasing your skills to employers!
@@ -143,7 +143,7 @@ export function QuickExportButton({ code, slug }: { code: string; slug: string }
   return (
     <button
       onClick={handleCopy}
-      className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+      className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer"
       title="Copy solution to clipboard"
     >
       <span>📋</span>

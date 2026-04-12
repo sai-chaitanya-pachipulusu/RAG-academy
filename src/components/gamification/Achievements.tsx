@@ -110,13 +110,13 @@ export function AchievementBadges({ compact = false }: Props) {
           <span
             key={a.id}
             title={a.title}
-            className="text-lg transition-transform hover:scale-110"
+            className="text-lg transition-all duration-200-transform hover:scale-110 cursor-pointer"
           >
             {a.icon}
           </span>
         ))}
         {unlocked.length > 5 && (
-          <span className="rounded-full bg-zinc-200 px-1.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+          <span className="rounded-full bg-gray-200 px-1.5 text-xs text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400">
             +{unlocked.length - 5}
           </span>
         )}
@@ -125,9 +125,9 @@ export function AchievementBadges({ compact = false }: Props) {
   }
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+    <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#7C3AED]">
       <h3 className="text-sm font-semibold">Achievements</h3>
-      <p className="mt-1 text-xs text-zinc-500">
+      <p className="mt-1 text-xs text-gray-500">
         {unlocked.length} / {allAchievements.length} unlocked
       </p>
 
@@ -137,16 +137,16 @@ export function AchievementBadges({ compact = false }: Props) {
           return (
             <div
               key={achievement.id}
-              className={`flex items-center gap-3 rounded-lg border p-2 transition-all ${
+              className={`flex items-center gap-3 rounded-lg border p-2 transition-all duration-200-all duration-200 ${
                 isUnlocked
                   ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-900/50 dark:bg-emerald-950/20"
-                  : "border-zinc-200 bg-zinc-50/50 opacity-50 dark:border-zinc-800 dark:bg-zinc-900/50"
+                  : "border-gray-200 bg-gray-50/50 opacity-50 dark:border-gray-800 dark:bg-gray-900/50"
               }`}
             >
               <span className="text-2xl">{achievement.icon}</span>
               <div>
                 <p className="text-xs font-medium">{achievement.title}</p>
-                <p className="text-[10px] text-zinc-500">
+                <p className="text-[10px] text-gray-500">
                   {achievement.description}
                 </p>
               </div>

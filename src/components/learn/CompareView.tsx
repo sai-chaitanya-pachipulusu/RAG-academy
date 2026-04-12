@@ -60,7 +60,7 @@ export function CompareView() {
     <div className="flex flex-col gap-8">
       <div>
         <h2 className="text-xl font-semibold tracking-tight">Decision Guides</h2>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
           Compare techniques and tools to make informed architecture decisions.
         </p>
       </div>
@@ -72,7 +72,7 @@ export function CompareView() {
             <Link
               key={lab.href}
               href={lab.href}
-              className="rounded-2xl border border-zinc-200 p-5 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900/40"
+              className="rounded-2xl border border-gray-200 p-5 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900/40 cursor-pointer"
             >
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-medium">{lab.label}</p>
@@ -82,7 +82,7 @@ export function CompareView() {
                   <Badge variant="muted">scaffold</Badge>
                 )}
               </div>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{lab.blurb}</p>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{lab.blurb}</p>
             </Link>
           ))}
         </div>
@@ -95,7 +95,7 @@ export function CompareView() {
             <Link
               key={lab.href}
               href={lab.href}
-              className="rounded-2xl border border-zinc-200 p-5 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900/40"
+              className="rounded-2xl border border-gray-200 p-5 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900/40 cursor-pointer"
             >
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-medium">{lab.label}</p>
@@ -105,7 +105,7 @@ export function CompareView() {
                   <Badge variant="muted">scaffold</Badge>
                 )}
               </div>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{lab.blurb}</p>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{lab.blurb}</p>
             </Link>
           ))}
         </div>

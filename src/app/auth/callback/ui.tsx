@@ -39,12 +39,12 @@ export function AuthCallbackClient() {
       : message;
 
   return (
-    <div className="min-h-screen bg-white text-zinc-950">
+    <div className="min-h-screen bg-white text-gray-950">
       <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center px-6 py-16">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
+        <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="h-2 w-2 animate-pulse rounded-full bg-zinc-900" />
-            <p className="text-sm font-medium text-zinc-600">
+            <div className="h-2 w-2 animate-pulse rounded-full bg-gray-900" />
+            <p className="text-sm font-medium text-gray-600">
               {renderedMessage}
             </p>
           </div>

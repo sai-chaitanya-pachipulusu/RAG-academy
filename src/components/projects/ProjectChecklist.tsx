@@ -162,7 +162,7 @@ export function ProjectChecklist() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-medium">Project Submission Checklist</p>
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             Track your progress against production-grade requirements.
           </p>
         </div>
@@ -178,7 +178,7 @@ export function ProjectChecklist() {
           >
             {grade}
           </Badge>
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             {score}/{maxScore} points
           </p>
         </div>
@@ -187,34 +187,34 @@ export function ProjectChecklist() {
       {/* Progress bars */}
       <div className="mt-4 space-y-2">
         <div className="flex items-center gap-2">
-          <span className="w-24 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          <span className="w-24 text-xs font-medium text-gray-600 dark:text-gray-400">
             Required ({requiredCount}/{required.length})
           </span>
-          <div className="h-2 flex-1 rounded-full bg-zinc-200 dark:bg-zinc-800">
+          <div className="h-2 flex-1 rounded-full bg-gray-200 dark:bg-[#7C3AED]">
             <div
-              className="h-2 rounded-full bg-red-500 transition-all"
+              className="h-2 rounded-full bg-red-500 transition-all duration-200-all duration-200 cursor-pointer"
               style={{ width: `${(requiredCount / required.length) * 100}%` }}
             />
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-24 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          <span className="w-24 text-xs font-medium text-gray-600 dark:text-gray-400">
             Recommended ({recommendedCount}/{recommended.length})
           </span>
-          <div className="h-2 flex-1 rounded-full bg-zinc-200 dark:bg-zinc-800">
+          <div className="h-2 flex-1 rounded-full bg-gray-200 dark:bg-[#7C3AED]">
             <div
-              className="h-2 rounded-full bg-amber-500 transition-all"
+              className="h-2 rounded-full bg-amber-500 transition-all duration-200-all duration-200 cursor-pointer"
               style={{ width: `${(recommendedCount / recommended.length) * 100}%` }}
             />
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-24 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          <span className="w-24 text-xs font-medium text-gray-600 dark:text-gray-400">
             Bonus ({bonusCount}/{bonus.length})
           </span>
-          <div className="h-2 flex-1 rounded-full bg-zinc-200 dark:bg-zinc-800">
+          <div className="h-2 flex-1 rounded-full bg-gray-200 dark:bg-[#7C3AED]">
             <div
-              className="h-2 rounded-full bg-emerald-500 transition-all"
+              className="h-2 rounded-full bg-emerald-500 transition-all duration-200-all duration-200 cursor-pointer"
               style={{ width: `${(bonusCount / bonus.length) * 100}%` }}
             />
           </div>
@@ -275,27 +275,27 @@ function ChecklistSection({
 
   return (
     <div>
-      <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{title}</p>
-      <p className="text-xs text-zinc-500 dark:text-zinc-400">{subtitle}</p>
+      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{title}</p>
+      <p className="text-xs text-gray-500 dark:text-gray-400">{subtitle}</p>
       <div className="mt-2 space-y-2">
         {items.map((item) => (
           <label
             key={item.id}
-            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900/50 ${
-              checked.has(item.id) ? colorClasses[color] : "border-zinc-200 dark:border-zinc-800"
+            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-all duration-200-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-900/50 ${
+              checked.has(item.id) ? colorClasses[color] : "border-gray-200 dark:border-gray-800"
             }`}
           >
             <input
               type="checkbox"
               checked={checked.has(item.id)}
               onChange={() => onToggle(item.id)}
-              className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-[#8B5CF6]500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
             />
             <div>
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                 {item.label}
               </p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">{item.description}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{item.description}</p>
             </div>
           </label>
         ))}

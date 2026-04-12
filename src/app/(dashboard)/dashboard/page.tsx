@@ -42,7 +42,7 @@ function OnboardingCheck() {
         </div>
         <Link
           href="/onboarding"
-          className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-blue-500"
+          className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition-all duration-200-all duration-200 hover:bg-blue-500 cursor-pointer"
         >
           Get Started
         </Link>
@@ -51,7 +51,7 @@ function OnboardingCheck() {
             localStorage.setItem("rag_academy_onboarding", JSON.stringify({ skipped: true }));
             setShowOnboarding(false);
           }}
-          className="text-xs text-blue-600/70 hover:text-blue-800 dark:text-blue-400/70 dark:hover:text-blue-300"
+          className="text-xs text-blue-600/70 hover:text-blue-800 dark:text-blue-400/70 dark:hover:text-blue-300 cursor-pointer"
         >
           Skip
         </button>
@@ -66,7 +66,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
-        <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
           Your progress and quick links
         </p>
       </div>
@@ -100,12 +100,12 @@ export default function DashboardPage() {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Card className="p-4">
           <p className="text-sm font-medium">Start learning</p>
-          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
             Jump into the foundations track.
           </p>
           <Link
             href="/learn"
-            className="mt-2 inline-flex h-8 items-center justify-center rounded-full bg-zinc-900 px-4 text-xs font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+            className="mt-2 inline-flex h-8 items-center justify-center rounded-full bg-[#8B5CF6] px-4 text-xs font-medium text-white hover:bg-[#7C3AED] dark:bg-white dark:text-black dark:hover:bg-[#7C3AED] cursor-pointer"
           >
             Go to Learn
           </Link>
@@ -113,12 +113,12 @@ export default function DashboardPage() {
 
         <Card className="p-4">
           <p className="text-sm font-medium">Production Templates</p>
-          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
             Download Python or Node.js baselines.
           </p>
           <Link
             href="/projects"
-            className="mt-2 inline-flex h-8 items-center justify-center rounded-full bg-zinc-900 px-4 text-xs font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+            className="mt-2 inline-flex h-8 items-center justify-center rounded-full bg-[#8B5CF6] px-4 text-xs font-medium text-white hover:bg-[#7C3AED] dark:bg-white dark:text-black dark:hover:bg-[#7C3AED] cursor-pointer"
           >
             Open Projects
           </Link>
@@ -135,19 +135,19 @@ export default function DashboardPage() {
             </div>
             <span className="text-[10px] font-medium uppercase tracking-wider text-indigo-500">Daily</span>
           </div>
-          <p className="mt-1.5 text-xs text-zinc-600 dark:text-zinc-400">
+          <p className="mt-1.5 text-xs text-gray-600 dark:text-gray-400">
             <strong>TF-IDF Log Search</strong>: Optimize retrieval for tech support logs.
           </p>
           <div className="mt-2 flex items-center gap-2">
             <Link
               href="/challenges/arena-tfidf-log-search"
-              className="inline-flex h-7 items-center justify-center rounded-full bg-indigo-600 px-3 text-xs font-medium text-white hover:bg-indigo-500"
+              className="inline-flex h-7 items-center justify-center rounded-full bg-indigo-600 px-3 text-xs font-medium text-white hover:bg-indigo-500 cursor-pointer"
             >
               Compete
             </Link>
             <Link
               href="/challenges"
-              className="text-[11px] font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-zinc-300"
+              className="text-[11px] font-medium text-gray-500 hover:text-gray-900 dark:text-gray-500 dark:hover:text-gray-300 cursor-pointer"
             >
               View all
             </Link>
@@ -156,12 +156,12 @@ export default function DashboardPage() {
 
         <Card className="p-4">
           <p className="text-sm font-medium">Compare tools</p>
-          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
             Decision-first comparisons.
           </p>
           <Link
             href="/compare"
-            className="mt-2 inline-flex h-8 items-center justify-center rounded-full border border-zinc-200 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50 dark:hover:bg-zinc-900"
+            className="mt-2 inline-flex h-8 items-center justify-center rounded-full border border-gray-200 bg-white px-4 text-xs font-medium text-gray-900 hover:bg-gray-50 dark:border-gray-800 dark:bg-[#7C3AED] dark:text-gray-50 dark:hover:bg-gray-900 cursor-pointer"
           >
             Open Compare
           </Link>
@@ -169,30 +169,30 @@ export default function DashboardPage() {
 
         <Card className="p-4">
           <p className="text-sm font-medium">View Progress</p>
-          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
             Track your skill tree and analytics.
           </p>
           <Link
             href="/progress"
-            className="mt-2 inline-flex h-8 items-center justify-center rounded-full border border-zinc-200 bg-white px-4 text-xs font-medium text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50 dark:hover:bg-zinc-900"
+            className="mt-2 inline-flex h-8 items-center justify-center rounded-full border border-gray-200 bg-white px-4 text-xs font-medium text-gray-900 hover:bg-gray-50 dark:border-gray-800 dark:bg-[#7C3AED] dark:text-gray-50 dark:hover:bg-gray-900 cursor-pointer"
           >
             Open Progress
           </Link>
         </Card>
 
-        <Card className="p-4 border-emerald-200/50 bg-gradient-to-br from-emerald-50 to-white dark:border-emerald-900/30 dark:from-emerald-950/20 dark:to-zinc-950">
+        <Card className="p-4 border-emerald-200/50 bg-gradient-to-br from-emerald-50 to-white dark:border-emerald-900/30 dark:from-emerald-950/20 dark:to-[#8B5CF6]-950">
           <div className="flex items-center gap-1.5">
             <svg className="h-4 w-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
             </svg>
             <p className="text-xs font-semibold text-emerald-900 dark:text-emerald-100">Skill Tree</p>
           </div>
-          <p className="mt-1.5 text-[11px] text-zinc-600 dark:text-zinc-400">
+          <p className="mt-1.5 text-[11px] text-gray-600 dark:text-gray-400">
             Visualize your RAG mastery journey.
           </p>
           <Link
             href="/progress"
-            className="mt-2 inline-flex text-[11px] font-medium text-emerald-700 hover:text-emerald-500 dark:text-emerald-400"
+            className="mt-2 inline-flex text-[11px] font-medium text-emerald-700 hover:text-emerald-500 dark:text-emerald-400 cursor-pointer"
           >
             View Skill Tree
           </Link>
@@ -201,8 +201,8 @@ export default function DashboardPage() {
 
       {/* Build Tracks */}
       <div>
-        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Build from Scratch</h2>
-        <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Build from Scratch</h2>
+        <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
           Multi-part projects. Complete them in order.
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -212,9 +212,9 @@ export default function DashboardPage() {
             { title: "Build a Reranker", desc: "Cross-Encoder and Cascade. Boost precision.", href: "/challenges/reranker-score-function", color: "amber" },
             { title: "Build an Evaluator", desc: "Recall@K to nDCG. Measure your system.", href: "/challenges/evaluator-recall-at-k", color: "purple" },
           ].map((track) => (
-            <Card key={track.title} className={`p-4 border-${track.color}-200/50 bg-gradient-to-br from-${track.color}-50 to-white dark:border-${track.color}-900/30 dark:from-${track.color}-950/20 dark:to-zinc-950`}>
+            <Card key={track.title} className={`p-4 border-${track.color}-200/50 bg-gradient-to-br from-${track.color}-50 to-white dark:border-${track.color}-900/30 dark:from-${track.color}-950/20 dark:to-[#8B5CF6]-950`}>
               <p className={`text-sm font-semibold text-${track.color}-900 dark:text-${track.color}-100`}>{track.title}</p>
-              <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{track.desc}</p>
+              <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">{track.desc}</p>
               <Link
                 href={track.href}
                 className={`mt-2 inline-flex text-[11px] font-medium text-${track.color}-700 hover:text-${track.color}-500 dark:text-${track.color}-400`}

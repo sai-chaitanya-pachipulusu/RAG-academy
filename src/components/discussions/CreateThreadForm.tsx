@@ -82,13 +82,13 @@ export function CreateThreadForm({ challengeSlug, onSubmit, onCancel }: CreateTh
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             Create New Discussion
           </h3>
           <button
             type="button"
             onClick={onCancel}
-            className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -98,7 +98,7 @@ export function CreateThreadForm({ challengeSlug, onSubmit, onCancel }: CreateTh
 
         {/* Category Selection */}
         <div>
-          <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
             Category
           </label>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -107,21 +107,21 @@ export function CreateThreadForm({ challengeSlug, onSubmit, onCancel }: CreateTh
                 key={cat.value}
                 type="button"
                 onClick={() => setCategory(cat.value)}
-                className={`flex flex-col items-start rounded-lg border p-3 text-left transition-all ${
+                className={`flex flex-col items-start rounded-lg border p-3 text-left transition-all duration-200-all duration-200 ${
                   category === cat.value
                     ? "border-indigo-500 bg-indigo-50 dark:border-indigo-400 dark:bg-indigo-950/30"
-                    : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600"
+                    : "border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600"
                 }`}
               >
                 <span className="text-lg">{cat.icon}</span>
                 <span className={`text-sm font-medium ${
                   category === cat.value
                     ? "text-indigo-700 dark:text-indigo-300"
-                    : "text-zinc-700 dark:text-zinc-300"
+                    : "text-gray-700 dark:text-gray-300"
                 }`}>
                   {cat.label}
                 </span>
-                <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
                   {cat.description}
                 </span>
               </button>
@@ -131,7 +131,7 @@ export function CreateThreadForm({ challengeSlug, onSubmit, onCancel }: CreateTh
 
         {/* Title Input */}
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
             Title
           </label>
           <input
@@ -140,10 +140,10 @@ export function CreateThreadForm({ challengeSlug, onSubmit, onCancel }: CreateTh
             onChange={(e) => setTitle(e.target.value)}
             placeholder="What's your discussion about?"
             maxLength={200}
-            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white dark:placeholder-zinc-500"
+            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-[#7C3AED] dark:text-white dark:placeholder-zinc-500"
           />
           <div className="mt-1 flex justify-end">
-            <span className={`text-xs ${title.length > 180 ? "text-amber-500" : "text-zinc-400"}`}>
+            <span className={`text-xs ${title.length > 180 ? "text-amber-500" : "text-gray-400"}`}>
               {title.length}/200
             </span>
           </div>
@@ -151,7 +151,7 @@ export function CreateThreadForm({ challengeSlug, onSubmit, onCancel }: CreateTh
 
         {/* Content Textarea */}
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
             Content
           </label>
           <textarea
@@ -159,9 +159,9 @@ export function CreateThreadForm({ challengeSlug, onSubmit, onCancel }: CreateTh
             onChange={(e) => setContent(e.target.value)}
             placeholder="Describe your question, solution, or idea in detail..."
             rows={6}
-            className="w-full resize-y rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white dark:placeholder-zinc-500"
+            className="w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-[#7C3AED] dark:text-white dark:placeholder-zinc-500"
           />
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             Markdown formatting is supported
           </p>
         </div>
@@ -172,7 +172,7 @@ export function CreateThreadForm({ challengeSlug, onSubmit, onCancel }: CreateTh
             <button
               type="button"
               onClick={() => setShowCodeInput(true)}
-              className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+              className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 cursor-pointer"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
@@ -182,7 +182,7 @@ export function CreateThreadForm({ challengeSlug, onSubmit, onCancel }: CreateTh
           ) : (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Code Snippet
                 </label>
                 <button
@@ -191,7 +191,7 @@ export function CreateThreadForm({ challengeSlug, onSubmit, onCancel }: CreateTh
                     setShowCodeInput(false);
                     setCodeSnippet("");
                   }}
-                  className="text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                  className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer"
                 >
                   Remove
                 </button>
@@ -201,7 +201,7 @@ export function CreateThreadForm({ challengeSlug, onSubmit, onCancel }: CreateTh
                 onChange={(e) => setCodeSnippet(e.target.value)}
                 placeholder="Paste your code here..."
                 rows={5}
-                className="w-full resize-y rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2 font-mono text-sm text-zinc-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder-zinc-600"
+                className="w-full resize-y rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 font-mono text-sm text-gray-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-zinc-600"
               />
             </div>
           )}
@@ -213,7 +213,7 @@ export function CreateThreadForm({ challengeSlug, onSubmit, onCancel }: CreateTh
             type="button"
             onClick={onCancel}
             disabled={isSubmitting}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-zinc-800"
+            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-50 dark:text-gray-400 dark:hover:bg-[#7C3AED] cursor-pointer"
           >
             Cancel
           </button>

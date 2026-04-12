@@ -182,33 +182,33 @@ export default function AdminPaymentsPage() {
   };
   
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#7C3AED]">
       {/* Header */}
-      <header className="border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
+      <header className="border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           <div>
-            <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-              <Link href="/admin" className="hover:text-zinc-900 dark:hover:text-zinc-200">
+            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+              <Link href="/admin" className="hover:text-gray-900 dark:hover:text-gray-200 cursor-pointer">
                 Admin
               </Link>
               <span>/</span>
-              <span className="text-zinc-900 dark:text-zinc-200">Payments</span>
+              <span className="text-gray-900 dark:text-gray-200">Payments</span>
             </div>
-            <h1 className="mt-1 text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+            <h1 className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
               Payment Debug Dashboard
             </h1>
           </div>
           <div className="flex items-center gap-3">
             <Link
               href="/settings/billing/test"
-              className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+              className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-[#7C3AED] dark:text-gray-300 cursor-pointer"
             >
               Test Payments
             </Link>
             <button
               onClick={refreshData}
               disabled={isLoading}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50"
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50 cursor-pointer"
             >
               {isLoading ? "Loading..." : "Refresh"}
             </button>
@@ -231,7 +231,7 @@ export default function AdminPaymentsPage() {
         )}
         
         {/* Tabs */}
-        <div className="mb-6 border-b border-zinc-200 dark:border-zinc-800">
+        <div className="mb-6 border-b border-gray-200 dark:border-gray-800">
           <div className="flex gap-4">
             {[
               { id: "overview", label: "Overview", icon: "📊" },
@@ -248,7 +248,7 @@ export default function AdminPaymentsPage() {
                 className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition ${
                   activeTab === tab.id
                     ? "border-indigo-500 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400"
-                    : "border-transparent text-zinc-600 hover:border-zinc-300 hover:text-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-700 dark:hover:text-zinc-200"
+                    : "border-transparent text-gray-600 hover:border-gray-300 hover:text-gray-900 dark:text-gray-400 dark:hover:border-gray-700 dark:hover:text-gray-200"
                 }`}
               >
                 <span>{tab.icon}</span>
@@ -263,11 +263,11 @@ export default function AdminPaymentsPage() {
           <div className="space-y-6">
             {/* Stats Grid */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400">Total Transactions</p>
-                    <p className="mt-1 text-3xl font-bold text-zinc-900 dark:text-zinc-100">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Total Transactions</p>
+                    <p className="mt-1 text-3xl font-bold text-gray-900 dark:text-gray-100">
                       {stats.totalTransactions}
                     </p>
                   </div>
@@ -275,10 +275,10 @@ export default function AdminPaymentsPage() {
                 </div>
               </div>
               
-              <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400">Total Revenue</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Total Revenue</p>
                     <p className="mt-1 text-3xl font-bold text-emerald-600 dark:text-emerald-400">
                       ${stats.totalRevenue.toFixed(2)}
                     </p>
@@ -287,11 +287,11 @@ export default function AdminPaymentsPage() {
                 </div>
               </div>
               
-              <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400">Active Subscriptions</p>
-                    <p className="mt-1 text-3xl font-bold text-zinc-900 dark:text-zinc-100">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Active Subscriptions</p>
+                    <p className="mt-1 text-3xl font-bold text-gray-900 dark:text-gray-100">
                       {stats.activeSubscriptions}
                     </p>
                   </div>
@@ -299,10 +299,10 @@ export default function AdminPaymentsPage() {
                 </div>
               </div>
               
-              <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400">Failed Payments</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Failed Payments</p>
                     <p className="mt-1 text-3xl font-bold text-red-600 dark:text-red-400">
                       {stats.failedPayments}
                     </p>
@@ -314,24 +314,24 @@ export default function AdminPaymentsPage() {
             
             {/* Recent Activity */}
             <div className="grid gap-6 lg:grid-cols-2">
-              <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-                <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+              <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+                <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
                   Recent Webhooks
                 </h3>
                 {webhookLogs.length === 0 ? (
-                  <p className="text-zinc-500 dark:text-zinc-400">No webhook logs found</p>
+                  <p className="text-gray-500 dark:text-gray-400">No webhook logs found</p>
                 ) : (
                   <div className="space-y-3">
                     {webhookLogs.slice(0, 5).map((log) => (
                       <div
                         key={log.id}
-                        className="flex items-center justify-between rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800/50"
+                        className="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-[#7C3AED]/50"
                       >
                         <div>
-                          <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                             {log.event_type}
                           </p>
-                          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
                             {formatDate(log.created_at)}
                           </p>
                         </div>
@@ -344,24 +344,24 @@ export default function AdminPaymentsPage() {
                 )}
               </div>
               
-              <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-                <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+              <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+                <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
                   Recent Transactions
                 </h3>
                 {transactions.length === 0 ? (
-                  <p className="text-zinc-500 dark:text-zinc-400">No transactions found</p>
+                  <p className="text-gray-500 dark:text-gray-400">No transactions found</p>
                 ) : (
                   <div className="space-y-3">
                     {transactions.slice(0, 5).map((tx) => (
                       <div
                         key={tx.id}
-                        className="flex items-center justify-between rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800/50"
+                        className="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-[#7C3AED]/50"
                       >
                         <div>
-                          <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                             {formatCurrency(tx.amount, tx.currency)}
                           </p>
-                          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
                             {tx.transaction_id.slice(0, 16)}...
                           </p>
                         </div>
@@ -389,24 +389,24 @@ export default function AdminPaymentsPage() {
         
         {/* Transactions Tab */}
         {activeTab === "transactions" && (
-          <div className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/50">
+                <thead className="border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                       Transaction ID
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                       Amount
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                       Status
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                       Customer
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                       Date
                     </th>
                   </tr>
@@ -414,17 +414,17 @@ export default function AdminPaymentsPage() {
                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                   {transactions.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-zinc-500 dark:text-zinc-400">
+                      <td colSpan={5} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                         No transactions found
                       </td>
                     </tr>
                   ) : (
                     transactions.map((tx) => (
-                      <tr key={tx.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
-                        <td className="px-4 py-3 font-mono text-sm text-zinc-900 dark:text-zinc-100">
+                      <tr key={tx.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/50 cursor-pointer">
+                        <td className="px-4 py-3 font-mono text-sm text-gray-900 dark:text-gray-100">
                           {tx.transaction_id.slice(0, 20)}...
                         </td>
-                        <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100">
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
                           {formatCurrency(tx.amount, tx.currency)}
                         </td>
                         <td className="px-4 py-3">
@@ -440,10 +440,10 @@ export default function AdminPaymentsPage() {
                             {tx.status}
                           </span>
                         </td>
-                        <td className="px-4 py-3 font-mono text-sm text-zinc-600 dark:text-zinc-400">
+                        <td className="px-4 py-3 font-mono text-sm text-gray-600 dark:text-gray-400">
                           {tx.customer_id.slice(0, 12)}...
                         </td>
-                        <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">
+                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                           {formatDate(tx.created_at)}
                         </td>
                       </tr>
@@ -454,19 +454,19 @@ export default function AdminPaymentsPage() {
             </div>
             
             {/* Pagination */}
-            <div className="flex items-center justify-between border-t border-zinc-200 px-4 py-3 dark:border-zinc-800">
+            <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3 dark:border-gray-800">
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="rounded-lg border border-zinc-200 px-3 py-1 text-sm disabled:opacity-50 dark:border-zinc-700"
+                className="rounded-lg border border-gray-200 px-3 py-1 text-sm disabled:opacity-50 dark:border-gray-700"
               >
                 Previous
               </button>
-              <span className="text-sm text-zinc-600 dark:text-zinc-400">Page {page}</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">Page {page}</span>
               <button
                 onClick={() => setPage(p => p + 1)}
                 disabled={transactions.length < itemsPerPage}
-                className="rounded-lg border border-zinc-200 px-3 py-1 text-sm disabled:opacity-50 dark:border-zinc-700"
+                className="rounded-lg border border-gray-200 px-3 py-1 text-sm disabled:opacity-50 dark:border-gray-700"
               >
                 Next
               </button>
@@ -476,24 +476,24 @@ export default function AdminPaymentsPage() {
         
         {/* Subscriptions Tab */}
         {activeTab === "subscriptions" && (
-          <div className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/50">
+                <thead className="border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                       User ID
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                       Tier
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                       Status
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                       Current Period Ends
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                       Created
                     </th>
                   </tr>
@@ -501,14 +501,14 @@ export default function AdminPaymentsPage() {
                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                   {subscriptions.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-zinc-500 dark:text-zinc-400">
+                      <td colSpan={5} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                         No subscriptions found
                       </td>
                     </tr>
                   ) : (
                     subscriptions.map((sub) => (
-                      <tr key={sub.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
-                        <td className="px-4 py-3 font-mono text-sm text-zinc-900 dark:text-zinc-100">
+                      <tr key={sub.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/50 cursor-pointer">
+                        <td className="px-4 py-3 font-mono text-sm text-gray-900 dark:text-gray-100">
                           {sub.user_id.slice(0, 16)}...
                         </td>
                         <td className="px-4 py-3">
@@ -525,18 +525,18 @@ export default function AdminPaymentsPage() {
                                 ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
                                 : sub.status === "past_due"
                                 ? "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
-                                : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                                : "bg-gray-100 text-gray-700 dark:bg-[#7C3AED] dark:text-gray-300"
                             }`}
                           >
                             {sub.status}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">
+                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                           {sub.current_period_end
                             ? formatDate(sub.current_period_end)
                             : "-"}
                         </td>
-                        <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">
+                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                           {formatDate(sub.created_at)}
                         </td>
                       </tr>
@@ -547,19 +547,19 @@ export default function AdminPaymentsPage() {
             </div>
             
             {/* Pagination */}
-            <div className="flex items-center justify-between border-t border-zinc-200 px-4 py-3 dark:border-zinc-800">
+            <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3 dark:border-gray-800">
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="rounded-lg border border-zinc-200 px-3 py-1 text-sm disabled:opacity-50 dark:border-zinc-700"
+                className="rounded-lg border border-gray-200 px-3 py-1 text-sm disabled:opacity-50 dark:border-gray-700"
               >
                 Previous
               </button>
-              <span className="text-sm text-zinc-600 dark:text-zinc-400">Page {page}</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">Page {page}</span>
               <button
                 onClick={() => setPage(p => p + 1)}
                 disabled={subscriptions.length < itemsPerPage}
-                className="rounded-lg border border-zinc-200 px-3 py-1 text-sm disabled:opacity-50 dark:border-zinc-700"
+                className="rounded-lg border border-gray-200 px-3 py-1 text-sm disabled:opacity-50 dark:border-gray-700"
               >
                 Next
               </button>
@@ -571,14 +571,14 @@ export default function AdminPaymentsPage() {
         {activeTab === "webhooks" && (
           <div className="space-y-4">
             {webhookLogs.length === 0 ? (
-              <div className="rounded-xl border border-zinc-200 bg-white p-8 text-center dark:border-zinc-800 dark:bg-zinc-900">
-                <p className="text-zinc-500 dark:text-zinc-400">No webhook logs found</p>
+              <div className="rounded-xl border border-gray-200 bg-white p-8 text-center dark:border-gray-800 dark:bg-gray-900">
+                <p className="text-gray-500 dark:text-gray-400">No webhook logs found</p>
               </div>
             ) : (
               webhookLogs.map((log) => (
                 <div
                   key={log.id}
-                  className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
+                  className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900"
                 >
                   <div className="flex items-start justify-between">
                     <div>
@@ -586,20 +586,20 @@ export default function AdminPaymentsPage() {
                         <span className="rounded-full bg-indigo-100 px-2 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">
                           {log.provider}
                         </span>
-                        <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                        <span className="font-medium text-gray-900 dark:text-gray-100">
                           {log.event_type}
                         </span>
                       </div>
-                      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                         Event ID: {log.event_id} • {formatDate(log.created_at)}
                       </p>
                     </div>
                   </div>
                   <details className="mt-3">
-                    <summary className="cursor-pointer text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200">
+                    <summary className="cursor-pointer text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200">
                       View Payload
                     </summary>
-                    <pre className="mt-2 max-h-64 overflow-auto rounded-lg bg-zinc-100 p-3 text-xs dark:bg-zinc-800">
+                    <pre className="mt-2 max-h-64 overflow-auto rounded-lg bg-gray-100 p-3 text-xs dark:bg-[#7C3AED]">
                       {JSON.stringify(log.payload, null, 2)}
                     </pre>
                   </details>
@@ -612,15 +612,15 @@ export default function AdminPaymentsPage() {
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="rounded-lg border border-zinc-200 bg-white px-3 py-1 text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
+                className="rounded-lg border border-gray-200 bg-white px-3 py-1 text-sm disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900"
               >
                 Previous
               </button>
-              <span className="text-sm text-zinc-600 dark:text-zinc-400">Page {page}</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">Page {page}</span>
               <button
                 onClick={() => setPage(p => p + 1)}
                 disabled={webhookLogs.length < itemsPerPage}
-                className="rounded-lg border border-zinc-200 bg-white px-3 py-1 text-sm disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
+                className="rounded-lg border border-gray-200 bg-white px-3 py-1 text-sm disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900"
               >
                 Next
               </button>

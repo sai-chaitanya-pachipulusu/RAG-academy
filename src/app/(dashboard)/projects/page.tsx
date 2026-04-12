@@ -145,7 +145,7 @@ export default function ProjectsPage() {
     <div className="flex flex-col gap-6">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Projects</h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           Build production-grade RAG systems. Start with live projects, follow guided tracks, or download templates.
         </p>
       </header>
@@ -154,8 +154,8 @@ export default function ProjectsPage() {
       <section>
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Live Projects</h2>
-            <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Live Projects</h2>
+            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
               Interactive capstone challenges. Write code, run tests, get instant feedback.
             </p>
           </div>
@@ -167,8 +167,8 @@ export default function ProjectsPage() {
             <Card key={project.slug} className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{project.title}</p>
-                  <p className="mt-0.5 text-sm text-zinc-600 dark:text-zinc-300">{project.description}</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{project.title}</p>
+                  <p className="mt-0.5 text-sm text-gray-600 dark:text-gray-300">{project.description}</p>
                 </div>
                 <Badge variant={project.difficulty === "easy" ? "accent" : project.difficulty === "medium" ? "muted" : "default"}>
                   {project.difficulty}
@@ -176,22 +176,22 @@ export default function ProjectsPage() {
               </div>
 
               {project.realWorld && (
-                <div className="mt-3 rounded-lg bg-zinc-50 p-2.5 dark:bg-zinc-900/50">
-                  <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">Real-World Impact</p>
-                  <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">{project.realWorld.description}</p>
+                <div className="mt-3 rounded-lg bg-gray-50 p-2.5 dark:bg-gray-900/50">
+                  <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Real-World Impact</p>
+                  <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">{project.realWorld.description}</p>
                   {project.realWorld.companies && project.realWorld.companies.length > 0 && (
-                    <p className="mt-0.5 text-[11px] text-zinc-500">Used by: {project.realWorld.companies.join(", ")}</p>
+                    <p className="mt-0.5 text-[11px] text-gray-500">Used by: {project.realWorld.companies.join(", ")}</p>
                   )}
                 </div>
               )}
 
               <div className="mt-3 flex items-center justify-between">
-                <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
                   {project.xpReward} XP
                 </span>
                 <Link
                   href={`/challenges/${project.slug}`}
-                  className="inline-flex h-8 items-center justify-center rounded-full bg-zinc-900 px-4 text-xs font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+                  className="inline-flex h-8 items-center justify-center rounded-full bg-[#8B5CF6] px-4 text-xs font-medium text-white hover:bg-[#7C3AED] dark:bg-white dark:text-black dark:hover:bg-[#7C3AED] cursor-pointer"
                 >
                   Start Project
                 </Link>
@@ -205,8 +205,8 @@ export default function ProjectsPage() {
       <section>
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Project Tracks</h2>
-            <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Project Tracks</h2>
+            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
               Build from first principles. Each track chains related challenges into a portfolio-grade project.
             </p>
           </div>
@@ -218,13 +218,13 @@ export default function ProjectsPage() {
             <Card key={track.id} className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
-                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-zinc-100 text-[10px] font-bold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-[10px] font-bold text-gray-700 dark:bg-[#7C3AED] dark:text-gray-300">
                     {track.icon}
                   </span>
                   <div>
-                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{track.title}</p>
-                    <p className="mt-0.5 text-sm text-zinc-600 dark:text-zinc-300">{track.desc}</p>
-                    <p className="mt-0.5 text-xs text-zinc-500">{track.duration} · {track.challenges.length} challenges</p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{track.title}</p>
+                    <p className="mt-0.5 text-sm text-gray-600 dark:text-gray-300">{track.desc}</p>
+                    <p className="mt-0.5 text-xs text-gray-500">{track.duration} · {track.challenges.length} challenges</p>
                   </div>
                 </div>
                 <Badge variant={track.difficulty === "beginner" ? "accent" : track.difficulty === "intermediate" ? "muted" : "default"}>
@@ -234,13 +234,13 @@ export default function ProjectsPage() {
 
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <div>
-                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Challenges</p>
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Challenges</p>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {track.challenges.map((c) => (
                       <Link
                         key={c.slug}
                         href={`/challenges/${c.slug}`}
-                        className="rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+                        className="rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[11px] font-medium text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06] cursor-pointer"
                       >
                         {c.label}
                       </Link>
@@ -249,10 +249,10 @@ export default function ProjectsPage() {
                 </div>
 
                 <div>
-                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Evaluation Rubric</p>
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Evaluation Rubric</p>
                   <ul className="mt-1.5 space-y-0.5">
                     {track.rubric.map((r, i) => (
-                      <li key={i} className="flex items-start gap-1.5 text-xs text-zinc-600 dark:text-zinc-400">
+                      <li key={i} className="flex items-start gap-1.5 text-xs text-gray-600 dark:text-gray-400">
                         <input type="checkbox" className="mt-0.5 h-3 w-3 rounded" disabled />
                         {r}
                       </li>
@@ -261,9 +261,9 @@ export default function ProjectsPage() {
                 </div>
               </div>
 
-              <div className="mt-3 rounded-lg bg-zinc-50 p-2.5 dark:bg-zinc-900/50">
-                <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">Outcome</p>
-                <p className="mt-0.5 text-sm text-zinc-700 dark:text-zinc-300">{track.outcome}</p>
+              <div className="mt-3 rounded-lg bg-gray-50 p-2.5 dark:bg-gray-900/50">
+                <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Outcome</p>
+                <p className="mt-0.5 text-sm text-gray-700 dark:text-gray-300">{track.outcome}</p>
               </div>
 
               <TrackProgress
@@ -279,8 +279,8 @@ export default function ProjectsPage() {
 
       {/* Production Templates */}
       <section>
-        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Production Templates</h2>
-        <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Production Templates</h2>
+        <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
           Ready-to-deploy starter kits.
         </p>
 
@@ -289,8 +289,8 @@ export default function ProjectsPage() {
             <Card key={t.name} className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{t.name}</p>
-                  <p className="mt-0.5 text-sm text-zinc-600 dark:text-zinc-300">{t.desc}</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t.name}</p>
+                  <p className="mt-0.5 text-sm text-gray-600 dark:text-gray-300">{t.desc}</p>
                 </div>
                 <Badge variant={t.status === "ready" ? "accent" : "muted"}>
                   {t.status === "ready" ? "Live" : "Coming"}
@@ -299,13 +299,13 @@ export default function ProjectsPage() {
 
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {t.stack.map((s) => (
-                  <span key={s} className="rounded-md bg-zinc-100 px-2 py-0.5 text-[11px] text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                  <span key={s} className="rounded-md bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700 dark:bg-[#7C3AED] dark:text-gray-300">
                     {s}
                   </span>
                 ))}
               </div>
 
-              <ul className="mt-3 space-y-0.5 text-xs text-zinc-600 dark:text-zinc-400">
+              <ul className="mt-3 space-y-0.5 text-xs text-gray-600 dark:text-gray-400">
                 {t.features.map((f) => (
                   <li key={f} className="flex items-start gap-1.5">
                     <span className="text-emerald-500 text-xs">+</span>
@@ -319,12 +319,12 @@ export default function ProjectsPage() {
                   href={t.repoUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-3 inline-flex h-8 items-center justify-center rounded-full bg-zinc-900 px-4 text-xs font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+                  className="mt-3 inline-flex h-8 items-center justify-center rounded-full bg-[#8B5CF6] px-4 text-xs font-medium text-white hover:bg-[#7C3AED] dark:bg-white dark:text-black dark:hover:bg-[#7C3AED] cursor-pointer"
                 >
                   View on GitHub
                 </a>
               ) : (
-                <button disabled className="mt-3 inline-flex h-8 items-center justify-center rounded-full bg-zinc-200 px-4 text-xs font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500">
+                <button disabled className="mt-3 inline-flex h-8 items-center justify-center rounded-full bg-gray-200 px-4 text-xs font-medium text-gray-500 dark:bg-[#7C3AED] dark:text-gray-500">
                   Coming soon
                 </button>
               )}
@@ -335,8 +335,8 @@ export default function ProjectsPage() {
 
       {/* Submission Checklist */}
       <section>
-        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Submission Checklist</h2>
-        <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Submission Checklist</h2>
+        <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
           Use this checklist to ensure your project meets production standards.
         </p>
         <div className="mt-3">
@@ -348,13 +348,13 @@ export default function ProjectsPage() {
       <Card className="p-4">
         <p className="text-sm font-medium">Next steps</p>
         <div className="mt-2 flex flex-wrap gap-2">
-          <Link href="/learn" className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]">
+          <Link href="/learn" className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06] cursor-pointer">
             Learn the concepts
           </Link>
-          <Link href="/challenges" className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]">
+          <Link href="/challenges" className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06] cursor-pointer">
             Practice challenges
           </Link>
-          <Link href="/compare/evaluation" className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06]">
+          <Link href="/compare/evaluation" className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06] cursor-pointer">
             Evaluation frameworks
           </Link>
         </div>

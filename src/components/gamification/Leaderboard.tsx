@@ -67,31 +67,31 @@ export function Leaderboard({ currentUserXP = 1200, currentUserChallenges = 12 }
 
   const getRankBadge = (rank: number) => {
     if (rank === 1) return { icon: "🥇", color: "from-yellow-400 to-amber-500" };
-    if (rank === 2) return { icon: "🥈", color: "from-gray-300 to-gray-400" };
+    if (rank === 2) return { icon: "🥈", color: "from-[#8B5CF6]-300 to-[#8B5CF6]-400" };
     if (rank === 3) return { icon: "🥉", color: "from-amber-600 to-orange-700" };
     return null;
   };
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+    <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-[#7C3AED]">
       {/* Header */}
-      <div className="border-b border-zinc-200 p-4 dark:border-zinc-800">
+      <div className="border-b border-gray-200 p-4 dark:border-gray-800">
         <div className="flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
             <span>🏆</span>
             <span>Leaderboard</span>
           </h2>
           
           {/* Time filter */}
-          <div className="flex rounded-lg border border-zinc-200 p-1 dark:border-zinc-800">
+          <div className="flex rounded-lg border border-gray-200 p-1 dark:border-gray-800">
             {(["daily", "weekly", "monthly", "all_time"] as TimeFilter[]).map((filter) => (
               <button
                 key={filter}
                 onClick={() => setTimeFilter(filter)}
                 className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
                   timeFilter === filter
-                    ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900"
-                    : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                    ? "bg-[#8B5CF6] text-white dark:bg-white dark:text-gray-900"
+                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 }`}
               >
                 {filter.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
@@ -131,7 +131,7 @@ export function Leaderboard({ currentUserXP = 1200, currentUserChallenges = 12 }
               className={`flex items-center gap-3 p-3 transition ${
                 entry.rank <= 3
                   ? "bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-950/10"
-                  : "hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
+                  : "hover:bg-gray-50 dark:hover:bg-gray-900/50"
               }`}
             >
               {/* Rank */}
@@ -139,7 +139,7 @@ export function Leaderboard({ currentUserXP = 1200, currentUserChallenges = 12 }
                 {badge ? (
                   <span className="text-2xl">{badge.icon}</span>
                 ) : (
-                  <span className="text-sm font-bold text-zinc-400">
+                  <span className="text-sm font-bold text-gray-400">
                     #{entry.rank}
                   </span>
                 )}
@@ -147,19 +147,19 @@ export function Leaderboard({ currentUserXP = 1200, currentUserChallenges = 12 }
 
               {/* Avatar & Name */}
               <div className="flex flex-1 items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-zinc-100 to-zinc-200 text-xl dark:from-zinc-800 dark:to-zinc-900">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#8B5CF6]-100 to-[#8B5CF6]-200 text-xl dark:from-[#8B5CF6]-800 dark:to-[#8B5CF6]-900">
                   {entry.avatar}
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                       {entry.username}
                     </p>
                     {entry.country && (
                       <span className="text-sm">{entry.country}</span>
                     )}
                   </div>
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-xs text-gray-500">
                     {entry.challengesCompleted} challenges
                     {entry.streak > 7 && (
                       <span className="ml-2 text-orange-500">
@@ -172,10 +172,10 @@ export function Leaderboard({ currentUserXP = 1200, currentUserChallenges = 12 }
 
               {/* XP */}
               <div className="text-right">
-                <p className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
                   {entry.xp.toLocaleString()}
                 </p>
-                <p className="text-xs text-zinc-400">XP</p>
+                <p className="text-xs text-gray-400">XP</p>
               </div>
             </div>
           );
@@ -183,8 +183,8 @@ export function Leaderboard({ currentUserXP = 1200, currentUserChallenges = 12 }
       </div>
 
       {/* Load more */}
-      <div className="border-t border-zinc-200 p-3 dark:border-zinc-800">
-        <button className="w-full rounded-lg border border-zinc-200 py-2 text-sm text-zinc-600 transition hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-900">
+      <div className="border-t border-gray-200 p-3 dark:border-gray-800">
+        <button className="w-full rounded-lg border border-gray-200 py-2 text-sm text-gray-600 transition hover:bg-gray-50 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-gray-900 cursor-pointer">
           View Full Leaderboard
         </button>
       </div>
@@ -195,8 +195,8 @@ export function Leaderboard({ currentUserXP = 1200, currentUserChallenges = 12 }
 // Compact leaderboard widget for sidebar
 export function LeaderboardWidget() {
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
-      <h3 className="flex items-center gap-1.5 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+    <div className="rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-[#7C3AED]">
+      <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 dark:text-gray-300">
         <span>🏆</span>
         <span>Top 3 This Week</span>
       </h3>
@@ -207,10 +207,10 @@ export function LeaderboardWidget() {
             className="flex items-center gap-2 text-xs"
           >
             <span>{entry.rank === 1 ? "🥇" : entry.rank === 2 ? "🥈" : "🥉"}</span>
-            <span className="flex-1 truncate text-zinc-700 dark:text-zinc-300">
+            <span className="flex-1 truncate text-gray-700 dark:text-gray-300">
               {entry.username}
             </span>
-            <span className="font-medium text-zinc-900 dark:text-zinc-100">
+            <span className="font-medium text-gray-900 dark:text-gray-100">
               {entry.xp.toLocaleString()}
             </span>
           </div>

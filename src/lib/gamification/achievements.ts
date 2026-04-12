@@ -480,7 +480,7 @@ export function getAchievementsByRarity(rarity: AchievementRarity): Achievement[
 export function getRarityColor(rarity: AchievementRarity): string {
   switch (rarity) {
     case "common":
-      return "text-zinc-600 dark:text-zinc-400";
+      return "text-gray-600 dark:text-gray-400";
     case "rare":
       return "text-blue-600 dark:text-blue-400";
     case "epic":
@@ -488,14 +488,14 @@ export function getRarityColor(rarity: AchievementRarity): string {
     case "legendary":
       return "text-amber-500 dark:text-amber-400";
     default:
-      return "text-zinc-600";
+      return "text-gray-600";
   }
 }
 
 export function getRarityBgColor(rarity: AchievementRarity): string {
   switch (rarity) {
     case "common":
-      return "bg-zinc-100 dark:bg-zinc-800";
+      return "bg-gray-100 dark:bg-[#7C3AED]";
     case "rare":
       return "bg-blue-100 dark:bg-blue-900/30";
     case "epic":
@@ -503,14 +503,14 @@ export function getRarityBgColor(rarity: AchievementRarity): string {
     case "legendary":
       return "bg-amber-100 dark:bg-amber-900/30";
     default:
-      return "bg-zinc-100";
+      return "bg-gray-100";
   }
 }
 
 export function getRarityBorderColor(rarity: AchievementRarity): string {
   switch (rarity) {
     case "common":
-      return "border-zinc-200 dark:border-zinc-700";
+      return "border-gray-200 dark:border-gray-700";
     case "rare":
       return "border-blue-200 dark:border-blue-800";
     case "epic":
@@ -518,7 +518,7 @@ export function getRarityBorderColor(rarity: AchievementRarity): string {
     case "legendary":
       return "border-amber-200 dark:border-amber-800";
     default:
-      return "border-zinc-200";
+      return "border-gray-200";
   }
 }
 

@@ -17,7 +17,7 @@ const PHASES = [
   { id: "grounding-safety", name: "Phase 5: Security", icon: "🛡️", color: "from-red-500 to-rose-500", description: "Safety and compliance" },
   { id: "multimodal", name: "Phase 6: Multi-Modal", icon: "🖼️", color: "from-fuchsia-500 to-pink-500", description: "Tables, images, audio" },
   { id: "advanced-retrieval", name: "Phase 7: SOTA Architectures", icon: "🚀", color: "from-sky-500 to-blue-500", description: "ColBERT, RAPTOR, Self-RAG" },
-  { id: "production-ops", name: "Phase 8: Infrastructure", icon: "⚙️", color: "from-slate-500 to-zinc-600", description: "Scaling and optimization" },
+  { id: "production-ops", name: "Phase 8: Infrastructure", icon: "⚙️", color: "from-slate-500 to-[#8B5CF6]-600", description: "Scaling and optimization" },
   { id: "evaluation-ops", name: "Phase 9: Evaluation", icon: "📊", color: "from-lime-500 to-green-500", description: "LLM-as-a-Judge" },
   { id: "fine-tuning", name: "Phase 10: Fine-Tuning", icon: "🎓", color: "from-yellow-500 to-amber-500", description: "Model customization" },
 ] as const;
@@ -60,11 +60,11 @@ export function PhaseProgressionView() {
   return (
     <div className="space-y-8">
       {/* Overall Progress Header */}
-      <div className="rounded-2xl border border-zinc-200 bg-gradient-to-r from-zinc-50 to-white p-6 dark:border-white/10 dark:from-zinc-900 dark:to-zinc-800">
+      <div className="rounded-2xl border border-gray-200 bg-gradient-to-r from-[#8B5CF6]-50 to-white p-6 dark:border-white/10 dark:from-[#8B5CF6]-900 dark:to-[#8B5CF6]-800">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold tracking-tight">Your RAG Journey</h2>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
               {totalCompleted} of {totalChallenges} challenges completed
             </p>
           </div>
@@ -78,7 +78,7 @@ export function PhaseProgressionView() {
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="4"
-                className="text-zinc-200 dark:text-zinc-700"
+                className="text-gray-200 dark:text-gray-700"
               />
               <circle
                 cx="32"
@@ -119,7 +119,7 @@ export function PhaseProgressionView() {
                     ? "border-emerald-500 bg-emerald-500 text-white"
                     : phase.progress > 0
                       ? "border-amber-500 bg-amber-500 text-white"
-                      : "border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-900"
+                      : "border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-900"
                 }`}
               >
                 {phase.progress === 100 ? "✓" : index}
@@ -130,7 +130,7 @@ export function PhaseProgressionView() {
                 className={`group cursor-pointer rounded-xl border transition-all ${
                   expandedPhase === phase.id
                     ? "border-indigo-300 bg-indigo-50/50 dark:border-indigo-800 dark:bg-indigo-950/20"
-                    : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-white/10 dark:bg-white/[0.02] dark:hover:border-white/20"
+                    : "border-gray-200 bg-white hover:border-gray-300 dark:border-white/10 dark:bg-white/[0.02] dark:hover:border-white/20"
                 }`}
                 onClick={() => setExpandedPhase(expandedPhase === phase.id ? null : phase.id)}
               >
@@ -141,18 +141,18 @@ export function PhaseProgressionView() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                      <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate">
                         {phase.name}
                       </h3>
-                      <span className="ml-2 text-xs text-zinc-500">
+                      <span className="ml-2 text-xs text-gray-500">
                         {phase.completed}/{phase.total}
                       </span>
                     </div>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       {phase.description}
                     </p>
                     {/* Mini progress bar */}
-                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-[#7C3AED]">
                       <div
                         className={`h-full rounded-full bg-gradient-to-r ${phase.color} transition-all`}
                         style={{ width: `${phase.progress}%` }}
@@ -160,7 +160,7 @@ export function PhaseProgressionView() {
                     </div>
                   </div>
                   <svg
-                    className={`h-5 w-5 text-zinc-400 transition-transform ${
+                    className={`h-5 w-5 text-gray-400 transition-transform ${
                       expandedPhase === phase.id ? "rotate-180" : ""
                     }`}
                     fill="none"
@@ -174,7 +174,7 @@ export function PhaseProgressionView() {
 
                 {/* Expanded Challenge List */}
                 {expandedPhase === phase.id && (
-                  <div className="border-t border-zinc-200 p-4 dark:border-white/10">
+                  <div className="border-t border-gray-200 p-4 dark:border-white/10">
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                       {phase.challenges.map((challenge) => {
                         const status = state.challenges[challenge.slug]?.status;
@@ -183,12 +183,12 @@ export function PhaseProgressionView() {
                             key={challenge.slug}
                             href={`/challenges/${challenge.slug}`}
                             onClick={(e) => e.stopPropagation()}
-                            className={`flex items-center gap-2 rounded-lg border p-2 text-sm transition-colors hover:bg-zinc-50 dark:hover:bg-white/5 ${
+                            className={`flex items-center gap-2 rounded-lg border p-2 text-sm transition-colors hover:bg-gray-50 dark:hover:bg-white/5 ${
                               status === "completed"
                                 ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20"
                                 : status === "in_progress"
                                   ? "border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20"
-                                  : "border-zinc-200 dark:border-zinc-800"
+                                  : "border-gray-200 dark:border-gray-800"
                             }`}
                           >
                             <span className="flex-shrink-0">

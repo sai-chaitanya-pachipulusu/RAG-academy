@@ -15,9 +15,9 @@ export function PreferencesPanel() {
   const selected = useMemo(() => new Set<Topic>(prefs.topics), [prefs.topics]);
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5">
-      <h2 className="text-lg font-semibold tracking-tight text-zinc-900">Interests</h2>
-      <p className="mt-1 text-sm text-zinc-600">
+    <div className="rounded-2xl border border-gray-200 bg-white p-5">
+      <h2 className="text-lg font-semibold tracking-tight text-gray-900">Interests</h2>
+      <p className="mt-1 text-sm text-gray-600">
         Used to personalize the Research feed and (next) recommend lessons/challenges.
       </p>
 
@@ -39,7 +39,7 @@ export function PreferencesPanel() {
                 "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
                 on
                   ? "border-indigo-600 bg-indigo-600 text-white"
-                  : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300",
+                  : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300",
               ].join(" ")}
             >
               {t}

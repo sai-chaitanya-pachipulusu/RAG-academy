@@ -72,8 +72,8 @@ export function VectorSpaceExplorer({
   return (
     <Card className="p-6">
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{title}</h3>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{description}</p>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
+        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{description}</p>
       </div>
 
       {/* Controls */}
@@ -83,18 +83,18 @@ export function VectorSpaceExplorer({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Enter a search query..."
-          className="flex-1 min-w-[200px] rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
+          className="flex-1 min-w-[200px] rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900"
         />
         <button
           onClick={handleSearch}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500"
+          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 cursor-pointer"
         >
           Embed & Search
         </button>
         <select
           value={topK}
           onChange={(e) => setTopK(Number(e.target.value))}
-          className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
         >
           <option value={3}>Top 3</option>
           <option value={5}>Top 5</option>
@@ -103,7 +103,7 @@ export function VectorSpaceExplorer({
       </div>
 
       {/* Visualization */}
-      <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-zinc-200 bg-gradient-to-br from-zinc-50 to-zinc-100 dark:border-zinc-700 dark:from-zinc-900 dark:to-zinc-800">
+      <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-gray-200 bg-gradient-to-br from-[#8B5CF6]-50 to-[#8B5CF6]-100 dark:border-gray-700 dark:from-[#8B5CF6]-900 dark:to-[#8B5CF6]-800">
         <svg
           ref={svgRef}
           viewBox="0 0 100 100"
@@ -118,7 +118,7 @@ export function VectorSpaceExplorer({
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="0.1"
-                className="text-zinc-300 dark:text-zinc-700"
+                className="text-gray-300 dark:text-gray-700"
               />
             </pattern>
           </defs>
@@ -226,20 +226,20 @@ export function VectorSpaceExplorer({
       {/* Results panel */}
       {queryPoint && (
         <div className="mt-4">
-          <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Top {topK} Results</h4>
+          <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Top {topK} Results</h4>
           <div className="mt-2 space-y-2">
             {topResults.map((doc, idx) => (
               <div
                 key={doc.id}
-                className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+                className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
               >
                 <div className="flex items-center gap-2">
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700 dark:bg-blue-900 dark:text-blue-300">
                     {idx + 1}
                   </span>
-                  <span className="text-sm text-zinc-700 dark:text-zinc-300">{doc.label}</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{doc.label}</span>
                 </div>
-                <span className="text-xs text-zinc-500">
+                <span className="text-xs text-gray-500">
                   Score: {((doc.relevance ?? 0) * 100).toFixed(1)}%
                 </span>
               </div>

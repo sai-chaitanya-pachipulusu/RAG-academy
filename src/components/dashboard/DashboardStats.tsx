@@ -26,7 +26,7 @@ export function DashboardStats() {
       <Card>
         <p className="text-sm font-medium">XP</p>
         <p className="mt-1 text-2xl font-semibold tracking-tight">{state.xp}</p>
-        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
           Level {level.level} · {level.title}
         </p>
       </Card>
@@ -35,7 +35,7 @@ export function DashboardStats() {
         <p className="mt-1 text-2xl font-semibold tracking-tight">
           {state.streak.streakDays}
         </p>
-        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
           Last activity: {state.streak.lastActivityDate ?? "—"}
         </p>
       </Card>
@@ -46,7 +46,7 @@ export function DashboardStats() {
         </p>
         <Link
           href="/learn"
-          className="mt-2 inline-flex text-sm font-medium text-zinc-950 underline-offset-4 hover:underline dark:text-zinc-50"
+          className="mt-2 inline-flex text-sm font-medium text-gray-950 underline-offset-4 hover:underline dark:text-gray-50 cursor-pointer"
         >
           Continue →
         </Link>
@@ -56,7 +56,7 @@ export function DashboardStats() {
         <p className="mt-1 text-2xl font-semibold tracking-tight">{completed}</p>
         <Link
           href="/challenges"
-          className="mt-2 inline-flex text-sm font-medium text-zinc-950 underline-offset-4 hover:underline dark:text-zinc-50"
+          className="mt-2 inline-flex text-sm font-medium text-gray-950 underline-offset-4 hover:underline dark:text-gray-50 cursor-pointer"
         >
           Continue →
         </Link>

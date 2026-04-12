@@ -15,19 +15,19 @@ export function Paywall({ challengeTitle, challengeIndex }: PaywallProps) {
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-16">
-      <div className="rounded-3xl border-2 border-zinc-200 bg-white p-8 text-center shadow-xl">
+      <div className="rounded-3xl border-2 border-gray-200 bg-white p-8 text-center shadow-xl">
         {/* Lock Icon */}
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100">
-          <svg className="h-8 w-8 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
+          <svg className="h-8 w-8 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
         </div>
 
         {/* Message */}
-        <h2 className="text-2xl font-bold text-zinc-900">
+        <h2 className="text-2xl font-bold text-gray-900">
           Unlock {challengeTitle}
         </h2>
-        <p className="mt-3 text-zinc-600">
+        <p className="mt-3 text-gray-600">
           You've completed {freeChallengeLimit} free challenges! Upgrade to Pro to access all{" "}
           {stats.totalChallenges}+ challenges, advanced techniques, and priority support.
         </p>
@@ -42,15 +42,15 @@ export function Paywall({ challengeTitle, challengeIndex }: PaywallProps) {
           <div className="flex items-center justify-center gap-4">
             <div>
               {currentPhase.tiers.paid.strikethrough && (
-                <div className="text-sm text-zinc-500 line-through">
+                <div className="text-sm text-gray-500 line-through">
                   {currentPhase.tiers.paid.strikethrough}
                 </div>
               )}
-              <div className="text-4xl font-bold text-zinc-900">
+              <div className="text-4xl font-bold text-gray-900">
                 {currentPhase.tiers.paid.price.displayMonthly}
-                <span className="text-lg font-normal text-zinc-600">/month</span>
+                <span className="text-lg font-normal text-gray-600">/month</span>
               </div>
-              <div className="text-sm text-zinc-600 mt-1">
+              <div className="text-sm text-gray-600 mt-1">
                 or {currentPhase.tiers.paid.price.displayAnnual}/year
               </div>
             </div>
@@ -66,13 +66,13 @@ export function Paywall({ challengeTitle, challengeIndex }: PaywallProps) {
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Link
             href="/checkout?tier=pro&billing=annual"
-            className="inline-flex h-12 items-center justify-center rounded-xl bg-zinc-900 px-8 text-sm font-semibold text-white transition-all hover:bg-zinc-800"
+            className="inline-flex h-12 items-center justify-center rounded-xl bg-[#8B5CF6] px-8 text-sm font-semibold text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] cursor-pointer"
           >
             Upgrade to Pro
           </Link>
           <Link
             href="/pricing"
-            className="inline-flex h-12 items-center justify-center rounded-xl border border-zinc-200 bg-white px-8 text-sm font-semibold text-zinc-900 transition-all hover:border-zinc-300 hover:shadow-md"
+            className="inline-flex h-12 items-center justify-center rounded-xl border border-gray-200 bg-white px-8 text-sm font-semibold text-gray-900 transition-all duration-200-all duration-200 hover:border-gray-300 hover:shadow-md cursor-pointer"
           >
             View All Plans
           </Link>
@@ -92,13 +92,13 @@ export function Paywall({ challengeTitle, challengeIndex }: PaywallProps) {
               <svg className="h-5 w-5 flex-shrink-0 text-emerald-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
-              <span className="text-sm text-zinc-700">{feature}</span>
+              <span className="text-sm text-gray-700">{feature}</span>
             </div>
           ))}
         </div>
 
         {/* Trust Badge */}
-        <p className="mt-6 text-xs text-zinc-500">
+        <p className="mt-6 text-xs text-gray-500">
           14-day money-back guarantee • Cancel anytime
         </p>
       </div>
@@ -117,7 +117,7 @@ export function UpgradePrompt({ challengeIndex }: { challengeIndex: number }) {
   }
 
   return (
-    <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-zinc-900/90 backdrop-blur-sm">
+    <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-gray-900/90 backdrop-blur-sm">
       <div className="text-center p-6">
         <svg className="h-10 w-10 text-white mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -125,7 +125,7 @@ export function UpgradePrompt({ challengeIndex }: { challengeIndex: number }) {
         <p className="text-white font-semibold mb-3">Pro Only</p>
         <Link
           href="/pricing"
-          className="inline-flex h-9 items-center justify-center rounded-lg bg-white px-4 text-sm font-semibold text-zinc-900 transition-all hover:bg-zinc-100"
+          className="inline-flex h-9 items-center justify-center rounded-lg bg-white px-4 text-sm font-semibold text-gray-900 transition-all duration-200-all duration-200 hover:bg-gray-100 cursor-pointer"
         >
           Upgrade
         </Link>

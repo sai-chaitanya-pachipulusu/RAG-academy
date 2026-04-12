@@ -8,10 +8,10 @@ import type { ErrorMarker } from "./editorTypes";
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full items-center justify-center bg-zinc-50 dark:bg-zinc-900">
+    <div className="flex h-full items-center justify-center bg-gray-50 dark:bg-gray-900">
       <div className="flex flex-col items-center gap-2">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-        <span className="text-xs text-zinc-500">Loading editor...</span>
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-zinc-900 dark:border-gray-700 dark:border-t-zinc-100" />
+        <span className="text-xs text-gray-500">Loading editor...</span>
       </div>
     </div>
   ),
@@ -194,7 +194,7 @@ export function CodeEditor({
 
   return (
     <div
-      className="overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800"
+      className="overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-800"
       style={{ height }}
     >
       <style jsx global>{`
@@ -308,8 +308,8 @@ const MonacoDiffEditor = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full items-center justify-center bg-zinc-50">
-        <span className="text-xs text-zinc-500">Loading diff viewer...</span>
+      <div className="flex h-full items-center justify-center bg-gray-50">
+        <span className="text-xs text-gray-500">Loading diff viewer...</span>
       </div>
     ),
   }
@@ -323,12 +323,12 @@ export function CodeDiffViewer({
   modifiedTitle = "Solution",
 }: DiffViewerProps) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800">
-      <div className="flex border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="flex-1 px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+    <div className="overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-800">
+      <div className="flex border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
+        <div className="flex-1 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400">
           {originalTitle}
         </div>
-        <div className="flex-1 border-l border-zinc-200 px-3 py-1.5 text-xs font-medium text-emerald-600 dark:border-zinc-800 dark:text-emerald-400">
+        <div className="flex-1 border-l border-gray-200 px-3 py-1.5 text-xs font-medium text-emerald-600 dark:border-gray-800 dark:text-emerald-400">
           {modifiedTitle}
         </div>
       </div>

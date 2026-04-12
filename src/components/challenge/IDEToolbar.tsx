@@ -51,12 +51,12 @@ export function IDEToolbar({
   const [showSettings, setShowSettings] = useState(false);
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-t-xl border-b border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-t-xl border-b border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-800 dark:bg-gray-900">
       {/* Left side: Editor label + Settings */}
       <div className="flex items-center gap-3">
-        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
           Editor
-          <span className="ml-2 rounded bg-zinc-200 px-1.5 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+          <span className="ml-2 rounded bg-gray-200 px-1.5 py-0.5 text-xs text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400">
             Python
           </span>
         </span>
@@ -66,7 +66,7 @@ export function IDEToolbar({
           <button
             type="button"
             onClick={() => setShowSettings(!showSettings)}
-            className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-600 transition-colors hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:bg-zinc-700"
+            className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600 transition-all duration-200-all duration-200 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-[#7C3AED] dark:text-gray-400 dark:hover:border-gray-600 dark:hover:bg-gray-700 cursor-pointer"
             title="Editor Settings"
           >
             <svg
@@ -99,10 +99,10 @@ export function IDEToolbar({
                 onClick={() => setShowSettings(false)}
               />
               {/* Dropdown */}
-              <div className="absolute left-0 top-full z-20 mt-1 w-64 rounded-xl border border-zinc-200 bg-white p-3 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+              <div className="absolute left-0 top-full z-20 mt-1 w-64 rounded-xl border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-[#7C3AED]">
                 {/* Font Size */}
                 <div className="mb-3">
-                  <label className="mb-1.5 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                  <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
                     Font Size
                   </label>
                   <div className="flex items-center gap-2">
@@ -111,7 +111,7 @@ export function IDEToolbar({
                       onClick={() =>
                         onFontSizeChange(Math.max(12, fontSize - 1))
                       }
-                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
+                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 cursor-pointer"
                     >
                       −
                     </button>
@@ -120,7 +120,7 @@ export function IDEToolbar({
                       onChange={(e) =>
                         onFontSizeChange(parseInt(e.target.value))
                       }
-                      className="flex-1 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-center text-sm dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-200"
+                      className="flex-1 rounded-lg border border-gray-200 bg-white px-2 py-1 text-center text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
                     >
                       {FONT_SIZES.map((size) => (
                         <option key={size} value={size}>
@@ -133,7 +133,7 @@ export function IDEToolbar({
                       onClick={() =>
                         onFontSizeChange(Math.min(20, fontSize + 1))
                       }
-                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
+                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 cursor-pointer"
                     >
                       +
                     </button>
@@ -142,17 +142,17 @@ export function IDEToolbar({
 
                 {/* Layout Toggle */}
                 <div className="mb-3">
-                  <label className="mb-1.5 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                  <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
                     Layout
                   </label>
-                  <div className="flex rounded-lg border border-zinc-200 p-0.5 dark:border-zinc-600">
+                  <div className="flex rounded-lg border border-gray-200 p-0.5 dark:border-gray-600">
                     <button
                       type="button"
                       onClick={() => onLayoutChange("split")}
-                      className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                      className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-all duration-200-all duration-200 ${
                         layout === "split"
-                          ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                          : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-700"
+                          ? "bg-[#8B5CF6] text-white dark:bg-[#8B5CF6] dark:text-white"
+                          : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
                       }`}
                     >
                       ⬛⬜ Split
@@ -160,10 +160,10 @@ export function IDEToolbar({
                     <button
                       type="button"
                       onClick={() => onLayoutChange("stacked")}
-                      className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                      className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-all duration-200-all duration-200 ${
                         layout === "stacked"
-                          ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                          : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-700"
+                          ? "bg-[#8B5CF6] text-white dark:bg-[#8B5CF6] dark:text-white"
+                          : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
                       }`}
                     >
                       ⬛ Stacked
@@ -173,17 +173,17 @@ export function IDEToolbar({
 
                 {/* Theme Toggle */}
                 <div>
-                  <label className="mb-1.5 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                  <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
                     Theme
                   </label>
-                  <div className="flex rounded-lg border border-zinc-200 p-0.5 dark:border-zinc-600">
+                  <div className="flex rounded-lg border border-gray-200 p-0.5 dark:border-gray-600">
                     <button
                       type="button"
                       onClick={() => onThemeChange("light")}
-                      className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                      className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-all duration-200-all duration-200 ${
                         theme === "light"
-                          ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                          : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-700"
+                          ? "bg-[#8B5CF6] text-white dark:bg-[#8B5CF6] dark:text-white"
+                          : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
                       }`}
                     >
                       ☀️ Light
@@ -191,10 +191,10 @@ export function IDEToolbar({
                     <button
                       type="button"
                       onClick={() => onThemeChange("dark")}
-                      className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                      className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-all duration-200-all duration-200 ${
                         theme === "dark"
-                          ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                          : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-700"
+                          ? "bg-[#8B5CF6] text-white dark:bg-[#8B5CF6] dark:text-white"
+                          : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
                       }`}
                     >
                       🌙 Dark
@@ -204,26 +204,26 @@ export function IDEToolbar({
 
                 {/* Keyboard Shortcuts */}
                 {showKeyboardShortcuts && (
-                  <div className="mt-3 border-t border-zinc-200 pt-3 dark:border-zinc-600">
-                    <p className="mb-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                  <div className="mt-3 border-t border-gray-200 pt-3 dark:border-gray-600">
+                    <p className="mb-1.5 text-xs font-medium text-gray-600 dark:text-gray-400">
                       Shortcuts
                     </p>
-                    <div className="space-y-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    <div className="space-y-1 text-xs text-gray-500 dark:text-gray-400">
                       <div className="flex justify-between">
                         <span>Run Code</span>
-                        <kbd className="rounded bg-zinc-200 px-1.5 py-0.5 font-mono dark:bg-zinc-700">
+                        <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
                           Ctrl+Enter
                         </kbd>
                       </div>
                       <div className="flex justify-between">
                         <span>Submit</span>
-                        <kbd className="rounded bg-zinc-200 px-1.5 py-0.5 font-mono dark:bg-zinc-700">
+                        <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
                           Ctrl+Shift+S
                         </kbd>
                       </div>
                       <div className="flex justify-between">
                         <span>Format</span>
-                        <kbd className="rounded bg-zinc-200 px-1.5 py-0.5 font-mono dark:bg-zinc-700">
+                        <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono dark:bg-gray-700">
                           Shift+Alt+F
                         </kbd>
                       </div>
@@ -240,10 +240,10 @@ export function IDEToolbar({
           <button
             type="button"
             onClick={onToggleMicroTask}
-            className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-xs transition-colors ${
+            className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-xs transition-all duration-200-all duration-200 ${
               microTaskMode
                 ? "border-indigo-300 bg-indigo-100 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300"
-                : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:bg-zinc-700"
+                : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-[#7C3AED] dark:text-gray-400 dark:hover:border-gray-600 dark:hover:bg-gray-700"
             }`}
           >
             📚 Step-by-Step
@@ -255,7 +255,7 @@ export function IDEToolbar({
           <button
             type="button"
             onClick={onShowAIReview}
-            className="flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 px-2 py-1 text-xs text-purple-700 transition-colors hover:border-purple-300 hover:bg-purple-100"
+            className="flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 px-2 py-1 text-xs text-purple-700 transition-all duration-200-all duration-200 hover:border-purple-300 hover:bg-purple-100 cursor-pointer"
           >
             🤖 AI Review
           </button>
@@ -266,7 +266,7 @@ export function IDEToolbar({
           <button
             type="button"
             onClick={onShowDiff}
-            className="flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-100"
+            className="flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs text-emerald-700 transition-all duration-200-all duration-200 hover:border-emerald-300 hover:bg-emerald-100 cursor-pointer"
           >
             📊 Compare Solution
           </button>
@@ -280,7 +280,7 @@ export function IDEToolbar({
           type="button"
           onClick={onReset}
           disabled={isRunning}
-          className="inline-flex h-8 items-center justify-center rounded-lg border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-600 transition-colors hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:bg-zinc-700"
+          className="inline-flex h-8 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 text-xs font-medium text-gray-600 transition-all duration-200-all duration-200 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900 disabled:opacity-60 dark:border-gray-700 dark:bg-[#7C3AED] dark:text-gray-400 dark:hover:border-gray-600 dark:hover:bg-gray-700 cursor-pointer"
         >
           ↺ Reset
         </button>
@@ -290,11 +290,11 @@ export function IDEToolbar({
           type="button"
           onClick={onRun}
           disabled={isRunning}
-          className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-zinc-900 px-4 text-xs font-medium text-white shadow-sm transition-colors hover:bg-zinc-800 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+          className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-[#8B5CF6] px-4 text-xs font-medium text-white shadow-sm transition-all duration-200-all duration-200 hover:bg-[#7C3AED] disabled:opacity-60 dark:bg-[#8B5CF6] dark:text-white dark:hover:bg-[#7C3AED] cursor-pointer"
         >
           {isRunning ? (
             <>
-              <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white dark:border-zinc-900/30 dark:border-t-zinc-900" />
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white dark:border-[#8B5CF6]/30 dark:border-t-zinc-900" />
               Running...
             </>
           ) : (
@@ -310,7 +310,7 @@ export function IDEToolbar({
           type="button"
           onClick={onSubmit}
           disabled={isRunning || isCompleted}
-          className="inline-flex h-8 items-center justify-center rounded-lg bg-emerald-600 px-4 text-xs font-medium text-white shadow-sm transition-colors hover:bg-emerald-500 disabled:opacity-60"
+          className="inline-flex h-8 items-center justify-center rounded-lg bg-emerald-600 px-4 text-xs font-medium text-white shadow-sm transition-all duration-200-all duration-200 hover:bg-emerald-500 disabled:opacity-60 cursor-pointer"
         >
           {isRunning ? "Submitting..." : isCompleted ? "✓ Completed" : "Submit"}
         </button>
@@ -362,7 +362,7 @@ export function SuccessBanner({
         {nextChallenge && (
           <a
             href={`/challenges/${nextChallenge.slug}`}
-            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-500"
+            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all duration-200-all duration-200 hover:bg-emerald-500 cursor-pointer"
           >
             Next: {nextChallenge.title}
             <span>→</span>
@@ -399,17 +399,17 @@ export function OutputPanel({
   );
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
       {/* Tab Header */}
-      <div className="flex items-center justify-between border-b border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-800 dark:bg-gray-900">
         <div className="flex gap-1">
           <button
             type="button"
             onClick={() => setActiveTab("output")}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-200-all duration-200 ${
               activeTab === "output"
-                ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-100"
-                : "text-zinc-500 hover:bg-white/50 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800/50"
+                ? "bg-white text-gray-900 shadow-sm dark:bg-[#7C3AED] dark:text-gray-100"
+                : "text-gray-500 hover:bg-white/50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-[#7C3AED]/50"
             }`}
           >
             Output
@@ -417,10 +417,10 @@ export function OutputPanel({
           <button
             type="button"
             onClick={() => setActiveTab("errors")}
-            className={`relative rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+            className={`relative rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-200-all duration-200 ${
               activeTab === "errors"
-                ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-100"
-                : "text-zinc-500 hover:bg-white/50 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800/50"
+                ? "bg-white text-gray-900 shadow-sm dark:bg-[#7C3AED] dark:text-gray-100"
+                : "text-gray-500 hover:bg-white/50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-[#7C3AED]/50"
             }`}
           >
             Errors
@@ -433,7 +433,7 @@ export function OutputPanel({
         </div>
 
         {durationMs !== undefined && (
-          <span className="text-xs text-zinc-500 dark:text-zinc-400">
+          <span className="text-xs text-gray-500 dark:text-gray-400">
             ⏱️ {durationMs}ms
           </span>
         )}
@@ -463,14 +463,14 @@ export function OutputPanel({
       <div className="flex-1 overflow-auto p-4">
         {activeTab === "output" ? (
           stdout ? (
-            <pre className="whitespace-pre-wrap break-words font-mono text-sm leading-6 text-zinc-950 dark:text-zinc-100">
+            <pre className="whitespace-pre-wrap break-words font-mono text-sm leading-6 text-gray-950 dark:text-gray-100">
               {stdout}
             </pre>
           ) : (
-            <div className="flex h-full flex-col items-center justify-center text-center text-zinc-500 dark:text-zinc-400">
+            <div className="flex h-full flex-col items-center justify-center text-center text-gray-500 dark:text-gray-400">
               <p className="text-sm">Run your code to see output here.</p>
               <p className="mt-1 text-xs">
-                Use <code className="rounded bg-zinc-100 px-1 py-0.5 dark:bg-zinc-800">print()</code> to display values.
+                Use <code className="rounded bg-gray-100 px-1 py-0.5 dark:bg-[#7C3AED]">print()</code> to display values.
               </p>
             </div>
           )
@@ -480,7 +480,7 @@ export function OutputPanel({
             <ErrorSummary stderr={stderr} onJumpToLine={onJumpToLine} />
           </div>
         ) : (
-          <div className="flex h-full items-center justify-center text-sm text-zinc-500 dark:text-zinc-400">
+          <div className="flex h-full items-center justify-center text-sm text-gray-500 dark:text-gray-400">
             ✓ No errors
           </div>
         )}
@@ -567,7 +567,7 @@ function ErrorSummary({
         {lineNumber && onJumpToLine && (
           <button
             onClick={() => onJumpToLine(lineNumber!)}
-            className="text-xs text-blue-600 hover:underline dark:text-blue-400"
+            className="text-xs text-blue-600 hover:underline dark:text-blue-400 cursor-pointer"
           >
             Line {lineNumber}
           </button>
@@ -575,16 +575,16 @@ function ErrorSummary({
       </div>
 
       {codeSnippet && (
-        <pre className="rounded bg-zinc-900 p-2 text-xs text-red-400">
+        <pre className="rounded bg-gray-900 p-2 text-xs text-red-400">
           {codeSnippet}
         </pre>
       )}
 
-      <details className="text-xs text-zinc-500">
-        <summary className="cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300">
+      <details className="text-xs text-gray-500">
+        <summary className="cursor-pointer hover:text-gray-700 dark:hover:text-gray-300">
           Full traceback
         </summary>
-        <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-zinc-100 p-2 dark:bg-zinc-800">
+        <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-gray-100 p-2 dark:bg-[#7C3AED]">
           {stderr}
         </pre>
       </details>

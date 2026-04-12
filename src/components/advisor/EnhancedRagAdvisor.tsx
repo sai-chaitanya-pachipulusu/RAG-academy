@@ -57,7 +57,7 @@ const CATEGORY_CONFIG: Record<ProblemCategory, { label: string; color: string }>
   "query-understanding": { label: "Query Understanding", color: "bg-sky-100 text-sky-700 border-sky-200" },
   "agentic": { label: "Agentic RAG", color: "bg-violet-100 text-violet-700 border-violet-200" },
   "multimodal": { label: "Multimodal", color: "bg-pink-100 text-pink-700 border-pink-200" },
-  "general": { label: "General", color: "bg-zinc-100 text-zinc-700 border-zinc-200" },
+  "general": { label: "General", color: "bg-gray-100 text-gray-700 border-gray-200" },
 };
 
 
@@ -184,20 +184,20 @@ export function EnhancedRagAdvisor() {
   return (
     <div className="flex flex-col h-full max-h-[800px]">
       {/* Header */}
-      <div className="border-b border-zinc-200 pb-4 mb-4">
+      <div className="border-b border-gray-200 pb-4 mb-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-zinc-900">
+            <h2 className="text-2xl font-bold text-gray-900">
               RAG Problem Advisor
             </h2>
-            <p className="mt-1 text-sm text-zinc-500">
+            <p className="mt-1 text-sm text-gray-500">
               Describe your RAG problem and get personalized recommendations, challenges, and resources
             </p>
           </div>
           {state.messages.length > 0 && (
             <button
               onClick={clearConversation}
-              className="rounded-lg bg-zinc-100 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-200"
+              className="rounded-lg bg-gray-100 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-200 cursor-pointer"
             >
               New Conversation
             </button>
@@ -211,7 +211,7 @@ export function EnhancedRagAdvisor() {
           <div className="space-y-6">
             {/* Quick Categories */}
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400 mb-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3">
                 Browse by Category
               </p>
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
@@ -219,7 +219,7 @@ export function EnhancedRagAdvisor() {
                   <button
                     key={key}
                     onClick={() => handleExampleClick(`Help me with ${config.label.toLowerCase()} in RAG`)}
-                    className={`rounded-lg border px-3 py-2 text-xs font-medium transition-all hover:shadow-md ${config.color}`}
+                    className={`rounded-lg border px-3 py-2 text-xs font-medium transition-all duration-200-all duration-200 hover:shadow-md ${config.color}`}
                   >
                     {config.label}
                   </button>
@@ -229,7 +229,7 @@ export function EnhancedRagAdvisor() {
 
             {/* Example Problems */}
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400 mb-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3">
                 Common Problems (click to explore)
               </p>
               <div className="flex flex-wrap gap-2">
@@ -237,7 +237,7 @@ export function EnhancedRagAdvisor() {
                   <button
                     key={i}
                     onClick={() => handleExampleClick(example)}
-                    className="rounded-lg bg-zinc-50 px-3 py-1.5 text-xs text-zinc-600 transition-all hover:bg-zinc-100 hover:shadow-sm"
+                    className="rounded-lg bg-gray-50 px-3 py-1.5 text-xs text-gray-600 transition-all duration-200-all duration-200 hover:bg-gray-100 hover:shadow-sm cursor-pointer"
                   >
                     {example}
                   </button>
@@ -256,11 +256,11 @@ export function EnhancedRagAdvisor() {
               />
             ))}
             {state.isLoading && (
-              <div className="flex items-center gap-2 text-zinc-400 text-sm">
+              <div className="flex items-center gap-2 text-gray-400 text-sm">
                 <div className="animate-pulse flex gap-1">
-                  <span className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                  <span className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                  <span className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                 </div>
                 Analyzing your problem...
               </div>
@@ -272,14 +272,14 @@ export function EnhancedRagAdvisor() {
 
       {/* Real-time Suggestions */}
       {state.searchResults.length > 0 && !state.isLoading && (
-        <div className="mb-2 p-3 bg-zinc-50 rounded-xl border border-zinc-200">
-          <p className="text-xs font-semibold text-zinc-500 mb-2">Related Resources:</p>
+        <div className="mb-2 p-3 bg-gray-50 rounded-xl border border-gray-200">
+          <p className="text-xs font-semibold text-gray-500 mb-2">Related Resources:</p>
           <div className="flex flex-wrap gap-2">
             {state.searchResults.slice(0, 4).map((result, i) => (
               <Link
                 key={i}
                 href={result.item.url}
-                className="rounded-lg bg-white border border-zinc-200 px-2 py-1 text-xs text-zinc-600 hover:border-zinc-300 hover:shadow-sm"
+                className="rounded-lg bg-white border border-gray-200 px-2 py-1 text-xs text-gray-600 hover:border-gray-300 hover:shadow-sm cursor-pointer"
               >
                 {result.item.title}
               </Link>
@@ -297,7 +297,7 @@ export function EnhancedRagAdvisor() {
       )}
 
       {/* Input Form */}
-      <form onSubmit={handleSubmit} className="border-t border-zinc-200 pt-4">
+      <form onSubmit={handleSubmit} className="border-t border-gray-200 pt-4">
         <div className="relative">
           <textarea
             ref={inputRef}
@@ -310,14 +310,14 @@ export function EnhancedRagAdvisor() {
               }
             }}
             placeholder="Describe your RAG problem... e.g., 'My retrieval quality is poor' or 'How do I reduce hallucinations?'"
-            className="w-full min-h-[80px] rounded-xl border border-zinc-200 bg-white p-4 pr-24 text-sm outline-none transition-all focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100 resize-none"
+            className="w-full min-h-[80px] rounded-xl border border-gray-200 bg-white p-4 pr-24 text-sm outline-none transition-all duration-200-all duration-200 focus:border-[#8B5CF6]400 focus:ring-2 focus:ring-[#8B5CF6]100 resize-none cursor-pointer"
           />
           <div className="absolute right-3 bottom-3 flex gap-2">
             {input && (
               <button
                 type="button"
                 onClick={() => setInput("")}
-                className="rounded-lg bg-zinc-100 px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-200"
+                className="rounded-lg bg-gray-100 px-2 py-1 text-xs text-gray-500 hover:bg-gray-200 cursor-pointer"
               >
                 Clear
               </button>
@@ -325,13 +325,13 @@ export function EnhancedRagAdvisor() {
             <button
               type="submit"
               disabled={!input.trim() || state.isLoading}
-              className="rounded-lg bg-zinc-900 px-4 py-1.5 text-xs font-semibold text-white transition-all hover:bg-zinc-800 disabled:opacity-50"
+              className="rounded-lg bg-[#8B5CF6] px-4 py-1.5 text-xs font-semibold text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] disabled:opacity-50 cursor-pointer"
             >
               {state.isLoading ? "..." : "Ask →"}
             </button>
           </div>
         </div>
-        <p className="mt-2 text-[10px] text-zinc-400 text-center">
+        <p className="mt-2 text-[10px] text-gray-400 text-center">
           Press Enter to send • Shift+Enter for new line
         </p>
       </form>
@@ -355,16 +355,16 @@ function MessageBubble({
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${
         isUser 
-          ? "bg-zinc-900 text-white" 
-          : "bg-zinc-50 border border-zinc-200 text-zinc-700"
+          ? "bg-[#8B5CF6] text-white" 
+          : "bg-gray-50 border border-gray-200 text-gray-700"
       }`}>
         <div className="text-sm whitespace-pre-wrap">{message.content}</div>
         
         {message.sources && message.sources.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-zinc-200">
+          <div className="mt-3 pt-3 border-t border-gray-200">
             <button
               onClick={onToggleSources}
-              className="text-xs text-zinc-500 hover:text-zinc-700 flex items-center gap-1"
+              className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 cursor-pointer"
             >
               {showSources ? "▼" : "►"} {message.sources.length} sources
             </button>
@@ -374,7 +374,7 @@ function MessageBubble({
                   <Link
                     key={i}
                     href={source.url}
-                    className="block text-xs text-blue-600 hover:underline"
+                    className="block text-xs text-blue-600 hover:underline cursor-pointer"
                   >
                     [{i + 1}] {source.title}
                   </Link>
@@ -399,7 +399,7 @@ function RecommendationPanel({
   const config = category ? CATEGORY_CONFIG[category] : CATEGORY_CONFIG.general;
   
   return (
-    <div className="mb-4 p-4 bg-gradient-to-br from-zinc-50 to-white rounded-xl border border-zinc-200 space-y-4">
+    <div className="mb-4 p-4 bg-gradient-to-br from-[#8B5CF6]-50 to-white rounded-xl border border-gray-200 space-y-4">
       {/* Header */}
       <div className="flex items-center gap-2 flex-wrap">
         <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${config.color}`}>
@@ -412,16 +412,16 @@ function RecommendationPanel({
       
       {/* Challenges */}
       <div>
-        <h4 className="text-sm font-semibold text-zinc-700 mb-2">Recommended Challenges</h4>
+        <h4 className="text-sm font-semibold text-gray-700 mb-2">Recommended Challenges</h4>
         <div className="grid grid-cols-2 gap-2">
           {recommendation.challenges.slice(0, 4).map((c, i) => (
             <Link
               key={i}
               href={`/challenges/${c.slug}`}
-              className="group rounded-lg border border-zinc-200 bg-white p-2 hover:border-zinc-300 hover:shadow-sm transition-all"
+              className="group rounded-lg border border-gray-200 bg-white p-2 hover:border-gray-300 hover:shadow-sm transition-all duration-200-all duration-200 cursor-pointer"
             >
-              <div className="text-xs font-medium text-zinc-800 group-hover:text-zinc-600">{c.title}</div>
-              <div className="text-[10px] text-zinc-400 mt-0.5 line-clamp-1">{c.reason}</div>
+              <div className="text-xs font-medium text-gray-800 group-hover:text-gray-600 cursor-pointer">{c.title}</div>
+              <div className="text-[10px] text-gray-400 mt-0.5 line-clamp-1">{c.reason}</div>
             </Link>
           ))}
         </div>
@@ -433,7 +433,7 @@ function RecommendationPanel({
           <Link
             key={i}
             href={`/playbooks/${p.slug}`}
-            className="rounded-lg bg-indigo-50 border border-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+            className="rounded-lg bg-indigo-50 border border-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100 cursor-pointer"
           >
             {p.title}
           </Link>

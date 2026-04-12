@@ -97,8 +97,8 @@ export function ProgressAnalytics() {
 
   if (!data) {
     return (
-      <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-6 text-center dark:border-zinc-800 dark:bg-zinc-900">
-        <p className="text-sm text-zinc-500">
+      <div className="rounded-xl border border-gray-200 bg-gray-50 p-6 text-center dark:border-gray-800 dark:bg-gray-900">
+        <p className="text-sm text-gray-500">
           Complete some challenges to see your analytics
         </p>
       </div>
@@ -136,28 +136,28 @@ export function ProgressAnalytics() {
       </div>
 
       {/* Weekly Activity */}
-      <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#7C3AED]">
         <h3 className="text-sm font-semibold">Weekly Activity</h3>
         <div className="mt-4 flex justify-between gap-2">
           {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, i) => (
             <div key={day} className="flex flex-col items-center gap-1">
               <div
-                className={`h-8 w-8 rounded-lg transition-all ${
+                className={`h-8 w-8 rounded-lg transition-all duration-200-all duration-200 ${
                   data.weeklyProgress[i]
                     ? "bg-emerald-500 shadow-sm shadow-emerald-500/30"
-                    : "bg-zinc-100 dark:bg-zinc-800"
+                    : "bg-gray-100 dark:bg-[#7C3AED]"
                 }`}
               />
-              <span className="text-[10px] text-zinc-500">{day}</span>
+              <span className="text-[10px] text-gray-500">{day}</span>
             </div>
           ))}
         </div>
       </div>
 
       {/* Progress Over Time */}
-      <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#7C3AED]">
         <h3 className="text-sm font-semibold">Progress Trajectory</h3>
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="mt-1 text-xs text-gray-500">
           Your learning journey over the last 30 days
         </p>
         <div className="mt-4 flex h-24 items-end gap-0.5">
@@ -168,10 +168,10 @@ export function ProgressAnalytics() {
             return (
               <div
                 key={i}
-                className={`flex-1 rounded-t transition-all ${
+                className={`flex-1 rounded-t transition-all duration-200-all duration-200 ${
                   hasActivity
                     ? "bg-indigo-500"
-                    : "bg-zinc-100 dark:bg-zinc-800"
+                    : "bg-gray-100 dark:bg-[#7C3AED]"
                 }`}
                 style={{
                   height: hasActivity ? `${30 + Math.random() * 70}%` : "10%",
@@ -183,7 +183,7 @@ export function ProgressAnalytics() {
       </div>
 
       {/* Achievements Preview */}
-      <div className="rounded-xl border border-zinc-200 bg-gradient-to-r from-amber-50 to-yellow-50 p-4 dark:border-zinc-800 dark:from-amber-950/30 dark:to-yellow-950/30">
+      <div className="rounded-xl border border-gray-200 bg-gradient-to-r from-amber-50 to-yellow-50 p-4 dark:border-gray-800 dark:from-amber-950/30 dark:to-yellow-950/30">
         <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-200">
           🏆 Next Milestones
         </h3>
@@ -237,9 +237,9 @@ function StatCard({
     <div className={`rounded-xl border p-4 ${colorClasses[color]}`}>
       <div className="flex items-center gap-2">
         <span className="text-lg">{icon}</span>
-        <span className="text-xs text-zinc-500">{label}</span>
+        <span className="text-xs text-gray-500">{label}</span>
       </div>
-      <p className="mt-2 text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+      <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
         {value}
       </p>
     </div>
@@ -265,7 +265,7 @@ function MilestoneCard({
       className={`rounded-lg border p-3 ${
         isComplete
           ? "border-emerald-300 bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/50"
-          : "border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950"
+          : "border-gray-200 bg-white dark:border-gray-800 dark:bg-[#7C3AED]"
       }`}
     >
       <div className="flex items-center gap-2">
@@ -273,13 +273,13 @@ function MilestoneCard({
         <span className="text-xs font-medium">{title}</span>
         {isComplete && <span className="text-emerald-600">✓</span>}
       </div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-[#7C3AED]">
         <div
-          className="h-full bg-amber-500 transition-all"
+          className="h-full bg-amber-500 transition-all duration-200-all duration-200 cursor-pointer"
           style={{ width: `${progress}%` }}
         />
       </div>
-      <p className="mt-1 text-[10px] text-zinc-500">
+      <p className="mt-1 text-[10px] text-gray-500">
         {current} / {target}
       </p>
     </div>

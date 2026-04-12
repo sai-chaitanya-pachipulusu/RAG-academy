@@ -48,28 +48,28 @@ export function SubmissionStats({ stats, submissions = [], showDetailed = false 
       {/* Main Stats Grid */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Card className="p-4">
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">Total Submissions</p>
-          <p className="mt-1 text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
+          <p className="text-xs text-gray-500 dark:text-gray-400">Total Submissions</p>
+          <p className="mt-1 text-2xl font-semibold text-gray-900 dark:text-gray-100">
             {totalSubmissions}
           </p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">Accepted</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Accepted</p>
           <p className="mt-1 text-2xl font-semibold text-emerald-600 dark:text-emerald-400">
             {acceptedCount}
           </p>
-          <p className="text-xs text-zinc-400 dark:text-zinc-500">
+          <p className="text-xs text-gray-400 dark:text-gray-500">
             {acceptanceRate}% rate
           </p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">Challenges Attempted</p>
-          <p className="mt-1 text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
+          <p className="text-xs text-gray-500 dark:text-gray-400">Challenges Attempted</p>
+          <p className="mt-1 text-2xl font-semibold text-gray-900 dark:text-gray-100">
             {stats?.challengesAttempted || 0}
           </p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">Challenges Solved</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Challenges Solved</p>
           <p className="mt-1 text-2xl font-semibold text-indigo-600 dark:text-indigo-400">
             {stats?.challengesSolved || 0}
           </p>
@@ -80,25 +80,25 @@ export function SubmissionStats({ stats, submissions = [], showDetailed = false 
       {showDetailed && (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <Card className="p-4">
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Avg Execution Time</p>
-            <p className="mt-1 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Avg Execution Time</p>
+            <p className="mt-1 text-lg font-semibold text-gray-900 dark:text-gray-100">
               {avgExecutionTime > 0 ? `${Math.round(avgExecutionTime)}ms` : "N/A"}
             </p>
           </Card>
           <Card className="p-4">
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Avg Score</p>
-            <p className="mt-1 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+            <p className="text-xs text-gray-500 dark:text-gray-400">Avg Score</p>
+            <p className="mt-1 text-lg font-semibold text-gray-900 dark:text-gray-100">
               {avgScore > 0 ? `${Math.round(avgScore)}/100` : "N/A"}
             </p>
           </Card>
           <Card className="p-4">
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Best Score</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Best Score</p>
             <p className="mt-1 text-lg font-semibold text-emerald-600 dark:text-emerald-400">
               {bestScore > 0 ? `${Math.min(Math.round(bestScore), 100)}/100` : "N/A"}
             </p>
           </Card>
           <Card className="p-4">
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Wrong Answers</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Wrong Answers</p>
             <p className="mt-1 text-lg font-semibold text-red-600 dark:text-red-400">
               {statusCounts["wrong_answer"] || 0}
             </p>
@@ -109,7 +109,7 @@ export function SubmissionStats({ stats, submissions = [], showDetailed = false 
       {/* Status Breakdown */}
       {showDetailed && totalSubmissions > 0 && (
         <Card className="p-4">
-          <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-3">
+          <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
             Submission Status Breakdown
           </p>
           <div className="space-y-2">
@@ -124,14 +124,14 @@ export function SubmissionStats({ stats, submissions = [], showDetailed = false 
               const percentage = totalSubmissions > 0 ? (count / totalSubmissions) * 100 : 0;
               return (
                 <div key={key} className="flex items-center gap-3">
-                  <span className="w-32 text-sm text-zinc-600 dark:text-zinc-400">{label}</span>
-                  <div className="flex-1 h-2 rounded-full bg-zinc-100 dark:bg-zinc-800">
+                  <span className="w-32 text-sm text-gray-600 dark:text-gray-400">{label}</span>
+                  <div className="flex-1 h-2 rounded-full bg-gray-100 dark:bg-[#7C3AED]">
                     <div
                       className={`h-2 rounded-full ${color}`}
                       style={{ width: `${percentage}%` }}
                     />
                   </div>
-                  <span className="w-12 text-right text-sm text-zinc-600 dark:text-zinc-400">
+                  <span className="w-12 text-right text-sm text-gray-600 dark:text-gray-400">
                     {count}
                   </span>
                 </div>

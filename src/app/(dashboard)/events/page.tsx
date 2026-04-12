@@ -31,7 +31,7 @@ const BANNER_COLORS: Record<string, string> = {
   orange: "from-orange-500/20 to-orange-600/5 border-orange-500/30",
   lime: "from-lime-500/20 to-lime-600/5 border-lime-500/30",
   slate: "from-slate-500/20 to-slate-600/5 border-slate-500/30",
-  gray: "from-gray-500/20 to-gray-600/5 border-gray-500/30",
+  gray: "from-[#8B5CF6]-500/20 to-[#8B5CF6]-600/5 border-gray-500/30",
   sky: "from-sky-500/20 to-sky-600/5 border-sky-500/30",
   rose: "from-rose-500/20 to-rose-600/5 border-rose-500/30",
 };
@@ -68,7 +68,7 @@ function EventCard({ event }: { event: WeeklyEvent }) {
           </span>
         )}
         {status === "ended" && (
-          <span className="rounded-full bg-zinc-500/20 px-2.5 py-1 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+          <span className="rounded-full bg-gray-500/20 px-2.5 py-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
             Ended
           </span>
         )}
@@ -79,7 +79,7 @@ function EventCard({ event }: { event: WeeklyEvent }) {
         <span className="text-3xl">{event.icon}</span>
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-white/50 px-2.5 py-0.5 text-xs font-medium uppercase tracking-wider text-zinc-600 dark:bg-white/10 dark:text-zinc-300">
+            <span className="rounded-full bg-white/50 px-2.5 py-0.5 text-xs font-medium uppercase tracking-wider text-gray-600 dark:bg-white/10 dark:text-gray-300">
               {EVENT_TYPE_LABELS[event.type]}
             </span>
             {event.xpBonus && (
@@ -94,23 +94,23 @@ function EventCard({ event }: { event: WeeklyEvent }) {
             )}
           </div>
           
-          <h3 className="mt-2 text-lg font-semibold text-zinc-900 dark:text-white">
+          <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
             {event.title}
           </h3>
           
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             {event.description}
           </p>
           
           <div className="mt-4 flex items-center justify-between">
-            <p className="text-xs text-zinc-500 dark:text-zinc-500">
+            <p className="text-xs text-gray-500 dark:text-gray-500">
               📆 {new Date(event.startDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} 
               {" – "}
               {new Date(event.endDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
             </p>
             
             {link && status === "active" && (
-              <span className="text-sm font-medium text-zinc-900 dark:text-white">
+              <span className="text-sm font-medium text-gray-900 dark:text-white">
                 Join Now →
               </span>
             )}
@@ -127,14 +127,14 @@ function EventCard({ event }: { event: WeeklyEvent }) {
           href={link} 
           target="_blank" 
           rel="noopener noreferrer" 
-          className="block transition-transform hover:scale-[1.01]"
+          className="block transition-all duration-200-transform hover:scale-[1.01] cursor-pointer"
         >
           {content}
         </a>
       );
     }
     return (
-      <Link href={link} className="block transition-transform hover:scale-[1.01]">
+      <Link href={link} className="block transition-all duration-200-transform hover:scale-[1.01] cursor-pointer">
         {content}
       </Link>
     );
@@ -161,10 +161,10 @@ export default function EventsPage() {
     <div className="flex flex-col gap-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
           Weekly Events
         </h1>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
           New challenges, papers, and workshops every week. Participate to earn bonus XP and exclusive badges!
         </p>
       </div>
@@ -177,7 +177,7 @@ export default function EventsPage() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75"></span>
               <span className="relative inline-flex h-3 w-3 rounded-full bg-green-500"></span>
             </span>
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               This Week
             </h2>
           </div>
@@ -192,7 +192,7 @@ export default function EventsPage() {
       {/* Upcoming */}
       {upcomingEvents.length > 0 && (
         <section>
-          <h2 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
+          <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
             Coming Up
           </h2>
           <div className="grid gap-4 lg:grid-cols-2">
@@ -205,19 +205,19 @@ export default function EventsPage() {
       
       {/* Full Schedule */}
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
+        <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
           Full Schedule
         </h2>
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/50">
-                  <th className="px-4 py-3 text-left font-medium text-zinc-500">Week</th>
-                  <th className="px-4 py-3 text-left font-medium text-zinc-500">Challenge</th>
-                  <th className="px-4 py-3 text-left font-medium text-zinc-500">Paper/Workshop</th>
-                  <th className="px-4 py-3 text-left font-medium text-zinc-500">XP Bonus</th>
-                  <th className="px-4 py-3 text-left font-medium text-zinc-500">Badge</th>
+                <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50">
+                  <th className="px-4 py-3 text-left font-medium text-gray-500">Week</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-500">Challenge</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-500">Paper/Workshop</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-500">XP Bonus</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-500">Badge</th>
                 </tr>
               </thead>
               <tbody>
@@ -231,13 +231,13 @@ export default function EventsPage() {
                   return (
                     <tr 
                       key={weekStart} 
-                      className="border-b border-zinc-100 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-900/30"
+                      className="border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-900/30 cursor-pointer"
                     >
                       <td className="px-4 py-3">
-                        <div className="font-medium text-zinc-900 dark:text-white">
+                        <div className="font-medium text-gray-900 dark:text-white">
                           Week {idx + 1}
                         </div>
-                        <div className="text-xs text-zinc-500">
+                        <div className="text-xs text-gray-500">
                           {startDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                           {" - "}
                           {endDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
@@ -247,20 +247,20 @@ export default function EventsPage() {
                         {challenge ? (
                           <div className="flex items-center gap-2">
                             <span>{challenge.icon}</span>
-                            <span className="text-zinc-900 dark:text-white">{challenge.title.replace("Weekly Challenge: ", "").replace("Foundation Friday: ", "")}</span>
+                            <span className="text-gray-900 dark:text-white">{challenge.title.replace("Weekly Challenge: ", "").replace("Foundation Friday: ", "")}</span>
                           </div>
                         ) : (
-                          <span className="text-zinc-400">—</span>
+                          <span className="text-gray-400">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
                         {paper ? (
                           <div className="flex items-center gap-2">
                             <span>{paper.icon}</span>
-                            <span className="text-zinc-900 dark:text-white">{paper.title.replace("Paper Deep Dive: ", "").replace("Paper: ", "").replace("Workshop: ", "").replace("Study Group: ", "")}</span>
+                            <span className="text-gray-900 dark:text-white">{paper.title.replace("Paper Deep Dive: ", "").replace("Paper: ", "").replace("Workshop: ", "").replace("Study Group: ", "")}</span>
                           </div>
                         ) : (
-                          <span className="text-zinc-400">—</span>
+                          <span className="text-gray-400">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
@@ -269,14 +269,14 @@ export default function EventsPage() {
                             +{challenge.xpBonus}
                           </span>
                         ) : (
-                          <span className="text-zinc-400">—</span>
+                          <span className="text-gray-400">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
                         {challenge?.badgeId ? (
                           <span className="text-lg">🏅</span>
                         ) : (
-                          <span className="text-zinc-400">—</span>
+                          <span className="text-gray-400">—</span>
                         )}
                       </td>
                     </tr>
@@ -290,35 +290,35 @@ export default function EventsPage() {
       
       {/* How it works */}
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-white">
+        <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
           How Weekly Events Work
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
             <div className="text-2xl">📅</div>
-            <h3 className="mt-2 font-semibold text-zinc-900 dark:text-white">New Every Week</h3>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            <h3 className="mt-2 font-semibold text-gray-900 dark:text-white">New Every Week</h3>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
               Fresh challenges and papers drop every Monday. Events run for 7 days.
             </p>
           </Card>
           <Card>
             <div className="text-2xl">⚡</div>
-            <h3 className="mt-2 font-semibold text-zinc-900 dark:text-white">Bonus XP</h3>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            <h3 className="mt-2 font-semibold text-gray-900 dark:text-white">Bonus XP</h3>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
               Complete weekly challenges during the event window to earn bonus XP.
             </p>
           </Card>
           <Card>
             <div className="text-2xl">🏅</div>
-            <h3 className="mt-2 font-semibold text-zinc-900 dark:text-white">Earn Badges</h3>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            <h3 className="mt-2 font-semibold text-gray-900 dark:text-white">Earn Badges</h3>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
               Some events unlock exclusive badges for your profile.
             </p>
           </Card>
           <Card>
             <div className="text-2xl">👥</div>
-            <h3 className="mt-2 font-semibold text-zinc-900 dark:text-white">Community</h3>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            <h3 className="mt-2 font-semibold text-gray-900 dark:text-white">Community</h3>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
               Join Discord discussions around the weekly paper and challenge.
             </p>
           </Card>

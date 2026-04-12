@@ -10,7 +10,7 @@ const MOBILE_NAV_ITEMS = [
     label: "Home",
     icon: (active: boolean) => (
       <svg
-        className={`h-6 w-6 transition-colors ${active ? "text-zinc-900" : "text-zinc-400"}`}
+        className={`h-6 w-6 transition-all duration-200-all duration-200 ${active ? "text-gray-900" : "text-gray-400"}`}
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -29,7 +29,7 @@ const MOBILE_NAV_ITEMS = [
     label: "Practice",
     icon: (active: boolean) => (
       <svg
-        className={`h-6 w-6 transition-colors ${active ? "text-zinc-900" : "text-zinc-400"}`}
+        className={`h-6 w-6 transition-all duration-200-all duration-200 ${active ? "text-gray-900" : "text-gray-400"}`}
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -48,7 +48,7 @@ const MOBILE_NAV_ITEMS = [
     label: "Learn",
     icon: (active: boolean) => (
       <svg
-        className={`h-6 w-6 transition-colors ${active ? "text-zinc-900" : "text-zinc-400"}`}
+        className={`h-6 w-6 transition-all duration-200-all duration-200 ${active ? "text-gray-900" : "text-gray-400"}`}
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -67,7 +67,7 @@ const MOBILE_NAV_ITEMS = [
     label: "Progress",
     icon: (active: boolean) => (
       <svg
-        className={`h-6 w-6 transition-colors ${active ? "text-zinc-900" : "text-zinc-400"}`}
+        className={`h-6 w-6 transition-all duration-200-all duration-200 ${active ? "text-gray-900" : "text-gray-400"}`}
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -86,7 +86,7 @@ const MOBILE_NAV_ITEMS = [
     label: "Profile",
     icon: (active: boolean) => (
       <svg
-        className={`h-6 w-6 transition-colors ${active ? "text-zinc-900" : "text-zinc-400"}`}
+        className={`h-6 w-6 transition-all duration-200-all duration-200 ${active ? "text-gray-900" : "text-gray-400"}`}
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -115,7 +115,7 @@ export function MobileNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-zinc-200 bg-white/95 backdrop-blur-lg safe-area-pb md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur-lg safe-area-pb md:hidden">
       <div className="flex h-16 items-center justify-around px-2">
         {MOBILE_NAV_ITEMS.map((item) => {
           const active = isActive(item.href);
@@ -126,20 +126,20 @@ export function MobileNav() {
               className="group flex flex-1 flex-col items-center justify-center gap-1 py-2"
             >
               <div
-                className={`relative flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
+                className={`relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200-all duration-200 ${
                   active
-                    ? "bg-zinc-100"
-                    : "group-active:bg-zinc-50"
+                    ? "bg-gray-100"
+                    : "group-active:bg-[#6D28D9]50"
                 }`}
               >
                 {item.icon(active)}
                 {active && (
-                  <span className="absolute -top-1 h-1 w-1 rounded-full bg-zinc-900" />
+                  <span className="absolute -top-1 h-1 w-1 rounded-full bg-gray-900" />
                 )}
               </div>
               <span
-                className={`text-[10px] font-medium transition-colors ${
-                  active ? "text-zinc-900" : "text-zinc-400"
+                className={`text-[10px] font-medium transition-all duration-200-all duration-200 ${
+                  active ? "text-gray-900" : "text-gray-400"
                 }`}
               >
                 {item.label}
@@ -163,23 +163,23 @@ export function MobileMenuButton({
   return (
     <button
       onClick={onClick}
-      className="flex h-11 w-11 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-700 transition-colors hover:bg-zinc-50 active:bg-zinc-100 md:hidden"
+      className="flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 transition-all duration-200-all duration-200 hover:bg-gray-50 active:bg-[#6D28D9]100 md:hidden cursor-pointer"
       aria-label={isOpen ? "Close menu" : "Open menu"}
       aria-expanded={isOpen}
     >
       <div className="relative h-5 w-5">
         <span
-          className={`absolute left-0 top-1 h-0.5 w-5 rounded-full bg-current transition-all duration-200 ${
+          className={`absolute left-0 top-1 h-0.5 w-5 rounded-full bg-current transition-all duration-200-all duration-200 ${
             isOpen ? "top-2.5 rotate-45" : ""
           }`}
         />
         <span
-          className={`absolute left-0 top-2.5 h-0.5 w-5 rounded-full bg-current transition-all duration-200 ${
+          className={`absolute left-0 top-2.5 h-0.5 w-5 rounded-full bg-current transition-all duration-200-all duration-200 ${
             isOpen ? "opacity-0" : ""
           }`}
         />
         <span
-          className={`absolute left-0 top-4 h-0.5 w-5 rounded-full bg-current transition-all duration-200 ${
+          className={`absolute left-0 top-4 h-0.5 w-5 rounded-full bg-current transition-all duration-200-all duration-200 ${
             isOpen ? "top-2.5 -rotate-45" : ""
           }`}
         />
@@ -209,7 +209,7 @@ export function MobileMenu({
       />
 
       {/* Menu panel */}
-      <div className="fixed left-4 right-4 top-20 z-50 rounded-2xl border border-zinc-200 bg-white p-4 shadow-2xl animate-slide-down md:hidden">
+      <div className="fixed left-4 right-4 top-20 z-50 rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl animate-slide-down md:hidden">
         {children}
       </div>
     </>

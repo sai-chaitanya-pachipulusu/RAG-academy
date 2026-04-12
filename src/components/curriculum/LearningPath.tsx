@@ -68,9 +68,9 @@ const PATH_INFO: Record<PathType, PathInfo> = {
 function ProgressBar({ current, total }: { current: number; total: number }) {
   const percentage = (current / total) * 100;
   return (
-    <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200">
+    <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
       <div 
-        className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500"
+        className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-200-all duration-500 cursor-pointer"
         style={{ width: `${percentage}%` }}
       />
     </div>
@@ -112,8 +112,8 @@ function WeekCard({
 
   return (
     <div 
-      className={`rounded-xl border transition-all ${colorClasses.hover} ${
-        isOpen ? `border-l-4 ${colorClasses.accent} bg-white shadow-md` : "border-zinc-200 bg-white"
+      className={`rounded-xl border transition-all duration-200-all duration-200 ${colorClasses.hover} ${
+        isOpen ? `border-l-4 ${colorClasses.accent} bg-white shadow-md` : "border-gray-200 bg-white"
       }`}
     >
       <button
@@ -126,20 +126,20 @@ function WeekCard({
           </span>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-bold text-zinc-900">{week.title}</h3>
-              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500">
+              <h3 className="font-bold text-gray-900">{week.title}</h3>
+              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
                 ~{estimatedHours}h
               </span>
             </div>
-            <p className="text-sm text-zinc-500">{week.week}</p>
+            <p className="text-sm text-gray-500">{week.week}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="hidden text-right text-xs text-zinc-400 sm:block">
+          <div className="hidden text-right text-xs text-gray-400 sm:block">
             <span>{week.challenges.length} challenges</span>
           </div>
           <svg 
-            className={`h-5 w-5 text-zinc-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+            className={`h-5 w-5 text-gray-400 transition-all duration-200-transform ${isOpen ? "rotate-180" : ""}`}
             fill="none" 
             viewBox="0 0 24 24" 
             stroke="currentColor"
@@ -150,18 +150,18 @@ function WeekCard({
       </button>
       
       {isOpen && (
-        <div className="space-y-5 border-t border-zinc-100 p-4 pt-4">
+        <div className="space-y-5 border-t border-gray-100 p-4 pt-4">
           {/* Outcome */}
-          <div className="rounded-lg bg-zinc-50 p-3">
-            <span className="text-xs font-bold uppercase tracking-wide text-zinc-400">Learning Outcome</span>
-            <p className="mt-1 text-sm text-zinc-700">{week.outcome}</p>
+          <div className="rounded-lg bg-gray-50 p-3">
+            <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Learning Outcome</span>
+            <p className="mt-1 text-sm text-gray-700">{week.outcome}</p>
           </div>
           
           <div className="grid gap-4 sm:grid-cols-3">
             {/* Learn */}
             {week.learn.length > 0 && (
               <div>
-                <span className="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-zinc-400">
+                <span className="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-gray-400">
                   <span>📚</span> Learn
                 </span>
                 <ul className="mt-2 space-y-1">
@@ -169,7 +169,7 @@ function WeekCard({
                     <li key={i}>
                       <Link 
                         href={item.href}
-                        className="text-sm text-zinc-600 hover:text-zinc-900 hover:underline"
+                        className="text-sm text-gray-600 hover:text-gray-900 hover:underline cursor-pointer"
                       >
                         {item.label}
                       </Link>
@@ -182,7 +182,7 @@ function WeekCard({
             {/* Labs */}
             {week.labs.length > 0 && (
               <div>
-                <span className="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-zinc-400">
+                <span className="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-gray-400">
                   <span>🔬</span> Labs
                 </span>
                 <ul className="mt-2 space-y-1">
@@ -190,7 +190,7 @@ function WeekCard({
                     <li key={i}>
                       <Link 
                         href={item.href}
-                        className="text-sm text-zinc-600 hover:text-zinc-900 hover:underline"
+                        className="text-sm text-gray-600 hover:text-gray-900 hover:underline cursor-pointer"
                       >
                         {item.label}
                       </Link>
@@ -203,7 +203,7 @@ function WeekCard({
             {/* Challenges */}
             {week.challenges.length > 0 && (
               <div>
-                <span className="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-zinc-400">
+                <span className="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-gray-400">
                   <span>💻</span> Challenges
                 </span>
                 <ul className="mt-2 space-y-1">
@@ -211,7 +211,7 @@ function WeekCard({
                     <li key={i}>
                       <Link 
                         href={item.href}
-                        className="text-sm text-zinc-600 hover:text-zinc-900 hover:underline"
+                        className="text-sm text-gray-600 hover:text-gray-900 hover:underline cursor-pointer"
                       >
                         {item.label}
                       </Link>
@@ -224,7 +224,7 @@ function WeekCard({
           
           {/* Ship */}
           <div className={`rounded-lg border p-3 ${colorClasses.ship}`}>
-            <span className="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-zinc-400">
+            <span className="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-gray-400">
               <span>🚀</span> You&apos;ll Ship
             </span>
             <p className={`mt-1 text-sm font-medium ${colorClasses.shipText}`}>{week.ship}</p>
@@ -269,20 +269,20 @@ export function LearningPath() {
                 setSelectedPath(pathType);
                 setOpenWeeks({ 0: true });
               }}
-              className={`rounded-xl border-2 p-5 text-left transition-all ${
+              className={`rounded-xl border-2 p-5 text-left transition-all duration-200-all duration-200 ${
                 isSelected
                   ? pathType === "fast" 
                     ? "border-emerald-500 bg-emerald-50/50" 
                     : "border-indigo-500 bg-indigo-50/50"
-                  : "border-zinc-200 hover:border-zinc-300"
+                  : "border-gray-200 hover:border-gray-300"
               }`}
             >
               <div className="flex items-start gap-3">
                 <span className="text-3xl">{pathType === "fast" ? "⚡" : "🎓"}</span>
                 <div className="flex-1">
-                  <h3 className="text-lg font-bold text-zinc-900">{info.title}</h3>
-                  <p className="text-sm text-zinc-500">{info.subtitle}</p>
-                  <div className="mt-2 flex items-center gap-3 text-xs text-zinc-400">
+                  <h3 className="text-lg font-bold text-gray-900">{info.title}</h3>
+                  <p className="text-sm text-gray-500">{info.subtitle}</p>
+                  <div className="mt-2 flex items-center gap-3 text-xs text-gray-400">
                     <span>{info.weeks.length} weeks</span>
                     <span>•</span>
                     <span>~{info.totalHours} hours</span>
@@ -305,14 +305,14 @@ export function LearningPath() {
         <div className="grid gap-6 md:grid-cols-2">
           {/* Description */}
           <div>
-            <h3 className="text-lg font-bold text-zinc-900">{path.title}</h3>
-            <p className="mt-2 text-sm text-zinc-600">{path.description}</p>
+            <h3 className="text-lg font-bold text-gray-900">{path.title}</h3>
+            <p className="mt-2 text-sm text-gray-600">{path.description}</p>
             
             <div className="mt-4">
-              <span className="text-xs font-bold uppercase tracking-wide text-zinc-400">Ideal for</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Ideal for</span>
               <ul className="mt-2 space-y-1">
                 {path.ideal.map((item, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm text-zinc-600">
+                  <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
                     <span className={selectedPath === "fast" ? "text-emerald-500" : "text-indigo-500"}>✓</span>
                     {item}
                   </li>
@@ -323,10 +323,10 @@ export function LearningPath() {
           
           {/* Features */}
           <div>
-            <span className="text-xs font-bold uppercase tracking-wide text-zinc-400">What you&apos;ll learn</span>
+            <span className="text-xs font-bold uppercase tracking-wide text-gray-400">What you&apos;ll learn</span>
             <ul className="mt-2 space-y-1">
               {path.features.map((item, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm text-zinc-600">
+                <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
                   <span className={selectedPath === "fast" ? "text-emerald-500" : "text-indigo-500"}>•</span>
                   {item}
                 </li>
@@ -338,17 +338,17 @@ export function LearningPath() {
 
       {/* Controls */}
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-zinc-900">Curriculum</h3>
+        <h3 className="text-lg font-bold text-gray-900">Curriculum</h3>
         <div className="flex gap-2">
           <button
             onClick={expandAll}
-            className="rounded-lg bg-zinc-100 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-200"
+            className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-200 cursor-pointer"
           >
             Expand All
           </button>
           <button
             onClick={collapseAll}
-            className="rounded-lg bg-zinc-100 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-200"
+            className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-200 cursor-pointer"
           >
             Collapse All
           </button>
@@ -370,14 +370,14 @@ export function LearningPath() {
       </div>
 
       {/* CTA */}
-      <div className="flex flex-col items-center gap-4 rounded-xl bg-zinc-50 p-6 text-center">
+      <div className="flex flex-col items-center gap-4 rounded-xl bg-gray-50 p-6 text-center">
         <div>
-          <h3 className="text-lg font-bold text-zinc-900">Ready to start?</h3>
-          <p className="text-sm text-zinc-600">Begin with the first challenge and build your way up</p>
+          <h3 className="text-lg font-bold text-gray-900">Ready to start?</h3>
+          <p className="text-sm text-gray-600">Begin with the first challenge and build your way up</p>
         </div>
         <Link
           href="/challenges/dot-product"
-          className={`rounded-xl px-8 py-3 font-semibold text-white transition-all hover:scale-105 ${
+          className={`rounded-xl px-8 py-3 font-semibold text-white transition-all duration-200-all duration-200 hover:scale-105 ${
             selectedPath === "fast" 
               ? "bg-emerald-600 hover:bg-emerald-700" 
               : "bg-indigo-600 hover:bg-indigo-700"

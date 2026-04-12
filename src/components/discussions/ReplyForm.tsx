@@ -65,7 +65,7 @@ export function ReplyForm({
             placeholder={placeholder}
             rows={4}
             disabled={isSubmitting}
-            className="w-full resize-y rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white dark:placeholder-zinc-500"
+            className="w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50 dark:border-gray-700 dark:bg-[#7C3AED] dark:text-white dark:placeholder-zinc-500"
           />
         </div>
 
@@ -73,7 +73,7 @@ export function ReplyForm({
         {showCodeInput ? (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Code Snippet
               </label>
               <button
@@ -82,7 +82,7 @@ export function ReplyForm({
                   setShowCodeInput(false);
                   setCodeSnippet("");
                 }}
-                className="text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer"
               >
                 Remove
               </button>
@@ -93,7 +93,7 @@ export function ReplyForm({
               placeholder="Paste your code here..."
               rows={4}
               disabled={isSubmitting}
-              className="w-full resize-y rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2 font-mono text-sm text-zinc-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder-zinc-600"
+              className="w-full resize-y rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 font-mono text-sm text-gray-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-zinc-600"
             />
           </div>
         ) : (
@@ -101,7 +101,7 @@ export function ReplyForm({
             type="button"
             onClick={() => setShowCodeInput(true)}
             disabled={isSubmitting}
-            className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 disabled:opacity-50 dark:text-indigo-400 dark:hover:text-indigo-300"
+            className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 disabled:opacity-50 dark:text-indigo-400 dark:hover:text-indigo-300 cursor-pointer"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
@@ -117,7 +117,7 @@ export function ReplyForm({
               type="button"
               onClick={onCancel}
               disabled={isSubmitting}
-              className="rounded-lg px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-zinc-800"
+              className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-50 dark:text-gray-400 dark:hover:bg-[#7C3AED] cursor-pointer"
             >
               Cancel
             </button>

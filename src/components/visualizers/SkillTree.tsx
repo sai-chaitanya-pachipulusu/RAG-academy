@@ -167,7 +167,7 @@ export function SkillTree() {
   const getNodeColor = (status: ReturnType<typeof getNodeStatus>) => {
     switch (status) {
       case "locked":
-        return "bg-zinc-200 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-600";
+        return "bg-gray-200 text-gray-400 dark:bg-[#7C3AED] dark:text-gray-600";
       case "available":
         return "bg-blue-100 text-blue-600 border-blue-300 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800";
       case "in_progress":
@@ -187,15 +187,15 @@ export function SkillTree() {
   ).length;
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
             <span>🌳</span>
             Skill Tree
           </h2>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-sm text-gray-500">
             Unlock skills by completing challenges
           </p>
         </div>
@@ -209,25 +209,25 @@ export function SkillTree() {
       {/* Legend */}
       <div className="mb-6 flex flex-wrap gap-4 text-xs">
         <div className="flex items-center gap-1.5">
-          <div className="h-3 w-3 rounded-full bg-zinc-300 dark:bg-zinc-700" />
-          <span className="text-zinc-500">Locked</span>
+          <div className="h-3 w-3 rounded-full bg-gray-300 dark:bg-gray-700" />
+          <span className="text-gray-500">Locked</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-3 w-3 rounded-full bg-blue-400" />
-          <span className="text-zinc-500">Available</span>
+          <span className="text-gray-500">Available</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-3 w-3 rounded-full bg-amber-400" />
-          <span className="text-zinc-500">In Progress</span>
+          <span className="text-gray-500">In Progress</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-3 w-3 rounded-full bg-emerald-400" />
-          <span className="text-zinc-500">Completed</span>
+          <span className="text-gray-500">Completed</span>
         </div>
       </div>
 
       {/* Skill Tree Visualization */}
-      <div className="relative h-[500px] overflow-hidden rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
+      <div className="relative h-[500px] overflow-hidden rounded-xl bg-gray-50 dark:bg-[#7C3AED]/50">
         {/* Connection lines */}
         <svg className="absolute inset-0 h-full w-full">
           {SKILL_NODES.map((node) =>
@@ -254,7 +254,7 @@ export function SkillTree() {
                   stroke={isActive ? "#10b981" : "#d1d5db"}
                   strokeWidth={isActive ? 3 : 2}
                   strokeDasharray={isActive ? "0" : "5,5"}
-                  className="transition-all duration-300"
+                  className="transition-all duration-200-all duration-300 cursor-pointer"
                 />
               );
             })
@@ -269,7 +269,7 @@ export function SkillTree() {
 
           const NodeContent = (
             <div
-              className={`absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center transition-all ${
+              className={`absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center transition-all duration-200-all duration-200 ${
                 isClickable ? "cursor-pointer hover:scale-110" : "cursor-not-allowed"
               }`}
               style={{
@@ -279,7 +279,7 @@ export function SkillTree() {
             >
               {/* Node circle */}
               <div
-                className={`flex h-16 w-16 items-center justify-center rounded-2xl border-2 text-2xl shadow-lg transition-all ${getNodeColor(
+                className={`flex h-16 w-16 items-center justify-center rounded-2xl border-2 text-2xl shadow-lg transition-all duration-200-all duration-200 ${getNodeColor(
                   status
                 )}`}
               >
@@ -291,13 +291,13 @@ export function SkillTree() {
                 <p
                   className={`text-xs font-semibold ${
                     status === "locked"
-                      ? "text-zinc-400 dark:text-zinc-600"
-                      : "text-zinc-900 dark:text-zinc-100"
+                      ? "text-gray-400 dark:text-gray-600"
+                      : "text-gray-900 dark:text-gray-100"
                   }`}
                 >
                   {node.name}
                 </p>
-                <p className="text-[10px] text-zinc-400">
+                <p className="text-[10px] text-gray-400">
                   {progress.completed}/{progress.total}
                 </p>
               </div>

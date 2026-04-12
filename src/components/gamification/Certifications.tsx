@@ -126,7 +126,7 @@ export function Certifications({ completedChallenges = [] }: CertificationsProps
       {/* Earned Certificates */}
       {earnedCerts.length > 0 && (
         <section>
-          <h3 className="flex items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+          <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
             <span>🏆</span> Earned Certificates
           </h3>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -146,7 +146,7 @@ export function Certifications({ completedChallenges = [] }: CertificationsProps
       {/* In Progress */}
       {inProgressCerts.length > 0 && (
         <section>
-          <h3 className="flex items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+          <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
             <span>📈</span> In Progress
           </h3>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -165,7 +165,7 @@ export function Certifications({ completedChallenges = [] }: CertificationsProps
       {/* Locked */}
       {lockedCerts.length > 0 && (
         <section>
-          <h3 className="flex items-center gap-2 text-lg font-semibold text-zinc-500 dark:text-zinc-400">
+          <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-500 dark:text-gray-400">
             <span>🔒</span> Locked
           </h3>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -213,12 +213,12 @@ function CertificateCard({
   return (
     <button
       onClick={onClick}
-      className={`relative overflow-hidden rounded-xl border p-4 text-left transition-all ${
+      className={`relative overflow-hidden rounded-xl border p-4 text-left transition-all duration-200-all duration-200 ${
         earned
           ? "border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-50 hover:shadow-lg dark:border-amber-900/50 dark:from-amber-950/20 dark:to-yellow-950/20"
           : locked
-          ? "border-zinc-200 bg-zinc-50/50 opacity-60 dark:border-zinc-800 dark:bg-zinc-900/50"
-          : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700"
+          ? "border-gray-200 bg-gray-50/50 opacity-60 dark:border-gray-800 dark:bg-gray-900/50"
+          : "border-gray-200 bg-white hover:border-gray-300 hover:shadow dark:border-gray-800 dark:bg-[#7C3AED] dark:hover:border-gray-700"
       }`}
     >
       {earned && (
@@ -230,32 +230,32 @@ function CertificateCard({
       <div className="flex items-start gap-3">
         <span className="text-3xl">{certificate.icon}</span>
         <div className="flex-1">
-          <h4 className="font-semibold text-zinc-900 dark:text-zinc-100">
+          <h4 className="font-semibold text-gray-900 dark:text-gray-100">
             {certificate.name}
           </h4>
-          <p className="mt-0.5 text-xs text-zinc-500 line-clamp-2">
+          <p className="mt-0.5 text-xs text-gray-500 line-clamp-2">
             {certificate.description}
           </p>
 
           {/* Progress bar */}
           <div className="mt-3">
             <div className="flex justify-between text-xs">
-              <span className="text-zinc-500">
+              <span className="text-gray-500">
                 {progress.completed}/{progress.total} completed
               </span>
               <span
                 className={
                   earned
                     ? "font-bold text-amber-600 dark:text-amber-400"
-                    : "text-zinc-400"
+                    : "text-gray-400"
                 }
               >
                 {progress.percentage}%
               </span>
             </div>
-            <div className="mt-1 h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+            <div className="mt-1 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-[#7C3AED]">
               <div
-                className={`h-full rounded-full bg-gradient-to-r ${certificate.color} transition-all`}
+                className={`h-full rounded-full bg-gradient-to-r ${certificate.color} transition-all duration-200-all duration-200`}
                 style={{ width: `${progress.percentage}%` }}
               />
             </div>
@@ -287,7 +287,7 @@ function CertificateModal({
       onClick={onClose}
     >
       <div
-        className="max-h-[80vh] w-full max-w-md overflow-auto rounded-2xl bg-white p-6 shadow-2xl dark:bg-zinc-900"
+        className="max-h-[80vh] w-full max-w-md overflow-auto rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -297,10 +297,10 @@ function CertificateModal({
           >
             {certificate.icon}
           </div>
-          <h2 className="mt-4 text-xl font-bold text-zinc-900 dark:text-zinc-100">
+          <h2 className="mt-4 text-xl font-bold text-gray-900 dark:text-gray-100">
             {certificate.name}
           </h2>
-          <p className="mt-1 text-sm text-zinc-500">{certificate.description}</p>
+          <p className="mt-1 text-sm text-gray-500">{certificate.description}</p>
 
           {isEarned && (
             <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-100 to-yellow-100 px-4 py-2 text-sm font-semibold text-amber-700 dark:from-amber-900/30 dark:to-yellow-900/30 dark:text-amber-400">
@@ -311,7 +311,7 @@ function CertificateModal({
 
         {/* Requirements */}
         <div className="mt-6">
-          <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
             Requirements
           </h3>
           <ul className="mt-2 space-y-2">
@@ -324,7 +324,7 @@ function CertificateModal({
                   className={`flex items-center gap-2 rounded-lg border p-2 text-sm ${
                     completed
                       ? "border-emerald-200 bg-emerald-50/50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-400"
-                      : "border-zinc-200 text-zinc-600 dark:border-zinc-800 dark:text-zinc-400"
+                      : "border-gray-200 text-gray-600 dark:border-gray-800 dark:text-gray-400"
                   }`}
                 >
                   <span>{completed ? "✓" : "○"}</span>
@@ -338,7 +338,7 @@ function CertificateModal({
         {/* Close button */}
         <button
           onClick={onClose}
-          className="mt-6 w-full rounded-lg border border-zinc-200 px-4 py-2 text-sm transition hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800"
+          className="mt-6 w-full rounded-lg border border-gray-200 px-4 py-2 text-sm transition hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-[#7C3AED] cursor-pointer"
         >
           Close
         </button>

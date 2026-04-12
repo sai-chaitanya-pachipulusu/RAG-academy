@@ -610,12 +610,12 @@ export function QuickQuiz({ questionCount = 5, categories }: QuickQuizProps) {
     const percentage = Math.round((score / questions.length) * 100);
     
     return (
-      <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-center dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="rounded-2xl border border-gray-200 bg-white p-6 text-center dark:border-gray-800 dark:bg-gray-900">
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-3xl">
           {percentage >= 80 ? "🎉" : percentage >= 60 ? "👏" : "💪"}
         </div>
         
-        <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
+        <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
           Quiz Complete!
         </h3>
         
@@ -628,7 +628,7 @@ export function QuickQuiz({ questionCount = 5, categories }: QuickQuizProps) {
           </span>
         </div>
 
-        <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
           {percentage >= 80
             ? "Excellent! You've mastered these concepts."
             : percentage >= 60
@@ -643,13 +643,13 @@ export function QuickQuiz({ questionCount = 5, categories }: QuickQuizProps) {
         <div className="mt-6 flex justify-center gap-3">
           <button
             onClick={restart}
-            className="rounded-xl border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 transition-all hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-all duration-200-all duration-200 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-[#7C3AED] cursor-pointer"
           >
             Try Again
           </button>
           <button
             onClick={() => window.location.href = "/challenges"}
-            className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+            className="rounded-xl bg-[#8B5CF6] px-4 py-2 text-sm font-medium text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] dark:bg-[#8B5CF6] dark:text-white dark:hover:bg-[#7C3AED] cursor-pointer"
           >
             Practice Challenges
           </button>
@@ -659,30 +659,30 @@ export function QuickQuiz({ questionCount = 5, categories }: QuickQuizProps) {
   }
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
       {/* Progress bar */}
-      <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3 dark:border-zinc-800">
+      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium dark:bg-zinc-800">
+          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium dark:bg-[#7C3AED]">
             {currentQuestion.category}
           </span>
         </div>
-        <span className="text-sm text-zinc-500">
+        <span className="text-sm text-gray-500">
           {currentIndex + 1} / {questions.length}
         </span>
       </div>
 
       {/* Progress indicator */}
-      <div className="h-1 bg-zinc-100 dark:bg-zinc-800">
+      <div className="h-1 bg-gray-100 dark:bg-[#7C3AED]">
         <div
-          className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-300"
+          className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-200-all duration-300 cursor-pointer"
           style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
         />
       </div>
 
       {/* Question */}
       <div className="p-6">
-        <p className="text-lg font-medium text-zinc-900 dark:text-zinc-100">
+        <p className="text-lg font-medium text-gray-900 dark:text-gray-100">
           {currentQuestion.question}
         </p>
 
@@ -698,16 +698,16 @@ export function QuickQuiz({ questionCount = 5, categories }: QuickQuizProps) {
                 key={index}
                 onClick={() => handleAnswer(index)}
                 disabled={showResult}
-                className={`w-full rounded-xl border-2 p-4 text-left text-sm font-medium transition-all ${
+                className={`w-full rounded-xl border-2 p-4 text-left text-sm font-medium transition-all duration-200-all duration-200 ${
                   showResult
                     ? isCorrect
                       ? "border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
                       : isSelected
                       ? "border-red-500 bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300"
-                      : "border-zinc-200 text-zinc-500 dark:border-zinc-800 dark:text-zinc-500"
+                      : "border-gray-200 text-gray-500 dark:border-gray-800 dark:text-gray-500"
                     : isSelected
-                    ? "border-zinc-900 bg-zinc-50 dark:border-zinc-100 dark:bg-zinc-800"
-                    : "border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:border-zinc-700 dark:hover:bg-zinc-800"
+                    ? "border-[#8B5CF6] bg-gray-50 dark:border-gray-100 dark:bg-[#7C3AED]"
+                    : "border-gray-200 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-800 dark:hover:border-gray-700 dark:hover:bg-[#7C3AED]"
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -726,8 +726,8 @@ export function QuickQuiz({ questionCount = 5, categories }: QuickQuizProps) {
 
         {/* Explanation */}
         {showExplanation && (
-          <div className="mt-6 rounded-xl bg-zinc-50 p-4 dark:bg-zinc-800">
-            <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          <div className="mt-6 rounded-xl bg-gray-50 p-4 dark:bg-[#7C3AED]">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
               💡 {currentQuestion.explanation}
             </p>
           </div>
@@ -737,7 +737,7 @@ export function QuickQuiz({ questionCount = 5, categories }: QuickQuizProps) {
         {selectedAnswer !== null && (
           <button
             onClick={handleNext}
-            className="mt-6 w-full rounded-xl bg-zinc-900 py-3 text-sm font-semibold text-white transition-all hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+            className="mt-6 w-full rounded-xl bg-gray-900 py-3 text-sm font-semibold text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] dark:bg-[#8B5CF6] dark:text-white dark:hover:bg-[#7C3AED] cursor-pointer"
           >
             {currentIndex < questions.length - 1 ? "Next Question" : "See Results"}
           </button>
@@ -770,7 +770,7 @@ export function DailyQuizWidget() {
       </div>
       <button
         onClick={() => setShowQuiz(true)}
-        className="mt-4 w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white transition-all hover:bg-indigo-500"
+        className="mt-4 w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white transition-all duration-200-all duration-200 hover:bg-indigo-500 cursor-pointer"
       >
         Start Quiz
       </button>

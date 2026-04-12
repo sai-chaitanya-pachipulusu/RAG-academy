@@ -148,16 +148,16 @@ export function VectorDbConnector({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
             Vector Database Connections
           </h2>
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-gray-500">
             Connect to external vector databases for real-world testing
           </p>
         </div>
         <TouchButton
           onClick={() => setIsAddingNew(true)}
-          className="bg-indigo-600 text-white hover:bg-indigo-700"
+          className="bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer"
         >
           <Plus className="mr-2 h-4 w-4" />
           Add Connection
@@ -173,7 +173,7 @@ export function VectorDbConnector({
             exit={{ opacity: 0, height: 0 }}
           >
             <Card className="p-6">
-              <h3 className="mb-4 font-semibold text-zinc-900 dark:text-zinc-100">
+              <h3 className="mb-4 font-semibold text-gray-900 dark:text-gray-100">
                 Select Provider
               </h3>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -183,10 +183,10 @@ export function VectorDbConnector({
                     <button
                       key={provider}
                       onClick={() => setSelectedProvider(provider)}
-                      className="rounded-lg border border-zinc-200 p-4 text-left transition-colors hover:border-indigo-500 hover:bg-indigo-50 dark:border-zinc-800 dark:hover:border-indigo-500 dark:hover:bg-indigo-900/20"
+                      className="rounded-lg border border-gray-200 p-4 text-left transition-all duration-200-all duration-200 hover:border-indigo-500 hover:bg-indigo-50 dark:border-gray-800 dark:hover:border-indigo-500 dark:hover:bg-indigo-900/20 cursor-pointer"
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                        <span className="font-semibold text-gray-900 dark:text-gray-100">
                           {config.name}
                         </span>
                         {hasFreeTier(provider) && (
@@ -195,12 +195,12 @@ export function VectorDbConnector({
                           </span>
                         )}
                       </div>
-                      <p className="mb-3 text-sm text-zinc-500">{config.description}</p>
+                      <p className="mb-3 text-sm text-gray-500">{config.description}</p>
                       <div className="flex flex-wrap gap-1">
                         {config.features.slice(0, 2).map((feature) => (
                           <span
                             key={feature}
-                            className="rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+                            className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400"
                           >
                             {feature}
                           </span>
@@ -230,14 +230,14 @@ export function VectorDbConnector({
           >
             <Card className="p-6">
               <div className="mb-4 flex items-center justify-between">
-                <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100">
                   Connect to {getProviderName(selectedProvider)}
                 </h3>
                 <a
                   href={getProviderDocsUrl(selectedProvider)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-sm text-indigo-600 hover:underline"
+                  className="flex items-center gap-1 text-sm text-indigo-600 hover:underline cursor-pointer"
                 >
                   <ExternalLink className="h-3 w-3" />
                   Docs
@@ -246,7 +246,7 @@ export function VectorDbConnector({
 
               <div className="space-y-4">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Connection Name
                   </label>
                   <input
@@ -254,12 +254,12 @@ export function VectorDbConnector({
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder={`My ${getProviderName(selectedProvider)}`}
-                    className="w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
                   />
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                     <Globe className="mb-0.5 mr-1 inline h-4 w-4" />
                     Endpoint URL
                   </label>
@@ -272,20 +272,20 @@ export function VectorDbConnector({
                         ? "https://your-index.pinecone.io"
                         : "https://your-instance.com"
                     }
-                    className="w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
                   />
                 </div>
 
                 {VECTOR_DB_CONFIGS[selectedProvider].supportsEnvironment && (
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                       <Server className="mb-0.5 mr-1 inline h-4 w-4" />
                       Environment
                     </label>
                     <select
                       value={formData.environment}
                       onChange={(e) => setFormData({ ...formData, environment: e.target.value })}
-                      className="w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
                     >
                       <option value="">Select environment...</option>
                       <option value="gcp-starter">GCP Starter (Free)</option>
@@ -299,7 +299,7 @@ export function VectorDbConnector({
 
                 {VECTOR_DB_CONFIGS[selectedProvider].requiresApiKey && (
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                       <Key className="mb-0.5 mr-1 inline h-4 w-4" />
                       API Key
                     </label>
@@ -308,9 +308,9 @@ export function VectorDbConnector({
                       value={formData.apiKey}
                       onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
                       placeholder="Enter your API key"
-                      className="w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
                     />
-                    <p className="mt-1 text-xs text-zinc-500">
+                    <p className="mt-1 text-xs text-gray-500">
                       Your API key is encrypted and stored securely
                     </p>
                   </div>
@@ -369,7 +369,7 @@ export function VectorDbConnector({
                   <TouchButton
                     onClick={handleSaveConnection}
                     disabled={!testResult?.success}
-                    className="bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                    className="bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
                   >
                     Save Connection
                   </TouchButton>
@@ -383,7 +383,7 @@ export function VectorDbConnector({
       {/* Saved Connections */}
       {connections.length > 0 && (
         <div className="space-y-4">
-          <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+          <h3 className="font-semibold text-gray-900 dark:text-gray-100">
             Saved Connections
           </h3>
           {connections.map((connection) => (
@@ -401,10 +401,10 @@ export function VectorDbConnector({
                     <Database className="h-5 w-5 text-indigo-600" />
                   </div>
                   <div>
-                    <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                    <p className="font-medium text-gray-900 dark:text-gray-100">
                       {connection.name}
                     </p>
-                    <p className="text-sm text-zinc-500">
+                    <p className="text-sm text-gray-500">
                       {getProviderName(connection.provider)} • {connection.endpoint}
                     </p>
                   </div>
@@ -416,7 +416,7 @@ export function VectorDbConnector({
                       Active
                     </span>
                   ) : (
-                    <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400">
                       Inactive
                     </span>
                   )}
@@ -438,14 +438,14 @@ export function VectorDbConnector({
                       e.stopPropagation();
                       handleDeleteConnection(connection.id);
                     }}
-                    className="text-red-600 hover:bg-red-50"
+                    className="text-red-600 hover:bg-red-50 cursor-pointer"
                   >
                     <Trash2 className="h-4 w-4" />
                   </TouchButton>
                   {expandedConnection === connection.id ? (
-                    <ChevronUp className="h-5 w-5 text-zinc-400" />
+                    <ChevronUp className="h-5 w-5 text-gray-400" />
                   ) : (
-                    <ChevronDown className="h-5 w-5 text-zinc-400" />
+                    <ChevronDown className="h-5 w-5 text-gray-400" />
                   )}
                 </div>
               </div>
@@ -456,26 +456,26 @@ export function VectorDbConnector({
                     initial={{ height: 0 }}
                     animate={{ height: "auto" }}
                     exit={{ height: 0 }}
-                    className="border-t border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/50"
+                    className="border-t border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50"
                   >
                     <div className="p-4">
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div>
-                          <p className="text-xs text-zinc-500">Provider</p>
+                          <p className="text-xs text-gray-500">Provider</p>
                           <p className="font-medium">{getProviderName(connection.provider)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-zinc-500">Endpoint</p>
+                          <p className="text-xs text-gray-500">Endpoint</p>
                           <p className="font-medium">{connection.endpoint}</p>
                         </div>
                         {connection.environment && (
                           <div>
-                            <p className="text-xs text-zinc-500">Environment</p>
+                            <p className="text-xs text-gray-500">Environment</p>
                             <p className="font-medium">{connection.environment}</p>
                           </div>
                         )}
                         <div>
-                          <p className="text-xs text-zinc-500">Last Tested</p>
+                          <p className="text-xs text-gray-500">Last Tested</p>
                           <p className="font-medium">
                             {connection.lastTestedAt
                               ? new Date(connection.lastTestedAt).toLocaleString()
@@ -485,12 +485,12 @@ export function VectorDbConnector({
                       </div>
 
                       <div className="mt-4">
-                        <p className="mb-2 text-xs text-zinc-500">Features</p>
+                        <p className="mb-2 text-xs text-gray-500">Features</p>
                         <div className="flex flex-wrap gap-2">
                           {getProviderFeatures(connection.provider).map((feature) => (
                             <span
                               key={feature}
-                              className="rounded bg-white px-2 py-1 text-xs text-zinc-600 shadow-sm dark:bg-zinc-800 dark:text-zinc-400"
+                              className="rounded bg-white px-2 py-1 text-xs text-gray-600 shadow-sm dark:bg-[#7C3AED] dark:text-gray-400"
                             >
                               {feature}
                             </span>
@@ -508,16 +508,16 @@ export function VectorDbConnector({
 
       {connections.length === 0 && !isAddingNew && (
         <Card className="p-8 text-center">
-          <Database className="mx-auto mb-4 h-12 w-12 text-zinc-300" />
-          <h3 className="mb-2 font-semibold text-zinc-900 dark:text-zinc-100">
+          <Database className="mx-auto mb-4 h-12 w-12 text-gray-300" />
+          <h3 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">
             No Connections Yet
           </h3>
-          <p className="mb-4 text-zinc-500">
+          <p className="mb-4 text-gray-500">
             Connect to Pinecone, Weaviate, Qdrant, or other vector databases to test your RAG implementations
           </p>
           <button
             onClick={() => setIsAddingNew(true)}
-            className="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700"
+            className="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 cursor-pointer"
           >
             <Plus className="mr-2 h-4 w-4" />
             Add Your First Connection

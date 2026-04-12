@@ -27,7 +27,7 @@ const BANNER_COLORS: Record<string, string> = {
   orange: "from-orange-500/20 to-orange-600/5 border-orange-500/30",
   lime: "from-lime-500/20 to-lime-600/5 border-lime-500/30",
   slate: "from-slate-500/20 to-slate-600/5 border-slate-500/30",
-  gray: "from-gray-500/20 to-gray-600/5 border-gray-500/30",
+  gray: "from-[#8B5CF6]-500/20 to-[#8B5CF6]-600/5 border-gray-500/30",
   sky: "from-sky-500/20 to-sky-600/5 border-sky-500/30",
   rose: "from-rose-500/20 to-rose-600/5 border-rose-500/30",
 };
@@ -70,7 +70,7 @@ function EventCard({ event, compact = false }: { event: WeeklyEvent; compact?: b
         <span className="text-2xl">{event.icon}</span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="rounded-full bg-white/50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-zinc-600 dark:bg-white/10 dark:text-zinc-300">
+            <span className="rounded-full bg-white/50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-gray-600 dark:bg-white/10 dark:text-gray-300">
               {EVENT_TYPE_LABELS[event.type]}
             </span>
             {event.xpBonus && (
@@ -84,15 +84,15 @@ function EventCard({ event, compact = false }: { event: WeeklyEvent; compact?: b
               </span>
             )}
           </div>
-          <h3 className="mt-1 text-sm font-semibold text-zinc-900 dark:text-white">
+          <h3 className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
             {event.title}
           </h3>
           {!compact && (
-            <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400 line-clamp-2">
+            <p className="mt-1 text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
               {event.description}
             </p>
           )}
-          <p className="mt-2 text-[10px] text-zinc-500 dark:text-zinc-500">
+          <p className="mt-2 text-[10px] text-gray-500 dark:text-gray-500">
             {new Date(event.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })} 
             {" - "}
             {new Date(event.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
@@ -105,13 +105,13 @@ function EventCard({ event, compact = false }: { event: WeeklyEvent; compact?: b
   if (link) {
     if (link.startsWith("http")) {
       return (
-        <a href={link} target="_blank" rel="noopener noreferrer" className="block transition-transform hover:scale-[1.02]">
+        <a href={link} target="_blank" rel="noopener noreferrer" className="block transition-all duration-200-transform hover:scale-[1.02] cursor-pointer">
           {content}
         </a>
       );
     }
     return (
-      <Link href={link} className="block transition-transform hover:scale-[1.02]">
+      <Link href={link} className="block transition-all duration-200-transform hover:scale-[1.02] cursor-pointer">
         {content}
       </Link>
     );
@@ -130,15 +130,15 @@ export function WeeklyEventsCard() {
   
   return (
     <Card className="p-0 overflow-hidden">
-      <div className="border-b border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900/50">
+      <div className="border-b border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-lg">📅</span>
-            <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">This Week</h2>
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-white">This Week</h2>
           </div>
           <Link
             href="/events"
-            className="text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+            className="text-xs font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white cursor-pointer"
           >
             View all →
           </Link>
@@ -153,11 +153,11 @@ export function WeeklyEventsCard() {
         {upcomingEvents.length > 0 && (
           <>
             <div className="flex items-center gap-2 pt-2">
-              <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
-              <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">
+              <div className="h-px flex-1 bg-gray-200 dark:bg-[#7C3AED]" />
+              <span className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
                 Coming Up
               </span>
-              <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+              <div className="h-px flex-1 bg-gray-200 dark:bg-[#7C3AED]" />
             </div>
             {upcomingEvents.map((event) => (
               <EventCard key={event.id} event={event} compact />
@@ -205,7 +205,7 @@ export function EventBanner() {
                   <span className="text-[10px] font-medium text-green-600 dark:text-green-400">Live</span>
                 </span>
               </div>
-              <p className="text-sm font-semibold text-zinc-900 dark:text-white">
+              <p className="text-sm font-semibold text-gray-900 dark:text-white">
                 {featuredEvent.title}
               </p>
             </div>
@@ -219,7 +219,7 @@ export function EventBanner() {
                 </span>
               </div>
             )}
-            <span className="text-sm font-medium text-indigo-600 group-hover:underline dark:text-indigo-400">
+            <span className="text-sm font-medium text-indigo-600 group-hover:underline dark:text-indigo-400 cursor-pointer">
               Join →
             </span>
           </div>

@@ -12,7 +12,7 @@ function classesForVariant(variant: NonNullable<Props["variant"]>) {
       return "border-amber-200 bg-amber-50 text-amber-950";
     case "info":
     default:
-      return "border-zinc-200 bg-white text-zinc-950";
+      return "border-gray-200 bg-white text-gray-950";
   }
 }
 

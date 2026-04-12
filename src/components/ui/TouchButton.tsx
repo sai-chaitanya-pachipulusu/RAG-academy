@@ -65,12 +65,12 @@ export function TouchButton({
   };
 
   const variantStyles = {
-    primary: "bg-zinc-900 text-white hover:bg-zinc-800 active:bg-zinc-950",
-    secondary: "bg-white text-zinc-900 border border-zinc-200 hover:bg-zinc-50 active:bg-zinc-100",
-    ghost: "bg-transparent text-zinc-700 hover:bg-zinc-100 active:bg-zinc-200",
+    primary: "bg-[#8B5CF6] text-white hover:bg-[#7C3AED] active:bg-[#6D28D9]950",
+    secondary: "bg-white text-gray-900 border border-gray-200 hover:bg-gray-50 active:bg-[#6D28D9]100",
+    ghost: "bg-transparent text-gray-700 hover:bg-gray-100 active:bg-[#6D28D9]200",
     danger: "bg-red-600 text-white hover:bg-red-500 active:bg-red-700",
-    default: "bg-zinc-900 text-white hover:bg-zinc-800 active:bg-zinc-950",
-    outline: "bg-white text-zinc-900 border border-zinc-200 hover:bg-zinc-50 active:bg-zinc-100",
+    default: "bg-[#8B5CF6] text-white hover:bg-[#7C3AED] active:bg-[#6D28D9]950",
+    outline: "bg-white text-gray-900 border border-gray-200 hover:bg-gray-50 active:bg-[#6D28D9]100",
   };
 
   const sizeStyles = {
@@ -87,7 +87,7 @@ export function TouchButton({
         "relative inline-flex items-center justify-center gap-2 rounded-xl font-medium",
         "transition-all duration-150 ease-out",
         "active:scale-[0.98] touch-manipulation",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B5CF6]400 focus-visible:ring-offset-2",
         "disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100",
         variantStyles[variant],
         sizeStyles[size],
@@ -169,11 +169,11 @@ export function TouchCard({
   const content = (
     <div
       className={cn(
-        "relative rounded-2xl border border-zinc-200 bg-white p-4",
+        "relative rounded-2xl border border-gray-200 bg-white p-4",
         "transition-all duration-150 ease-out",
         "active:scale-[0.98] touch-manipulation",
-        isPressed && "scale-[0.98] bg-zinc-50",
-        onPress && "cursor-pointer hover:border-zinc-300",
+        isPressed && "scale-[0.98] bg-gray-50",
+        onPress && "cursor-pointer hover:border-gray-300",
         className
       )}
       onTouchStart={handleTouchStart}
@@ -215,16 +215,16 @@ export function TouchInput({
   return (
     <div className="w-full">
       {label && (
-        <label className="mb-2 block text-sm font-medium text-zinc-700">
+        <label className="mb-2 block text-sm font-medium text-gray-700">
           {label}
         </label>
       )}
       <input
         className={cn(
-          "w-full rounded-xl border border-zinc-200 bg-white px-4 py-3.5",
-          "text-base text-zinc-900 placeholder:text-zinc-400",
+          "w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5",
+          "text-base text-gray-900 placeholder:text-gray-400",
           "transition-all duration-150 ease-out",
-          "focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10",
+          "focus:border-[#8B5CF6]900 focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]900/10",
           "min-h-[48px] sm:min-h-[44px] sm:py-3 sm:text-sm",
           error && "border-red-500 focus:border-red-500 focus:ring-red-500/10",
           className
@@ -233,7 +233,7 @@ export function TouchInput({
       />
       {error && <p className="mt-1.5 text-sm text-red-600">{error}</p>}
       {helperText && !error && (
-        <p className="mt-1.5 text-sm text-zinc-500">{helperText}</p>
+        <p className="mt-1.5 text-sm text-gray-500">{helperText}</p>
       )}
     </div>
   );
@@ -283,13 +283,13 @@ export function BottomSheet({
       >
         {/* Handle */}
         <div className="flex justify-center pt-3 pb-1" onClick={onClose}>
-          <div className="h-1.5 w-12 rounded-full bg-zinc-300" />
+          <div className="h-1.5 w-12 rounded-full bg-gray-300" />
         </div>
 
         {/* Header */}
         {title && (
-          <div className="border-b border-zinc-100 px-4 py-3">
-            <h3 className="text-lg font-semibold text-zinc-900">{title}</h3>
+          <div className="border-b border-gray-100 px-4 py-3">
+            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
           </div>
         )}
 

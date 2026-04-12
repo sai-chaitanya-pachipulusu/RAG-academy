@@ -11,7 +11,7 @@ const CATEGORY_STYLES: Record<DiscussionCategory, { label: string; color: string
   optimization: { label: "Optimization", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300", icon: "⚡" },
   bug_report: { label: "Bug Report", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300", icon: "🐛" },
   tip: { label: "Tip", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300", icon: "💡" },
-  general: { label: "General", color: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300", icon: "💬" },
+  general: { label: "General", color: "bg-gray-100 text-gray-700 dark:bg-[#7C3AED] dark:text-gray-300", icon: "💬" },
 };
 
 interface ThreadCardProps {
@@ -75,7 +75,7 @@ export function ThreadCard({ thread, onSelect, onVote, showActions = true }: Thr
   return (
     <button
       onClick={() => onSelect(thread)}
-      className="w-full text-left rounded-xl border border-zinc-200 bg-white p-4 transition-all hover:border-zinc-300 hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
+      className="w-full text-left rounded-xl border border-gray-200 bg-white p-4 transition-all duration-200-all duration-200 hover:border-gray-300 hover:shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700 cursor-pointer"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
@@ -97,18 +97,18 @@ export function ThreadCard({ thread, onSelect, onVote, showActions = true }: Thr
           </div>
           
           {/* Title */}
-          <h3 className="font-medium text-zinc-900 dark:text-white line-clamp-1">
+          <h3 className="font-medium text-gray-900 dark:text-white line-clamp-1">
             {thread.title}
           </h3>
           
           {/* Content Preview */}
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2">
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
             {thread.content}
           </p>
           
           {/* Meta Info */}
-          <div className="mt-3 flex items-center gap-4 text-xs text-zinc-500">
-            <span className="font-medium text-zinc-700 dark:text-zinc-300">{thread.userName}</span>
+          <div className="mt-3 flex items-center gap-4 text-xs text-gray-500">
+            <span className="font-medium text-gray-700 dark:text-gray-300">{thread.userName}</span>
             <span>•</span>
             <span>{formatDate(thread.createdAt)}</span>
             <span>•</span>
@@ -120,8 +120,8 @@ export function ThreadCard({ thread, onSelect, onVote, showActions = true }: Thr
         {showActions && onVote && (
           <div className="flex flex-col items-center gap-1 text-center">
             <button 
-              className={`text-lg hover:scale-110 transition-transform ${
-                displayUserVote === 1 ? "text-orange-500" : "text-zinc-400 hover:text-zinc-600"
+              className={`text-lg hover:scale-110 transition-all duration-200-transform ${
+                displayUserVote === 1 ? "text-orange-500" : "text-gray-400 hover:text-gray-600"
               } ${isVoting ? "opacity-50" : ""}`}
               onClick={(e) => handleVote(e, 1)}
               disabled={isVoting}
@@ -129,13 +129,13 @@ export function ThreadCard({ thread, onSelect, onVote, showActions = true }: Thr
               ▲
             </button>
             <span className={`text-sm font-semibold ${
-              displayUserVote !== 0 ? "text-orange-600 dark:text-orange-400" : "text-zinc-700 dark:text-zinc-300"
+              displayUserVote !== 0 ? "text-orange-600 dark:text-orange-400" : "text-gray-700 dark:text-gray-300"
             }`}>
               {displayVotes}
             </span>
             <button 
-              className={`text-lg hover:scale-110 transition-transform ${
-                displayUserVote === -1 ? "text-indigo-500" : "text-zinc-400 hover:text-zinc-600"
+              className={`text-lg hover:scale-110 transition-all duration-200-transform ${
+                displayUserVote === -1 ? "text-indigo-500" : "text-gray-400 hover:text-gray-600"
               } ${isVoting ? "opacity-50" : ""}`}
               onClick={(e) => handleVote(e, -1)}
               disabled={isVoting}
@@ -148,8 +148,8 @@ export function ThreadCard({ thread, onSelect, onVote, showActions = true }: Thr
         {/* Read-only vote display */}
         {!showActions && (
           <div className="flex flex-col items-center gap-1 text-center">
-            <span className="text-xs text-zinc-400">▲</span>
-            <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+            <span className="text-xs text-gray-400">▲</span>
+            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
               {displayVotes}
             </span>
           </div>
@@ -162,7 +162,7 @@ export function ThreadCard({ thread, onSelect, onVote, showActions = true }: Thr
           {thread.tags.map(tag => (
             <span 
               key={tag}
-              className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+              className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400"
             >
               #{tag}
             </span>

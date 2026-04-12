@@ -239,7 +239,7 @@ function ScoreRing({
           fill="none"
           stroke="currentColor"
           strokeWidth={strokeWidth}
-          className="text-zinc-200"
+          className="text-gray-200"
         />
         <circle
           cx={size / 2}
@@ -251,7 +251,7 @@ function ScoreRing({
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           strokeLinecap="round"
-          className={`transition-all duration-1000 ${colorClasses[color]}`}
+          className={`transition-all duration-200-all duration-1000 ${colorClasses[color]}`}
         />
       </svg>
       <div
@@ -287,16 +287,16 @@ function CategoryScore({
       <span className="text-lg">{icon}</span>
       <div className="flex-1">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-zinc-600">
+          <span className="text-xs font-medium text-gray-600">
             {label}
           </span>
-          <span className="text-xs font-semibold text-zinc-900">
+          <span className="text-xs font-semibold text-gray-900">
             {score}
           </span>
         </div>
-        <div className="mt-1 h-2 overflow-hidden rounded-full bg-zinc-200">
+        <div className="mt-1 h-2 overflow-hidden rounded-full bg-gray-200">
           <div
-            className={`h-full rounded-full transition-all duration-500 ${colorClasses[color]}`}
+            className={`h-full rounded-full transition-all duration-200-all duration-500 ${colorClasses[color]}`}
             style={{ width: `${score}%` }}
           />
         </div>
@@ -330,33 +330,33 @@ function IssueCard({
         <span className="text-lg">{getSeverityIcon(issue.severity)}</span>
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-zinc-900">
+            <span className="font-medium text-gray-900">
               {issue.category}
             </span>
             {issue.line && (
               <button
                 onClick={() => onLineClick?.(issue.line!)}
-                className="rounded bg-white/50 px-1.5 py-0.5 text-xs font-mono text-zinc-600 hover:bg-white"
+                className="rounded bg-white/50 px-1.5 py-0.5 text-xs font-mono text-gray-600 hover:bg-white cursor-pointer"
               >
                 Line {issue.line}
               </button>
             )}
           </div>
-          <p className="mt-1 text-zinc-700">
+          <p className="mt-1 text-gray-700">
             {issue.message}
           </p>
           {issue.suggestion && (
             <div className="mt-2 rounded bg-white/70 p-2">
-              <p className="text-xs font-medium text-zinc-500">
+              <p className="text-xs font-medium text-gray-500">
                 Suggestion:
               </p>
-              <p className="text-zinc-700">
+              <p className="text-gray-700">
                 {issue.suggestion}
               </p>
             </div>
           )}
           {issue.codeExample && (
-            <pre className="mt-2 overflow-x-auto rounded bg-zinc-900 p-2 text-xs text-zinc-100">
+            <pre className="mt-2 overflow-x-auto rounded bg-gray-900 p-2 text-xs text-gray-100">
               <code>{issue.codeExample}</code>
             </pre>
           )}
@@ -379,10 +379,10 @@ function QuotaIndicator({
   const percentage = Math.min(100, (used / limit) * 100);
 
   return (
-    <div className="flex items-center gap-2 text-xs text-zinc-500">
-      <div className="h-2 w-16 overflow-hidden rounded-full bg-zinc-200">
+    <div className="flex items-center gap-2 text-xs text-gray-500">
+      <div className="h-2 w-16 overflow-hidden rounded-full bg-gray-200">
         <div
-          className={`h-full rounded-full transition-all ${percentage >= 90 ? "bg-red-500" : percentage >= 70 ? "bg-amber-500" : "bg-emerald-500"}`}
+          className={`h-full rounded-full transition-all duration-200-all duration-200 ${percentage >= 90 ? "bg-red-500" : percentage >= 70 ? "bg-amber-500" : "bg-emerald-500"}`}
           style={{ width: `${percentage}%` }}
         />
       </div>
@@ -527,9 +527,9 @@ export function AICodeReview({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="m-4 flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl">
+      <div className="m-4 flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
           <div className="flex items-center gap-3">
             <h2 className="flex items-center gap-2 text-lg font-semibold">
               <span>🤖</span> AI Code Review
@@ -544,7 +544,7 @@ export function AICodeReview({
             {quota && <QuotaIndicator {...quota} />}
             <button
               onClick={onClose}
-              className="rounded-full p-2 text-zinc-500 hover:bg-zinc-100"
+              className="rounded-full p-2 text-gray-500 hover:bg-gray-100 cursor-pointer"
             >
               ✕
             </button>
@@ -552,9 +552,9 @@ export function AICodeReview({
         </div>
 
         {/* Mode selector */}
-        <div className="border-b border-zinc-200 bg-zinc-50 px-6 py-3">
+        <div className="border-b border-gray-200 bg-gray-50 px-6 py-3">
           <div className="flex items-center gap-4">
-            <span className="text-xs font-medium text-zinc-500">
+            <span className="text-xs font-medium text-gray-500">
               Review Mode:
             </span>
             <div className="flex gap-2">
@@ -562,10 +562,10 @@ export function AICodeReview({
                 <button
                   key={m}
                   onClick={() => handleModeChange(m)}
-                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-all duration-200-all duration-200 ${
                     mode === m
                       ? "bg-indigo-600 text-white"
-                      : "bg-white text-zinc-600 hover:bg-zinc-100"
+                      : "bg-white text-gray-600 hover:bg-gray-100"
                   }`}
                 >
                   {m === "pattern" && "Pattern Only"}
@@ -574,7 +574,7 @@ export function AICodeReview({
                 </button>
               ))}
             </div>
-            <span className="text-xs text-zinc-400">
+            <span className="text-xs text-gray-400">
               {mode === "pattern" && "Fast, no API call"}
               {mode === "hybrid" && "AI with pattern fallback"}
               {mode === "ai" && "Full AI analysis"}
@@ -587,10 +587,10 @@ export function AICodeReview({
           {!review && !isLoading && !error && (
             <div className="text-center">
               <div className="mb-4 text-4xl">🤖</div>
-              <h3 className="text-lg font-medium text-zinc-900">
+              <h3 className="text-lg font-medium text-gray-900">
                 Get AI-Powered Code Review
               </h3>
-              <p className="mx-auto mt-2 max-w-md text-sm text-zinc-600">
+              <p className="mx-auto mt-2 max-w-md text-sm text-gray-600">
                 Receive intelligent feedback on your code quality, performance,
                 and RAG-specific best practices.
               </p>
@@ -620,13 +620,13 @@ export function AICodeReview({
           {isLoading && (
             <div className="flex flex-col items-center justify-center py-12">
               <div className="h-10 w-10 animate-spin rounded-full border-3 border-indigo-600 border-t-transparent" />
-              <p className="mt-4 text-sm text-zinc-500">
+              <p className="mt-4 text-sm text-gray-500">
                 {mode === "pattern"
                   ? "Analyzing patterns..."
                   : "AI is reviewing your code..."}
               </p>
               {mode !== "pattern" && (
-                <p className="mt-1 text-xs text-zinc-400">
+                <p className="mt-1 text-xs text-gray-400">
                   This may take 10-30 seconds
                 </p>
               )}
@@ -638,7 +638,7 @@ export function AICodeReview({
               <p className="text-red-700">{error}</p>
               <button
                 onClick={handleReview}
-                className="mt-3 rounded-full bg-red-100 px-4 py-1.5 text-sm font-medium text-red-700 hover:bg-red-200"
+                className="mt-3 rounded-full bg-red-100 px-4 py-1.5 text-sm font-medium text-red-700 hover:bg-red-200 cursor-pointer"
               >
                 Try Again
               </button>
@@ -651,12 +651,12 @@ export function AICodeReview({
               <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
                 <div className="text-center">
                   <ScoreRing score={review.score} />
-                  <p className="mt-2 text-sm font-medium text-zinc-600">
+                  <p className="mt-2 text-sm font-medium text-gray-600">
                     {getScoreLabel(review.score)}
                   </p>
                 </div>
                 <div className="flex-1 space-y-3">
-                  <p className="text-sm text-zinc-700">
+                  <p className="text-sm text-gray-700">
                     {review.summary}
                   </p>
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -687,26 +687,26 @@ export function AICodeReview({
               {/* Complexity Analysis */}
               {review.complexity &&
                 review.complexity.time !== "Analysis requires AI" && (
-                  <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                    <h4 className="text-sm font-semibold text-zinc-900">
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                    <h4 className="text-sm font-semibold text-gray-900">
                       Complexity Analysis
                     </h4>
                     <div className="mt-2 flex gap-4">
                       <div className="rounded-lg bg-white px-3 py-2">
-                        <span className="text-xs text-zinc-500">Time</span>
+                        <span className="text-xs text-gray-500">Time</span>
                         <p className="font-mono text-sm font-medium">
                           {review.complexity.time}
                         </p>
                       </div>
                       <div className="rounded-lg bg-white px-3 py-2">
-                        <span className="text-xs text-zinc-500">Space</span>
+                        <span className="text-xs text-gray-500">Space</span>
                         <p className="font-mono text-sm font-medium">
                           {review.complexity.space}
                         </p>
                       </div>
                     </div>
                     {review.complexity.explanation && (
-                      <p className="mt-2 text-xs text-zinc-600">
+                      <p className="mt-2 text-xs text-gray-600">
                         {review.complexity.explanation}
                       </p>
                     )}
@@ -714,7 +714,7 @@ export function AICodeReview({
                 )}
 
               {/* Tabs */}
-              <div className="border-b border-zinc-200">
+              <div className="border-b border-gray-200">
                 <div className="flex gap-1">
                   {[
                     { id: "overview", label: "Overview", count: null },
@@ -731,15 +731,15 @@ export function AICodeReview({
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                      className={`relative px-4 py-2 text-sm font-medium transition-colors ${
+                      className={`relative px-4 py-2 text-sm font-medium transition-all duration-200-all duration-200 ${
                         activeTab === tab.id
                           ? "text-indigo-600"
-                          : "text-zinc-500 hover:text-zinc-700"
+                          : "text-gray-500 hover:text-gray-700"
                       }`}
                     >
                       {tab.label}
                       {tab.count !== null && tab.count > 0 && (
-                        <span className="ml-1.5 rounded-full bg-zinc-200 px-1.5 py-0.5 text-xs">
+                        <span className="ml-1.5 rounded-full bg-gray-200 px-1.5 py-0.5 text-xs">
                           {tab.count}
                         </span>
                       )}
@@ -806,7 +806,7 @@ export function AICodeReview({
                           {sortedIssues.length > 3 && (
                             <button
                               onClick={() => setActiveTab("issues")}
-                              className="w-full rounded-lg border border-dashed border-zinc-300 py-2 text-sm text-zinc-500 hover:border-zinc-400 hover:text-zinc-600"
+                              className="w-full rounded-lg border border-dashed border-gray-300 py-2 text-sm text-gray-500 hover:border-gray-400 hover:text-gray-600 cursor-pointer"
                             >
                               + {sortedIssues.length - 3} more issues
                             </button>
@@ -820,7 +820,7 @@ export function AICodeReview({
                 {activeTab === "issues" && (
                   <div className="space-y-4">
                     {sortedIssues.length === 0 ? (
-                      <p className="text-center text-sm text-zinc-500">
+                      <p className="text-center text-sm text-gray-500">
                         No issues found! Great job! 🎉
                       </p>
                     ) : (
@@ -835,7 +835,7 @@ export function AICodeReview({
                             return (
                               <span
                                 key={sev}
-                                className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-1 text-xs"
+                                className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-xs"
                               >
                                 {getSeverityIcon(sev as ReviewSeverity)}
                                 {getSeverityLabel(sev as ReviewSeverity)}: {count}
@@ -851,11 +851,11 @@ export function AICodeReview({
                               <div key={category}>
                                 <button
                                   onClick={() => toggleCategory(category)}
-                                  className="flex w-full items-center justify-between rounded-lg bg-zinc-100 px-3 py-2 text-left text-sm font-medium"
+                                  className="flex w-full items-center justify-between rounded-lg bg-gray-100 px-3 py-2 text-left text-sm font-medium"
                                 >
                                   <span>{category}</span>
                                   <span className="flex items-center gap-2">
-                                    <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-xs">
+                                    <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs">
                                       {issues.length}
                                     </span>
                                     <span>
@@ -885,7 +885,7 @@ export function AICodeReview({
                 {activeTab === "improvements" && (
                   <div className="space-y-4">
                     {review.improvements.length === 0 ? (
-                      <p className="text-center text-sm text-zinc-500">
+                      <p className="text-center text-sm text-gray-500">
                         No improvements suggested. Your code looks great! 🎉
                       </p>
                     ) : (
@@ -928,26 +928,26 @@ export function AICodeReview({
 
         {/* Footer */}
         {review && (
-          <div className="border-t border-zinc-200 bg-zinc-50 px-6 py-4">
+          <div className="border-t border-gray-200 bg-gray-50 px-6 py-4">
             <div className="flex items-center justify-between">
               <button
                 onClick={() => {
                   setReview(null);
                   setError(null);
                 }}
-                className="rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-100"
+                className="rounded-full bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-100 cursor-pointer"
               >
                 Review Again
               </button>
               <div className="flex items-center gap-3">
                 {usedFallback && (
-                  <span className="text-xs text-zinc-500">
+                  <span className="text-xs text-gray-500">
                     Pattern-based review
                   </span>
                 )}
                 <button
                   onClick={onClose}
-                  className="rounded-full bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+                  className="rounded-full bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 cursor-pointer"
                 >
                   Done
                 </button>
@@ -972,7 +972,7 @@ export function CodeReviewButton({
     return (
       <button
         onClick={onClickAction}
-        className="flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700 transition-colors hover:bg-indigo-100"
+        className="flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700 transition-all duration-200-all duration-200 hover:bg-indigo-100 cursor-pointer"
       >
         <span>🤖</span>
         AI
@@ -983,7 +983,7 @@ export function CodeReviewButton({
   return (
     <button
       onClick={onClickAction}
-      className="flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 transition-colors hover:bg-indigo-100"
+      className="flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 transition-all duration-200-all duration-200 hover:bg-indigo-100 cursor-pointer"
       title="Get AI feedback on your code"
     >
       <span>🤖</span>
@@ -1017,21 +1017,21 @@ export function InlineCodeReview({
   }
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <ScoreRing score={feedback.score} size={48} strokeWidth={4} />
           <div>
-            <h4 className="font-medium text-zinc-900">
+            <h4 className="font-medium text-gray-900">
               AI Review
             </h4>
-            <p className="text-xs text-zinc-500">{getScoreLabel(feedback.score)}</p>
+            <p className="text-xs text-gray-500">{getScoreLabel(feedback.score)}</p>
           </div>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => setExpanded(false)}
-            className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
+            className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 cursor-pointer"
             title="Minimize"
           >
             −
@@ -1039,7 +1039,7 @@ export function InlineCodeReview({
           {onDismissAction && (
             <button
               onClick={onDismissAction}
-              className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
+              className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 cursor-pointer"
               title="Dismiss"
             >
               ✕
@@ -1048,13 +1048,13 @@ export function InlineCodeReview({
         </div>
       </div>
 
-      <p className="mt-3 text-sm text-zinc-600">
+      <p className="mt-3 text-sm text-gray-600">
         {feedback.summary}
       </p>
 
       {feedback.issues.length > 0 && (
         <div className="mt-3">
-          <p className="text-xs font-medium text-zinc-500">
+          <p className="text-xs font-medium text-gray-500">
             {feedback.issues.length} issue
             {feedback.issues.length !== 1 ? "s" : ""} found
           </p>

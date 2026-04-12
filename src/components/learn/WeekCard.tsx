@@ -26,9 +26,9 @@ export function WeekCard({
     <Card className="p-5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">{w.week}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{w.week}</p>
           <h2 className="mt-1 text-lg font-semibold tracking-tight">{w.title}</h2>
-          <p className="mt-2 text-sm leading-7 text-zinc-600 dark:text-zinc-300">
+          <p className="mt-2 text-sm leading-7 text-gray-600 dark:text-gray-300">
             {w.outcome}
           </p>
         </div>
@@ -37,13 +37,13 @@ export function WeekCard({
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
         <div>
-          <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Learn</p>
+          <p className="text-xs font-medium text-gray-700 dark:text-gray-300">Learn</p>
           <ul className="mt-2 space-y-1 text-sm">
             {w.learn.map((l) => (
               <li key={l.href} className="flex flex-wrap items-center gap-2">
                 <Link
                   href={l.href}
-                  className="text-zinc-950 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-500 dark:text-zinc-50 dark:decoration-white/25 dark:hover:decoration-white/50"
+                  className="text-gray-950 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-500 dark:text-gray-50 dark:decoration-white/25 dark:hover:decoration-white/50 cursor-pointer"
                 >
                   {l.label}
                 </Link>
@@ -56,13 +56,13 @@ export function WeekCard({
         </div>
 
         <div>
-          <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Labs</p>
+          <p className="text-xs font-medium text-gray-700 dark:text-gray-300">Labs</p>
           <ul className="mt-2 space-y-1 text-sm">
             {w.labs.map((l) => (
               <li key={l.href}>
                 <Link
                   href={l.href}
-                  className="text-zinc-950 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-500 dark:text-zinc-50 dark:decoration-white/25 dark:hover:decoration-white/50"
+                  className="text-gray-950 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-500 dark:text-gray-50 dark:decoration-white/25 dark:hover:decoration-white/50 cursor-pointer"
                 >
                   {l.label}
                 </Link>
@@ -72,13 +72,13 @@ export function WeekCard({
         </div>
 
         <div>
-          <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Challenges</p>
+          <p className="text-xs font-medium text-gray-700 dark:text-gray-300">Challenges</p>
           <ul className="mt-2 space-y-1 text-sm">
             {w.challenges.map((c) => (
               <li key={c.href} className="flex flex-wrap items-center gap-2">
                 <Link
                   href={c.href}
-                  className="text-zinc-950 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-500 dark:text-zinc-50 dark:decoration-white/25 dark:hover:decoration-white/50"
+                  className="text-gray-950 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-500 dark:text-gray-50 dark:decoration-white/25 dark:hover:decoration-white/50 cursor-pointer"
                 >
                   {c.label}
                 </Link>
@@ -91,8 +91,8 @@ export function WeekCard({
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl border border-zinc-200 bg-white/60 p-4 text-sm text-zinc-700 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300">
-        <span className="font-medium text-zinc-950 dark:text-zinc-50">Ship:</span>{" "}
+      <div className="mt-4 rounded-2xl border border-gray-200 bg-white/60 p-4 text-sm text-gray-700 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300">
+        <span className="font-medium text-gray-950 dark:text-gray-50">Ship:</span>{" "}
         {w.ship}
       </div>
     </Card>

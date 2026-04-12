@@ -139,21 +139,21 @@ export function SolutionGallery({ challengeSlug, userId }: SolutionGalleryProps)
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
             Community Solutions
           </h2>
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-gray-500">
             {total} solutions shared by the community
           </p>
         </div>
 
         {/* Filters */}
         <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-zinc-400" />
+          <Filter className="h-4 w-4 text-gray-400" />
           <select
             value={filters.sortBy}
             onChange={(e) => setFilters({ ...filters, sortBy: e.target.value as SolutionSortOption })}
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
           >
             {SORT_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -189,17 +189,17 @@ export function SolutionGallery({ challengeSlug, userId }: SolutionGalleryProps)
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm disabled:opacity-50 dark:border-zinc-700"
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm disabled:opacity-50 dark:border-gray-700"
               >
                 Previous
               </button>
-              <span className="text-sm text-zinc-500">
+              <span className="text-sm text-gray-500">
                 Page {page} of {totalPages}
               </span>
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm disabled:opacity-50 dark:border-zinc-700"
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm disabled:opacity-50 dark:border-gray-700"
               >
                 Next
               </button>
@@ -210,11 +210,11 @@ export function SolutionGallery({ challengeSlug, userId }: SolutionGalleryProps)
 
       {solutions.length === 0 && !isLoading && (
         <Card className="p-8 text-center">
-          <Code className="mx-auto mb-4 h-12 w-12 text-zinc-300" />
-          <h3 className="mb-2 font-semibold text-zinc-900 dark:text-zinc-100">
+          <Code className="mx-auto mb-4 h-12 w-12 text-gray-300" />
+          <h3 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">
             No Solutions Yet
           </h3>
-          <p className="text-zinc-500">
+          <p className="text-gray-500">
             Be the first to share your solution for this challenge!
           </p>
         </Card>
@@ -235,21 +235,21 @@ export function SolutionGallery({ challengeSlug, userId }: SolutionGalleryProps)
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-xl bg-white shadow-2xl dark:bg-zinc-950"
+              className="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-xl bg-white shadow-2xl dark:bg-[#7C3AED]"
             >
               {/* Modal Header */}
-              <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
+              <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-800">
                 <div>
-                  <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
                     Solution by {selectedSolution.username || "Anonymous"}
                   </h3>
-                  <p className="text-sm text-zinc-500">
+                  <p className="text-sm text-gray-500">
                     {selectedSolution.challengeTitle || selectedSolution.challengeSlug}
                   </p>
                 </div>
                 <button
                   onClick={() => setSelectedSolution(null)}
-                  className="rounded-full p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800"
+                  className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-[#7C3AED] cursor-pointer"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -260,15 +260,15 @@ export function SolutionGallery({ challengeSlug, userId }: SolutionGalleryProps)
                 {/* Stats */}
                 <div className="mb-6 flex items-center gap-6">
                   <div className="flex items-center gap-2">
-                    <ThumbsUp className="h-4 w-4 text-zinc-400" />
+                    <ThumbsUp className="h-4 w-4 text-gray-400" />
                     <span className="font-medium">{calculateScore(selectedSolution)}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Eye className="h-4 w-4 text-zinc-400" />
+                    <Eye className="h-4 w-4 text-gray-400" />
                     <span>{selectedSolution.viewCount} views</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-zinc-400" />
+                    <Clock className="h-4 w-4 text-gray-400" />
                     <span>{new Date(selectedSolution.createdAt).toLocaleDateString()}</span>
                   </div>
                 </div>
@@ -276,10 +276,10 @@ export function SolutionGallery({ challengeSlug, userId }: SolutionGalleryProps)
                 {/* Description */}
                 {selectedSolution.description && (
                   <div className="mb-6">
-                    <h4 className="mb-2 font-medium text-zinc-900 dark:text-zinc-100">
+                    <h4 className="mb-2 font-medium text-gray-900 dark:text-gray-100">
                       Description
                     </h4>
-                    <p className="text-zinc-600 dark:text-zinc-400">
+                    <p className="text-gray-600 dark:text-gray-400">
                       {selectedSolution.description}
                     </p>
                   </div>
@@ -288,15 +288,15 @@ export function SolutionGallery({ challengeSlug, userId }: SolutionGalleryProps)
                 {/* Code */}
                 <div className="mb-6">
                   <div className="mb-2 flex items-center justify-between">
-                    <h4 className="font-medium text-zinc-900 dark:text-zinc-100">
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100">
                       Code ({selectedSolution.language})
                     </h4>
-                    <span className="rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                    <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400">
                       {selectedSolution.timeComplexity || "O(n)"} time
                     </span>
                   </div>
-                  <div className="rounded-lg bg-zinc-900 p-4">
-                    <pre className="overflow-x-auto text-sm text-zinc-100">
+                  <div className="rounded-lg bg-gray-900 p-4">
+                    <pre className="overflow-x-auto text-sm text-gray-100">
                       <code>{selectedSolution.code}</code>
                     </pre>
                   </div>
@@ -305,10 +305,10 @@ export function SolutionGallery({ challengeSlug, userId }: SolutionGalleryProps)
                 {/* Approach */}
                 {selectedSolution.approach && (
                   <div className="mb-6">
-                    <h4 className="mb-2 font-medium text-zinc-900 dark:text-zinc-100">
+                    <h4 className="mb-2 font-medium text-gray-900 dark:text-gray-100">
                       Approach
                     </h4>
-                    <p className="text-zinc-600 dark:text-zinc-400">
+                    <p className="text-gray-600 dark:text-gray-400">
                       {selectedSolution.approach}
                     </p>
                   </div>
@@ -316,7 +316,7 @@ export function SolutionGallery({ challengeSlug, userId }: SolutionGalleryProps)
 
                 {/* Comments */}
                 <div>
-                  <h4 className="mb-4 font-medium text-zinc-900 dark:text-zinc-100">
+                  <h4 className="mb-4 font-medium text-gray-900 dark:text-gray-100">
                     Comments ({comments.length})
                   </h4>
 
@@ -327,7 +327,7 @@ export function SolutionGallery({ challengeSlug, userId }: SolutionGalleryProps)
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
                       placeholder="Add a comment..."
-                      className="flex-1 rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+                      className="flex-1 rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
                       onKeyDown={(e) => e.key === "Enter" && handleAddComment()}
                     />
                     <TouchButton onClick={handleAddComment} disabled={!newComment.trim()}>
@@ -339,19 +339,19 @@ export function SolutionGallery({ challengeSlug, userId }: SolutionGalleryProps)
                   <div className="space-y-4">
                     {comments.map((comment) => (
                       <div key={comment.id} className="flex gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-200 dark:bg-zinc-700">
-                          <User className="h-4 w-4 text-zinc-500" />
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700">
+                          <User className="h-4 w-4 text-gray-500" />
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                            <span className="font-medium text-gray-900 dark:text-gray-100">
                               {comment.username || "Anonymous"}
                             </span>
-                            <span className="text-xs text-zinc-500">
+                            <span className="text-xs text-gray-500">
                               {new Date(comment.createdAt).toLocaleDateString()}
                             </span>
                           </div>
-                          <p className="text-zinc-600 dark:text-zinc-400">{comment.content}</p>
+                          <p className="text-gray-600 dark:text-gray-400">{comment.content}</p>
                         </div>
                       </div>
                     ))}
@@ -382,7 +382,7 @@ function SolutionCard({ solution, userVote, onVote, onClick }: SolutionCardProps
   const score = calculateScore(solution);
 
   return (
-    <Card className="overflow-hidden transition-shadow hover:shadow-lg">
+    <Card className="overflow-hidden transition-all duration-200-shadow hover:shadow-lg cursor-pointer">
       <div className="p-4">
         <div className="flex items-start gap-4">
           {/* Vote Buttons */}
@@ -392,10 +392,10 @@ function SolutionCard({ solution, userVote, onVote, onClick }: SolutionCardProps
                 e.stopPropagation();
                 onVote(solution.id, "up");
               }}
-              className={`rounded p-1 transition-colors ${
+              className={`rounded p-1 transition-all duration-200-all duration-200 ${
                 userVote === "up"
                   ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                  : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800"
+                  : "text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-[#7C3AED]"
               }`}
             >
               <ThumbsUp className="h-5 w-5" />
@@ -408,10 +408,10 @@ function SolutionCard({ solution, userVote, onVote, onClick }: SolutionCardProps
                 e.stopPropagation();
                 onVote(solution.id, "down");
               }}
-              className={`rounded p-1 transition-colors ${
+              className={`rounded p-1 transition-all duration-200-all duration-200 ${
                 userVote === "down"
                   ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                  : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800"
+                  : "text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-[#7C3AED]"
               }`}
             >
               <ThumbsDown className="h-5 w-5" />
@@ -427,7 +427,7 @@ function SolutionCard({ solution, userVote, onVote, onClick }: SolutionCardProps
                   Featured
                 </span>
               )}
-              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400">
                 {solution.language}
               </span>
               {solution.timeComplexity && (
@@ -437,19 +437,19 @@ function SolutionCard({ solution, userVote, onVote, onClick }: SolutionCardProps
               )}
             </div>
 
-            <h3 className="mb-1 font-semibold text-zinc-900 dark:text-zinc-100">
+            <h3 className="mb-1 font-semibold text-gray-900 dark:text-gray-100">
               Solution by {solution.username || "Anonymous"}
             </h3>
 
             {solution.description && (
-              <p className="mb-2 line-clamp-2 text-sm text-zinc-600 dark:text-zinc-400">
+              <p className="mb-2 line-clamp-2 text-sm text-gray-600 dark:text-gray-400">
                 {solution.description}
               </p>
             )}
 
             {/* Code Preview */}
-            <div className="mb-3 rounded-lg bg-zinc-900 p-3">
-              <pre className="overflow-hidden text-xs text-zinc-300">
+            <div className="mb-3 rounded-lg bg-gray-900 p-3">
+              <pre className="overflow-hidden text-xs text-gray-300">
                 <code>
                   {isExpanded ? solution.code : truncateCode(solution.code, 5)}
                 </code>
@@ -460,7 +460,7 @@ function SolutionCard({ solution, userVote, onVote, onClick }: SolutionCardProps
                     e.stopPropagation();
                     setIsExpanded(!isExpanded);
                   }}
-                  className="mt-2 text-xs text-indigo-400 hover:text-indigo-300"
+                  className="mt-2 text-xs text-indigo-400 hover:text-indigo-300 cursor-pointer"
                 >
                   {isExpanded ? "Show less" : "Show more"}
                 </button>
@@ -468,7 +468,7 @@ function SolutionCard({ solution, userVote, onVote, onClick }: SolutionCardProps
             </div>
 
             {/* Footer */}
-            <div className="flex items-center gap-4 text-xs text-zinc-500">
+            <div className="flex items-center gap-4 text-xs text-gray-500">
               <span className="flex items-center gap-1">
                 <Eye className="h-3 w-3" />
                 {solution.viewCount}

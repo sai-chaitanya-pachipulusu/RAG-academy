@@ -158,7 +158,7 @@ export function VisualRoadmap({ progress }: Props) {
           <span className="h-3 w-3 rounded-full bg-amber-500" /> In Progress
         </span>
         <span className="flex items-center gap-1">
-          <span className="h-3 w-3 rounded-full bg-zinc-300 dark:bg-zinc-700" /> Available
+          <span className="h-3 w-3 rounded-full bg-gray-300 dark:bg-gray-700" /> Available
         </span>
       </div>
 
@@ -177,10 +177,10 @@ export function VisualRoadmap({ progress }: Props) {
                 {track.title.split(" ")[0]}
               </div>
               <div>
-                <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100">
                   {track.title.split(" ").slice(1).join(" ")}
                 </h3>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-gray-500">
                   {track.children.filter((c) => c.status === "completed").length}/
                   {track.children.length} completed
                 </p>
@@ -188,7 +188,7 @@ export function VisualRoadmap({ progress }: Props) {
             </div>
 
             {/* Challenges in Track */}
-            <div className="ml-6 mt-4 grid gap-3 border-l-2 border-zinc-200 pl-6 dark:border-zinc-800 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="ml-6 mt-4 grid gap-3 border-l-2 border-gray-200 pl-6 dark:border-gray-800 sm:grid-cols-2 lg:grid-cols-4">
               {track.children.map((challenge, idx) => (
                 <ChallengeNode
                   key={challenge.id}
@@ -244,8 +244,8 @@ function ChallengeNode({
     in_progress:
       "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30",
     available:
-      "border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950",
-    locked: "border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900",
+      "border-gray-200 bg-white dark:border-gray-800 dark:bg-[#7C3AED]",
+    locked: "border-gray-200 bg-gray-100 dark:border-gray-800 dark:bg-gray-900",
   };
 
   const difficultyColors = {
@@ -257,7 +257,7 @@ function ChallengeNode({
   return (
     <Link
       href={`/challenges/${challenge.slug}`}
-      className={`group relative rounded-xl border p-3 transition-all hover:shadow-md ${
+      className={`group relative rounded-xl border p-3 transition-all duration-200-all duration-200 hover:shadow-md ${
         statusColors[challenge.status || "available"]
       }`}
     >
@@ -268,12 +268,12 @@ function ChallengeNode({
             ? "border-emerald-500 bg-emerald-500"
             : challenge.status === "in_progress"
               ? "border-amber-500 bg-amber-500"
-              : "border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-900"
+              : "border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900"
         }`}
       />
 
       <div className="flex items-start justify-between">
-        <p className="text-sm font-medium text-zinc-900 group-hover:text-indigo-600 dark:text-zinc-100 dark:group-hover:text-indigo-400">
+        <p className="text-sm font-medium text-gray-900 group-hover:text-indigo-600 dark:text-gray-100 dark:group-hover:text-indigo-400 cursor-pointer">
           {challenge.title}
         </p>
         {challenge.status === "completed" && (
@@ -282,10 +282,10 @@ function ChallengeNode({
       </div>
 
       <div className="mt-2 flex items-center gap-2 text-[10px]">
-        <span className={difficultyColors[challenge.difficulty as keyof typeof difficultyColors] || "text-zinc-500"}>
+        <span className={difficultyColors[challenge.difficulty as keyof typeof difficultyColors] || "text-gray-500"}>
           {challenge.difficulty}
         </span>
-        <span className="text-zinc-400">{challenge.xp} XP</span>
+        <span className="text-gray-400">{challenge.xp} XP</span>
       </div>
     </Link>
   );

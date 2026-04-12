@@ -27,31 +27,31 @@ export function TheoryTab({ challengeSlug, conceptTitle, content }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white">
+    <div className="rounded-xl border border-gray-200 bg-white">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex w-full items-center justify-between p-4 bg-zinc-50/50 hover:bg-zinc-50 rounded-t-xl transition-colors"
+        className="flex w-full items-center justify-between p-4 bg-gray-50/50 hover:bg-gray-50 rounded-t-xl transition-all duration-200-all duration-200 cursor-pointer"
       >
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-zinc-900">
+          <span className="text-sm font-medium text-gray-900">
             Theory: {conceptTitle}
           </span>
         </div>
         <span
-          className={`text-zinc-400 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+          className={`text-gray-400 transition-all duration-200-transform ${isExpanded ? "rotate-180" : ""}`}
         >
           ▼
         </span>
       </button>
 
       {isExpanded && (
-        <div className="border-t border-zinc-200 p-5 space-y-6">
+        <div className="border-t border-gray-200 p-5 space-y-6">
           {/* Overview */}
           <div>
-            <h4 className="text-sm font-semibold text-zinc-900">
+            <h4 className="text-sm font-semibold text-gray-900">
               Overview
             </h4>
-            <p className="mt-2 text-sm leading-relaxed text-zinc-700">
+            <p className="mt-2 text-sm leading-relaxed text-gray-700">
               {content.overview}
             </p>
           </div>
@@ -59,24 +59,24 @@ export function TheoryTab({ challengeSlug, conceptTitle, content }: Props) {
           {/* Key Formulas */}
           {content.keyFormulas && content.keyFormulas.length > 0 && (
             <div>
-              <h4 className="text-sm font-semibold text-zinc-900">
+              <h4 className="text-sm font-semibold text-gray-900">
                 Key Formulas
               </h4>
               <div className="mt-3 space-y-3">
                 {content.keyFormulas.map((formula, i) => (
                   <div
                     key={i}
-                    className="rounded-lg border border-zinc-200 bg-zinc-50 p-4"
+                    className="rounded-lg border border-gray-200 bg-gray-50 p-4"
                   >
                     <div className="flex items-center justify-between">
-                      <p className="text-xs font-semibold text-zinc-900">
+                      <p className="text-xs font-semibold text-gray-900">
                         {formula.name}
                       </p>
                     </div>
-                    <code className="mt-2 block rounded border border-zinc-200 bg-white px-3 py-2 font-mono text-sm text-zinc-800">
+                    <code className="mt-2 block rounded border border-gray-200 bg-white px-3 py-2 font-mono text-sm text-gray-800">
                       {formula.latex}
                     </code>
-                    <p className="mt-2 text-xs text-zinc-500">
+                    <p className="mt-2 text-xs text-gray-500">
                       {formula.explanation}
                     </p>
                   </div>
@@ -88,10 +88,10 @@ export function TheoryTab({ challengeSlug, conceptTitle, content }: Props) {
           {/* Visual Explanation */}
           {content.visualExplanation && (
             <div>
-              <h4 className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
+              <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
                 <span>👁️</span> Visual Intuition
               </h4>
-              <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50/50 p-4 text-sm leading-relaxed text-zinc-800">
+              <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50/50 p-4 text-sm leading-relaxed text-gray-800">
                 {content.visualExplanation}
               </div>
             </div>
@@ -99,10 +99,10 @@ export function TheoryTab({ challengeSlug, conceptTitle, content }: Props) {
 
           {/* Why It Matters */}
           <div>
-            <h4 className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
+            <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
               <span>🎯</span> Why This Matters
             </h4>
-            <div className="mt-3 text-sm leading-relaxed text-zinc-700">
+            <div className="mt-3 text-sm leading-relaxed text-gray-700">
               {content.whyItMatters}
             </div>
           </div>
@@ -110,13 +110,13 @@ export function TheoryTab({ challengeSlug, conceptTitle, content }: Props) {
           {/* Common Mistakes */}
           {content.commonMistakes && content.commonMistakes.length > 0 && (
             <div>
-              <h4 className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
+              <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
                 <span>⚠️</span> Common Mistakes
               </h4>
-              <ul className="mt-3 space-y-2 text-sm text-zinc-700">
+              <ul className="mt-3 space-y-2 text-sm text-gray-700">
                 {content.commonMistakes.map((mistake, i) => (
                   <li key={i} className="flex gap-2.5">
-                    <span className="mt-0.5 text-zinc-400">•</span>
+                    <span className="mt-0.5 text-gray-400">•</span>
                     {mistake}
                   </li>
                 ))}
@@ -127,13 +127,13 @@ export function TheoryTab({ challengeSlug, conceptTitle, content }: Props) {
           {/* Interview Tips */}
           {content.interviewTips && content.interviewTips.length > 0 && (
             <div>
-              <h4 className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
+              <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
                 <span>💼</span> Interview Tips
               </h4>
-              <ul className="mt-3 space-y-2 text-sm text-zinc-700">
+              <ul className="mt-3 space-y-2 text-sm text-gray-700">
                 {content.interviewTips.map((tip, i) => (
                   <li key={i} className="flex gap-2.5">
-                    <span className="mt-0.5 text-zinc-400">→</span>
+                    <span className="mt-0.5 text-gray-400">→</span>
                     {tip}
                   </li>
                 ))}

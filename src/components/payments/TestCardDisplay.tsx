@@ -36,7 +36,7 @@ export function TestCardDisplay({ showTitle = true, className = "" }: TestCardDi
       incorrectCvc: "border-purple-200 bg-purple-50/50 dark:border-purple-800 dark:bg-purple-950/20",
       processingError: "border-rose-200 bg-rose-50/50 dark:border-rose-800 dark:bg-rose-950/20",
     };
-    return styles[key] || "border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900";
+    return styles[key] || "border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900";
   };
 
   const getCardIcon = (key: TestCardKey): string => {
@@ -69,10 +69,10 @@ export function TestCardDisplay({ showTitle = true, className = "" }: TestCardDi
     <div className={className}>
       {showTitle && (
         <div className="mb-4">
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             Test Card Numbers
           </h3>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             Use these cards to test different payment scenarios
           </p>
         </div>
@@ -82,23 +82,23 @@ export function TestCardDisplay({ showTitle = true, className = "" }: TestCardDi
         {cardEntries.map(([key, card]) => (
           <div
             key={key}
-            className={`rounded-lg border p-4 transition-all hover:shadow-md ${getCardStyle(key)}`}
+            className={`rounded-lg border p-4 transition-all duration-200-all duration-200 hover:shadow-md ${getCardStyle(key)}`}
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-xl">{getCardIcon(key)}</span>
                 <div>
-                  <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                  <p className="font-medium text-gray-900 dark:text-gray-100">
                     {getCardTitle(key)}
                   </p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     {card.description}
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => handleCopy(card.number, key)}
-                className="rounded-md p-1.5 text-zinc-500 transition hover:bg-white/50 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+                className="rounded-md p-1.5 text-gray-500 transition hover:bg-white/50 hover:text-gray-700 dark:hover:bg-[#7C3AED] dark:hover:text-gray-300 cursor-pointer"
                 title="Copy card number"
               >
                 {copiedCard === key ? (
@@ -115,17 +115,17 @@ export function TestCardDisplay({ showTitle = true, className = "" }: TestCardDi
 
             <div className="mt-3 space-y-1">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-zinc-500 dark:text-zinc-400">Number</span>
-                <code className="rounded bg-white/50 px-2 py-0.5 font-mono text-sm dark:bg-zinc-800/50">
+                <span className="text-xs text-gray-500 dark:text-gray-400">Number</span>
+                <code className="rounded bg-white/50 px-2 py-0.5 font-mono text-sm dark:bg-[#7C3AED]/50">
                   {card.number}
                 </code>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-zinc-500 dark:text-zinc-400">Expiry</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">Expiry</span>
                 <span className="text-sm font-medium">{card.expiry}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-zinc-500 dark:text-zinc-400">CVC</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">CVC</span>
                 <span className="text-sm font-medium">{card.cvc}</span>
               </div>
             </div>
@@ -133,8 +133,8 @@ export function TestCardDisplay({ showTitle = true, className = "" }: TestCardDi
         ))}
       </div>
 
-      <div className="mt-4 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/50">
-        <p className="text-xs text-zinc-600 dark:text-zinc-400">
+      <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900/50">
+        <p className="text-xs text-gray-600 dark:text-gray-400">
           <strong>Tip:</strong> Use any future date for expiry and any 3 digits for CVC. 
           For ZIP code, use any 5 digits (e.g., 12345).
         </p>
@@ -157,7 +157,7 @@ export function TestCardSelector({
 
   return (
     <div className="space-y-2">
-      <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
         Select Test Scenario
       </label>
       <div className="grid gap-2">
@@ -165,23 +165,23 @@ export function TestCardSelector({
           <button
             key={key}
             onClick={() => onSelect(key)}
-            className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-all ${
+            className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-all duration-200-all duration-200 ${
               selected === key
                 ? "border-indigo-500 bg-indigo-50 dark:border-indigo-400 dark:bg-indigo-950/30"
-                : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-600"
+                : "border-gray-200 bg-white hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:hover:border-gray-600"
             }`}
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-sm dark:bg-zinc-800">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-sm dark:bg-[#7C3AED]">
               {key === "success" && "✅"}
               {key === "declined" && "❌"}
               {key === "threeDSecure" && "🔒"}
               {key === "insufficientFunds" && "💰"}
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                 {card.description}
               </p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 {card.number}
               </p>
             </div>
@@ -204,19 +204,19 @@ export function TestCardQuickReference() {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="flex w-full items-center justify-between p-3 text-left"
       >
         <div className="flex items-center gap-2">
           <span className="text-lg">💳</span>
-          <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
             Test Card Numbers
           </span>
         </div>
         <svg
-          className={`h-4 w-4 text-zinc-500 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+          className={`h-4 w-4 text-gray-500 transition-all duration-200-transform ${isExpanded ? "rotate-180" : ""}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -226,7 +226,7 @@ export function TestCardQuickReference() {
       </button>
       
       {isExpanded && (
-        <div className="border-t border-zinc-200 p-3 dark:border-zinc-800">
+        <div className="border-t border-gray-200 p-3 dark:border-gray-800">
           <TestCardDisplay showTitle={false} />
         </div>
       )}

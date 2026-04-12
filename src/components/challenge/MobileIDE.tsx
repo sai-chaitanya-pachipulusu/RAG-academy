@@ -79,7 +79,7 @@ export function MobileIDE({
   return (
     <div ref={containerRef} className="flex h-[calc(100vh-4rem)] flex-col">
       {/* Tab Navigation */}
-      <div className="flex border-b border-zinc-200 bg-white">
+      <div className="flex border-b border-gray-200 bg-white">
         {[
           { id: "description" as const, label: "Problem", icon: "📄" },
           { id: "code" as const, label: "Code", icon: "💻" },
@@ -88,10 +88,10 @@ export function MobileIDE({
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex flex-1 items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${
+            className={`flex flex-1 items-center justify-center gap-2 py-3 text-sm font-medium transition-all duration-200-all duration-200 ${
               activeTab === tab.id
-                ? "border-b-2 border-zinc-900 text-zinc-900"
-                : "text-zinc-500"
+                ? "border-b-2 border-[#8B5CF6] text-gray-900"
+                : "text-gray-500"
             }`}
           >
             <span>{tab.icon}</span>
@@ -107,14 +107,14 @@ export function MobileIDE({
           <div className="h-full overflow-y-auto p-4">
             <div className="space-y-4">
               <div>
-                <h1 className="text-xl font-semibold text-zinc-900">
+                <h1 className="text-xl font-semibold text-gray-900">
                   {challenge.title}
                 </h1>
-                <p className="mt-1 text-sm text-zinc-500">
+                <p className="mt-1 text-sm text-gray-500">
                   {challenge.difficulty} · {challenge.xpReward} XP
                 </p>
               </div>
-              <p className="text-zinc-700">{challenge.description}</p>
+              <p className="text-gray-700">{challenge.description}</p>
               {children}
             </div>
           </div>
@@ -127,7 +127,7 @@ export function MobileIDE({
               <textarea
                 value={code}
                 onChange={(e) => onCodeChange(e.target.value)}
-                className="h-full w-full resize-none bg-zinc-950 p-4 font-mono text-sm text-zinc-100 focus:outline-none"
+                className="h-full w-full resize-none bg-[#7C3AED] p-4 font-mono text-sm text-gray-100 focus:outline-none"
                 spellCheck={false}
                 autoComplete="off"
                 autoCapitalize="off"
@@ -160,7 +160,7 @@ export function MobileIDE({
                 onClick={handleSubmit}
                 disabled={running}
                 variant="primary"
-                className="h-14 w-14 rounded-full bg-emerald-600 shadow-lg hover:bg-emerald-500"
+                className="h-14 w-14 rounded-full bg-emerald-600 shadow-lg hover:bg-emerald-500 cursor-pointer"
                 aria-label="Submit solution"
               >
                 <svg
@@ -183,7 +183,7 @@ export function MobileIDE({
 
         {/* Output Tab */}
         {activeTab === "output" && (
-          <div className="h-full overflow-y-auto bg-zinc-50 p-4">
+          <div className="h-full overflow-y-auto bg-gray-50 p-4">
             {meta?.score != null && (
               <div className="mb-4 rounded-xl border border-indigo-100 bg-indigo-50 p-3">
                 <p className="text-sm font-bold text-indigo-900">
@@ -193,11 +193,11 @@ export function MobileIDE({
             )}
 
             {stdout && (
-              <div className="mb-4 rounded-xl border border-zinc-200 bg-white p-3">
-                <p className="mb-2 text-xs font-semibold text-zinc-500">
+              <div className="mb-4 rounded-xl border border-gray-200 bg-white p-3">
+                <p className="mb-2 text-xs font-semibold text-gray-500">
                   Output
                 </p>
-                <pre className="whitespace-pre-wrap font-mono text-sm text-zinc-900">
+                <pre className="whitespace-pre-wrap font-mono text-sm text-gray-900">
                   {stdout}
                 </pre>
               </div>
@@ -215,7 +215,7 @@ export function MobileIDE({
             )}
 
             {!stdout && !stderr && (
-              <div className="flex h-full flex-col items-center justify-center text-zinc-400">
+              <div className="flex h-full flex-col items-center justify-center text-gray-400">
                 <svg
                   className="mb-2 h-12 w-12"
                   fill="none"
@@ -259,11 +259,11 @@ export function MobileIDE({
           )}
 
           {stdout && (
-            <div className="rounded-xl border border-zinc-200 bg-white p-3">
-              <p className="mb-2 text-xs font-semibold text-zinc-500">
+            <div className="rounded-xl border border-gray-200 bg-white p-3">
+              <p className="mb-2 text-xs font-semibold text-gray-500">
                 Output
               </p>
-              <pre className="whitespace-pre-wrap font-mono text-sm text-zinc-900">
+              <pre className="whitespace-pre-wrap font-mono text-sm text-gray-900">
                 {stdout}
               </pre>
             </div>

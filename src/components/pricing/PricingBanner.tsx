@@ -36,7 +36,7 @@ export function PricingBanner() {
           </div>
           <Link
             href="/pricing"
-            className="inline-flex h-9 items-center justify-center rounded-lg bg-white px-4 text-sm font-semibold text-amber-900 transition-all hover:bg-amber-50"
+            className="inline-flex h-9 items-center justify-center rounded-lg bg-white px-4 text-sm font-semibold text-amber-900 transition-all duration-200-all duration-200 hover:bg-amber-50 cursor-pointer"
           >
             View Pricing
           </Link>
@@ -59,18 +59,18 @@ export function UpgradeCTA({ context = "default" }: { context?: string }) {
           Early Bird: {daysRemaining} days left
         </span>
       )}
-      <h3 className="text-xl font-bold text-zinc-900">
+      <h3 className="text-xl font-bold text-gray-900">
         Unlock All {context === "challenge" ? "Challenges" : "Content"}
       </h3>
-      <p className="mt-2 text-sm text-zinc-600">
+      <p className="mt-2 text-sm text-gray-600">
         Get access to {getPlatformStats().totalChallenges}+ challenges, advanced techniques, and priority support
         {isEarlyBird && " at the lowest price ever."}
       </p>
       <div className="mt-4 flex items-center justify-center gap-2">
         <div className="text-left">
-          <div className="text-3xl font-bold text-zinc-900">
+          <div className="text-3xl font-bold text-gray-900">
             ${currentPhase.tiers.paid.price.monthly}
-            <span className="text-base font-normal text-zinc-600">/month</span>
+            <span className="text-base font-normal text-gray-600">/month</span>
           </div>
           {isEarlyBird && (
             <div className="text-xs text-amber-700">
@@ -81,7 +81,7 @@ export function UpgradeCTA({ context = "default" }: { context?: string }) {
       </div>
       <Link
         href="/pricing"
-        className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-zinc-900 px-6 text-sm font-semibold text-white transition-all hover:bg-zinc-800"
+        className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-[#8B5CF6] px-6 text-sm font-semibold text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] cursor-pointer"
       >
         Upgrade Now
       </Link>

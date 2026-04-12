@@ -60,37 +60,37 @@ export function ModuleLearningView({ phaseBlocks = [] }: Props) {
       <Reveal>
         <header className="space-y-6">
           <div className="space-y-3">
-            <h1 className="text-4xl font-semibold tracking-[-0.03em] text-zinc-900 lg:text-5xl">
+            <h1 className="text-4xl font-semibold tracking-[-0.03em] text-gray-900 lg:text-5xl">
               Curriculum
             </h1>
-            <p className="text-lg text-zinc-500 max-w-xl">
+            <p className="text-lg text-gray-500 max-w-xl">
               Twelve modules from embeddings to scalable production.
             </p>
           </div>
 
           {/* Progress Summary */}
-          <div className="flex flex-col gap-6 rounded-2xl border border-zinc-200 bg-zinc-50 p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-6 rounded-2xl border border-gray-200 bg-gray-50 p-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-6">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-900 text-white">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#8B5CF6] text-white">
                 <span className="text-lg font-semibold">{overallProgress}%</span>
               </div>
               <div>
-                <p className="text-2xl font-semibold text-zinc-900">{totalCompleted}/{totalChallenges}</p>
-                <p className="text-sm text-zinc-500">completed</p>
+                <p className="text-2xl font-semibold text-gray-900">{totalCompleted}/{totalChallenges}</p>
+                <p className="text-sm text-gray-500">completed</p>
               </div>
             </div>
             
             <div className="flex items-center gap-5">
-              <div className="h-2.5 w-44 overflow-hidden rounded-full bg-zinc-200">
+              <div className="h-2.5 w-44 overflow-hidden rounded-full bg-gray-200">
                 <div 
-                  className="h-full rounded-full bg-zinc-900 transition-all duration-700"
+                  className="h-full rounded-full bg-gray-900 transition-all duration-200-all duration-700 cursor-pointer"
                   style={{ width: `${overallProgress}%` }}
                 />
               </div>
               {nextModule && (
                 <button
                   onClick={() => setExpandedModule(nextModule.id)}
-                  className="rounded-full bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition-all duration-200 hover:bg-zinc-800"
+                  className="rounded-full bg-[#8B5CF6] px-5 py-2.5 text-sm font-medium text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] cursor-pointer"
                 >
                   Continue: {nextModule.name}
                 </button>
@@ -112,20 +112,20 @@ export function ModuleLearningView({ phaseBlocks = [] }: Props) {
                 {/* Module Row */}
                 <button
                   onClick={() => setExpandedModule(isExpanded ? null : mod.id)}
-                  className={`w-full rounded-2xl border transition-all duration-200 ${
+                  className={`w-full rounded-2xl border transition-all duration-200-all duration-200 ${
                     isExpanded 
-                      ? 'border-zinc-300 bg-white shadow-xl shadow-zinc-100' 
-                      : 'border-zinc-100 bg-white hover:border-zinc-200 hover:shadow-lg hover:shadow-zinc-100/50'
+                      ? 'border-gray-300 bg-white shadow-xl shadow-zinc-100' 
+                      : 'border-gray-100 bg-white hover:border-gray-200 hover:shadow-lg hover:shadow-zinc-100/50'
                   }`}
                 >
                   <div className="flex items-center gap-4 p-4">
                     {/* Module Number */}
-                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg font-bold text-sm transition-all ${
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg font-bold text-sm transition-all duration-200-all duration-200 ${
                       mod.progress === 100
                         ? 'bg-emerald-50 text-emerald-600'
                         : mod.progress > 0
-                          ? 'bg-zinc-100 text-zinc-900'
-                          : 'bg-zinc-50 text-zinc-400'
+                          ? 'bg-gray-100 text-gray-900'
+                          : 'bg-gray-50 text-gray-400'
                     }`}>
                       {mod.progress === 100 ? (
                         <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -138,34 +138,34 @@ export function ModuleLearningView({ phaseBlocks = [] }: Props) {
 
                     {/* Module Info */}
                     <div className="flex-1 text-left">
-                      <h3 className="text-sm font-bold text-zinc-900">{mod.name}</h3>
-                      <p className="text-sm text-zinc-500">{mod.subtitle}</p>
+                      <h3 className="text-sm font-bold text-gray-900">{mod.name}</h3>
+                      <p className="text-sm text-gray-500">{mod.subtitle}</p>
                     </div>
 
                     {/* Progress */}
                     <div className="hidden items-center gap-6 sm:flex">
                       <div className="w-24">
                         <div className="mb-1 flex justify-between text-[10px] font-bold uppercase tracking-widest">
-                          <span className="text-zinc-400">Progress</span>
-                          <span className={mod.progress === 100 ? 'text-emerald-600' : 'text-zinc-900'}>{mod.progress}%</span>
+                          <span className="text-gray-400">Progress</span>
+                          <span className={mod.progress === 100 ? 'text-emerald-600' : 'text-gray-900'}>{mod.progress}%</span>
                         </div>
-                        <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100">
+                        <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
                           <div 
-                            className={`h-full rounded-full transition-all ${mod.progress === 100 ? 'bg-emerald-500' : 'bg-zinc-900'}`} 
+                            className={`h-full rounded-full transition-all duration-200-all duration-200 ${mod.progress === 100 ? 'bg-emerald-500' : 'bg-gray-900'}`} 
                             style={{ width: `${mod.progress}%` }} 
                           />
                         </div>
                       </div>
-                      <span className="text-sm font-bold text-zinc-500">
+                      <span className="text-sm font-bold text-gray-500">
                         {mod.completed}/{mod.total}
                       </span>
                     </div>
 
                     {/* Expand Icon */}
-                    <div className={`flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-200 ${
+                    <div className={`flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-200-all duration-200 ${
                       isExpanded 
-                        ? 'rotate-180 border-zinc-900 bg-zinc-900 text-white' 
-                        : 'border-zinc-100 bg-zinc-50 text-zinc-400'
+                        ? 'rotate-180 border-[#8B5CF6] bg-[#8B5CF6] text-white' 
+                        : 'border-gray-100 bg-gray-50 text-gray-400'
                     }`}>
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
@@ -176,13 +176,13 @@ export function ModuleLearningView({ phaseBlocks = [] }: Props) {
 
                 {/* Expanded Content */}
                 {isExpanded && (
-                  <div className="mt-1 rounded-xl border border-zinc-100 bg-zinc-50/50 p-4">
+                  <div className="mt-1 rounded-xl border border-gray-100 bg-gray-50/50 p-4">
                     <div className="grid gap-4 lg:grid-cols-3">
                       {/* Challenges */}
                       <div className="lg:col-span-2">
                         <div className="mb-2 flex items-center justify-between">
-                          <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Challenges</h4>
-                          <Link href="/challenges" className="text-[10px] font-semibold text-zinc-600 hover:text-zinc-900">
+                          <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Challenges</h4>
+                          <Link href="/challenges" className="text-[10px] font-semibold text-gray-600 hover:text-gray-900 cursor-pointer">
                             View All →
                           </Link>
                         </div>
@@ -193,22 +193,22 @@ export function ModuleLearningView({ phaseBlocks = [] }: Props) {
                               <Link
                                 key={challenge.slug}
                                 href={`/challenges/${challenge.slug}`}
-                                className="flex items-center gap-3 rounded-xl border border-zinc-100 bg-white p-3 transition-all hover:border-zinc-200 hover:shadow-md"
+                                className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-3 transition-all duration-200-all duration-200 hover:border-gray-200 hover:shadow-md cursor-pointer"
                               >
                                 <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
                                   status === "completed" 
                                     ? "bg-emerald-50 text-emerald-600" 
-                                    : "bg-zinc-50 text-zinc-400"
+                                    : "bg-gray-50 text-gray-400"
                                 }`}>
                                   {status === "completed" ? (
                                     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                     </svg>
                                   ) : (
-                                    <div className="h-1.5 w-1.5 rounded-full bg-zinc-300" />
+                                    <div className="h-1.5 w-1.5 rounded-full bg-gray-300" />
                                   )}
                                 </div>
-                                <span className="truncate text-sm font-medium text-zinc-700">
+                                <span className="truncate text-sm font-medium text-gray-700">
                                   {challenge.title}
                                 </span>
                               </Link>
@@ -219,7 +219,7 @@ export function ModuleLearningView({ phaseBlocks = [] }: Props) {
 
                       {/* Resources */}
                       <div>
-                        <h4 className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-400">Resources</h4>
+                        <h4 className="mb-4 text-xs font-bold uppercase tracking-widest text-gray-400">Resources</h4>
                         {resources ? (
                           <div className="space-y-2">
                             {resources.videos.slice(0, 2).map((v, i) => (
@@ -228,10 +228,10 @@ export function ModuleLearningView({ phaseBlocks = [] }: Props) {
                                 href={v.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-3 rounded-xl border border-zinc-100 bg-white p-3 text-xs font-medium transition-all hover:border-zinc-200 hover:shadow-sm"
+                                className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-3 text-xs font-medium transition-all duration-200-all duration-200 hover:border-gray-200 hover:shadow-sm cursor-pointer"
                               >
                                 <span className="text-red-600">▶</span>
-                                <span className="truncate text-zinc-600">{v.title}</span>
+                                <span className="truncate text-gray-600">{v.title}</span>
                               </a>
                             ))}
                             {resources.blogs.slice(0, 2).map((b, i) => (
@@ -240,15 +240,15 @@ export function ModuleLearningView({ phaseBlocks = [] }: Props) {
                                 href={b.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-3 rounded-xl border border-zinc-100 bg-white p-3 text-xs font-medium transition-all hover:border-zinc-200 hover:shadow-sm"
+                                className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-3 text-xs font-medium transition-all duration-200-all duration-200 hover:border-gray-200 hover:shadow-sm cursor-pointer"
                               >
                                 <span className="text-blue-600">◆</span>
-                                <span className="truncate text-zinc-600">{b.title}</span>
+                                <span className="truncate text-gray-600">{b.title}</span>
                               </a>
                             ))}
                           </div>
                         ) : (
-                          <p className="text-sm text-zinc-400">Resources coming soon</p>
+                          <p className="text-sm text-gray-400">Resources coming soon</p>
                         )}
                       </div>
                     </div>

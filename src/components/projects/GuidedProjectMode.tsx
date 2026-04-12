@@ -50,10 +50,10 @@ export function GuidedProjectMode({ trackTitle, steps }: GuidedProjectProps) {
     <Card className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             Guided Mode: {trackTitle}
           </h3>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             Step {currentStep + 1} of {steps.length}
           </p>
         </div>
@@ -63,9 +63,9 @@ export function GuidedProjectMode({ trackTitle, steps }: GuidedProjectProps) {
       </div>
 
       {/* Progress bar */}
-      <div className="w-full h-2 bg-zinc-200 dark:bg-zinc-800 rounded-full mb-6">
+      <div className="w-full h-2 bg-gray-200 dark:bg-[#7C3AED] rounded-full mb-6">
         <div
-          className="h-2 bg-emerald-500 rounded-full transition-all duration-300"
+          className="h-2 bg-emerald-500 rounded-full transition-all duration-200-all duration-300 cursor-pointer"
           style={{ width: `${progress}%` }}
         />
       </div>
@@ -76,12 +76,12 @@ export function GuidedProjectMode({ trackTitle, steps }: GuidedProjectProps) {
           <button
             key={i}
             onClick={() => setCurrentStep(i)}
-            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200-all duration-200 ${
               i === currentStep
-                ? "bg-zinc-900 text-white dark:bg-white dark:text-black"
+                ? "bg-[#8B5CF6] text-white dark:bg-white dark:text-black"
                 : completedSteps.has(i)
                   ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
-                  : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+                  : "bg-gray-100 text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400"
             }`}
           >
             {completedSteps.has(i) ? "✓ " : ""}{i + 1}. {s.challengeLabel}
@@ -92,19 +92,19 @@ export function GuidedProjectMode({ trackTitle, steps }: GuidedProjectProps) {
       {/* Current step content */}
       <div className="space-y-4">
         <div>
-          <h4 className="text-base font-medium text-zinc-900 dark:text-zinc-100">
+          <h4 className="text-base font-medium text-gray-900 dark:text-gray-100">
             {step.title}
           </h4>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
             {step.description}
           </p>
         </div>
 
-        <div className="rounded-lg bg-zinc-50 dark:bg-zinc-900/50 p-4">
-          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+        <div className="rounded-lg bg-gray-50 dark:bg-gray-900/50 p-4">
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
             Expected outcome
           </p>
-          <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
+          <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
             {step.expectedOutcome}
           </p>
         </div>
@@ -124,7 +124,7 @@ export function GuidedProjectMode({ trackTitle, steps }: GuidedProjectProps) {
           <button
             onClick={goPrev}
             disabled={currentStep === 0}
-            className="px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
           >
             Previous step
           </button>
@@ -132,7 +132,7 @@ export function GuidedProjectMode({ trackTitle, steps }: GuidedProjectProps) {
           <div className="flex gap-2">
             <Link
               href={`/challenges/${step.challengeSlug}`}
-              className="inline-flex h-9 items-center justify-center rounded-full bg-zinc-950 px-4 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+              className="inline-flex h-9 items-center justify-center rounded-full bg-[#7C3AED] px-4 text-sm font-medium text-white hover:bg-[#7C3AED] dark:bg-white dark:text-black dark:hover:bg-[#7C3AED] cursor-pointer"
             >
               Open Challenge →
             </Link>
@@ -142,7 +142,7 @@ export function GuidedProjectMode({ trackTitle, steps }: GuidedProjectProps) {
                 goNext();
               }}
               disabled={currentStep === steps.length - 1 && completedSteps.has(currentStep)}
-              className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="inline-flex h-9 items-center justify-center rounded-full border border-gray-300 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-[#7C3AED] disabled:opacity-30 disabled:cursor-not-allowed"
             >
               {currentStep === steps.length - 1 && completedSteps.has(currentStep)
                 ? "Track complete"

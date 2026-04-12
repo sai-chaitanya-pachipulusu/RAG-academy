@@ -51,11 +51,11 @@ export default function FrameworksLabPage() {
   return (
     <div className="flex flex-col gap-6">
       <header>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">Compare / Frameworks</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">Compare / Frameworks</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">
           Frameworks (LangChain vs LlamaIndex vs others)
         </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-7 text-zinc-600 dark:text-zinc-300">
+        <p className="mt-2 max-w-2xl text-sm leading-7 text-gray-600 dark:text-gray-300">
           Frameworks don’t fix bad retrieval — they help you move faster. Pick the smallest abstraction layer
           that still keeps your system testable and debuggable.
         </p>
@@ -65,7 +65,7 @@ export default function FrameworksLabPage() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-medium">RAG Academy stance</p>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
               We’ll teach patterns in a framework-agnostic way, then show how to implement them in popular stacks.
               Most production teams end up with a hybrid: framework + custom code.
             </p>
@@ -79,36 +79,36 @@ export default function FrameworksLabPage() {
           <p className="text-sm font-medium">Framework comparison</p>
           <Badge variant="muted">quick matrix</Badge>
         </div>
-        <div className="overflow-x-auto border-t border-zinc-200 dark:border-white/10">
+        <div className="overflow-x-auto border-t border-gray-200 dark:border-white/10">
           <table className="w-full min-w-[1040px] border-separate border-spacing-0 text-sm">
             <thead>
-              <tr className="text-left text-xs text-zinc-500 dark:text-zinc-400">
+              <tr className="text-left text-xs text-gray-500 dark:text-gray-400">
                 {["Framework", "Best for", "Strengths", "Tradeoffs", "Pick if"].map((h) => (
                   <th
                     key={h}
-                    className="border-b border-zinc-200 px-3 py-2 dark:border-white/10"
+                    className="border-b border-gray-200 px-3 py-2 dark:border-white/10"
                   >
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="text-zinc-800 dark:text-zinc-200">
+            <tbody className="text-gray-800 dark:text-gray-200">
               {ROWS.map((r) => (
                 <tr key={r.framework}>
-                  <td className="border-b border-zinc-200 px-3 py-3 align-top font-medium text-zinc-950 dark:border-white/10 dark:text-zinc-50">
+                  <td className="border-b border-gray-200 px-3 py-3 align-top font-medium text-gray-950 dark:border-white/10 dark:text-gray-50">
                     {r.framework}
                   </td>
-                  <td className="border-b border-zinc-200 px-3 py-3 align-top dark:border-white/10">
+                  <td className="border-b border-gray-200 px-3 py-3 align-top dark:border-white/10">
                     {r.bestFor}
                   </td>
-                  <td className="border-b border-zinc-200 px-3 py-3 align-top dark:border-white/10">
+                  <td className="border-b border-gray-200 px-3 py-3 align-top dark:border-white/10">
                     {r.strengths}
                   </td>
-                  <td className="border-b border-zinc-200 px-3 py-3 align-top dark:border-white/10">
+                  <td className="border-b border-gray-200 px-3 py-3 align-top dark:border-white/10">
                     {r.tradeoffs}
                   </td>
-                  <td className="border-b border-zinc-200 px-3 py-3 align-top dark:border-white/10">
+                  <td className="border-b border-gray-200 px-3 py-3 align-top dark:border-white/10">
                     {r.pickIf}
                   </td>
                 </tr>
@@ -120,8 +120,8 @@ export default function FrameworksLabPage() {
 
       <Card className="p-5">
         <p className="text-sm font-medium">Language note (Python vs TypeScript)</p>
-        <p className="mt-2 text-sm leading-7 text-zinc-600 dark:text-zinc-300">
-          Most RAG ecosystems are deepest in <span className="font-medium text-zinc-950 dark:text-zinc-50">Python</span>.
+        <p className="mt-2 text-sm leading-7 text-gray-600 dark:text-gray-300">
+          Most RAG ecosystems are deepest in <span className="font-medium text-gray-950 dark:text-gray-50">Python</span>.
           TypeScript is excellent for product apps and Node backends. For “full-stack RAG,” teams often:
           Python for ingestion/evals + TS/Node for product APIs and UX.
         </p>

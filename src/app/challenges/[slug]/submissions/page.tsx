@@ -112,7 +112,7 @@ export default function ChallengeSubmissionsPage() {
   if (!challenge) {
     return (
       <div className="mx-auto max-w-4xl py-12">
-        <div className="h-32 animate-pulse rounded-xl bg-zinc-100 dark:bg-zinc-800" />
+        <div className="h-32 animate-pulse rounded-xl bg-gray-100 dark:bg-[#7C3AED]" />
       </div>
     );
   }
@@ -123,17 +123,17 @@ export default function ChallengeSubmissionsPage() {
         <div className="mb-8">
           <Link
             href={`/challenges/${slug}`}
-            className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+            className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer"
           >
             ← Back to Challenge
           </Link>
-          <h1 className="mt-4 text-3xl font-bold text-zinc-900 dark:text-zinc-100">
+          <h1 className="mt-4 text-3xl font-bold text-gray-900 dark:text-gray-100">
             {challenge.title}
           </h1>
-          <p className="mt-2 text-zinc-600 dark:text-zinc-400">Submission History</p>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">Submission History</p>
         </div>
         <Card className="p-8 text-center">
-          <p className="text-zinc-600 dark:text-zinc-400">
+          <p className="text-gray-600 dark:text-gray-400">
             Please sign in to view your submission history
           </p>
         </Card>
@@ -145,12 +145,12 @@ export default function ChallengeSubmissionsPage() {
     return (
       <div className="mx-auto max-w-4xl py-12">
         <div className="mb-8">
-          <div className="h-4 w-32 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
-          <div className="mt-4 h-8 w-64 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />
+          <div className="h-4 w-32 animate-pulse rounded bg-gray-200 dark:bg-[#7C3AED]" />
+          <div className="mt-4 h-8 w-64 animate-pulse rounded bg-gray-200 dark:bg-[#7C3AED]" />
         </div>
         <div className="space-y-4">
-          <div className="h-48 animate-pulse rounded-xl bg-zinc-100 dark:bg-zinc-800" />
-          <div className="h-64 animate-pulse rounded-xl bg-zinc-100 dark:bg-zinc-800" />
+          <div className="h-48 animate-pulse rounded-xl bg-gray-100 dark:bg-[#7C3AED]" />
+          <div className="h-64 animate-pulse rounded-xl bg-gray-100 dark:bg-[#7C3AED]" />
         </div>
       </div>
     );
@@ -162,14 +162,14 @@ export default function ChallengeSubmissionsPage() {
       <div className="mb-8">
         <Link
           href={`/challenges/${slug}`}
-          className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+          className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer"
         >
           ← Back to Challenge
         </Link>
-        <h1 className="mt-4 text-3xl font-bold text-zinc-900 dark:text-zinc-100">
+        <h1 className="mt-4 text-3xl font-bold text-gray-900 dark:text-gray-100">
           {challenge.title}
         </h1>
-        <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+        <p className="mt-2 text-gray-600 dark:text-gray-400">
           Submission History & Progress
         </p>
       </div>
@@ -198,7 +198,7 @@ export default function ChallengeSubmissionsPage() {
             <button
               type="button"
               onClick={() => handleSelectSubmission(bestSubmission)}
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 cursor-pointer"
             >
               View Details
             </button>
@@ -209,7 +209,7 @@ export default function ChallengeSubmissionsPage() {
       {/* Progress Chart */}
       {viewMode === "list" && progressionData.length > 1 && (
         <Card className="mb-6 p-4">
-          <h3 className="mb-4 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-gray-100">
             Progress Over Time
           </h3>
           <div className="h-32">
@@ -224,7 +224,7 @@ export default function ChallengeSubmissionsPage() {
                   y2={40 - (y / 100) * 40}
                   stroke="currentColor"
                   strokeOpacity="0.1"
-                  className="text-zinc-500"
+                  className="text-gray-500"
                 />
               ))}
               
@@ -261,7 +261,7 @@ export default function ChallengeSubmissionsPage() {
               })}
             </svg>
           </div>
-          <div className="mt-2 flex items-center justify-between text-xs text-zinc-500">
+          <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
             <span>Attempt 1</span>
             <span>Latest Attempt</span>
           </div>
@@ -273,7 +273,7 @@ export default function ChallengeSubmissionsPage() {
         <button
           type="button"
           onClick={handleBackToList}
-          className="mb-6 flex items-center gap-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+          className="mb-6 flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -288,10 +288,10 @@ export default function ChallengeSubmissionsPage() {
           <>
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                   All Attempts
                 </h2>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {submissions.length} submission{submissions.length !== 1 ? "s" : ""} total
                 </p>
               </div>

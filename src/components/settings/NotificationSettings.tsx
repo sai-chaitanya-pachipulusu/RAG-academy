@@ -60,14 +60,14 @@ export function NotificationSettings() {
   ];
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="flex items-center gap-2 font-semibold text-zinc-900 dark:text-zinc-100">
+          <h3 className="flex items-center gap-2 font-semibold text-gray-900 dark:text-gray-100">
             <span>🔔</span>
             Email Notifications
           </h3>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-sm text-gray-500">
             Choose what emails you want to receive
           </p>
         </div>
@@ -82,15 +82,15 @@ export function NotificationSettings() {
         {settings.map((setting) => (
           <div
             key={setting.key}
-            className="flex items-center justify-between rounded-lg border border-zinc-100 p-4 dark:border-zinc-800"
+            className="flex items-center justify-between rounded-lg border border-gray-100 p-4 dark:border-gray-800"
           >
             <div className="flex items-center gap-3">
               <span className="text-xl">{setting.icon}</span>
               <div>
-                <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                <p className="font-medium text-gray-900 dark:text-gray-100">
                   {setting.title}
                 </p>
-                <p className="text-sm text-zinc-500">{setting.description}</p>
+                <p className="text-sm text-gray-500">{setting.description}</p>
               </div>
             </div>
             <label className="relative inline-flex cursor-pointer items-center">
@@ -100,13 +100,13 @@ export function NotificationSettings() {
                 onChange={(e) => updatePreference(setting.key, e.target.checked)}
                 className="peer sr-only"
               />
-              <div className="peer h-6 w-11 rounded-full bg-zinc-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-emerald-500 peer-checked:after:translate-x-full peer-focus:outline-none dark:bg-zinc-700" />
+              <div className="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all duration-200-all duration-200 after:content-[''] peer-checked:bg-emerald-500 peer-checked:after:translate-x-full peer-focus:outline-none dark:bg-gray-700 cursor-pointer" />
             </label>
           </div>
         ))}
       </div>
 
-      <p className="mt-6 text-xs text-zinc-400">
+      <p className="mt-6 text-xs text-gray-400">
         Note: Email notifications require signing up with a valid email address.
       </p>
     </div>
