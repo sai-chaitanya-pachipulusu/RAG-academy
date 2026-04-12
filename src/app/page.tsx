@@ -136,7 +136,7 @@ export default function Home() {
                 <div className="flex items-center gap-2">
                   <Link
                     href={user ? "/learn" : "/login"}
-                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-[#8B5CF6] px-5 text-sm font-medium text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] cursor-pointer"
+                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-[#3B82F6] px-5 text-sm font-medium text-white transition-all duration-200 hover:bg-[#2563EB] cursor-pointer"
                   >
                     {user ? "Continue Learning" : "Get Started Free"}
                     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -145,7 +145,7 @@ export default function Home() {
                   </Link>
                   <Link
                     href="/challenges"
-                    className="inline-flex h-9 items-center justify-center rounded-full border-2 border-[#8B5CF6] bg-transparent px-5 text-sm font-medium text-[#8B5CF6] transition-all duration-200-all duration-200 hover:bg-[#8B5CF6]/5 cursor-pointer"
+                    className="inline-flex h-9 items-center justify-center rounded-full border-2 border-[#3B82F6] bg-transparent px-5 text-sm font-medium text-[#3B82F6] transition-all duration-200 hover:bg-[#3B82F6]/5 cursor-pointer"
                   >
                     Explore Challenges
                   </Link>
@@ -156,7 +156,7 @@ export default function Home() {
                 <div className="flex items-center gap-6 pt-1">
                   {STATS.map((stat, i) => (
                     <div key={i}>
-                      <p className="text-xl font-semibold tracking-tight text-[#8B5CF6]">{stat.value}</p>
+                      <p className="text-xl font-semibold tracking-tight text-[#3B82F6]">{stat.value}</p>
                       <p className="text-xs font-medium text-gray-400">{stat.label}</p>
                     </div>
                   ))}

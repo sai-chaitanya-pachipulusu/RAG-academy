@@ -15,7 +15,7 @@ function computeLessonCount(): number {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const index = require("@/lib/search/contentIndex.generated.json");
-    const lessons = (index.docs ?? []).filter(
+    const lessons = (Array.isArray(index) ? index : index.docs ?? []).filter(
       (d: any) => d.type === "lesson"
     );
     _cachedLessonCount = lessons.length;
