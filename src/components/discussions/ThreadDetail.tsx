@@ -13,7 +13,7 @@ const CATEGORY_STYLES: Record<DiscussionCategory, { label: string; color: string
   optimization: { label: "Optimization", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300", icon: "⚡" },
   bug_report: { label: "Bug Report", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300", icon: "🐛" },
   tip: { label: "Tip", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300", icon: "💡" },
-  general: { label: "General", color: "bg-gray-100 text-gray-700 dark:bg-[#7C3AED] dark:text-gray-300", icon: "💬" },
+  general: { label: "General", color: "bg-gray-100 text-gray-700 dark:bg-[#2563EB] dark:text-gray-300", icon: "💬" },
 };
 
 interface ThreadDetailProps {
@@ -141,7 +141,7 @@ export function ThreadDetail({
             {thread.tags.map(tag => (
               <span 
                 key={tag}
-                className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400"
+                className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-[#2563EB] dark:text-gray-400"
               >
                 #{tag}
               </span>
@@ -156,7 +156,7 @@ export function ThreadDetail({
               onClick={() => onMarkResolved(thread.id, !thread.isResolved)}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-200-all duration-200 ${
                 thread.isResolved
-                  ? "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-[#7C3AED] dark:text-gray-400"
+                  ? "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-[#2563EB] dark:text-gray-400"
                   : "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300"
               }`}
             >
@@ -323,7 +323,7 @@ function ReplyCard({ reply, thread, currentUserId, onVote, onAcceptAnswer }: Rep
           {isThreadAuthor && onAcceptAnswer && !reply.isAcceptedAnswer && (
             <button
               onClick={handleAccept}
-              className="mt-3 flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-200 dark:bg-[#7C3AED] dark:text-gray-400 dark:hover:bg-gray-700 cursor-pointer"
+              className="mt-3 flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-200 dark:bg-[#2563EB] dark:text-gray-400 dark:hover:bg-gray-700 cursor-pointer"
             >
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />

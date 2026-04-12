@@ -98,7 +98,7 @@ export function TestCardDisplay({ showTitle = true, className = "" }: TestCardDi
               </div>
               <button
                 onClick={() => handleCopy(card.number, key)}
-                className="rounded-md p-1.5 text-gray-500 transition hover:bg-white/50 hover:text-gray-700 dark:hover:bg-[#7C3AED] dark:hover:text-gray-300 cursor-pointer"
+                className="rounded-md p-1.5 text-gray-500 transition hover:bg-white/50 hover:text-gray-700 dark:hover:bg-[#2563EB] dark:hover:text-gray-300 cursor-pointer"
                 title="Copy card number"
               >
                 {copiedCard === key ? (
@@ -116,7 +116,7 @@ export function TestCardDisplay({ showTitle = true, className = "" }: TestCardDi
             <div className="mt-3 space-y-1">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-500 dark:text-gray-400">Number</span>
-                <code className="rounded bg-white/50 px-2 py-0.5 font-mono text-sm dark:bg-[#7C3AED]/50">
+                <code className="rounded bg-white/50 px-2 py-0.5 font-mono text-sm dark:bg-[#2563EB]/50">
                   {card.number}
                 </code>
               </div>
@@ -171,7 +171,7 @@ export function TestCardSelector({
                 : "border-gray-200 bg-white hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:hover:border-gray-600"
             }`}
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-sm dark:bg-[#7C3AED]">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-sm dark:bg-[#2563EB]">
               {key === "success" && "✅"}
               {key === "declined" && "❌"}
               {key === "threeDSecure" && "🔒"}

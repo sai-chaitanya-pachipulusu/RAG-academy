@@ -66,7 +66,7 @@ export function Paywall({ challengeTitle, challengeIndex }: PaywallProps) {
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Link
             href="/checkout?tier=pro&billing=annual"
-            className="inline-flex h-12 items-center justify-center rounded-xl bg-[#8B5CF6] px-8 text-sm font-semibold text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] cursor-pointer"
+            className="inline-flex h-12 items-center justify-center rounded-xl bg-[#3B82F6] px-8 text-sm font-semibold text-white transition-all duration-200-all duration-200 hover:bg-[#2563EB] cursor-pointer"
           >
             Upgrade to Pro
           </Link>

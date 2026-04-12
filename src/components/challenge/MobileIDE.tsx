@@ -90,7 +90,7 @@ export function MobileIDE({
             onClick={() => setActiveTab(tab.id)}
             className={`flex flex-1 items-center justify-center gap-2 py-3 text-sm font-medium transition-all duration-200-all duration-200 ${
               activeTab === tab.id
-                ? "border-b-2 border-[#8B5CF6] text-gray-900"
+                ? "border-b-2 border-[#3B82F6] text-gray-900"
                 : "text-gray-500"
             }`}
           >
@@ -127,7 +127,7 @@ export function MobileIDE({
               <textarea
                 value={code}
                 onChange={(e) => onCodeChange(e.target.value)}
-                className="h-full w-full resize-none bg-[#7C3AED] p-4 font-mono text-sm text-gray-100 focus:outline-none"
+                className="h-full w-full resize-none bg-[#2563EB] p-4 font-mono text-sm text-gray-100 focus:outline-none"
                 spellCheck={false}
                 autoComplete="off"
                 autoCapitalize="off"

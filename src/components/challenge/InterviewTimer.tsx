@@ -48,7 +48,7 @@ export function InterviewTimer({ isActive, duration, onTimeUp }: Props) {
   if (!isActive) return null;
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-gradient-to-r from-[#8B5CF6]-50 to-[#8B5CF6]-100 p-4 dark:border-gray-800 dark:from-[#8B5CF6]-900 dark:to-[#8B5CF6]-950">
+    <div className="rounded-xl border border-gray-200 bg-gradient-to-r from-[#3B82F6]-50 to-[#3B82F6]-100 p-4 dark:border-gray-800 dark:from-[#3B82F6]-900 dark:to-[#3B82F6]-950">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-lg">⏱️</span>
@@ -58,7 +58,7 @@ export function InterviewTimer({ isActive, duration, onTimeUp }: Props) {
         </div>
         <button
           onClick={() => setIsPaused(!isPaused)}
-          className="rounded-full bg-gray-200 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-300 dark:bg-[#7C3AED] dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer"
+          className="rounded-full bg-gray-200 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-300 dark:bg-[#2563EB] dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer"
         >
           {isPaused ? "Resume" : "Pause"}
         </button>
@@ -69,7 +69,7 @@ export function InterviewTimer({ isActive, duration, onTimeUp }: Props) {
       </div>
 
       {/* Progress bar */}
-      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-[#7C3AED]">
+      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-[#2563EB]">
         <div
           className={`h-full transition-all duration-200-all duration-1000 ${getBgColorClass()}`}
           style={{ width: `${progress}%` }}
@@ -116,7 +116,7 @@ export function InterviewModeToggle({
       className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200-all duration-200 ${
         isEnabled
           ? "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300"
-          : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-[#7C3AED] dark:text-gray-400 dark:hover:bg-gray-700"
+          : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-[#2563EB] dark:text-gray-400 dark:hover:bg-gray-700"
       }`}
     >
       <span>⏱️</span>

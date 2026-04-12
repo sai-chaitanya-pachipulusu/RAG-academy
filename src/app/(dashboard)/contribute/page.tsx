@@ -15,7 +15,7 @@ const TYPE_LABELS: Record<ContributionType, { label: string; icon: string; color
 };
 
 const STATUS_LABELS: Record<ContributionStatus, { label: string; color: string }> = {
-  draft: { label: "Draft", color: "bg-gray-100 text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400" },
+  draft: { label: "Draft", color: "bg-gray-100 text-gray-600 dark:bg-[#2563EB] dark:text-gray-400" },
   submitted: { label: "Submitted", color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300" },
   in_review: { label: "In Review", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
   approved: { label: "Approved", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },

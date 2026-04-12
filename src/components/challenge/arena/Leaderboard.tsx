@@ -27,7 +27,7 @@ export function Leaderboard({ slug }: { slug: string }) {
   if (entries.length === 0) return <div className="text-xs text-gray-500">Be the first to submit a score!</div>;
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-[#7C3AED]">
+    <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-[#2563EB]">
       <div className="border-b border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Top Performers</h3>
       </div>

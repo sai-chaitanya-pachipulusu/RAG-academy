@@ -63,7 +63,7 @@ export function GuidedProjectMode({ trackTitle, steps }: GuidedProjectProps) {
       </div>
 
       {/* Progress bar */}
-      <div className="w-full h-2 bg-gray-200 dark:bg-[#7C3AED] rounded-full mb-6">
+      <div className="w-full h-2 bg-gray-200 dark:bg-[#2563EB] rounded-full mb-6">
         <div
           className="h-2 bg-emerald-500 rounded-full transition-all duration-200-all duration-300 cursor-pointer"
           style={{ width: `${progress}%` }}
@@ -78,10 +78,10 @@ export function GuidedProjectMode({ trackTitle, steps }: GuidedProjectProps) {
             onClick={() => setCurrentStep(i)}
             className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200-all duration-200 ${
               i === currentStep
-                ? "bg-[#8B5CF6] text-white dark:bg-white dark:text-black"
+                ? "bg-[#3B82F6] text-white dark:bg-white dark:text-black"
                 : completedSteps.has(i)
                   ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
-                  : "bg-gray-100 text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400"
+                  : "bg-gray-100 text-gray-600 dark:bg-[#2563EB] dark:text-gray-400"
             }`}
           >
             {completedSteps.has(i) ? "✓ " : ""}{i + 1}. {s.challengeLabel}
@@ -132,7 +132,7 @@ export function GuidedProjectMode({ trackTitle, steps }: GuidedProjectProps) {
           <div className="flex gap-2">
             <Link
               href={`/challenges/${step.challengeSlug}`}
-              className="inline-flex h-9 items-center justify-center rounded-full bg-[#7C3AED] px-4 text-sm font-medium text-white hover:bg-[#7C3AED] dark:bg-white dark:text-black dark:hover:bg-[#7C3AED] cursor-pointer"
+              className="inline-flex h-9 items-center justify-center rounded-full bg-[#2563EB] px-4 text-sm font-medium text-white hover:bg-[#2563EB] dark:bg-white dark:text-black dark:hover:bg-[#2563EB] cursor-pointer"
             >
               Open Challenge →
             </Link>
@@ -142,7 +142,7 @@ export function GuidedProjectMode({ trackTitle, steps }: GuidedProjectProps) {
                 goNext();
               }}
               disabled={currentStep === steps.length - 1 && completedSteps.has(currentStep)}
-              className="inline-flex h-9 items-center justify-center rounded-full border border-gray-300 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-[#7C3AED] disabled:opacity-30 disabled:cursor-not-allowed"
+              className="inline-flex h-9 items-center justify-center rounded-full border border-gray-300 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-[#2563EB] disabled:opacity-30 disabled:cursor-not-allowed"
             >
               {currentStep === steps.length - 1 && completedSteps.has(currentStep)
                 ? "Track complete"

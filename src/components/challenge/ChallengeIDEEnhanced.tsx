@@ -378,10 +378,10 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
               <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-2.5 dark:border-gray-800 dark:bg-gray-900/50">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Complexity</p>
                 <div className="mt-1 flex flex-wrap gap-2">
-                  <code className="rounded bg-gray-200/80 px-1.5 py-0.5 text-xs font-medium text-gray-800 dark:bg-[#7C3AED] dark:text-gray-200">
+                  <code className="rounded bg-gray-200/80 px-1.5 py-0.5 text-xs font-medium text-gray-800 dark:bg-[#2563EB] dark:text-gray-200">
                     Time: {challenge.complexity.time}
                   </code>
-                  <code className="rounded bg-gray-200/80 px-1.5 py-0.5 text-xs font-medium text-gray-800 dark:bg-[#7C3AED] dark:text-gray-200">
+                  <code className="rounded bg-gray-200/80 px-1.5 py-0.5 text-xs font-medium text-gray-800 dark:bg-[#2563EB] dark:text-gray-200">
                     Space: {challenge.complexity.space}
                   </code>
                 </div>
@@ -526,7 +526,7 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
             {meta.visuals.type === "retrieval" ? (
               <RetrievalVisualizer data={meta.visuals} />
             ) : (
-              <pre className="overflow-auto rounded-lg bg-gray-100 p-3 text-xs dark:bg-[#7C3AED]">
+              <pre className="overflow-auto rounded-lg bg-gray-100 p-3 text-xs dark:bg-[#2563EB]">
                 {JSON.stringify(meta.visuals, null, 2)}
               </pre>
             )}
@@ -561,7 +561,7 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
               )
             }
             disabled={revealedHints >= challenge.hints.length}
-            className="inline-flex h-8 items-center justify-center rounded-full border border-gray-200 bg-white px-3 text-xs font-medium text-gray-950 hover:bg-gray-50 disabled:opacity-60 dark:border-gray-800 dark:bg-[#7C3AED] dark:text-gray-50 dark:hover:bg-gray-900 cursor-pointer"
+            className="inline-flex h-8 items-center justify-center rounded-full border border-gray-200 bg-white px-3 text-xs font-medium text-gray-950 hover:bg-gray-50 disabled:opacity-60 dark:border-gray-800 dark:bg-[#2563EB] dark:text-gray-50 dark:hover:bg-gray-900 cursor-pointer"
           >
             Reveal hint ({revealedHints}/{challenge.hints.length})
           </button>
@@ -692,7 +692,7 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
               <Link
                 key={slug}
                 href={`/challenges/${slug}`}
-                className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-all duration-200-all duration-200 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-gray-800 dark:bg-[#7C3AED] dark:text-gray-300 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/50 cursor-pointer"
+                className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-all duration-200-all duration-200 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-gray-800 dark:bg-[#2563EB] dark:text-gray-300 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/50 cursor-pointer"
               >
                 {slug} →
               </Link>

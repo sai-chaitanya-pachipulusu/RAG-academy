@@ -184,13 +184,13 @@ export function ChatWidget() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="fixed bottom-5 right-5 z-50 inline-flex h-11 items-center justify-center rounded-full bg-[#7C3AED] px-5 text-sm font-medium text-white shadow-lg hover:bg-[#7C3AED] dark:bg-white dark:text-black dark:hover:bg-[#7C3AED] cursor-pointer"
+        className="fixed bottom-5 right-5 z-50 inline-flex h-11 items-center justify-center rounded-full bg-[#2563EB] px-5 text-sm font-medium text-white shadow-lg hover:bg-[#2563EB] dark:bg-white dark:text-black dark:hover:bg-[#2563EB] cursor-pointer"
       >
         {open ? "Close" : "Chat"}
       </button>
 
       {open ? (
-        <div className="fixed bottom-20 right-5 z-50 w-[92vw] max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-[#7C3AED]">
+        <div className="fixed bottom-20 right-5 z-50 w-[92vw] max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-[#2563EB]">
           <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-800">
             <div className="flex items-center gap-2">
               <p className="text-sm font-semibold tracking-tight">RAG Assistant</p>
@@ -201,7 +201,7 @@ export function ChatWidget() {
                   className={[
                     "rounded-full px-2 py-1 transition-all duration-200-all duration-200",
                     mode === "search"
-                      ? "bg-[#7C3AED] text-white dark:bg-white dark:text-black"
+                      ? "bg-[#2563EB] text-white dark:bg-white dark:text-black"
                       : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-900",
                   ].join(" ")}
                 >
@@ -214,7 +214,7 @@ export function ChatWidget() {
                     className={[
                       "rounded-full px-2 py-1 transition-all duration-200-all duration-200",
                       mode === "explain"
-                        ? "bg-[#7C3AED] text-white dark:bg-white dark:text-black"
+                        ? "bg-[#2563EB] text-white dark:bg-white dark:text-black"
                         : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-900",
                     ].join(" ")}
                   >
@@ -241,7 +241,7 @@ export function ChatWidget() {
                     "rounded-2xl border p-3 text-sm leading-6",
                     m.role === "user"
                       ? "self-end border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/40"
-                      : "self-start border-gray-200 bg-white dark:border-gray-800 dark:bg-[#7C3AED]",
+                      : "self-start border-gray-200 bg-white dark:border-gray-800 dark:bg-[#2563EB]",
                   ].join(" ")}
                 >
                   <p className="text-gray-950 dark:text-gray-50">{m.text}</p>
@@ -253,7 +253,7 @@ export function ChatWidget() {
                       <ul className="space-y-1">
                         {m.links.map((l, idx) => (
                           <li key={l.url} className="flex items-baseline gap-2">
-                            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-gray-200 text-[10px] font-bold text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400">
+                            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-gray-200 text-[10px] font-bold text-gray-600 dark:bg-[#2563EB] dark:text-gray-400">
                               {idx + 1}
                             </span>
                             <a
@@ -279,7 +279,7 @@ export function ChatWidget() {
                         {m.evidence.map((e, idx) => (
                           <div
                             key={idx}
-                            className="rounded border border-gray-200 bg-white p-2 text-xs dark:border-gray-800 dark:bg-[#7C3AED]"
+                            className="rounded border border-gray-200 bg-white p-2 text-xs dark:border-gray-800 dark:bg-[#2563EB]"
                           >
                             <div className="flex items-start gap-2">
                               <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-emerald-100 text-[10px] font-bold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
@@ -313,13 +313,13 @@ export function ChatWidget() {
                   if (e.key === "Enter") void send();
                 }}
                 placeholder="Ask about chunking, retrieval, evaluation…"
-                className="h-10 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-[#8B5CF6]400 dark:border-gray-800 dark:bg-[#7C3AED] dark:focus:ring-[#8B5CF6]600"
+                className="h-10 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-[#3B82F6]400 dark:border-gray-800 dark:bg-[#2563EB] dark:focus:ring-[#3B82F6]600"
               />
               <button
                 type="button"
                 onClick={() => void send()}
                 disabled={busy}
-                className="inline-flex h-10 shrink-0 items-center justify-center rounded-2xl bg-[#7C3AED] px-4 text-sm font-medium text-white disabled:opacity-60 dark:bg-white dark:text-black"
+                className="inline-flex h-10 shrink-0 items-center justify-center rounded-2xl bg-[#2563EB] px-4 text-sm font-medium text-white disabled:opacity-60 dark:bg-white dark:text-black"
               >
                 {busy ? "…" : "Send"}
               </button>

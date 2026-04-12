@@ -128,7 +128,7 @@ export function AnalyticsDashboard({ userId }: AnalyticsDashboardProps) {
               onClick={() => setActiveTab(tab.id as Tab)}
               className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-all duration-200-all duration-200 ${
                 activeTab === tab.id
-                  ? "border-[#8B5CF6] text-gray-900 dark:border-gray-100 dark:text-gray-100"
+                  ? "border-[#3B82F6] text-gray-900 dark:border-gray-100 dark:text-gray-100"
                   : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
               }`}
             >
@@ -638,7 +638,7 @@ function ActivityHeatmap({ data }: { data: ActivityHeatmapData[] }) {
 
 function getHeatmapColor(level: number): string {
   const colors = [
-    "bg-gray-100 dark:bg-[#7C3AED]",
+    "bg-gray-100 dark:bg-[#2563EB]",
     "bg-emerald-200 dark:bg-emerald-900/40",
     "bg-emerald-300 dark:bg-emerald-800/60",
     "bg-emerald-400 dark:bg-emerald-700/80",
@@ -668,7 +668,7 @@ function SkillGapRow({ gap }: { gap: SkillGap }) {
           <p className="text-sm font-medium">{gap.proficiencyScore}%</p>
           <p className="text-xs text-gray-400">proficiency</p>
         </div>
-        <div className="h-8 w-24 overflow-hidden rounded-full bg-gray-100 dark:bg-[#7C3AED]">
+        <div className="h-8 w-24 overflow-hidden rounded-full bg-gray-100 dark:bg-[#2563EB]">
           <div
             className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400"
             style={{ width: `${gap.proficiencyScore}%` }}
@@ -796,7 +796,7 @@ function SkillCategoryCard({ category }: { category: any }) {
       </div>
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/50">
         <div
-          className="h-full rounded-full bg-[#7C3AED] transition-all duration-200-all duration-200 cursor-pointer"
+          className="h-full rounded-full bg-[#2563EB] transition-all duration-200-all duration-200 cursor-pointer"
           style={{ width: `${category.proficiencyScore}%` }}
         />
       </div>
@@ -842,7 +842,7 @@ function DetailedSkillGapRow({ gap }: { gap: SkillGap }) {
               <Link
                 key={slug}
                 href={`/challenges/${slug}`}
-                className="rounded-full bg-gray-100 px-3 py-1 text-xs hover:bg-gray-200 dark:bg-[#7C3AED] dark:hover:bg-gray-700 cursor-pointer"
+                className="rounded-full bg-gray-100 px-3 py-1 text-xs hover:bg-gray-200 dark:bg-[#2563EB] dark:hover:bg-gray-700 cursor-pointer"
               >
                 {slug}
               </Link>
@@ -894,7 +894,7 @@ function InsightRow({
 }) {
   return (
     <div className="flex gap-3 rounded-lg bg-gray-50 p-4 dark:bg-gray-900/50">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white dark:bg-[#7C3AED]">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white dark:bg-[#2563EB]">
         <Icon className="h-4 w-4 text-gray-600" />
       </div>
       <div>
@@ -916,7 +916,7 @@ function WeeklyProgressChart({ data }: { data: number[] }) {
           <div className="relative w-full">
             <div
               className={`rounded-t transition-all duration-200-all duration-200 ${
-                count > 0 ? "bg-emerald-500" : "bg-gray-100 dark:bg-[#7C3AED]"
+                count > 0 ? "bg-emerald-500" : "bg-gray-100 dark:bg-[#2563EB]"
               }`}
               style={{ height: `${(count / maxValue) * 120}px` }}
             />
@@ -936,13 +936,13 @@ function WeeklyProgressChart({ data }: { data: number[] }) {
 function AnalyticsSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="h-8 w-48 animate-pulse rounded-lg bg-gray-200 dark:bg-[#7C3AED]" />
+      <div className="h-8 w-48 animate-pulse rounded-lg bg-gray-200 dark:bg-[#2563EB]" />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-24 animate-pulse rounded-xl bg-gray-200 dark:bg-[#7C3AED]" />
+          <div key={i} className="h-24 animate-pulse rounded-xl bg-gray-200 dark:bg-[#2563EB]" />
         ))}
       </div>
-      <div className="h-64 animate-pulse rounded-xl bg-gray-200 dark:bg-[#7C3AED]" />
+      <div className="h-64 animate-pulse rounded-xl bg-gray-200 dark:bg-[#2563EB]" />
     </div>
   );
 }
@@ -957,7 +957,7 @@ function EmptyAnalytics() {
       </p>
       <Link
         href="/challenges"
-        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#8B5CF6] px-4 py-2 text-sm font-medium text-white hover:bg-[#7C3AED] cursor-pointer"
+        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#3B82F6] px-4 py-2 text-sm font-medium text-white hover:bg-[#2563EB] cursor-pointer"
       >
         Start Learning
         <ChevronRight className="h-4 w-4" />

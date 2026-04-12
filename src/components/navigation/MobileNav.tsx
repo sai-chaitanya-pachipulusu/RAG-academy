@@ -129,7 +129,7 @@ export function MobileNav() {
                 className={`relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200-all duration-200 ${
                   active
                     ? "bg-gray-100"
-                    : "group-active:bg-[#6D28D9]50"
+                    : "group-active:bg-[#1D4ED8]50"
                 }`}
               >
                 {item.icon(active)}
@@ -163,7 +163,7 @@ export function MobileMenuButton({
   return (
     <button
       onClick={onClick}
-      className="flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 transition-all duration-200-all duration-200 hover:bg-gray-50 active:bg-[#6D28D9]100 md:hidden cursor-pointer"
+      className="flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 transition-all duration-200-all duration-200 hover:bg-gray-50 active:bg-[#1D4ED8]100 md:hidden cursor-pointer"
       aria-label={isOpen ? "Close menu" : "Open menu"}
       aria-expanded={isOpen}
     >

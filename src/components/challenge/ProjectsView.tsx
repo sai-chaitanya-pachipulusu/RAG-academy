@@ -107,7 +107,7 @@ export function ProjectsView() {
                 <div className="border-b border-gray-100 bg-gray-50/30 p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#8B5CF6] text-white text-sm font-bold">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#3B82F6] text-white text-sm font-bold">
                         {String(project.id).padStart(2, '0')}
                       </div>
                       <div>

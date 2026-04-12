@@ -56,10 +56,10 @@ export default function ResourcesPage() {
 
       {/* Search & Filters */}
       <section className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <input type="text" placeholder="Search resources..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 rounded-lg border border-gray-200 bg-white px-3 text-xs placeholder:text-gray-400 focus:border-[#8B5CF6]400 focus:outline-none dark:border-gray-800 dark:bg-[#7C3AED] dark:focus:border-[#8B5CF6]600" />
+        <input type="text" placeholder="Search resources..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 rounded-lg border border-gray-200 bg-white px-3 text-xs placeholder:text-gray-400 focus:border-[#3B82F6]400 focus:outline-none dark:border-gray-800 dark:bg-[#2563EB] dark:focus:border-[#3B82F6]600" />
         <div className="flex flex-wrap gap-1">
           {filters.map((f) => (
-            <button key={f.value} onClick={() => setFilter(f.value)} className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-all duration-200-all duration-200 ${filter === f.value ? "bg-[#8B5CF6] text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-[#7C3AED] dark:text-gray-400 dark:hover:bg-gray-700"}`}>
+            <button key={f.value} onClick={() => setFilter(f.value)} className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-all duration-200-all duration-200 ${filter === f.value ? "bg-[#3B82F6] text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-[#2563EB] dark:text-gray-400 dark:hover:bg-gray-700"}`}>
               {f.label}
             </button>
           ))}
@@ -76,7 +76,7 @@ export default function ResourcesPage() {
       <section className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
         <h2 className="text-base font-semibold">Suggested Learning Paths</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-md border border-emerald-200 bg-white p-3 dark:border-emerald-900/50 dark:bg-[#7C3AED]">
+          <div className="rounded-md border border-emerald-200 bg-white p-3 dark:border-emerald-900/50 dark:bg-[#2563EB]">
             <h3 className="text-sm font-medium text-emerald-800 dark:text-emerald-200">Beginner Path</h3>
             <ol className="mt-2 space-y-1 text-xs text-gray-600 dark:text-gray-400">
               <li>1. Watch 3Blue1Brown Vectors video</li>
@@ -85,7 +85,7 @@ export default function ResourcesPage() {
               <li>4. Build your first RAG app</li>
             </ol>
           </div>
-          <div className="rounded-md border border-purple-200 bg-white p-3 dark:border-purple-900/50 dark:bg-[#7C3AED]">
+          <div className="rounded-md border border-purple-200 bg-white p-3 dark:border-purple-900/50 dark:bg-[#2563EB]">
             <h3 className="text-sm font-medium text-purple-800 dark:text-purple-200">Advanced Path</h3>
             <ol className="mt-2 space-y-1 text-xs text-gray-600 dark:text-gray-400">
               <li>1. Read the original RAG paper</li>

@@ -43,7 +43,7 @@ const STATUS_CONFIG: Record<SyncStatusType, {
     icon: <Cloud className="w-4 h-4" />,
     label: "Ready to sync",
     color: "text-gray-500",
-    bgColor: "bg-gray-100 dark:bg-[#7C3AED]",
+    bgColor: "bg-gray-100 dark:bg-[#2563EB]",
   },
   syncing: {
     icon: <RefreshCw className="w-4 h-4" />,

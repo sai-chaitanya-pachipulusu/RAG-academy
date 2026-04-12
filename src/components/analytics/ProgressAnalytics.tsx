@@ -136,7 +136,7 @@ export function ProgressAnalytics() {
       </div>
 
       {/* Weekly Activity */}
-      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#7C3AED]">
+      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#2563EB]">
         <h3 className="text-sm font-semibold">Weekly Activity</h3>
         <div className="mt-4 flex justify-between gap-2">
           {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, i) => (
@@ -145,7 +145,7 @@ export function ProgressAnalytics() {
                 className={`h-8 w-8 rounded-lg transition-all duration-200-all duration-200 ${
                   data.weeklyProgress[i]
                     ? "bg-emerald-500 shadow-sm shadow-emerald-500/30"
-                    : "bg-gray-100 dark:bg-[#7C3AED]"
+                    : "bg-gray-100 dark:bg-[#2563EB]"
                 }`}
               />
               <span className="text-[10px] text-gray-500">{day}</span>
@@ -155,7 +155,7 @@ export function ProgressAnalytics() {
       </div>
 
       {/* Progress Over Time */}
-      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#7C3AED]">
+      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#2563EB]">
         <h3 className="text-sm font-semibold">Progress Trajectory</h3>
         <p className="mt-1 text-xs text-gray-500">
           Your learning journey over the last 30 days
@@ -171,7 +171,7 @@ export function ProgressAnalytics() {
                 className={`flex-1 rounded-t transition-all duration-200-all duration-200 ${
                   hasActivity
                     ? "bg-indigo-500"
-                    : "bg-gray-100 dark:bg-[#7C3AED]"
+                    : "bg-gray-100 dark:bg-[#2563EB]"
                 }`}
                 style={{
                   height: hasActivity ? `${30 + Math.random() * 70}%` : "10%",
@@ -265,7 +265,7 @@ function MilestoneCard({
       className={`rounded-lg border p-3 ${
         isComplete
           ? "border-emerald-300 bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/50"
-          : "border-gray-200 bg-white dark:border-gray-800 dark:bg-[#7C3AED]"
+          : "border-gray-200 bg-white dark:border-gray-800 dark:bg-[#2563EB]"
       }`}
     >
       <div className="flex items-center gap-2">
@@ -273,7 +273,7 @@ function MilestoneCard({
         <span className="text-xs font-medium">{title}</span>
         {isComplete && <span className="text-emerald-600">✓</span>}
       </div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-[#7C3AED]">
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-[#2563EB]">
         <div
           className="h-full bg-amber-500 transition-all duration-200-all duration-200 cursor-pointer"
           style={{ width: `${progress}%` }}

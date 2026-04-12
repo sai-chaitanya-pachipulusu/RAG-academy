@@ -190,7 +190,7 @@ export function ProjectChecklist() {
           <span className="w-24 text-xs font-medium text-gray-600 dark:text-gray-400">
             Required ({requiredCount}/{required.length})
           </span>
-          <div className="h-2 flex-1 rounded-full bg-gray-200 dark:bg-[#7C3AED]">
+          <div className="h-2 flex-1 rounded-full bg-gray-200 dark:bg-[#2563EB]">
             <div
               className="h-2 rounded-full bg-red-500 transition-all duration-200-all duration-200 cursor-pointer"
               style={{ width: `${(requiredCount / required.length) * 100}%` }}
@@ -201,7 +201,7 @@ export function ProjectChecklist() {
           <span className="w-24 text-xs font-medium text-gray-600 dark:text-gray-400">
             Recommended ({recommendedCount}/{recommended.length})
           </span>
-          <div className="h-2 flex-1 rounded-full bg-gray-200 dark:bg-[#7C3AED]">
+          <div className="h-2 flex-1 rounded-full bg-gray-200 dark:bg-[#2563EB]">
             <div
               className="h-2 rounded-full bg-amber-500 transition-all duration-200-all duration-200 cursor-pointer"
               style={{ width: `${(recommendedCount / recommended.length) * 100}%` }}
@@ -212,7 +212,7 @@ export function ProjectChecklist() {
           <span className="w-24 text-xs font-medium text-gray-600 dark:text-gray-400">
             Bonus ({bonusCount}/{bonus.length})
           </span>
-          <div className="h-2 flex-1 rounded-full bg-gray-200 dark:bg-[#7C3AED]">
+          <div className="h-2 flex-1 rounded-full bg-gray-200 dark:bg-[#2563EB]">
             <div
               className="h-2 rounded-full bg-emerald-500 transition-all duration-200-all duration-200 cursor-pointer"
               style={{ width: `${(bonusCount / bonus.length) * 100}%` }}
@@ -289,7 +289,7 @@ function ChecklistSection({
               type="checkbox"
               checked={checked.has(item.id)}
               onChange={() => onToggle(item.id)}
-              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-[#8B5CF6]500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-[#3B82F6]500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
             />
             <div>
               <p className="text-sm font-medium text-gray-900 dark:text-gray-100">

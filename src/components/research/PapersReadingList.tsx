@@ -53,7 +53,7 @@ export function PapersReadingList({ papers }: { papers: Paper[] }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="HyDE, reranking, eval, GraphRAG…"
-            className="mt-1 h-10 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-[#8B5CF6]400 dark:border-gray-800 dark:bg-[#7C3AED] dark:focus:ring-[#8B5CF6]600"
+            className="mt-1 h-10 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-[#3B82F6]400 dark:border-gray-800 dark:bg-[#2563EB] dark:focus:ring-[#3B82F6]600"
           />
         </div>
       </div>
@@ -87,7 +87,7 @@ export function PapersReadingList({ papers }: { papers: Paper[] }) {
             className={[
               "rounded-full border px-3 py-1 text-xs font-medium transition-all duration-200-all duration-200",
               tag === "all"
-                ? "border-gray-950 bg-[#7C3AED] text-white dark:border-white/25 dark:bg-white/10"
+                ? "border-gray-950 bg-[#2563EB] text-white dark:border-white/25 dark:bg-white/10"
                 : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06]",
             ].join(" ")}
           >
@@ -101,7 +101,7 @@ export function PapersReadingList({ papers }: { papers: Paper[] }) {
               className={[
                 "rounded-full border px-3 py-1 text-xs font-medium transition-all duration-200-all duration-200",
                 tag === t
-                  ? "border-gray-950 bg-[#7C3AED] text-white dark:border-white/25 dark:bg-white/10"
+                  ? "border-gray-950 bg-[#2563EB] text-white dark:border-white/25 dark:bg-white/10"
                   : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06]",
               ].join(" ")}
             >

@@ -121,7 +121,7 @@ export default function CompareEvaluationPage() {
               key={s.step}
               className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 dark:border-gray-800"
             >
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gray-900 text-xs font-bold text-white dark:bg-[#8B5CF6] dark:text-white">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gray-900 text-xs font-bold text-white dark:bg-[#3B82F6] dark:text-white">
                 {s.step}
               </span>
               <div>
@@ -202,7 +202,7 @@ export default function CompareEvaluationPage() {
       </Card>
 
       {/* Decision Callout */}
-      <Card className="border-emerald-200/50 bg-gradient-to-br from-emerald-50 to-white p-5 dark:border-emerald-900/30 dark:from-emerald-950/20 dark:to-[#8B5CF6]-950">
+      <Card className="border-emerald-200/50 bg-gradient-to-br from-emerald-50 to-white p-5 dark:border-emerald-900/30 dark:from-emerald-950/20 dark:to-[#3B82F6]-950">
         <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
           Default recommendation
         </p>

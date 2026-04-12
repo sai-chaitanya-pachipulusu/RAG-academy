@@ -643,13 +643,13 @@ export function QuickQuiz({ questionCount = 5, categories }: QuickQuizProps) {
         <div className="mt-6 flex justify-center gap-3">
           <button
             onClick={restart}
-            className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-all duration-200-all duration-200 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-[#7C3AED] cursor-pointer"
+            className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-all duration-200-all duration-200 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-[#2563EB] cursor-pointer"
           >
             Try Again
           </button>
           <button
             onClick={() => window.location.href = "/challenges"}
-            className="rounded-xl bg-[#8B5CF6] px-4 py-2 text-sm font-medium text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] dark:bg-[#8B5CF6] dark:text-white dark:hover:bg-[#7C3AED] cursor-pointer"
+            className="rounded-xl bg-[#3B82F6] px-4 py-2 text-sm font-medium text-white transition-all duration-200-all duration-200 hover:bg-[#2563EB] dark:bg-[#3B82F6] dark:text-white dark:hover:bg-[#2563EB] cursor-pointer"
           >
             Practice Challenges
           </button>
@@ -663,7 +663,7 @@ export function QuickQuiz({ questionCount = 5, categories }: QuickQuizProps) {
       {/* Progress bar */}
       <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium dark:bg-[#7C3AED]">
+          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium dark:bg-[#2563EB]">
             {currentQuestion.category}
           </span>
         </div>
@@ -673,7 +673,7 @@ export function QuickQuiz({ questionCount = 5, categories }: QuickQuizProps) {
       </div>
 
       {/* Progress indicator */}
-      <div className="h-1 bg-gray-100 dark:bg-[#7C3AED]">
+      <div className="h-1 bg-gray-100 dark:bg-[#2563EB]">
         <div
           className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-200-all duration-300 cursor-pointer"
           style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
@@ -706,8 +706,8 @@ export function QuickQuiz({ questionCount = 5, categories }: QuickQuizProps) {
                       ? "border-red-500 bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300"
                       : "border-gray-200 text-gray-500 dark:border-gray-800 dark:text-gray-500"
                     : isSelected
-                    ? "border-[#8B5CF6] bg-gray-50 dark:border-gray-100 dark:bg-[#7C3AED]"
-                    : "border-gray-200 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-800 dark:hover:border-gray-700 dark:hover:bg-[#7C3AED]"
+                    ? "border-[#3B82F6] bg-gray-50 dark:border-gray-100 dark:bg-[#2563EB]"
+                    : "border-gray-200 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-800 dark:hover:border-gray-700 dark:hover:bg-[#2563EB]"
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -726,7 +726,7 @@ export function QuickQuiz({ questionCount = 5, categories }: QuickQuizProps) {
 
         {/* Explanation */}
         {showExplanation && (
-          <div className="mt-6 rounded-xl bg-gray-50 p-4 dark:bg-[#7C3AED]">
+          <div className="mt-6 rounded-xl bg-gray-50 p-4 dark:bg-[#2563EB]">
             <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
               💡 {currentQuestion.explanation}
             </p>
@@ -737,7 +737,7 @@ export function QuickQuiz({ questionCount = 5, categories }: QuickQuizProps) {
         {selectedAnswer !== null && (
           <button
             onClick={handleNext}
-            className="mt-6 w-full rounded-xl bg-gray-900 py-3 text-sm font-semibold text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] dark:bg-[#8B5CF6] dark:text-white dark:hover:bg-[#7C3AED] cursor-pointer"
+            className="mt-6 w-full rounded-xl bg-gray-900 py-3 text-sm font-semibold text-white transition-all duration-200-all duration-200 hover:bg-[#2563EB] dark:bg-[#3B82F6] dark:text-white dark:hover:bg-[#2563EB] cursor-pointer"
           >
             {currentIndex < questions.length - 1 ? "Next Question" : "See Results"}
           </button>

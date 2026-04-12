@@ -117,7 +117,7 @@ export function GuidedLearning({ challengeSlug, title, difficulty, onStartChalle
       </div>
 
       {/* Stage Content */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-8 dark:border-gray-800 dark:bg-[#7C3AED]">
+      <div className="rounded-2xl border border-gray-200 bg-white p-8 dark:border-gray-800 dark:bg-[#2563EB]">
         
         {/* Stage 1: Motivation */}
         {currentStage === "motivation" && (
@@ -254,7 +254,7 @@ export function GuidedLearning({ challengeSlug, title, difficulty, onStartChalle
               
               {content.example.steps.map((step, i) => (
                 <div key={i} className="rounded-xl border border-gray-200 overflow-hidden dark:border-gray-800">
-                  <div className="bg-[#7C3AED] p-4">
+                  <div className="bg-[#2563EB] p-4">
                     <code className="text-sm text-emerald-400">{step.code}</code>
                   </div>
                   <div className="bg-emerald-50 p-4 dark:bg-emerald-950/30">
@@ -395,6 +395,6 @@ export function GuidedLearning({ challengeSlug, title, difficulty, onStartChalle
 // Styling helper for creating a toggle button in parent components
 export const guidedLearningToggleStyles = {
   enabled: "flex items-center gap-3 rounded-xl px-5 py-3 text-sm font-medium transition-all duration-200-all duration-200 bg-violet-100 text-violet-700 ring-2 ring-violet-300 dark:bg-violet-950/50 dark:text-violet-300 dark:ring-violet-800",
-  disabled: "flex items-center gap-3 rounded-xl px-5 py-3 text-sm font-medium transition-all duration-200-all duration-200 bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-[#7C3AED] dark:text-gray-400 dark:hover:bg-gray-700",
+  disabled: "flex items-center gap-3 rounded-xl px-5 py-3 text-sm font-medium transition-all duration-200-all duration-200 bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-[#2563EB] dark:text-gray-400 dark:hover:bg-gray-700",
 };
 

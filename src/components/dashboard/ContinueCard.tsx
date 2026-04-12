@@ -83,21 +83,21 @@ export function ContinueCard() {
           {next ? (
             <Link
               href={next.href}
-              className="inline-flex h-9 items-center justify-center rounded-full bg-[#7C3AED] px-4 text-sm font-medium text-white hover:bg-[#7C3AED] dark:bg-white dark:text-black dark:hover:bg-[#7C3AED] cursor-pointer"
+              className="inline-flex h-9 items-center justify-center rounded-full bg-[#2563EB] px-4 text-sm font-medium text-white hover:bg-[#2563EB] dark:bg-white dark:text-black dark:hover:bg-[#2563EB] cursor-pointer"
             >
               Continue →
             </Link>
           ) : (
             <Link
               href="/projects"
-              className="inline-flex h-9 items-center justify-center rounded-full bg-[#7C3AED] px-4 text-sm font-medium text-white hover:bg-[#7C3AED] dark:bg-white dark:text-black dark:hover:bg-[#7C3AED] cursor-pointer"
+              className="inline-flex h-9 items-center justify-center rounded-full bg-[#2563EB] px-4 text-sm font-medium text-white hover:bg-[#2563EB] dark:bg-white dark:text-black dark:hover:bg-[#2563EB] cursor-pointer"
             >
               Start a project →
             </Link>
           )}
           <Link
             href="/plan"
-            className="inline-flex h-9 items-center justify-center rounded-full border border-gray-200 bg-white px-4 text-sm font-medium text-gray-950 hover:bg-gray-50 dark:border-gray-800 dark:bg-[#7C3AED] dark:text-gray-50 dark:hover:bg-gray-900 cursor-pointer"
+            className="inline-flex h-9 items-center justify-center rounded-full border border-gray-200 bg-white px-4 text-sm font-medium text-gray-950 hover:bg-gray-50 dark:border-gray-800 dark:bg-[#2563EB] dark:text-gray-50 dark:hover:bg-gray-900 cursor-pointer"
           >
             Study Plan
           </Link>

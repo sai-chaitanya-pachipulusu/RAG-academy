@@ -98,8 +98,8 @@ export function MetricsExplainer() {
             onClick={() => setActiveTab("retrieval")}
             className={`rounded-full px-3 py-1 text-xs font-medium transition-all duration-200-all duration-200 ${
               activeTab === "retrieval"
-                ? "bg-[#7C3AED] text-white dark:bg-white dark:text-black"
-                : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-[#7C3AED]"
+                ? "bg-[#2563EB] text-white dark:bg-white dark:text-black"
+                : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-[#2563EB]"
             }`}
           >
             Retrieval
@@ -108,8 +108,8 @@ export function MetricsExplainer() {
             onClick={() => setActiveTab("generation")}
             className={`rounded-full px-3 py-1 text-xs font-medium transition-all duration-200-all duration-200 ${
               activeTab === "generation"
-                ? "bg-[#7C3AED] text-white dark:bg-white dark:text-black"
-                : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-[#7C3AED]"
+                ? "bg-[#2563EB] text-white dark:bg-white dark:text-black"
+                : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-[#2563EB]"
             }`}
           >
             Generation

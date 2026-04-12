@@ -78,7 +78,7 @@ export function LLMSettingsPanel() {
                 setSettings((s) => ({ ...s, model: e.target.value }))
               }
               placeholder="e.g. gpt-4o-mini"
-              className="h-10 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-[#8B5CF6]400"
+              className="h-10 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-[#3B82F6]400"
             />
           </label>
         </div>
@@ -92,7 +92,7 @@ export function LLMSettingsPanel() {
             onChange={(e) => setApiKeyDraft(e.target.value)}
             placeholder={hasKey ? "Key already set (paste to replace)" : "Paste key"}
             type="password"
-            className="h-10 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-[#8B5CF6]400"
+            className="h-10 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-[#3B82F6]400"
           />
           <span className="text-xs text-gray-500">
             Tip: leave blank and hit Save to keep the existing key.

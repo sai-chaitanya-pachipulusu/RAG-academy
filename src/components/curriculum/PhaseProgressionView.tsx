@@ -17,7 +17,7 @@ const PHASES = [
   { id: "grounding-safety", name: "Phase 5: Security", icon: "🛡️", color: "from-red-500 to-rose-500", description: "Safety and compliance" },
   { id: "multimodal", name: "Phase 6: Multi-Modal", icon: "🖼️", color: "from-fuchsia-500 to-pink-500", description: "Tables, images, audio" },
   { id: "advanced-retrieval", name: "Phase 7: SOTA Architectures", icon: "🚀", color: "from-sky-500 to-blue-500", description: "ColBERT, RAPTOR, Self-RAG" },
-  { id: "production-ops", name: "Phase 8: Infrastructure", icon: "⚙️", color: "from-slate-500 to-[#8B5CF6]-600", description: "Scaling and optimization" },
+  { id: "production-ops", name: "Phase 8: Infrastructure", icon: "⚙️", color: "from-slate-500 to-[#3B82F6]-600", description: "Scaling and optimization" },
   { id: "evaluation-ops", name: "Phase 9: Evaluation", icon: "📊", color: "from-lime-500 to-green-500", description: "LLM-as-a-Judge" },
   { id: "fine-tuning", name: "Phase 10: Fine-Tuning", icon: "🎓", color: "from-yellow-500 to-amber-500", description: "Model customization" },
 ] as const;
@@ -60,7 +60,7 @@ export function PhaseProgressionView() {
   return (
     <div className="space-y-8">
       {/* Overall Progress Header */}
-      <div className="rounded-2xl border border-gray-200 bg-gradient-to-r from-[#8B5CF6]-50 to-white p-6 dark:border-white/10 dark:from-[#8B5CF6]-900 dark:to-[#8B5CF6]-800">
+      <div className="rounded-2xl border border-gray-200 bg-gradient-to-r from-[#3B82F6]-50 to-white p-6 dark:border-white/10 dark:from-[#3B82F6]-900 dark:to-[#3B82F6]-800">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold tracking-tight">Your RAG Journey</h2>
@@ -152,7 +152,7 @@ export function PhaseProgressionView() {
                       {phase.description}
                     </p>
                     {/* Mini progress bar */}
-                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-[#7C3AED]">
+                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-[#2563EB]">
                       <div
                         className={`h-full rounded-full bg-gradient-to-r ${phase.color} transition-all`}
                         style={{ width: `${phase.progress}%` }}

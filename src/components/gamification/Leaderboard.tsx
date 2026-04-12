@@ -67,13 +67,13 @@ export function Leaderboard({ currentUserXP = 1200, currentUserChallenges = 12 }
 
   const getRankBadge = (rank: number) => {
     if (rank === 1) return { icon: "🥇", color: "from-yellow-400 to-amber-500" };
-    if (rank === 2) return { icon: "🥈", color: "from-[#8B5CF6]-300 to-[#8B5CF6]-400" };
+    if (rank === 2) return { icon: "🥈", color: "from-[#3B82F6]-300 to-[#3B82F6]-400" };
     if (rank === 3) return { icon: "🥉", color: "from-amber-600 to-orange-700" };
     return null;
   };
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-[#7C3AED]">
+    <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-[#2563EB]">
       {/* Header */}
       <div className="border-b border-gray-200 p-4 dark:border-gray-800">
         <div className="flex items-center justify-between">
@@ -90,7 +90,7 @@ export function Leaderboard({ currentUserXP = 1200, currentUserChallenges = 12 }
                 onClick={() => setTimeFilter(filter)}
                 className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
                   timeFilter === filter
-                    ? "bg-[#8B5CF6] text-white dark:bg-white dark:text-gray-900"
+                    ? "bg-[#3B82F6] text-white dark:bg-white dark:text-gray-900"
                     : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 }`}
               >
@@ -147,7 +147,7 @@ export function Leaderboard({ currentUserXP = 1200, currentUserChallenges = 12 }
 
               {/* Avatar & Name */}
               <div className="flex flex-1 items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#8B5CF6]-100 to-[#8B5CF6]-200 text-xl dark:from-[#8B5CF6]-800 dark:to-[#8B5CF6]-900">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#3B82F6]-100 to-[#3B82F6]-200 text-xl dark:from-[#3B82F6]-800 dark:to-[#3B82F6]-900">
                   {entry.avatar}
                 </div>
                 <div>
@@ -195,7 +195,7 @@ export function Leaderboard({ currentUserXP = 1200, currentUserChallenges = 12 }
 // Compact leaderboard widget for sidebar
 export function LeaderboardWidget() {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-[#7C3AED]">
+    <div className="rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-[#2563EB]">
       <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 dark:text-gray-300">
         <span>🏆</span>
         <span>Top 3 This Week</span>

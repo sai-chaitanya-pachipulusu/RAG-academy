@@ -244,7 +244,7 @@ function ChallengeNode({
     in_progress:
       "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30",
     available:
-      "border-gray-200 bg-white dark:border-gray-800 dark:bg-[#7C3AED]",
+      "border-gray-200 bg-white dark:border-gray-800 dark:bg-[#2563EB]",
     locked: "border-gray-200 bg-gray-100 dark:border-gray-800 dark:bg-gray-900",
   };
 

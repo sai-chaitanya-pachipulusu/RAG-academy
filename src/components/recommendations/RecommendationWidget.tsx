@@ -135,7 +135,7 @@ export function RecommendationWidget({
           </div>
           <button
             onClick={loadRecommendations}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-[#7C3AED] cursor-pointer"
+            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-[#2563EB] cursor-pointer"
           >
             <RotateCcw className="h-4 w-4" />
           </button>
@@ -229,7 +229,7 @@ function RecommendationCard({ recommendation }: { recommendation: ChallengeRecom
               {reasons.slice(0, 2).map((reason, index) => (
                 <span
                   key={index}
-                  className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400"
+                  className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600 dark:bg-[#2563EB] dark:text-gray-400"
                 >
                   <Lightbulb className="h-3 w-3" />
                   {reason.message}
@@ -342,10 +342,10 @@ function RecommendationSkeleton({ variant }: { variant: string }) {
   if (variant === "compact") {
     return (
       <Card className="p-4">
-        <div className="mb-3 h-4 w-24 animate-pulse rounded bg-gray-200 dark:bg-[#7C3AED]" />
+        <div className="mb-3 h-4 w-24 animate-pulse rounded bg-gray-200 dark:bg-[#2563EB]" />
         <div className="space-y-2">
-          <div className="h-8 animate-pulse rounded bg-gray-200 dark:bg-[#7C3AED]" />
-          <div className="h-8 animate-pulse rounded bg-gray-200 dark:bg-[#7C3AED]" />
+          <div className="h-8 animate-pulse rounded bg-gray-200 dark:bg-[#2563EB]" />
+          <div className="h-8 animate-pulse rounded bg-gray-200 dark:bg-[#2563EB]" />
         </div>
       </Card>
     );
@@ -353,11 +353,11 @@ function RecommendationSkeleton({ variant }: { variant: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="h-32 animate-pulse rounded-xl bg-gray-200 dark:bg-[#7C3AED]" />
+      <div className="h-32 animate-pulse rounded-xl bg-gray-200 dark:bg-[#2563EB]" />
       <div className="space-y-3">
-        <div className="h-24 animate-pulse rounded-xl bg-gray-200 dark:bg-[#7C3AED]" />
-        <div className="h-24 animate-pulse rounded-xl bg-gray-200 dark:bg-[#7C3AED]" />
-        <div className="h-24 animate-pulse rounded-xl bg-gray-200 dark:bg-[#7C3AED]" />
+        <div className="h-24 animate-pulse rounded-xl bg-gray-200 dark:bg-[#2563EB]" />
+        <div className="h-24 animate-pulse rounded-xl bg-gray-200 dark:bg-[#2563EB]" />
+        <div className="h-24 animate-pulse rounded-xl bg-gray-200 dark:bg-[#2563EB]" />
       </div>
     </div>
   );

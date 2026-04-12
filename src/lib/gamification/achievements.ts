@@ -495,7 +495,7 @@ export function getRarityColor(rarity: AchievementRarity): string {
 export function getRarityBgColor(rarity: AchievementRarity): string {
   switch (rarity) {
     case "common":
-      return "bg-gray-100 dark:bg-[#7C3AED]";
+      return "bg-gray-100 dark:bg-[#2563EB]";
     case "rare":
       return "bg-blue-100 dark:bg-blue-900/30";
     case "epic":

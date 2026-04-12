@@ -14,7 +14,7 @@ export function HeaderAuth() {
     return (
       <Link
         href="/login"
-        className="rounded-full bg-[#8B5CF6] px-4 py-1.5 text-sm font-medium text-white transition-all duration-200-opacity hover:opacity-90 cursor-pointer"
+        className="rounded-full bg-[#3B82F6] px-4 py-1.5 text-sm font-medium text-white transition-all duration-200-opacity hover:opacity-90 cursor-pointer"
       >
         Sign in
       </Link>

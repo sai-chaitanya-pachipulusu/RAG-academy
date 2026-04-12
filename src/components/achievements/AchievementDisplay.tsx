@@ -65,7 +65,7 @@ export function AchievementUnlock({
   }, [autoClose, autoCloseDelay, onClose]);
 
   const rarityColors = {
-    common: "from-[#8B5CF6]-500 to-[#8B5CF6]-600",
+    common: "from-[#3B82F6]-500 to-[#3B82F6]-600",
     rare: "from-blue-500 to-blue-600",
     epic: "from-purple-500 to-purple-600",
     legendary: "from-amber-400 to-amber-600",
@@ -83,7 +83,7 @@ export function AchievementUnlock({
           {/* Close button */}
           <button
             onClick={onClose}
-            className="absolute right-3 top-3 rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-[#7C3AED] cursor-pointer"
+            className="absolute right-3 top-3 rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-[#2563EB] cursor-pointer"
           >
             <X className="h-4 w-4" />
           </button>
@@ -184,7 +184,7 @@ export function AchievementCard({
           {/* Icon */}
           <div
             className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl ${
-              isUnlocked ? getRarityBgColor(achievement.rarity) : "bg-gray-100 dark:bg-[#7C3AED]"
+              isUnlocked ? getRarityBgColor(achievement.rarity) : "bg-gray-100 dark:bg-[#2563EB]"
             }`}
           >
             {isUnlocked ? achievement.icon : <Lock className="h-5 w-5 text-gray-400" />}
@@ -213,7 +213,7 @@ export function AchievementCard({
               >
                 {getRarityLabel(achievement.rarity)}
               </span>
-              <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400">
+              <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-[#2563EB] dark:text-gray-400">
                 {getCategoryLabel(achievement.category)}
               </span>
               {isUnlocked && (
@@ -368,7 +368,7 @@ export function AchievementGallery({
             className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-200-all duration-200 ${
               selectedCategory === category
                 ? "bg-indigo-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-[#7C3AED] dark:text-gray-300 dark:hover:bg-gray-700"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-[#2563EB] dark:text-gray-300 dark:hover:bg-gray-700"
             }`}
           >
             {CATEGORY_ICONS[category]}

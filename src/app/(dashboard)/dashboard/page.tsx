@@ -105,7 +105,7 @@ export default function DashboardPage() {
           </p>
           <Link
             href="/learn"
-            className="mt-2 inline-flex h-8 items-center justify-center rounded-full bg-[#8B5CF6] px-4 text-xs font-medium text-white hover:bg-[#7C3AED] dark:bg-white dark:text-black dark:hover:bg-[#7C3AED] cursor-pointer"
+            className="mt-2 inline-flex h-8 items-center justify-center rounded-full bg-[#3B82F6] px-4 text-xs font-medium text-white hover:bg-[#2563EB] dark:bg-white dark:text-black dark:hover:bg-[#2563EB] cursor-pointer"
           >
             Go to Learn
           </Link>
@@ -118,7 +118,7 @@ export default function DashboardPage() {
           </p>
           <Link
             href="/projects"
-            className="mt-2 inline-flex h-8 items-center justify-center rounded-full bg-[#8B5CF6] px-4 text-xs font-medium text-white hover:bg-[#7C3AED] dark:bg-white dark:text-black dark:hover:bg-[#7C3AED] cursor-pointer"
+            className="mt-2 inline-flex h-8 items-center justify-center rounded-full bg-[#3B82F6] px-4 text-xs font-medium text-white hover:bg-[#2563EB] dark:bg-white dark:text-black dark:hover:bg-[#2563EB] cursor-pointer"
           >
             Open Projects
           </Link>
@@ -161,7 +161,7 @@ export default function DashboardPage() {
           </p>
           <Link
             href="/compare"
-            className="mt-2 inline-flex h-8 items-center justify-center rounded-full border border-gray-200 bg-white px-4 text-xs font-medium text-gray-900 hover:bg-gray-50 dark:border-gray-800 dark:bg-[#7C3AED] dark:text-gray-50 dark:hover:bg-gray-900 cursor-pointer"
+            className="mt-2 inline-flex h-8 items-center justify-center rounded-full border border-gray-200 bg-white px-4 text-xs font-medium text-gray-900 hover:bg-gray-50 dark:border-gray-800 dark:bg-[#2563EB] dark:text-gray-50 dark:hover:bg-gray-900 cursor-pointer"
           >
             Open Compare
           </Link>
@@ -174,13 +174,13 @@ export default function DashboardPage() {
           </p>
           <Link
             href="/progress"
-            className="mt-2 inline-flex h-8 items-center justify-center rounded-full border border-gray-200 bg-white px-4 text-xs font-medium text-gray-900 hover:bg-gray-50 dark:border-gray-800 dark:bg-[#7C3AED] dark:text-gray-50 dark:hover:bg-gray-900 cursor-pointer"
+            className="mt-2 inline-flex h-8 items-center justify-center rounded-full border border-gray-200 bg-white px-4 text-xs font-medium text-gray-900 hover:bg-gray-50 dark:border-gray-800 dark:bg-[#2563EB] dark:text-gray-50 dark:hover:bg-gray-900 cursor-pointer"
           >
             Open Progress
           </Link>
         </Card>
 
-        <Card className="p-4 border-emerald-200/50 bg-gradient-to-br from-emerald-50 to-white dark:border-emerald-900/30 dark:from-emerald-950/20 dark:to-[#8B5CF6]-950">
+        <Card className="p-4 border-emerald-200/50 bg-gradient-to-br from-emerald-50 to-white dark:border-emerald-900/30 dark:from-emerald-950/20 dark:to-[#3B82F6]-950">
           <div className="flex items-center gap-1.5">
             <svg className="h-4 w-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
@@ -212,7 +212,7 @@ export default function DashboardPage() {
             { title: "Build a Reranker", desc: "Cross-Encoder and Cascade. Boost precision.", href: "/challenges/reranker-score-function", color: "amber" },
             { title: "Build an Evaluator", desc: "Recall@K to nDCG. Measure your system.", href: "/challenges/evaluator-recall-at-k", color: "purple" },
           ].map((track) => (
-            <Card key={track.title} className={`p-4 border-${track.color}-200/50 bg-gradient-to-br from-${track.color}-50 to-white dark:border-${track.color}-900/30 dark:from-${track.color}-950/20 dark:to-[#8B5CF6]-950`}>
+            <Card key={track.title} className={`p-4 border-${track.color}-200/50 bg-gradient-to-br from-${track.color}-50 to-white dark:border-${track.color}-900/30 dark:from-${track.color}-950/20 dark:to-[#3B82F6]-950`}>
               <p className={`text-sm font-semibold text-${track.color}-900 dark:text-${track.color}-100`}>{track.title}</p>
               <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">{track.desc}</p>
               <Link

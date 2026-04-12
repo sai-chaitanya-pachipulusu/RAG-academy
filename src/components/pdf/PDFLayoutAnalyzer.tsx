@@ -144,7 +144,7 @@ export function PDFLayoutAnalyzer() {
             <button
               onClick={analyzePDF}
               disabled={!file || isAnalyzing}
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#8B5CF6] px-6 py-3 text-sm font-medium text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] disabled:opacity-50 disabled:cursor-not-allowed dark:bg-[#8B5CF6] dark:text-white dark:hover:bg-[#7C3AED]"
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#3B82F6] px-6 py-3 text-sm font-medium text-white transition-all duration-200-all duration-200 hover:bg-[#2563EB] disabled:opacity-50 disabled:cursor-not-allowed dark:bg-[#3B82F6] dark:text-white dark:hover:bg-[#2563EB]"
             >
               {isAnalyzing ? (
                 <>
@@ -195,7 +195,7 @@ export function PDFLayoutAnalyzer() {
                   className={`rounded-lg px-3 py-1.5 text-sm transition-all duration-200-all duration-200 ${
                     selectedStrategy === strategy
                       ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-[#7C3AED] dark:text-gray-400"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-[#2563EB] dark:text-gray-400"
                   }`}
                 >
                   {strategy.replace("_", " ")}

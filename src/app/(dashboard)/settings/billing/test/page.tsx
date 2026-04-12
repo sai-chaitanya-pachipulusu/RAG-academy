@@ -227,7 +227,7 @@ function PaymentTestPageContent() {
             <button
               onClick={validateEnvironment}
               disabled={isValidating}
-              className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-[#7C3AED] dark:text-gray-300 cursor-pointer"
+              className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-[#2563EB] dark:text-gray-300 cursor-pointer"
             >
               {isValidating ? "Checking..." : "Re-check"}
             </button>
@@ -457,7 +457,7 @@ function PaymentTestPageContent() {
                 <h4 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                   Result
                 </h4>
-                <pre className="max-h-64 overflow-auto rounded-lg bg-gray-100 p-3 text-xs dark:bg-[#7C3AED]">
+                <pre className="max-h-64 overflow-auto rounded-lg bg-gray-100 p-3 text-xs dark:bg-[#2563EB]">
                   {JSON.stringify(webhookResult, null, 2)}
                 </pre>
               </div>
@@ -472,7 +472,7 @@ function PaymentTestPageContent() {
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">Endpoint URL</span>
-                  <code className="rounded bg-gray-100 px-2 py-0.5 text-xs dark:bg-[#7C3AED]">
+                  <code className="rounded bg-gray-100 px-2 py-0.5 text-xs dark:bg-[#2563EB]">
                     {typeof window !== "undefined"
                     ? `${window.location.origin}/api/webhooks/polar`
                       : "/api/webhooks/polar"}
@@ -582,7 +582,7 @@ function PaymentTestPageContent() {
                   {scenarioResult.steps.map((step: any) => (
                     <div
                       key={step.step}
-                      className="flex items-center gap-3 rounded-lg bg-gray-50 p-3 dark:bg-[#7C3AED]/50"
+                      className="flex items-center gap-3 rounded-lg bg-gray-50 p-3 dark:bg-[#2563EB]/50"
                     >
                       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-xs font-medium text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">
                         {step.step}

@@ -149,7 +149,7 @@ export function SubmissionDetail({
               {submission.testsPassed}/{submission.testsTotal} passed
             </Badge>
           </div>
-          <div className="mt-3 h-2 w-full rounded-full bg-gray-100 dark:bg-[#7C3AED]">
+          <div className="mt-3 h-2 w-full rounded-full bg-gray-100 dark:bg-[#2563EB]">
             <div
               className={`h-2 rounded-full transition-all duration-200-all duration-200 ${
                 submission.testsPassed === submission.testsTotal
@@ -202,7 +202,7 @@ export function SubmissionDetail({
           </div>
         </div>
         <div className="relative">
-          <pre className="max-h-96 overflow-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100 dark:bg-[#7C3AED]">
+          <pre className="max-h-96 overflow-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100 dark:bg-[#2563EB]">
             <code>{submission.code}</code>
           </pre>
         </div>

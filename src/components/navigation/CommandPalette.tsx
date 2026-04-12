@@ -127,7 +127,7 @@ export function CommandPalette() {
             className="flex-1 bg-transparent text-sm text-gray-900 placeholder-zinc-400 outline-none dark:text-gray-100"
             autoFocus
           />
-          <kbd className="rounded border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500 dark:border-white/10 dark:bg-[#7C3AED] dark:text-gray-400">
+          <kbd className="rounded border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500 dark:border-white/10 dark:bg-[#2563EB] dark:text-gray-400">
             ESC
           </kbd>
         </div>
@@ -185,9 +185,9 @@ export function CommandPalette() {
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-gray-200 px-4 py-2 text-[11px] text-gray-400 dark:border-white/10">
           <div className="flex items-center gap-2">
-            <kbd className="rounded border border-gray-200 bg-gray-100 px-1 py-0.5 dark:border-white/10 dark:bg-[#7C3AED]">↑↓</kbd>
+            <kbd className="rounded border border-gray-200 bg-gray-100 px-1 py-0.5 dark:border-white/10 dark:bg-[#2563EB]">↑↓</kbd>
             <span>Navigate</span>
-            <kbd className="ml-2 rounded border border-gray-200 bg-gray-100 px-1 py-0.5 dark:border-white/10 dark:bg-[#7C3AED]">↵</kbd>
+            <kbd className="ml-2 rounded border border-gray-200 bg-gray-100 px-1 py-0.5 dark:border-white/10 dark:bg-[#2563EB]">↵</kbd>
             <span>Select</span>
           </div>
           <span>⌘K to toggle</span>

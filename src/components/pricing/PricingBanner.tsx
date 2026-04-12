@@ -81,7 +81,7 @@ export function UpgradeCTA({ context = "default" }: { context?: string }) {
       </div>
       <Link
         href="/pricing"
-        className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-[#8B5CF6] px-6 text-sm font-semibold text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] cursor-pointer"
+        className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-[#3B82F6] px-6 text-sm font-semibold text-white transition-all duration-200-all duration-200 hover:bg-[#2563EB] cursor-pointer"
       >
         Upgrade Now
       </Link>

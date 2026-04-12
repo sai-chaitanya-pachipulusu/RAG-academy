@@ -194,8 +194,8 @@ export function ChunkingVisualizer({
             onClick={() => setStrategy(key as keyof typeof STRATEGIES)}
             className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
               strategy === key
-                ? "bg-[#8B5CF6] text-white dark:bg-white dark:text-gray-900"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-[#7C3AED] dark:text-gray-300 dark:hover:bg-gray-700"
+                ? "bg-[#3B82F6] text-white dark:bg-white dark:text-gray-900"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-[#2563EB] dark:text-gray-300 dark:hover:bg-gray-700"
             }`}
           >
             {label}

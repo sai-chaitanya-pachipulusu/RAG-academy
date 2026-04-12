@@ -167,7 +167,7 @@ export function SkillTree() {
   const getNodeColor = (status: ReturnType<typeof getNodeStatus>) => {
     switch (status) {
       case "locked":
-        return "bg-gray-200 text-gray-400 dark:bg-[#7C3AED] dark:text-gray-600";
+        return "bg-gray-200 text-gray-400 dark:bg-[#2563EB] dark:text-gray-600";
       case "available":
         return "bg-blue-100 text-blue-600 border-blue-300 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800";
       case "in_progress":
@@ -227,7 +227,7 @@ export function SkillTree() {
       </div>
 
       {/* Skill Tree Visualization */}
-      <div className="relative h-[500px] overflow-hidden rounded-xl bg-gray-50 dark:bg-[#7C3AED]/50">
+      <div className="relative h-[500px] overflow-hidden rounded-xl bg-gray-50 dark:bg-[#2563EB]/50">
         {/* Connection lines */}
         <svg className="absolute inset-0 h-full w-full">
           {SKILL_NODES.map((node) =>

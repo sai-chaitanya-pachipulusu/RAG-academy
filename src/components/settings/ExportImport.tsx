@@ -210,7 +210,7 @@ export function ExportImportUI() {
   };
 
   return (
-    <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#7C3AED]">
+    <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#2563EB]">
       <h3 className="flex items-center gap-2 font-semibold text-gray-900 dark:text-gray-100">
         <span>Export / Import Progress</span>
       </h3>
@@ -227,7 +227,7 @@ export function ExportImportUI() {
           <span>Export to File</span>
         </button>
 
-        <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-[#7C3AED]">
+        <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-[#2563EB]">
           <span>{importing ? "Importing..." : "Import from File"}</span>
           <input
             type="file"

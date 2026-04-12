@@ -71,7 +71,7 @@ export function ModuleLearningView({ phaseBlocks = [] }: Props) {
           {/* Progress Summary */}
           <div className="flex flex-col gap-6 rounded-2xl border border-gray-200 bg-gray-50 p-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-6">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#8B5CF6] text-white">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#3B82F6] text-white">
                 <span className="text-lg font-semibold">{overallProgress}%</span>
               </div>
               <div>
@@ -90,7 +90,7 @@ export function ModuleLearningView({ phaseBlocks = [] }: Props) {
               {nextModule && (
                 <button
                   onClick={() => setExpandedModule(nextModule.id)}
-                  className="rounded-full bg-[#8B5CF6] px-5 py-2.5 text-sm font-medium text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] cursor-pointer"
+                  className="rounded-full bg-[#3B82F6] px-5 py-2.5 text-sm font-medium text-white transition-all duration-200-all duration-200 hover:bg-[#2563EB] cursor-pointer"
                 >
                   Continue: {nextModule.name}
                 </button>
@@ -164,7 +164,7 @@ export function ModuleLearningView({ phaseBlocks = [] }: Props) {
                     {/* Expand Icon */}
                     <div className={`flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-200-all duration-200 ${
                       isExpanded 
-                        ? 'rotate-180 border-[#8B5CF6] bg-[#8B5CF6] text-white' 
+                        ? 'rotate-180 border-[#3B82F6] bg-[#3B82F6] text-white' 
                         : 'border-gray-100 bg-gray-50 text-gray-400'
                     }`}>
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -106,7 +106,7 @@ function CheckoutContent() {
   const displayPrice = getDisplayPrice();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#8B5CF6]-50 to-white dark:from-[#8B5CF6]-950 dark:to-[#8B5CF6]-900 py-16">
+    <div className="min-h-screen bg-gradient-to-b from-[#3B82F6]-50 to-white dark:from-[#3B82F6]-950 dark:to-[#3B82F6]-900 py-16">
       <div className="mx-auto max-w-2xl px-6">
         {/* Header */}
         <div className="text-center mb-12">
@@ -213,7 +213,7 @@ function CheckoutContent() {
           )}
 
           {/* Order Summary */}
-          <div className="mb-8 rounded-2xl bg-gray-50 dark:bg-[#7C3AED]/50 p-6">
+          <div className="mb-8 rounded-2xl bg-gray-50 dark:bg-[#2563EB]/50 p-6">
             <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Order Summary</h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -387,17 +387,17 @@ function CheckIcon() {
 
 function CheckoutLoading() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#8B5CF6]-50 to-white dark:from-[#8B5CF6]-950 dark:to-[#8B5CF6]-900 py-16">
+    <div className="min-h-screen bg-gradient-to-b from-[#3B82F6]-50 to-white dark:from-[#3B82F6]-950 dark:to-[#3B82F6]-900 py-16">
       <div className="mx-auto max-w-2xl px-6">
         <div className="text-center mb-12">
-          <div className="h-8 w-64 bg-gray-200 dark:bg-[#7C3AED] rounded animate-pulse mx-auto"></div>
-          <div className="h-4 w-48 bg-gray-200 dark:bg-[#7C3AED] rounded animate-pulse mx-auto mt-2"></div>
+          <div className="h-8 w-64 bg-gray-200 dark:bg-[#2563EB] rounded animate-pulse mx-auto"></div>
+          <div className="h-4 w-48 bg-gray-200 dark:bg-[#2563EB] rounded animate-pulse mx-auto mt-2"></div>
         </div>
         <div className="rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-8 shadow-lg">
           <div className="space-y-4">
-            <div className="h-12 bg-gray-100 dark:bg-[#7C3AED] rounded animate-pulse"></div>
-            <div className="h-12 bg-gray-100 dark:bg-[#7C3AED] rounded animate-pulse"></div>
-            <div className="h-32 bg-gray-100 dark:bg-[#7C3AED] rounded animate-pulse"></div>
+            <div className="h-12 bg-gray-100 dark:bg-[#2563EB] rounded animate-pulse"></div>
+            <div className="h-12 bg-gray-100 dark:bg-[#2563EB] rounded animate-pulse"></div>
+            <div className="h-32 bg-gray-100 dark:bg-[#2563EB] rounded animate-pulse"></div>
             <div className="h-14 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
           </div>
         </div>

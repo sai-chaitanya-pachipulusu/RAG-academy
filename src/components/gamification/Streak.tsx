@@ -134,7 +134,7 @@ export function StreakDisplay() {
                 className={`h-6 w-6 rounded-md transition-all ${
                   streak.weeklyActivity[i]
                     ? "bg-emerald-500 shadow-sm shadow-emerald-500/30"
-                    : "bg-gray-200 dark:bg-[#7C3AED]"
+                    : "bg-gray-200 dark:bg-[#2563EB]"
                 }`}
               />
               <span className="text-[10px] text-gray-500">{day}</span>

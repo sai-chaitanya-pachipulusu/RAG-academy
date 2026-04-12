@@ -125,7 +125,7 @@ export function SubmissionStats({ stats, submissions = [], showDetailed = false 
               return (
                 <div key={key} className="flex items-center gap-3">
                   <span className="w-32 text-sm text-gray-600 dark:text-gray-400">{label}</span>
-                  <div className="flex-1 h-2 rounded-full bg-gray-100 dark:bg-[#7C3AED]">
+                  <div className="flex-1 h-2 rounded-full bg-gray-100 dark:bg-[#2563EB]">
                     <div
                       className={`h-2 rounded-full ${color}`}
                       style={{ width: `${percentage}%` }}

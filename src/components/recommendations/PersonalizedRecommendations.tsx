@@ -166,7 +166,7 @@ export function PersonalizedRecommendations({
       case "hard":
         return "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400";
       default:
-        return "bg-gray-100 text-gray-700 dark:bg-[#7C3AED] dark:text-gray-400";
+        return "bg-gray-100 text-gray-700 dark:bg-[#2563EB] dark:text-gray-400";
     }
   };
 
@@ -243,10 +243,10 @@ export function PersonalizedRecommendations({
           <Link
             key={challenge.slug}
             href={`/challenges/${challenge.slug}`}
-            className="group flex items-center gap-4 rounded-xl border border-gray-100 bg-gray-50/50 p-4 transition-all duration-200-all duration-200 hover:border-gray-200 hover:bg-gray-50 hover:shadow-md dark:border-gray-800 dark:bg-[#7C3AED]/50 dark:hover:border-gray-700 dark:hover:bg-[#7C3AED] cursor-pointer"
+            className="group flex items-center gap-4 rounded-xl border border-gray-100 bg-gray-50/50 p-4 transition-all duration-200-all duration-200 hover:border-gray-200 hover:bg-gray-50 hover:shadow-md dark:border-gray-800 dark:bg-[#2563EB]/50 dark:hover:border-gray-700 dark:hover:bg-[#2563EB] cursor-pointer"
           >
             {/* Rank indicator */}
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-sm font-bold text-gray-500 dark:bg-[#7C3AED] dark:text-gray-400">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-sm font-bold text-gray-500 dark:bg-[#2563EB] dark:text-gray-400">
               {index + 1}
             </div>
 

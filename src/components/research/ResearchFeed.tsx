@@ -93,7 +93,7 @@ export function ResearchFeed() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="RAG evaluation, caching, reranking…"
-            className="mt-1 h-10 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-[#8B5CF6]400 dark:border-gray-800 dark:bg-[#7C3AED] dark:focus:ring-[#8B5CF6]600"
+            className="mt-1 h-10 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-[#3B82F6]400 dark:border-gray-800 dark:bg-[#2563EB] dark:focus:ring-[#3B82F6]600"
           />
         </div>
       </div>

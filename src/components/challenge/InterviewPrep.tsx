@@ -66,7 +66,7 @@ export function InterviewPrep() {
   if (status === "ready" && session) {
     return (
       <Reveal>
-        <div className="mx-auto max-w-3xl rounded-2xl border border-[#8B5CF6] bg-gray-900 p-6 text-white shadow-xl">
+        <div className="mx-auto max-w-3xl rounded-2xl border border-[#3B82F6] bg-gray-900 p-6 text-white shadow-xl">
           <div className="mb-6 flex items-center gap-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-gray-900 text-lg font-bold">
               ⚡
@@ -133,7 +133,7 @@ export function InterviewPrep() {
                   onClick={() => { setDifficulty(preset.difficulty); setCount(preset.count); }}
                   className={`group w-full rounded-xl border p-4 text-left transition-all duration-200-all duration-200 ${
                     isSelected
-                      ? "border-[#8B5CF6] bg-white shadow-lg"
+                      ? "border-[#3B82F6] bg-white shadow-lg"
                       : "border-gray-100 bg-white hover:border-gray-200"
                   }`}
                 >
@@ -168,7 +168,7 @@ export function InterviewPrep() {
                     onClick={() => setDifficulty(d)}
                     className={`rounded-lg px-4 py-2 text-xs font-semibold capitalize transition-all duration-200-all duration-200 ${
                       difficulty === d
-                        ? "bg-[#8B5CF6] text-white shadow-lg"
+                        ? "bg-[#3B82F6] text-white shadow-lg"
                         : "bg-white border border-gray-100 text-gray-600 hover:border-gray-200"
                     }`}
                   >
@@ -188,7 +188,7 @@ export function InterviewPrep() {
                     onClick={() => setCount(n)}
                     className={`flex h-9 w-9 items-center justify-center rounded-lg text-xs font-bold transition-all duration-200-all duration-200 ${
                       count === n
-                        ? "bg-[#8B5CF6] text-white shadow-lg"
+                        ? "bg-[#3B82F6] text-white shadow-lg"
                         : "bg-white border border-gray-100 text-gray-400 hover:border-gray-200"
                     }`}
                   >
@@ -209,7 +209,7 @@ export function InterviewPrep() {
             </div>
             <button
               onClick={startSession}
-              className="w-full rounded-lg bg-[#8B5CF6] px-6 py-2.5 text-sm font-bold text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] sm:w-auto cursor-pointer"
+              className="w-full rounded-lg bg-[#3B82F6] px-6 py-2.5 text-sm font-bold text-white transition-all duration-200-all duration-200 hover:bg-[#2563EB] sm:w-auto cursor-pointer"
             >
               Generate Session
             </button>

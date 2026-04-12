@@ -61,7 +61,7 @@ export default function CompareRerankingPage() {
       <DecisionWizard config={RERANKING_WIZARD_CONFIG} />
 
       {/* Default Recommendation */}
-      <Card className="border-emerald-200/50 bg-gradient-to-br from-emerald-50 to-white p-5 dark:border-emerald-900/30 dark:from-emerald-950/20 dark:to-[#8B5CF6]-950">
+      <Card className="border-emerald-200/50 bg-gradient-to-br from-emerald-50 to-white p-5 dark:border-emerald-900/30 dark:from-emerald-950/20 dark:to-[#3B82F6]-950">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">

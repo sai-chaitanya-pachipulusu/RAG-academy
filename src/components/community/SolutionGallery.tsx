@@ -235,7 +235,7 @@ export function SolutionGallery({ challengeSlug, userId }: SolutionGalleryProps)
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-xl bg-white shadow-2xl dark:bg-[#7C3AED]"
+              className="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-xl bg-white shadow-2xl dark:bg-[#2563EB]"
             >
               {/* Modal Header */}
               <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-800">
@@ -249,7 +249,7 @@ export function SolutionGallery({ challengeSlug, userId }: SolutionGalleryProps)
                 </div>
                 <button
                   onClick={() => setSelectedSolution(null)}
-                  className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-[#7C3AED] cursor-pointer"
+                  className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-[#2563EB] cursor-pointer"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -291,7 +291,7 @@ export function SolutionGallery({ challengeSlug, userId }: SolutionGalleryProps)
                     <h4 className="font-medium text-gray-900 dark:text-gray-100">
                       Code ({selectedSolution.language})
                     </h4>
-                    <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400">
+                    <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-[#2563EB] dark:text-gray-400">
                       {selectedSolution.timeComplexity || "O(n)"} time
                     </span>
                   </div>
@@ -395,7 +395,7 @@ function SolutionCard({ solution, userVote, onVote, onClick }: SolutionCardProps
               className={`rounded p-1 transition-all duration-200-all duration-200 ${
                 userVote === "up"
                   ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                  : "text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-[#7C3AED]"
+                  : "text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-[#2563EB]"
               }`}
             >
               <ThumbsUp className="h-5 w-5" />
@@ -411,7 +411,7 @@ function SolutionCard({ solution, userVote, onVote, onClick }: SolutionCardProps
               className={`rounded p-1 transition-all duration-200-all duration-200 ${
                 userVote === "down"
                   ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                  : "text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-[#7C3AED]"
+                  : "text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-[#2563EB]"
               }`}
             >
               <ThumbsDown className="h-5 w-5" />
@@ -427,7 +427,7 @@ function SolutionCard({ solution, userVote, onVote, onClick }: SolutionCardProps
                   Featured
                 </span>
               )}
-              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400">
+              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-[#2563EB] dark:text-gray-400">
                 {solution.language}
               </span>
               {solution.timeComplexity && (

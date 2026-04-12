@@ -123,7 +123,7 @@ export function RRFFusionAnimator({
         </button>
         <button
           onClick={() => setShowFormula(!showFormula)}
-          className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-[#7C3AED] cursor-pointer"
+          className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-[#2563EB] cursor-pointer"
         >
           {showFormula ? "Hide" : "Show"} Formula
         </button>
@@ -131,7 +131,7 @@ export function RRFFusionAnimator({
 
       {/* Formula */}
       {showFormula && (
-        <div className="mb-4 rounded-lg bg-gray-100 p-4 dark:bg-[#7C3AED]">
+        <div className="mb-4 rounded-lg bg-gray-100 p-4 dark:bg-[#2563EB]">
           <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">RRF Formula:</p>
           <code className="text-sm text-gray-900 dark:text-gray-100">
             RRF_score(d) = Σ 1 / (k + rank(d))

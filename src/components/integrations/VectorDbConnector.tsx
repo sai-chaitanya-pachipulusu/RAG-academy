@@ -200,7 +200,7 @@ export function VectorDbConnector({
                         {config.features.slice(0, 2).map((feature) => (
                           <span
                             key={feature}
-                            className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400"
+                            className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-[#2563EB] dark:text-gray-400"
                           >
                             {feature}
                           </span>
@@ -416,7 +416,7 @@ export function VectorDbConnector({
                       Active
                     </span>
                   ) : (
-                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400">
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-[#2563EB] dark:text-gray-400">
                       Inactive
                     </span>
                   )}
@@ -490,7 +490,7 @@ export function VectorDbConnector({
                           {getProviderFeatures(connection.provider).map((feature) => (
                             <span
                               key={feature}
-                              className="rounded bg-white px-2 py-1 text-xs text-gray-600 shadow-sm dark:bg-[#7C3AED] dark:text-gray-400"
+                              className="rounded bg-white px-2 py-1 text-xs text-gray-600 shadow-sm dark:bg-[#2563EB] dark:text-gray-400"
                             >
                               {feature}
                             </span>

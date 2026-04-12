@@ -310,7 +310,7 @@ export function EnhancedRagAdvisor() {
               }
             }}
             placeholder="Describe your RAG problem... e.g., 'My retrieval quality is poor' or 'How do I reduce hallucinations?'"
-            className="w-full min-h-[80px] rounded-xl border border-gray-200 bg-white p-4 pr-24 text-sm outline-none transition-all duration-200-all duration-200 focus:border-[#8B5CF6]400 focus:ring-2 focus:ring-[#8B5CF6]100 resize-none cursor-pointer"
+            className="w-full min-h-[80px] rounded-xl border border-gray-200 bg-white p-4 pr-24 text-sm outline-none transition-all duration-200-all duration-200 focus:border-[#3B82F6]400 focus:ring-2 focus:ring-[#3B82F6]100 resize-none cursor-pointer"
           />
           <div className="absolute right-3 bottom-3 flex gap-2">
             {input && (
@@ -325,7 +325,7 @@ export function EnhancedRagAdvisor() {
             <button
               type="submit"
               disabled={!input.trim() || state.isLoading}
-              className="rounded-lg bg-[#8B5CF6] px-4 py-1.5 text-xs font-semibold text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] disabled:opacity-50 cursor-pointer"
+              className="rounded-lg bg-[#3B82F6] px-4 py-1.5 text-xs font-semibold text-white transition-all duration-200-all duration-200 hover:bg-[#2563EB] disabled:opacity-50 cursor-pointer"
             >
               {state.isLoading ? "..." : "Ask →"}
             </button>
@@ -355,7 +355,7 @@ function MessageBubble({
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${
         isUser 
-          ? "bg-[#8B5CF6] text-white" 
+          ? "bg-[#3B82F6] text-white" 
           : "bg-gray-50 border border-gray-200 text-gray-700"
       }`}>
         <div className="text-sm whitespace-pre-wrap">{message.content}</div>
@@ -399,7 +399,7 @@ function RecommendationPanel({
   const config = category ? CATEGORY_CONFIG[category] : CATEGORY_CONFIG.general;
   
   return (
-    <div className="mb-4 p-4 bg-gradient-to-br from-[#8B5CF6]-50 to-white rounded-xl border border-gray-200 space-y-4">
+    <div className="mb-4 p-4 bg-gradient-to-br from-[#3B82F6]-50 to-white rounded-xl border border-gray-200 space-y-4">
       {/* Header */}
       <div className="flex items-center gap-2 flex-wrap">
         <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${config.color}`}>

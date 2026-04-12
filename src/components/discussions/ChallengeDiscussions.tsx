@@ -24,13 +24,13 @@ import { ThreadDetail } from "./ThreadDetail";
 import { CreateThreadForm } from "./CreateThreadForm";
 
 const CATEGORY_STYLES: Record<DiscussionCategory | "all", { label: string; color: string; icon: string }> = {
-  all: { label: "All", color: "bg-gray-100 text-gray-700 dark:bg-[#7C3AED] dark:text-gray-300", icon: "📋" },
+  all: { label: "All", color: "bg-gray-100 text-gray-700 dark:bg-[#2563EB] dark:text-gray-300", icon: "📋" },
   question: { label: "Question", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300", icon: "❓" },
   solution: { label: "Solution", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300", icon: "✅" },
   optimization: { label: "Optimization", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300", icon: "⚡" },
   bug_report: { label: "Bug Report", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300", icon: "🐛" },
   tip: { label: "Tip", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300", icon: "💡" },
-  general: { label: "General", color: "bg-gray-100 text-gray-700 dark:bg-[#7C3AED] dark:text-gray-300", icon: "💬" },
+  general: { label: "General", color: "bg-gray-100 text-gray-700 dark:bg-[#2563EB] dark:text-gray-300", icon: "💬" },
 };
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
@@ -376,8 +376,8 @@ export function ChallengeDiscussions({ challengeSlug }: ChallengeDiscussionsProp
                 onClick={() => setFilter(key)}
                 className={`rounded-full px-3 py-1 text-xs font-medium transition-all duration-200-all duration-200 ${
                   filter === key
-                    ? "bg-[#8B5CF6] text-white dark:bg-white dark:text-gray-900"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-[#7C3AED] dark:text-gray-400 dark:hover:bg-gray-700"
+                    ? "bg-[#3B82F6] text-white dark:bg-white dark:text-gray-900"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-[#2563EB] dark:text-gray-400 dark:hover:bg-gray-700"
                 }`}
               >
                 {style.icon} {style.label}
@@ -390,7 +390,7 @@ export function ChallengeDiscussions({ challengeSlug }: ChallengeDiscussionsProp
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as SortOption)}
-          className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:border-indigo-500 focus:outline-none dark:border-gray-700 dark:bg-[#7C3AED] dark:text-gray-300"
+          className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:border-indigo-500 focus:outline-none dark:border-gray-700 dark:bg-[#2563EB] dark:text-gray-300"
         >
           {SORT_OPTIONS.map(option => (
             <option key={option.value} value={option.value}>
@@ -460,7 +460,7 @@ export function ChallengeDiscussions({ challengeSlug }: ChallengeDiscussionsProp
           <button
             onClick={handleLoadMore}
             disabled={isLoadingMore}
-            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-[#7C3AED] dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer"
+            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-[#2563EB] dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer"
           >
             {isLoadingMore ? (
               <>

@@ -125,7 +125,7 @@ export function PeerReviewSystem({ projectId, projectTitle, rubric, userId }: Pe
           {userId && (
             <button
               onClick={() => setShowForm(!showForm)}
-              className="inline-flex h-8 items-center justify-center rounded-full bg-[#7C3AED] px-3 text-xs font-medium text-white hover:bg-[#7C3AED] dark:bg-white dark:text-black dark:hover:bg-[#7C3AED] cursor-pointer"
+              className="inline-flex h-8 items-center justify-center rounded-full bg-[#2563EB] px-3 text-xs font-medium text-white hover:bg-[#2563EB] dark:bg-white dark:text-black dark:hover:bg-[#2563EB] cursor-pointer"
             >
               {showForm ? "Cancel" : "Write Review"}
             </button>
@@ -182,8 +182,8 @@ export function PeerReviewSystem({ projectId, projectTitle, rubric, userId }: Pe
                       onClick={() => updateScore(c.id, score)}
                       className={`w-7 h-7 rounded text-xs font-medium transition-all duration-200-all duration-200 ${
                         c.score === score
-                          ? "bg-[#8B5CF6] text-white dark:bg-white dark:text-black"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-[#7C3AED] dark:text-gray-400 dark:hover:bg-gray-700"
+                          ? "bg-[#3B82F6] text-white dark:bg-white dark:text-black"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-[#2563EB] dark:text-gray-400 dark:hover:bg-gray-700"
                       }`}
                     >
                       {score}
@@ -202,7 +202,7 @@ export function PeerReviewSystem({ projectId, projectTitle, rubric, userId }: Pe
               value={feedback}
               onChange={(e) => setFeedback(e.target.value)}
               rows={3}
-              className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]500"
+              className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-sm text-gray-900 dark:text-gray-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#3B82F6]500"
               placeholder="What did you like? What could be improved?"
             />
           </div>
@@ -211,7 +211,7 @@ export function PeerReviewSystem({ projectId, projectTitle, rubric, userId }: Pe
             <button
               onClick={handleSubmitReview}
               disabled={isSubmitting || criteria.every((c) => c.score === 0)}
-              className="inline-flex h-9 items-center justify-center rounded-full bg-[#7C3AED] px-4 text-sm font-medium text-white hover:bg-[#7C3AED] dark:bg-white dark:text-black dark:hover:bg-[#7C3AED] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex h-9 items-center justify-center rounded-full bg-[#2563EB] px-4 text-sm font-medium text-white hover:bg-[#2563EB] dark:bg-white dark:text-black dark:hover:bg-[#2563EB] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? "Submitting..." : "Submit Review"}
             </button>

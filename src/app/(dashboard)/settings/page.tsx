@@ -182,13 +182,13 @@ function SettingsLoading() {
   return (
     <div className="flex flex-col gap-4">
       <header>
-        <div className="h-6 w-32 bg-gray-200 dark:bg-[#7C3AED] rounded animate-pulse"></div>
-        <div className="h-3 w-48 bg-gray-200 dark:bg-[#7C3AED] rounded animate-pulse mt-1"></div>
+        <div className="h-6 w-32 bg-gray-200 dark:bg-[#2563EB] rounded animate-pulse"></div>
+        <div className="h-3 w-48 bg-gray-200 dark:bg-[#2563EB] rounded animate-pulse mt-1"></div>
       </header>
       <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-4">
         <div className="space-y-3">
-          <div className="h-5 w-24 bg-gray-200 dark:bg-[#7C3AED] rounded animate-pulse"></div>
-          <div className="h-16 bg-gray-100 dark:bg-[#7C3AED] rounded animate-pulse"></div>
+          <div className="h-5 w-24 bg-gray-200 dark:bg-[#2563EB] rounded animate-pulse"></div>
+          <div className="h-16 bg-gray-100 dark:bg-[#2563EB] rounded animate-pulse"></div>
         </div>
       </div>
     </div>

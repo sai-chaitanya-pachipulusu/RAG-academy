@@ -77,7 +77,7 @@ export function TrackProgress({ trackId, trackTitle, challenges, userId }: Track
     <div className="mt-3 space-y-2">
       {/* Progress Bar */}
       <div className="flex items-center gap-3">
-        <div className="flex-1 h-2 rounded-full bg-gray-200 dark:bg-[#7C3AED] overflow-hidden">
+        <div className="flex-1 h-2 rounded-full bg-gray-200 dark:bg-[#2563EB] overflow-hidden">
           <div
             className="h-2 rounded-full bg-emerald-500 transition-all duration-200-all duration-300 cursor-pointer"
             style={{ width: `${progressPercent}%` }}

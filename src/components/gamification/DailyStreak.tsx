@@ -175,7 +175,7 @@ export function DailyStreak({ compact = false }: StreakWidgetProps) {
                     ? "bg-gradient-to-br from-orange-400 to-red-500 shadow-sm"
                     : isToday
                     ? "border-2 border-dashed border-orange-300 dark:border-orange-700"
-                    : "bg-gray-200 dark:bg-[#7C3AED]"
+                    : "bg-gray-200 dark:bg-[#2563EB]"
                 }`}
               />
               <span className="mt-1 text-[9px] text-gray-500">
@@ -233,7 +233,7 @@ export function StreakMilestones() {
             className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs ${
               achieved
                 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                : "bg-gray-100 text-gray-400 dark:bg-[#7C3AED] dark:text-gray-600"
+                : "bg-gray-100 text-gray-400 dark:bg-[#2563EB] dark:text-gray-600"
             }`}
           >
             <span>{m.icon}</span>

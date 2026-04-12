@@ -11,7 +11,7 @@ const CATEGORY_STYLES: Record<DiscussionCategory, { label: string; color: string
   optimization: { label: "Optimization", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300", icon: "⚡" },
   bug_report: { label: "Bug Report", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300", icon: "🐛" },
   tip: { label: "Tip", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300", icon: "💡" },
-  general: { label: "General", color: "bg-gray-100 text-gray-700 dark:bg-[#7C3AED] dark:text-gray-300", icon: "💬" },
+  general: { label: "General", color: "bg-gray-100 text-gray-700 dark:bg-[#2563EB] dark:text-gray-300", icon: "💬" },
 };
 
 interface ThreadCardProps {
@@ -162,7 +162,7 @@ export function ThreadCard({ thread, onSelect, onVote, showActions = true }: Thr
           {thread.tags.map(tag => (
             <span 
               key={tag}
-              className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400"
+              className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600 dark:bg-[#2563EB] dark:text-gray-400"
             >
               #{tag}
             </span>

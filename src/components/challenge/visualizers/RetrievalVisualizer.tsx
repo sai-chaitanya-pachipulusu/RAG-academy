@@ -23,7 +23,7 @@ export function RetrievalVisualizer({ data }: Props) {
   return (
     <div className="flex flex-col gap-4">
       {data.samples.map((sample, i) => (
-        <div key={i} className="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-[#7C3AED]">
+        <div key={i} className="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-[#2563EB]">
           <div className="border-b border-gray-100 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">
             Query: <span className="text-gray-900 dark:text-gray-100">{sample.query}</span>
           </div>

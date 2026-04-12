@@ -81,7 +81,7 @@ export function DecisionWizard({ config }: DecisionWizardProps) {
       {/* Progress */}
       {answeredCount > 0 && !recommendation && (
         <div className="mt-3 flex items-center gap-2">
-          <div className="h-1 flex-1 rounded-full bg-gray-200 dark:bg-[#7C3AED]">
+          <div className="h-1 flex-1 rounded-full bg-gray-200 dark:bg-[#2563EB]">
             <div
               className="h-1 rounded-full bg-gray-900 transition-all duration-200-all duration-200 dark:bg-gray-100 cursor-pointer"
               style={{
@@ -108,8 +108,8 @@ export function DecisionWizard({ config }: DecisionWizardProps) {
                 onClick={() => handleSelect(option.value)}
                 className={`w-full rounded-lg border p-3 text-left text-sm transition-all duration-200-all duration-200 ${
                   answers[currentQuestion] === option.value
-                    ? "border-[#8B5CF6] bg-[#8B5CF6] text-white dark:border-gray-100 dark:bg-[#8B5CF6] dark:text-white"
-                    : "border-gray-200 bg-white hover:border-gray-300 dark:border-gray-800 dark:bg-[#7C3AED] dark:hover:border-gray-700"
+                    ? "border-[#3B82F6] bg-[#3B82F6] text-white dark:border-gray-100 dark:bg-[#3B82F6] dark:text-white"
+                    : "border-gray-200 bg-white hover:border-gray-300 dark:border-gray-800 dark:bg-[#2563EB] dark:hover:border-gray-700"
                 }`}
               >
                 {option.label}

@@ -119,9 +119,9 @@ export function SearchBar({ variant = "header", placeholder = "Search..." }: Sea
 
   const baseInputClasses = "w-full rounded-xl border bg-white text-sm outline-none transition-all duration-200-all duration-200 dark:bg-gray-900";
   const variantClasses = {
-    header: "border-gray-200 px-4 py-2 focus:border-[#8B5CF6]400 dark:border-gray-800 dark:focus:border-[#8B5CF6]600",
-    inline: "border-gray-200 px-4 py-3 focus:border-[#8B5CF6]400 focus:ring-4 focus:ring-[#8B5CF6]100 dark:border-gray-800",
-    floating: "border-gray-200 px-4 py-3 shadow-lg focus:border-[#8B5CF6]400 focus:ring-4 focus:ring-[#8B5CF6]100 dark:border-gray-800",
+    header: "border-gray-200 px-4 py-2 focus:border-[#3B82F6]400 dark:border-gray-800 dark:focus:border-[#3B82F6]600",
+    inline: "border-gray-200 px-4 py-3 focus:border-[#3B82F6]400 focus:ring-4 focus:ring-[#3B82F6]100 dark:border-gray-800",
+    floating: "border-gray-200 px-4 py-3 shadow-lg focus:border-[#3B82F6]400 focus:ring-4 focus:ring-[#3B82F6]100 dark:border-gray-800",
   };
 
   return (
@@ -154,7 +154,7 @@ export function SearchBar({ variant = "header", placeholder = "Search..." }: Sea
           placeholder={placeholder}
           className={`${baseInputClasses} ${variantClasses[variant]} pl-10 pr-16`}
         />
-        <kbd className="absolute right-3 top-1/2 -translate-y-1/2 rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] text-gray-400 dark:border-gray-700 dark:bg-[#7C3AED]">
+        <kbd className="absolute right-3 top-1/2 -translate-y-1/2 rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] text-gray-400 dark:border-gray-700 dark:bg-[#2563EB]">
           ⌘K
         </kbd>
       </div>
@@ -172,11 +172,11 @@ export function SearchBar({ variant = "header", placeholder = "Search..." }: Sea
               }}
               className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-all duration-200-all duration-200 ${
                 index === selectedIndex
-                  ? "bg-gray-100 dark:bg-[#7C3AED]"
-                  : "hover:bg-gray-50 dark:hover:bg-[#7C3AED]/50"
+                  ? "bg-gray-100 dark:bg-[#2563EB]"
+                  : "hover:bg-gray-50 dark:hover:bg-[#2563EB]/50"
               }`}
             >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-sm dark:bg-[#7C3AED]">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-sm dark:bg-[#2563EB]">
                 {result.icon}
               </span>
               <div className="min-w-0 flex-1">
@@ -187,7 +187,7 @@ export function SearchBar({ variant = "header", placeholder = "Search..." }: Sea
                   <p className="truncate text-xs text-gray-500">{result.subtitle}</p>
                 )}
               </div>
-              <span className="shrink-0 rounded bg-gray-100 px-2 py-0.5 text-[10px] uppercase text-gray-500 dark:bg-[#7C3AED]">
+              <span className="shrink-0 rounded bg-gray-100 px-2 py-0.5 text-[10px] uppercase text-gray-500 dark:bg-[#2563EB]">
                 {result.type}
               </span>
             </button>
@@ -243,7 +243,7 @@ export function SearchButton() {
           />
         </svg>
         <span className="hidden sm:inline">Search</span>
-        <kbd className="hidden rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[10px] sm:inline dark:border-gray-700 dark:bg-[#7C3AED]">
+        <kbd className="hidden rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[10px] sm:inline dark:border-gray-700 dark:bg-[#2563EB]">
           ⌘K
         </kbd>
       </button>

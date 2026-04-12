@@ -27,7 +27,7 @@ const TIME_FILTERS: TimeFilterOption[] = [
 
 function getRankBadge(rank: number) {
   if (rank === 1) return { icon: "🥇", bg: "bg-gradient-to-r from-yellow-400 to-amber-500", text: "text-yellow-900" };
-  if (rank === 2) return { icon: "🥈", bg: "bg-gradient-to-r from-[#8B5CF6]-300 to-[#8B5CF6]-400", text: "text-gray-800" };
+  if (rank === 2) return { icon: "🥈", bg: "bg-gradient-to-r from-[#3B82F6]-300 to-[#3B82F6]-400", text: "text-gray-800" };
   if (rank === 3) return { icon: "🥉", bg: "bg-gradient-to-r from-amber-600 to-orange-700", text: "text-amber-100" };
   return null;
 }
@@ -82,7 +82,7 @@ export function GlobalLeaderboard() {
   }, []);
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-[#7C3AED]">
+    <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-[#2563EB]">
       {/* Header */}
       <div className="border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-purple-50 px-6 py-4 dark:border-gray-800 dark:from-indigo-950/30 dark:to-purple-950/30">
         <div className="flex items-center justify-between">
@@ -106,7 +106,7 @@ export function GlobalLeaderboard() {
           </div>
           
           {/* Time filter */}
-          <div className="flex gap-1 rounded-lg bg-gray-100 p-1 dark:bg-[#7C3AED]">
+          <div className="flex gap-1 rounded-lg bg-gray-100 p-1 dark:bg-[#2563EB]">
             {TIME_FILTERS.map((filter) => (
               <button
                 key={filter.id}
@@ -178,7 +178,7 @@ export function GlobalLeaderboard() {
                       {badge.icon}
                     </span>
                   ) : (
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-sm font-semibold text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-sm font-semibold text-gray-600 dark:bg-[#2563EB] dark:text-gray-400">
                       {entry.rank}
                     </span>
                   )}
@@ -263,7 +263,7 @@ export function LeaderboardWidget() {
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#7C3AED]">
+      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#2563EB]">
         <div className="flex items-center justify-center py-4">
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600"></div>
         </div>
@@ -272,7 +272,7 @@ export function LeaderboardWidget() {
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-[#7C3AED]">
+    <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-[#2563EB]">
       <div className="border-b border-gray-100 px-4 py-3 dark:border-gray-800">
         <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
           <span>🏆</span>

@@ -182,7 +182,7 @@ export default function AdminPaymentsPage() {
   };
   
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#7C3AED]">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#2563EB]">
       {/* Header */}
       <header className="border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
@@ -201,7 +201,7 @@ export default function AdminPaymentsPage() {
           <div className="flex items-center gap-3">
             <Link
               href="/settings/billing/test"
-              className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-[#7C3AED] dark:text-gray-300 cursor-pointer"
+              className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-[#2563EB] dark:text-gray-300 cursor-pointer"
             >
               Test Payments
             </Link>
@@ -325,7 +325,7 @@ export default function AdminPaymentsPage() {
                     {webhookLogs.slice(0, 5).map((log) => (
                       <div
                         key={log.id}
-                        className="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-[#7C3AED]/50"
+                        className="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-[#2563EB]/50"
                       >
                         <div>
                           <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -355,7 +355,7 @@ export default function AdminPaymentsPage() {
                     {transactions.slice(0, 5).map((tx) => (
                       <div
                         key={tx.id}
-                        className="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-[#7C3AED]/50"
+                        className="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-[#2563EB]/50"
                       >
                         <div>
                           <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -525,7 +525,7 @@ export default function AdminPaymentsPage() {
                                 ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
                                 : sub.status === "past_due"
                                 ? "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
-                                : "bg-gray-100 text-gray-700 dark:bg-[#7C3AED] dark:text-gray-300"
+                                : "bg-gray-100 text-gray-700 dark:bg-[#2563EB] dark:text-gray-300"
                             }`}
                           >
                             {sub.status}
@@ -599,7 +599,7 @@ export default function AdminPaymentsPage() {
                     <summary className="cursor-pointer text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200">
                       View Payload
                     </summary>
-                    <pre className="mt-2 max-h-64 overflow-auto rounded-lg bg-gray-100 p-3 text-xs dark:bg-[#7C3AED]">
+                    <pre className="mt-2 max-h-64 overflow-auto rounded-lg bg-gray-100 p-3 text-xs dark:bg-[#2563EB]">
                       {JSON.stringify(log.payload, null, 2)}
                     </pre>
                   </details>

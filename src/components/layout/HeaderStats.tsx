@@ -10,14 +10,14 @@ export function HeaderStats() {
   return (
     <div className="flex items-center gap-2">
       {/* Level Badge */}
-      <div className="flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 dark:bg-[#7C3AED]">
+      <div className="flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 dark:bg-[#2563EB]">
         <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
           Lv. {level.level}
         </span>
       </div>
 
       {/* XP */}
-      <div className="hidden items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 sm:flex dark:bg-[#7C3AED]">
+      <div className="hidden items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 sm:flex dark:bg-[#2563EB]">
         <svg className="h-3.5 w-3.5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.381c-.833.067-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.485c.713.436 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.584-.536-1.65l-4.752-.382-1.831-4.401z" clipRule="evenodd" />
         </svg>

@@ -69,14 +69,14 @@ ${code}
     <div className="space-y-2">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-all duration-200-all duration-200 hover:bg-gray-50 dark:border-gray-800 dark:bg-[#7C3AED] dark:text-gray-300 dark:hover:bg-gray-900 cursor-pointer"
+        className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-all duration-200-all duration-200 hover:bg-gray-50 dark:border-gray-800 dark:bg-[#2563EB] dark:text-gray-300 dark:hover:bg-gray-900 cursor-pointer"
       >
         <span>💾</span>
         Export Solution
       </button>
 
       {isOpen && (
-        <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#7C3AED]">
+        <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#2563EB]">
           <h4 className="text-sm font-semibold">Export Options</h4>
 
           <div className="mt-4 space-y-3">
@@ -115,7 +115,7 @@ ${code}
               </p>
               <p className="mt-1 text-xs text-gray-500">
                 Track all your RAG Academy solutions in a repo called{" "}
-                <code className="rounded bg-gray-200 px-1 dark:bg-[#7C3AED]">
+                <code className="rounded bg-gray-200 px-1 dark:bg-[#2563EB]">
                   rag-academy-solutions
                 </code>
                 . Great for showcasing your skills to employers!

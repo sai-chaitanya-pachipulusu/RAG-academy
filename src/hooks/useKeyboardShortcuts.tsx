@@ -96,7 +96,7 @@ export function getIDEShortcuts({
 // Keyboard shortcuts help modal
 export function KeyboardShortcutsHelp({ shortcuts }: { shortcuts: Shortcut[] }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#7C3AED]">
+    <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#2563EB]">
       <h3 className="flex items-center gap-2 text-sm font-semibold">
         <span>⌨️</span> Keyboard Shortcuts
       </h3>
@@ -111,21 +111,21 @@ export function KeyboardShortcutsHelp({ shortcuts }: { shortcuts: Shortcut[] }) 
             </span>
             <div className="flex gap-1">
               {shortcut.ctrl && (
-                <kbd className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] dark:bg-[#7C3AED]">
+                <kbd className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] dark:bg-[#2563EB]">
                   Ctrl
                 </kbd>
               )}
               {shortcut.shift && (
-                <kbd className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] dark:bg-[#7C3AED]">
+                <kbd className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] dark:bg-[#2563EB]">
                   Shift
                 </kbd>
               )}
               {shortcut.alt && (
-                <kbd className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] dark:bg-[#7C3AED]">
+                <kbd className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] dark:bg-[#2563EB]">
                   Alt
                 </kbd>
               )}
-              <kbd className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] dark:bg-[#7C3AED]">
+              <kbd className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] dark:bg-[#2563EB]">
                 {shortcut.key === "Enter" ? "↵" : shortcut.key.toUpperCase()}
               </kbd>
             </div>
@@ -151,7 +151,7 @@ export function ShortcutHint({
         {keys.map((key) => (
           <kbd
             key={key}
-            className="rounded bg-gray-100 px-1 py-0.5 font-mono text-[10px] dark:bg-[#7C3AED]"
+            className="rounded bg-gray-100 px-1 py-0.5 font-mono text-[10px] dark:bg-[#2563EB]"
           >
             {key}
           </kbd>

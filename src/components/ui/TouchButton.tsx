@@ -65,12 +65,12 @@ export function TouchButton({
   };
 
   const variantStyles = {
-    primary: "bg-[#8B5CF6] text-white hover:bg-[#7C3AED] active:bg-[#6D28D9]950",
-    secondary: "bg-white text-gray-900 border border-gray-200 hover:bg-gray-50 active:bg-[#6D28D9]100",
-    ghost: "bg-transparent text-gray-700 hover:bg-gray-100 active:bg-[#6D28D9]200",
+    primary: "bg-[#3B82F6] text-white hover:bg-[#2563EB] active:bg-[#1D4ED8]950",
+    secondary: "bg-white text-gray-900 border border-gray-200 hover:bg-gray-50 active:bg-[#1D4ED8]100",
+    ghost: "bg-transparent text-gray-700 hover:bg-gray-100 active:bg-[#1D4ED8]200",
     danger: "bg-red-600 text-white hover:bg-red-500 active:bg-red-700",
-    default: "bg-[#8B5CF6] text-white hover:bg-[#7C3AED] active:bg-[#6D28D9]950",
-    outline: "bg-white text-gray-900 border border-gray-200 hover:bg-gray-50 active:bg-[#6D28D9]100",
+    default: "bg-[#3B82F6] text-white hover:bg-[#2563EB] active:bg-[#1D4ED8]950",
+    outline: "bg-white text-gray-900 border border-gray-200 hover:bg-gray-50 active:bg-[#1D4ED8]100",
   };
 
   const sizeStyles = {
@@ -87,7 +87,7 @@ export function TouchButton({
         "relative inline-flex items-center justify-center gap-2 rounded-xl font-medium",
         "transition-all duration-150 ease-out",
         "active:scale-[0.98] touch-manipulation",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B5CF6]400 focus-visible:ring-offset-2",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3B82F6]400 focus-visible:ring-offset-2",
         "disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100",
         variantStyles[variant],
         sizeStyles[size],
@@ -224,7 +224,7 @@ export function TouchInput({
           "w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5",
           "text-base text-gray-900 placeholder:text-gray-400",
           "transition-all duration-150 ease-out",
-          "focus:border-[#8B5CF6]900 focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]900/10",
+          "focus:border-[#3B82F6]900 focus:outline-none focus:ring-2 focus:ring-[#3B82F6]900/10",
           "min-h-[48px] sm:min-h-[44px] sm:py-3 sm:text-sm",
           error && "border-red-500 focus:border-red-500 focus:ring-red-500/10",
           className

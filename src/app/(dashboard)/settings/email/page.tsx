@@ -217,7 +217,7 @@ export default function EmailSettingsPage() {
           <p className="text-red-600">Failed to load email preferences</p>
           <button
             onClick={loadPreferences}
-            className="mt-4 rounded-lg bg-[#8B5CF6] px-4 py-2 text-white hover:bg-[#7C3AED] cursor-pointer"
+            className="mt-4 rounded-lg bg-[#3B82F6] px-4 py-2 text-white hover:bg-[#2563EB] cursor-pointer"
           >
             Try Again
           </button>
@@ -278,7 +278,7 @@ export default function EmailSettingsPage() {
               value={preferences.preferred_time}
               onChange={(e) => handleTimeChange("preferred_time", e.target.value)}
               disabled={saving || preferences.unsubscribed_all}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-[#8B5CF6]900 focus:outline-none focus:ring-1 focus:ring-[#8B5CF6]900 disabled:bg-gray-100"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-[#3B82F6]900 focus:outline-none focus:ring-1 focus:ring-[#3B82F6]900 disabled:bg-gray-100"
             >
               {generateTimeOptions().map((option) => (
                 <option key={option.value} value={option.value}>
@@ -298,7 +298,7 @@ export default function EmailSettingsPage() {
               value={preferences.timezone}
               onChange={(e) => handleTimeChange("timezone", e.target.value)}
               disabled={saving || preferences.unsubscribed_all}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-[#8B5CF6]900 focus:outline-none focus:ring-1 focus:ring-[#8B5CF6]900 disabled:bg-gray-100"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-[#3B82F6]900 focus:outline-none focus:ring-1 focus:ring-[#3B82F6]900 disabled:bg-gray-100"
             >
               {timezones.map((tz) => (
                 <option key={tz} value={tz}>
@@ -337,7 +337,7 @@ export default function EmailSettingsPage() {
                   disabled={preferences.unsubscribed_all}
                   className="peer sr-only"
                 />
-                <div className="h-6 w-11 rounded-full bg-gray-200 peer-checked:bg-gray-900 peer-focus:ring-2 peer-focus:ring-[#8B5CF6]300 peer-disabled:opacity-50"></div>
+                <div className="h-6 w-11 rounded-full bg-gray-200 peer-checked:bg-gray-900 peer-focus:ring-2 peer-focus:ring-[#3B82F6]300 peer-disabled:opacity-50"></div>
                 <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition peer-checked:translate-x-5 cursor-pointer"></div>
               </label>
             </div>
@@ -372,7 +372,7 @@ export default function EmailSettingsPage() {
                   disabled={preferences.unsubscribed_all}
                   className="peer sr-only"
                 />
-                <div className="h-6 w-11 rounded-full bg-gray-200 peer-checked:bg-gray-900 peer-focus:ring-2 peer-focus:ring-[#8B5CF6]300 peer-disabled:opacity-50"></div>
+                <div className="h-6 w-11 rounded-full bg-gray-200 peer-checked:bg-gray-900 peer-focus:ring-2 peer-focus:ring-[#3B82F6]300 peer-disabled:opacity-50"></div>
                 <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition peer-checked:translate-x-5 cursor-pointer"></div>
               </label>
             </div>
@@ -415,7 +415,7 @@ export default function EmailSettingsPage() {
           <button
             onClick={() => handleToggle("unsubscribed_all")}
             disabled={saving}
-            className="rounded-lg bg-[#8B5CF6] px-6 py-2 text-white transition hover:bg-[#7C3AED] disabled:opacity-50 cursor-pointer"
+            className="rounded-lg bg-[#3B82F6] px-6 py-2 text-white transition hover:bg-[#2563EB] disabled:opacity-50 cursor-pointer"
           >
             Resubscribe to Emails
           </button>

@@ -56,7 +56,7 @@ export function IDEToolbar({
       <div className="flex items-center gap-3">
         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
           Editor
-          <span className="ml-2 rounded bg-gray-200 px-1.5 py-0.5 text-xs text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400">
+          <span className="ml-2 rounded bg-gray-200 px-1.5 py-0.5 text-xs text-gray-600 dark:bg-[#2563EB] dark:text-gray-400">
             Python
           </span>
         </span>
@@ -66,7 +66,7 @@ export function IDEToolbar({
           <button
             type="button"
             onClick={() => setShowSettings(!showSettings)}
-            className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600 transition-all duration-200-all duration-200 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-[#7C3AED] dark:text-gray-400 dark:hover:border-gray-600 dark:hover:bg-gray-700 cursor-pointer"
+            className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600 transition-all duration-200-all duration-200 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-[#2563EB] dark:text-gray-400 dark:hover:border-gray-600 dark:hover:bg-gray-700 cursor-pointer"
             title="Editor Settings"
           >
             <svg
@@ -99,7 +99,7 @@ export function IDEToolbar({
                 onClick={() => setShowSettings(false)}
               />
               {/* Dropdown */}
-              <div className="absolute left-0 top-full z-20 mt-1 w-64 rounded-xl border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-[#7C3AED]">
+              <div className="absolute left-0 top-full z-20 mt-1 w-64 rounded-xl border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-[#2563EB]">
                 {/* Font Size */}
                 <div className="mb-3">
                   <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
@@ -151,7 +151,7 @@ export function IDEToolbar({
                       onClick={() => onLayoutChange("split")}
                       className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-all duration-200-all duration-200 ${
                         layout === "split"
-                          ? "bg-[#8B5CF6] text-white dark:bg-[#8B5CF6] dark:text-white"
+                          ? "bg-[#3B82F6] text-white dark:bg-[#3B82F6] dark:text-white"
                           : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
                       }`}
                     >
@@ -162,7 +162,7 @@ export function IDEToolbar({
                       onClick={() => onLayoutChange("stacked")}
                       className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-all duration-200-all duration-200 ${
                         layout === "stacked"
-                          ? "bg-[#8B5CF6] text-white dark:bg-[#8B5CF6] dark:text-white"
+                          ? "bg-[#3B82F6] text-white dark:bg-[#3B82F6] dark:text-white"
                           : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
                       }`}
                     >
@@ -182,7 +182,7 @@ export function IDEToolbar({
                       onClick={() => onThemeChange("light")}
                       className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-all duration-200-all duration-200 ${
                         theme === "light"
-                          ? "bg-[#8B5CF6] text-white dark:bg-[#8B5CF6] dark:text-white"
+                          ? "bg-[#3B82F6] text-white dark:bg-[#3B82F6] dark:text-white"
                           : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
                       }`}
                     >
@@ -193,7 +193,7 @@ export function IDEToolbar({
                       onClick={() => onThemeChange("dark")}
                       className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-all duration-200-all duration-200 ${
                         theme === "dark"
-                          ? "bg-[#8B5CF6] text-white dark:bg-[#8B5CF6] dark:text-white"
+                          ? "bg-[#3B82F6] text-white dark:bg-[#3B82F6] dark:text-white"
                           : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
                       }`}
                     >
@@ -243,7 +243,7 @@ export function IDEToolbar({
             className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-xs transition-all duration-200-all duration-200 ${
               microTaskMode
                 ? "border-indigo-300 bg-indigo-100 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300"
-                : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-[#7C3AED] dark:text-gray-400 dark:hover:border-gray-600 dark:hover:bg-gray-700"
+                : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-[#2563EB] dark:text-gray-400 dark:hover:border-gray-600 dark:hover:bg-gray-700"
             }`}
           >
             📚 Step-by-Step
@@ -280,7 +280,7 @@ export function IDEToolbar({
           type="button"
           onClick={onReset}
           disabled={isRunning}
-          className="inline-flex h-8 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 text-xs font-medium text-gray-600 transition-all duration-200-all duration-200 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900 disabled:opacity-60 dark:border-gray-700 dark:bg-[#7C3AED] dark:text-gray-400 dark:hover:border-gray-600 dark:hover:bg-gray-700 cursor-pointer"
+          className="inline-flex h-8 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 text-xs font-medium text-gray-600 transition-all duration-200-all duration-200 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900 disabled:opacity-60 dark:border-gray-700 dark:bg-[#2563EB] dark:text-gray-400 dark:hover:border-gray-600 dark:hover:bg-gray-700 cursor-pointer"
         >
           ↺ Reset
         </button>
@@ -290,11 +290,11 @@ export function IDEToolbar({
           type="button"
           onClick={onRun}
           disabled={isRunning}
-          className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-[#8B5CF6] px-4 text-xs font-medium text-white shadow-sm transition-all duration-200-all duration-200 hover:bg-[#7C3AED] disabled:opacity-60 dark:bg-[#8B5CF6] dark:text-white dark:hover:bg-[#7C3AED] cursor-pointer"
+          className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-[#3B82F6] px-4 text-xs font-medium text-white shadow-sm transition-all duration-200-all duration-200 hover:bg-[#2563EB] disabled:opacity-60 dark:bg-[#3B82F6] dark:text-white dark:hover:bg-[#2563EB] cursor-pointer"
         >
           {isRunning ? (
             <>
-              <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white dark:border-[#8B5CF6]/30 dark:border-t-zinc-900" />
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white dark:border-[#3B82F6]/30 dark:border-t-zinc-900" />
               Running...
             </>
           ) : (
@@ -408,8 +408,8 @@ export function OutputPanel({
             onClick={() => setActiveTab("output")}
             className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-200-all duration-200 ${
               activeTab === "output"
-                ? "bg-white text-gray-900 shadow-sm dark:bg-[#7C3AED] dark:text-gray-100"
-                : "text-gray-500 hover:bg-white/50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-[#7C3AED]/50"
+                ? "bg-white text-gray-900 shadow-sm dark:bg-[#2563EB] dark:text-gray-100"
+                : "text-gray-500 hover:bg-white/50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-[#2563EB]/50"
             }`}
           >
             Output
@@ -419,8 +419,8 @@ export function OutputPanel({
             onClick={() => setActiveTab("errors")}
             className={`relative rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-200-all duration-200 ${
               activeTab === "errors"
-                ? "bg-white text-gray-900 shadow-sm dark:bg-[#7C3AED] dark:text-gray-100"
-                : "text-gray-500 hover:bg-white/50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-[#7C3AED]/50"
+                ? "bg-white text-gray-900 shadow-sm dark:bg-[#2563EB] dark:text-gray-100"
+                : "text-gray-500 hover:bg-white/50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-[#2563EB]/50"
             }`}
           >
             Errors
@@ -470,7 +470,7 @@ export function OutputPanel({
             <div className="flex h-full flex-col items-center justify-center text-center text-gray-500 dark:text-gray-400">
               <p className="text-sm">Run your code to see output here.</p>
               <p className="mt-1 text-xs">
-                Use <code className="rounded bg-gray-100 px-1 py-0.5 dark:bg-[#7C3AED]">print()</code> to display values.
+                Use <code className="rounded bg-gray-100 px-1 py-0.5 dark:bg-[#2563EB]">print()</code> to display values.
               </p>
             </div>
           )
@@ -584,7 +584,7 @@ function ErrorSummary({
         <summary className="cursor-pointer hover:text-gray-700 dark:hover:text-gray-300">
           Full traceback
         </summary>
-        <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-gray-100 p-2 dark:bg-[#7C3AED]">
+        <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-gray-100 p-2 dark:bg-[#2563EB]">
           {stderr}
         </pre>
       </details>

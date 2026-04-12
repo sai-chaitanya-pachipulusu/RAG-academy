@@ -306,7 +306,7 @@ export function AITutor({
                 className={`max-w-[85%] rounded-2xl px-4 py-3 ${
                   message.type === "user"
                     ? "bg-indigo-600 text-white"
-                    : "bg-gray-100 dark:bg-[#7C3AED]"
+                    : "bg-gray-100 dark:bg-[#2563EB]"
                 }`}
               >
                 {message.type === "tutor" && (
@@ -361,7 +361,7 @@ export function AITutor({
               animate={{ opacity: 1 }}
               className="flex justify-start"
             >
-              <div className="rounded-2xl bg-gray-100 px-4 py-3 dark:bg-[#7C3AED]">
+              <div className="rounded-2xl bg-gray-100 px-4 py-3 dark:bg-[#2563EB]">
                 <div className="flex gap-1">
                   <motion.span
                     animate={{ opacity: [0.4, 1, 0.4] }}
@@ -435,7 +435,7 @@ export function AITutor({
         )}
 
         {/* Input */}
-        <div className="border-t border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#7C3AED]">
+        <div className="border-t border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#2563EB]">
           <div className="flex gap-2">
             <input
               type="text"

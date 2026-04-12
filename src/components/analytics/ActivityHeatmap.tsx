@@ -80,7 +80,7 @@ export function ActivityHeatmap({ activityData: propData }: Props) {
   };
 
   const levelColors = [
-    "bg-gray-100 dark:bg-[#7C3AED]", // 0
+    "bg-gray-100 dark:bg-[#2563EB]", // 0
     "bg-emerald-200 dark:bg-emerald-900", // 1
     "bg-emerald-400 dark:bg-emerald-700", // 2
     "bg-emerald-500 dark:bg-emerald-600", // 3
@@ -119,7 +119,7 @@ export function ActivityHeatmap({ activityData: propData }: Props) {
   );
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#7C3AED]">
+    <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#2563EB]">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Activity</h3>
         <span className="text-xs text-gray-500">

@@ -112,7 +112,7 @@ export function ChallengeList({ challenges }: { challenges: ChallengeMeta[] }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="BM25, HyDE, rerank, citations…"
-            className="h-12 sm:h-10 w-full rounded-2xl border border-gray-200 bg-white px-4 text-base sm:text-sm outline-none focus:ring-2 focus:ring-[#8B5CF6]400 dark:border-gray-800 dark:bg-[#7C3AED] dark:focus:ring-[#8B5CF6]600"
+            className="h-12 sm:h-10 w-full rounded-2xl border border-gray-200 bg-white px-4 text-base sm:text-sm outline-none focus:ring-2 focus:ring-[#3B82F6]400 dark:border-gray-800 dark:bg-[#2563EB] dark:focus:ring-[#3B82F6]600"
           />
         </div>
 
@@ -125,7 +125,7 @@ export function ChallengeList({ challenges }: { challenges: ChallengeMeta[] }) {
               className={[
                 "rounded-full border px-3 py-2 sm:py-1 text-sm sm:text-xs font-medium transition-all duration-200-all duration-200 touch-target",
                 stage === "all"
-                  ? "border-gray-950 bg-[#7C3AED] text-white dark:border-white/25 dark:bg-white/10"
+                  ? "border-gray-950 bg-[#2563EB] text-white dark:border-white/25 dark:bg-white/10"
                   : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06]",
               ].join(" ")}
             >
@@ -139,7 +139,7 @@ export function ChallengeList({ challenges }: { challenges: ChallengeMeta[] }) {
                 className={[
                   "rounded-full border px-3 py-2 sm:py-1 text-sm sm:text-xs font-medium transition-all duration-200-all duration-200 touch-target",
                   stage === s.id
-                    ? "border-gray-950 bg-[#7C3AED] text-white dark:border-white/25 dark:bg-white/10"
+                    ? "border-gray-950 bg-[#2563EB] text-white dark:border-white/25 dark:bg-white/10"
                     : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06]",
                 ].join(" ")}
               >

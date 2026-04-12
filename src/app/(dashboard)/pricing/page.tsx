@@ -152,7 +152,7 @@ export default function PricingPage() {
         <h2 className="text-lg font-semibold">Ready to master RAG engineering?</h2>
         <p className="mt-1 text-sm text-gray-500">Join engineers building production-ready RAG systems.</p>
         <div className="mt-4 flex items-center justify-center gap-3">
-          <Link href={user ? "/challenges" : "/login"} className="inline-flex h-9 items-center justify-center rounded-full bg-[#8B5CF6] px-6 text-sm font-medium text-white hover:bg-[#7C3AED] cursor-pointer">
+          <Link href={user ? "/challenges" : "/login"} className="inline-flex h-9 items-center justify-center rounded-full bg-[#3B82F6] px-6 text-sm font-medium text-white hover:bg-[#2563EB] cursor-pointer">
             {user ? "Start Learning" : "Start Free"}
           </Link>
           <Link href="/learn" className="inline-flex h-9 items-center justify-center rounded-full border border-gray-200 px-6 text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer">

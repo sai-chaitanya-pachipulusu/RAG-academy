@@ -218,7 +218,7 @@ function CertificateCard({
           ? "border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-50 hover:shadow-lg dark:border-amber-900/50 dark:from-amber-950/20 dark:to-yellow-950/20"
           : locked
           ? "border-gray-200 bg-gray-50/50 opacity-60 dark:border-gray-800 dark:bg-gray-900/50"
-          : "border-gray-200 bg-white hover:border-gray-300 hover:shadow dark:border-gray-800 dark:bg-[#7C3AED] dark:hover:border-gray-700"
+          : "border-gray-200 bg-white hover:border-gray-300 hover:shadow dark:border-gray-800 dark:bg-[#2563EB] dark:hover:border-gray-700"
       }`}
     >
       {earned && (
@@ -253,7 +253,7 @@ function CertificateCard({
                 {progress.percentage}%
               </span>
             </div>
-            <div className="mt-1 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-[#7C3AED]">
+            <div className="mt-1 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-[#2563EB]">
               <div
                 className={`h-full rounded-full bg-gradient-to-r ${certificate.color} transition-all duration-200-all duration-200`}
                 style={{ width: `${progress.percentage}%` }}
@@ -338,7 +338,7 @@ function CertificateModal({
         {/* Close button */}
         <button
           onClick={onClose}
-          className="mt-6 w-full rounded-lg border border-gray-200 px-4 py-2 text-sm transition hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-[#7C3AED] cursor-pointer"
+          className="mt-6 w-full rounded-lg border border-gray-200 px-4 py-2 text-sm transition hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-[#2563EB] cursor-pointer"
         >
           Close
         </button>

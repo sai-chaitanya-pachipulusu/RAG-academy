@@ -408,7 +408,7 @@ export function AccessibilityControls() {
         className={`flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-all duration-200-all duration-200 ${
           isAccessibilityMode
             ? 'bg-blue-600 text-white'
-            : 'bg-white text-gray-700 dark:bg-[#7C3AED] dark:text-gray-300'
+            : 'bg-white text-gray-700 dark:bg-[#2563EB] dark:text-gray-300'
         }`}
         aria-label="Accessibility settings"
         aria-expanded={isOpen}
@@ -442,7 +442,7 @@ export function AccessibilityControls() {
             <h3 className="font-semibold">Accessibility</h3>
             <button
               onClick={() => setIsOpen(false)}
-              className="rounded-lg p-1 hover:bg-gray-100 dark:hover:bg-[#7C3AED] cursor-pointer"
+              className="rounded-lg p-1 hover:bg-gray-100 dark:hover:bg-[#2563EB] cursor-pointer"
               aria-label="Close accessibility panel"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -511,7 +511,7 @@ export function AccessibilityControls() {
             {/* Reset */}
             <button
               onClick={resetSettings}
-              className="w-full rounded-lg border border-gray-200 py-2 text-sm font-medium transition-all duration-200-all duration-200 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-[#7C3AED] cursor-pointer"
+              className="w-full rounded-lg border border-gray-200 py-2 text-sm font-medium transition-all duration-200-all duration-200 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-[#2563EB] cursor-pointer"
             >
               Reset to Defaults
             </button>

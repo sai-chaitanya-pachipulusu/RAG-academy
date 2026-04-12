@@ -74,7 +74,7 @@ export function AttentionVisualizer({
             onClick={() => setOrdering("natural")}
             className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
               ordering === "natural"
-                ? "bg-[#8B5CF6] text-white dark:bg-white dark:text-gray-900"
+                ? "bg-[#3B82F6] text-white dark:bg-white dark:text-gray-900"
                 : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
             }`}
           >
@@ -84,7 +84,7 @@ export function AttentionVisualizer({
             onClick={() => setOrdering("optimized")}
             className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
               ordering === "optimized"
-                ? "bg-[#8B5CF6] text-white dark:bg-white dark:text-gray-900"
+                ? "bg-[#3B82F6] text-white dark:bg-white dark:text-gray-900"
                 : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
             }`}
           >

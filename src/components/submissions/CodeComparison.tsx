@@ -246,7 +246,7 @@ export function CodeComparison({
             className={`rounded px-2 py-1 text-xs font-medium ${
               showLineNumbers
                 ? "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-                : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-[#7C3AED]"
+                : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-[#2563EB]"
             }`}
           >
             Line Numbers
@@ -257,7 +257,7 @@ export function CodeComparison({
               onClick={() => setViewMode("unified")}
               className={`px-3 py-1 text-xs font-medium ${
                 viewMode === "unified"
-                  ? "bg-gray-100 text-gray-900 dark:bg-[#7C3AED] dark:text-gray-100"
+                  ? "bg-gray-100 text-gray-900 dark:bg-[#2563EB] dark:text-gray-100"
                   : "text-gray-600 dark:text-gray-400"
               }`}
             >
@@ -268,7 +268,7 @@ export function CodeComparison({
               onClick={() => setViewMode("side-by-side")}
               className={`px-3 py-1 text-xs font-medium ${
                 viewMode === "side-by-side"
-                  ? "bg-gray-100 text-gray-900 dark:bg-[#7C3AED] dark:text-gray-100"
+                  ? "bg-gray-100 text-gray-900 dark:bg-[#2563EB] dark:text-gray-100"
                   : "text-gray-600 dark:text-gray-400"
               }`}
             >

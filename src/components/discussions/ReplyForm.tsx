@@ -65,7 +65,7 @@ export function ReplyForm({
             placeholder={placeholder}
             rows={4}
             disabled={isSubmitting}
-            className="w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50 dark:border-gray-700 dark:bg-[#7C3AED] dark:text-white dark:placeholder-zinc-500"
+            className="w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50 dark:border-gray-700 dark:bg-[#2563EB] dark:text-white dark:placeholder-zinc-500"
           />
         </div>
 
@@ -117,7 +117,7 @@ export function ReplyForm({
               type="button"
               onClick={onCancel}
               disabled={isSubmitting}
-              className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-50 dark:text-gray-400 dark:hover:bg-[#7C3AED] cursor-pointer"
+              className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-50 dark:text-gray-400 dark:hover:bg-[#2563EB] cursor-pointer"
             >
               Cancel
             </button>

@@ -31,7 +31,7 @@ const BANNER_COLORS: Record<string, string> = {
   orange: "from-orange-500/20 to-orange-600/5 border-orange-500/30",
   lime: "from-lime-500/20 to-lime-600/5 border-lime-500/30",
   slate: "from-slate-500/20 to-slate-600/5 border-slate-500/30",
-  gray: "from-[#8B5CF6]-500/20 to-[#8B5CF6]-600/5 border-gray-500/30",
+  gray: "from-[#3B82F6]-500/20 to-[#3B82F6]-600/5 border-gray-500/30",
   sky: "from-sky-500/20 to-sky-600/5 border-sky-500/30",
   rose: "from-rose-500/20 to-rose-600/5 border-rose-500/30",
 };

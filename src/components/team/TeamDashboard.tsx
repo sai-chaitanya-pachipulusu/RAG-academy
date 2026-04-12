@@ -299,7 +299,7 @@ export function TeamDashboard({ subscriptionId }: TeamDashboardProps) {
                     className="flex items-center justify-between p-4"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-[#7C3AED]">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-[#2563EB]">
                         {member.avatarUrl ? (
                           <img
                             src={member.avatarUrl}
@@ -403,7 +403,7 @@ export function TeamDashboard({ subscriptionId }: TeamDashboardProps) {
                       className="flex items-center justify-between p-4"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-[#7C3AED]">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-[#2563EB]">
                           <Mail className="h-5 w-5 text-gray-400" />
                         </div>
                         <div>
@@ -453,7 +453,7 @@ export function TeamDashboard({ subscriptionId }: TeamDashboardProps) {
                 ) : (
                   activity.map((item) => (
                     <div key={item.id} className="flex items-center gap-3 p-4">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 dark:bg-[#7C3AED]">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 dark:bg-[#2563EB]">
                         <Activity className="h-4 w-4 text-gray-400" />
                       </div>
                       <div className="flex-1">

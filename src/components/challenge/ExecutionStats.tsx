@@ -61,7 +61,7 @@ export function ExecutionStats({ challengeSlug, latestRun }: Props) {
   const maxTime = Math.max(...stats.map((s) => s.executionTime), 1);
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-[#8B5CF6]-50 to-white p-4 dark:border-gray-800 dark:from-[#8B5CF6]-900 dark:to-[#8B5CF6]-950">
+    <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-[#3B82F6]-50 to-white p-4 dark:border-gray-800 dark:from-[#3B82F6]-900 dark:to-[#3B82F6]-950">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
           Your Performance

@@ -75,7 +75,7 @@ const stageCounts = CHALLENGES.reduce((acc, challenge) => {
 
 const LEARNING_PATH = [
   { name: "Foundations", count: stageCounts["foundations"] || 0, color: "bg-gray-900" },
-  { name: "Pre-Retrieval", count: stageCounts["pre-retrieval"] || 0, color: "bg-[#7C3AED]" },
+  { name: "Pre-Retrieval", count: stageCounts["pre-retrieval"] || 0, color: "bg-[#2563EB]" },
   { name: "Retrieval", count: stageCounts["retrieval"] || 0, color: "bg-gray-700" },
   { name: "Query Transforms", count: stageCounts["query-transforms"] || 0, color: "bg-gray-600" },
   { name: "Advanced Retrieval", count: stageCounts["advanced-retrieval"] || 0, color: "bg-gray-500" },
@@ -168,7 +168,7 @@ export default function Home() {
               <div className="hidden lg:block">
                 <div className="w-[340px] rounded-xl border border-gray-200 bg-gray-50 p-5">
                   <div className="flex flex-col items-center gap-5">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#8B5CF6] text-white">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#3B82F6] text-white">
                       <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
                         <path d="M12 2L2 7L12 12L22 7L12 2Z" />
                         <path d="M2 17L12 22L22 17" />
@@ -200,8 +200,8 @@ export default function Home() {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {FEATURES.map((feature, i) => (
               <Reveal key={feature.title} delayMs={i * 40}>
-                <div className="group rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200-all duration-200 hover:border-[#8B5CF6]/30 hover:shadow-md cursor-pointer">
-                  <div className="mb-3 inline-flex h-8 w-8 items-center justify-center rounded-md bg-[#8B5CF6]/10 text-[#8B5CF6] transition-all duration-200-all duration-200 group-hover:bg-[#8B5CF6] group-hover:text-white cursor-pointer">
+                <div className="group rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200-all duration-200 hover:border-[#3B82F6]/30 hover:shadow-md cursor-pointer">
+                  <div className="mb-3 inline-flex h-8 w-8 items-center justify-center rounded-md bg-[#3B82F6]/10 text-[#3B82F6] transition-all duration-200-all duration-200 group-hover:bg-[#3B82F6] group-hover:text-white cursor-pointer">
                     {feature.icon}
                   </div>
                   <h3 className="mb-1 text-sm font-semibold font-heading">{feature.title}</h3>
@@ -223,7 +223,7 @@ export default function Home() {
             </div>
             <Link
               href="/challenges"
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-1.5 text-sm font-medium text-gray-700 transition-all duration-200-all duration-200 hover:bg-[#8B5CF6]/5 hover:border-[#8B5CF6]/30 cursor-pointer"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-1.5 text-sm font-medium text-gray-700 transition-all duration-200-all duration-200 hover:bg-[#3B82F6]/5 hover:border-[#3B82F6]/30 cursor-pointer"
             >
               View all
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -237,18 +237,18 @@ export default function Home() {
               <Reveal key={challenge.slug} delayMs={i * 40}>
                 <Link
                   href={`/challenges/${challenge.slug}`}
-                  className="group block rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200-all duration-200 hover:border-[#8B5CF6]/30 hover:shadow-md cursor-pointer"
+                  className="group block rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200-all duration-200 hover:border-[#3B82F6]/30 hover:shadow-md cursor-pointer"
                 >
                   <div className="mb-3">
                     <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide ${
                       challenge.difficulty === 'hard'
-                        ? 'bg-[#8B5CF6] text-white'
+                        ? 'bg-[#3B82F6] text-white'
                         : 'bg-gray-100 text-gray-500'
                     }`}>
                       {challenge.difficulty}
                     </span>
                   </div>
-                  <h3 className="text-sm font-semibold mb-0.5 group-hover:text-[#8B5CF6] transition-all duration-200-all duration-200 font-heading cursor-pointer">
+                  <h3 className="text-sm font-semibold mb-0.5 group-hover:text-[#3B82F6] transition-all duration-200-all duration-200 font-heading cursor-pointer">
                     {challenge.title}
                   </h3>
                   <p className="text-xs text-gray-400">{challenge.category}</p>
@@ -264,7 +264,7 @@ export default function Home() {
         <div className="mx-auto max-w-[1200px] px-6 py-8 lg:px-8">
           <div className="rounded-xl border border-gray-200 bg-gray-50 p-6 lg:p-8">
             <div className="flex items-center gap-2 mb-4">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#8B5CF6] px-2.5 py-1 text-[11px] font-semibold text-white uppercase tracking-wide">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#3B82F6] px-2.5 py-1 text-[11px] font-semibold text-white uppercase tracking-wide">
                 New in 2026
               </span>
               <span className="text-xs text-gray-400">Latest research techniques</span>
@@ -278,7 +278,7 @@ export default function Home() {
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {ADVANCED_2026.map((tech, i) => (
                 <Reveal key={tech.title} delayMs={i * 40}>
-                  <div className="rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200-all duration-200 hover:border-[#8B5CF6]/30 hover:shadow-md cursor-pointer">
+                  <div className="rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200-all duration-200 hover:border-[#3B82F6]/30 hover:shadow-md cursor-pointer">
                     <h3 className="text-sm font-semibold mb-0.5 font-heading">{tech.title}</h3>
                     <p className="text-[11px] text-gray-400 mb-1.5">{tech.subtitle}</p>
                     <p className="text-xs text-gray-500 leading-snug">{tech.description}</p>
@@ -290,13 +290,13 @@ export default function Home() {
             <div className="mt-6 flex items-center gap-3 flex-wrap">
               <Link
                 href="/challenges?search=rag"
-                className="inline-flex h-8 items-center justify-center rounded-full bg-[#8B5CF6] px-5 text-sm font-medium text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] cursor-pointer"
+                className="inline-flex h-8 items-center justify-center rounded-full bg-[#3B82F6] px-5 text-sm font-medium text-white transition-all duration-200-all duration-200 hover:bg-[#2563EB] cursor-pointer"
               >
                 Explore Advanced Challenges
               </Link>
               <Link
                 href="/playbooks"
-                className="text-sm font-medium text-[#8B5CF6] hover:underline underline-offset-2 cursor-pointer"
+                className="text-sm font-medium text-[#3B82F6] hover:underline underline-offset-2 cursor-pointer"
               >
                 Read Playbooks
               </Link>
@@ -410,7 +410,7 @@ export default function Home() {
                     </span>
                     <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
                       project.difficulty === 'Advanced'
-                        ? 'bg-[#8B5CF6] text-white'
+                        ? 'bg-[#3B82F6] text-white'
                         : project.difficulty === 'Intermediate'
                           ? 'bg-gray-100 text-gray-500'
                           : 'bg-emerald-50 text-emerald-600'
@@ -507,7 +507,7 @@ export default function Home() {
               <div className="mt-6 flex items-center justify-center gap-3 flex-wrap">
                 <Link
                   href={user ? "/learn" : "/login"}
-                  className="group inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#8B5CF6] px-6 text-sm font-medium text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] cursor-pointer"
+                  className="group inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#3B82F6] px-6 text-sm font-medium text-white transition-all duration-200-all duration-200 hover:bg-[#2563EB] cursor-pointer"
                 >
                   Start Learning Free
                   <svg className="h-3.5 w-3.5 transition-all duration-200-transform group-hover:translate-x-0.5 cursor-pointer" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -532,7 +532,7 @@ export default function Home() {
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#8B5CF6] text-white">
+                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#3B82F6] text-white">
                   <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M12 2L2 7L12 12L22 7L12 2Z" />
                     <path d="M2 17L12 22L22 17" />

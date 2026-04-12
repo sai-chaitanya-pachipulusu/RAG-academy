@@ -116,7 +116,7 @@ export function AchievementBadges({ compact = false }: Props) {
           </span>
         ))}
         {unlocked.length > 5 && (
-          <span className="rounded-full bg-gray-200 px-1.5 text-xs text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400">
+          <span className="rounded-full bg-gray-200 px-1.5 text-xs text-gray-600 dark:bg-[#2563EB] dark:text-gray-400">
             +{unlocked.length - 5}
           </span>
         )}
@@ -125,7 +125,7 @@ export function AchievementBadges({ compact = false }: Props) {
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#7C3AED]">
+    <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#2563EB]">
       <h3 className="text-sm font-semibold">Achievements</h3>
       <p className="mt-1 text-xs text-gray-500">
         {unlocked.length} / {allAchievements.length} unlocked

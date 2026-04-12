@@ -270,7 +270,7 @@ export function ErrorDisplay({ stderr, onJumpToLine }: ErrorDisplayProps) {
           <span className="text-lg">{style.icon}</span>
           <span className={`font-semibold ${style.title}`}>{style.label}</span>
           {parsedError.testCase && (
-            <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-[#7C3AED] dark:text-gray-300">
+            <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-[#2563EB] dark:text-gray-300">
               Test Case #{parsedError.testCase}
             </span>
           )}
@@ -278,7 +278,7 @@ export function ErrorDisplay({ stderr, onJumpToLine }: ErrorDisplayProps) {
         {parsedError.lineNumber && (
           <button
             onClick={() => onJumpToLine?.(parsedError.lineNumber!)}
-            className="flex items-center gap-1 rounded-lg bg-white px-2.5 py-1 text-xs font-medium text-gray-700 shadow-sm transition-all duration-200-all duration-200 hover:bg-gray-100 dark:bg-[#7C3AED] dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer"
+            className="flex items-center gap-1 rounded-lg bg-white px-2.5 py-1 text-xs font-medium text-gray-700 shadow-sm transition-all duration-200-all duration-200 hover:bg-gray-100 dark:bg-[#2563EB] dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer"
           >
             <span>📍</span>
             <span>Line {parsedError.lineNumber}</span>
@@ -299,7 +299,7 @@ export function ErrorDisplay({ stderr, onJumpToLine }: ErrorDisplayProps) {
         {/* Code Snippet */}
         {parsedError.codeSnippet && (
           <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-900 dark:border-gray-700">
-            <div className="flex items-center justify-between bg-[#7C3AED] px-3 py-1.5">
+            <div className="flex items-center justify-between bg-[#2563EB] px-3 py-1.5">
               <span className="text-xs text-gray-400">Problematic Code</span>
               {parsedError.lineNumber && (
                 <span className="text-xs text-gray-500">Line {parsedError.lineNumber}</span>
@@ -442,13 +442,13 @@ export function TestResultsDisplay({ results, totalTime }: TestResultsProps) {
 
             {!result.passed && result.expected && result.actual && (
               <div className="mt-2 grid gap-2 pl-6 sm:grid-cols-2">
-                <div className="rounded bg-gray-100 p-2 dark:bg-[#7C3AED]">
+                <div className="rounded bg-gray-100 p-2 dark:bg-[#2563EB]">
                   <p className="text-xs text-gray-500">Expected</p>
                   <code className="text-xs text-emerald-700 dark:text-emerald-400">
                     {result.expected}
                   </code>
                 </div>
-                <div className="rounded bg-gray-100 p-2 dark:bg-[#7C3AED]">
+                <div className="rounded bg-gray-100 p-2 dark:bg-[#2563EB]">
                   <p className="text-xs text-gray-500">Got</p>
                   <code className="text-xs text-red-700 dark:text-red-400">{result.actual}</code>
                 </div>

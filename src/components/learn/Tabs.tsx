@@ -41,7 +41,7 @@ export function Tabs({ children }: Readonly<{ children: React.ReactNode }>) {
               className={[
                 "rounded-full px-3 py-1 text-xs font-medium transition-colors",
                 on
-                  ? "bg-[#7C3AED] text-white dark:bg-white dark:text-black"
+                  ? "bg-[#2563EB] text-white dark:bg-white dark:text-black"
                   : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-900",
               ].join(" ")}
             >

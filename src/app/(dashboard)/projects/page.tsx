@@ -191,7 +191,7 @@ export default function ProjectsPage() {
                 </span>
                 <Link
                   href={`/challenges/${project.slug}`}
-                  className="inline-flex h-8 items-center justify-center rounded-full bg-[#8B5CF6] px-4 text-xs font-medium text-white hover:bg-[#7C3AED] dark:bg-white dark:text-black dark:hover:bg-[#7C3AED] cursor-pointer"
+                  className="inline-flex h-8 items-center justify-center rounded-full bg-[#3B82F6] px-4 text-xs font-medium text-white hover:bg-[#2563EB] dark:bg-white dark:text-black dark:hover:bg-[#2563EB] cursor-pointer"
                 >
                   Start Project
                 </Link>
@@ -218,7 +218,7 @@ export default function ProjectsPage() {
             <Card key={track.id} className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
-                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-[10px] font-bold text-gray-700 dark:bg-[#7C3AED] dark:text-gray-300">
+                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-[10px] font-bold text-gray-700 dark:bg-[#2563EB] dark:text-gray-300">
                     {track.icon}
                   </span>
                   <div>
@@ -299,7 +299,7 @@ export default function ProjectsPage() {
 
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {t.stack.map((s) => (
-                  <span key={s} className="rounded-md bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700 dark:bg-[#7C3AED] dark:text-gray-300">
+                  <span key={s} className="rounded-md bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700 dark:bg-[#2563EB] dark:text-gray-300">
                     {s}
                   </span>
                 ))}
@@ -319,12 +319,12 @@ export default function ProjectsPage() {
                   href={t.repoUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-3 inline-flex h-8 items-center justify-center rounded-full bg-[#8B5CF6] px-4 text-xs font-medium text-white hover:bg-[#7C3AED] dark:bg-white dark:text-black dark:hover:bg-[#7C3AED] cursor-pointer"
+                  className="mt-3 inline-flex h-8 items-center justify-center rounded-full bg-[#3B82F6] px-4 text-xs font-medium text-white hover:bg-[#2563EB] dark:bg-white dark:text-black dark:hover:bg-[#2563EB] cursor-pointer"
                 >
                   View on GitHub
                 </a>
               ) : (
-                <button disabled className="mt-3 inline-flex h-8 items-center justify-center rounded-full bg-gray-200 px-4 text-xs font-medium text-gray-500 dark:bg-[#7C3AED] dark:text-gray-500">
+                <button disabled className="mt-3 inline-flex h-8 items-center justify-center rounded-full bg-gray-200 px-4 text-xs font-medium text-gray-500 dark:bg-[#2563EB] dark:text-gray-500">
                   Coming soon
                 </button>
               )}

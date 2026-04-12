@@ -151,7 +151,7 @@ export function SubmissionHistory({ challengeSlug, onLoadCode }: Props) {
                       </button>
                     )}
                   </div>
-                  <pre className="max-h-48 overflow-auto rounded bg-[#7C3AED] p-2 text-xs text-gray-100">
+                  <pre className="max-h-48 overflow-auto rounded bg-[#2563EB] p-2 text-xs text-gray-100">
                     {sub.code}
                   </pre>
                   {sub.errorMessage && (

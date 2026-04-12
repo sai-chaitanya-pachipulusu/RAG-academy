@@ -103,7 +103,7 @@ export function VectorSpaceExplorer({
       </div>
 
       {/* Visualization */}
-      <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-gray-200 bg-gradient-to-br from-[#8B5CF6]-50 to-[#8B5CF6]-100 dark:border-gray-700 dark:from-[#8B5CF6]-900 dark:to-[#8B5CF6]-800">
+      <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-gray-200 bg-gradient-to-br from-[#3B82F6]-50 to-[#3B82F6]-100 dark:border-gray-700 dark:from-[#3B82F6]-900 dark:to-[#3B82F6]-800">
         <svg
           ref={svgRef}
           viewBox="0 0 100 100"

@@ -27,7 +27,7 @@ const BANNER_COLORS: Record<string, string> = {
   orange: "from-orange-500/20 to-orange-600/5 border-orange-500/30",
   lime: "from-lime-500/20 to-lime-600/5 border-lime-500/30",
   slate: "from-slate-500/20 to-slate-600/5 border-slate-500/30",
-  gray: "from-[#8B5CF6]-500/20 to-[#8B5CF6]-600/5 border-gray-500/30",
+  gray: "from-[#3B82F6]-500/20 to-[#3B82F6]-600/5 border-gray-500/30",
   sky: "from-sky-500/20 to-sky-600/5 border-sky-500/30",
   rose: "from-rose-500/20 to-rose-600/5 border-rose-500/30",
 };
@@ -153,11 +153,11 @@ export function WeeklyEventsCard() {
         {upcomingEvents.length > 0 && (
           <>
             <div className="flex items-center gap-2 pt-2">
-              <div className="h-px flex-1 bg-gray-200 dark:bg-[#7C3AED]" />
+              <div className="h-px flex-1 bg-gray-200 dark:bg-[#2563EB]" />
               <span className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
                 Coming Up
               </span>
-              <div className="h-px flex-1 bg-gray-200 dark:bg-[#7C3AED]" />
+              <div className="h-px flex-1 bg-gray-200 dark:bg-[#2563EB]" />
             </div>
             {upcomingEvents.map((event) => (
               <EventCard key={event.id} event={event} compact />

@@ -105,7 +105,7 @@ export default async function CertificatePage({
         <div className="mt-8 flex gap-3 justify-center">
           <button
             onClick={() => window.print()}
-            className="px-4 py-2 bg-[#8B5CF6] text-white rounded-lg hover:bg-[#7C3AED] transition-all duration-200-all duration-200 text-sm cursor-pointer"
+            className="px-4 py-2 bg-[#3B82F6] text-white rounded-lg hover:bg-[#2563EB] transition-all duration-200-all duration-200 text-sm cursor-pointer"
           >
             Print / Save PDF
           </button>

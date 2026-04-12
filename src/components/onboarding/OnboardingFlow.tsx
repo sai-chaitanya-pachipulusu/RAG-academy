@@ -110,7 +110,7 @@ export function OnboardingFlow() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#8B5CF6]-50 via-white to-[#8B5CF6]-50">
+    <div className="min-h-screen bg-gradient-to-br from-[#3B82F6]-50 via-white to-[#3B82F6]-50">
       {/* Progress indicator */}
       <div className="fixed top-0 left-0 right-0 z-50 h-1 bg-gray-200">
         <div
@@ -134,7 +134,7 @@ export function OnboardingFlow() {
         {/* Welcome Step */}
         {step === "welcome" && (
           <div className="animate-fadeIn text-center">
-            <div className="mx-auto mb-8 flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-[#8B5CF6]-900 to-[#8B5CF6]-700 text-3xl shadow-2xl">
+            <div className="mx-auto mb-8 flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-[#3B82F6]-900 to-[#3B82F6]-700 text-3xl shadow-2xl">
               🎓
             </div>
             <h1 className="text-4xl font-bold tracking-tight text-gray-900">
@@ -147,7 +147,7 @@ export function OnboardingFlow() {
             </p>
             <button
               onClick={() => setStep("experience")}
-              className="mt-10 inline-flex items-center gap-2 rounded-xl bg-[#8B5CF6] px-8 py-4 text-sm font-semibold text-white shadow-lg transition-all duration-200-all duration-200 hover:bg-[#7C3AED] hover:shadow-xl cursor-pointer"
+              className="mt-10 inline-flex items-center gap-2 rounded-xl bg-[#3B82F6] px-8 py-4 text-sm font-semibold text-white shadow-lg transition-all duration-200-all duration-200 hover:bg-[#2563EB] hover:shadow-xl cursor-pointer"
             >
               Get Started
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -197,7 +197,7 @@ export function OnboardingFlow() {
                   }}
                   className={`group flex w-full items-center gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-200-all duration-200 hover:shadow-lg ${
                     state.experience === level.id
-                      ? "border-[#8B5CF6] bg-gray-50"
+                      ? "border-[#3B82F6] bg-gray-50"
                       : "border-gray-200 bg-white hover:border-gray-300"
                   }`}
                 >
@@ -244,7 +244,7 @@ export function OnboardingFlow() {
                   onClick={() => toggleGoal(goal.id)}
                   className={`flex items-center gap-3 rounded-xl border-2 p-4 text-left transition-all duration-200-all duration-200 ${
                     state.goals.includes(goal.id)
-                      ? "border-[#8B5CF6] bg-[#8B5CF6] text-white"
+                      ? "border-[#3B82F6] bg-[#3B82F6] text-white"
                       : "border-gray-200 bg-white hover:border-gray-300"
                   }`}
                 >
@@ -262,7 +262,7 @@ export function OnboardingFlow() {
             <button
               onClick={() => setStep("time")}
               disabled={state.goals.length === 0}
-              className="mt-8 w-full rounded-xl bg-gray-900 py-4 text-sm font-semibold text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-8 w-full rounded-xl bg-gray-900 py-4 text-sm font-semibold text-white transition-all duration-200-all duration-200 hover:bg-[#2563EB] disabled:cursor-not-allowed disabled:opacity-50"
             >
               Continue
             </button>
@@ -299,7 +299,7 @@ export function OnboardingFlow() {
                   }}
                   className={`group flex w-full items-center gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-200-all duration-200 hover:shadow-lg ${
                     state.timePerWeek === time.id
-                      ? "border-[#8B5CF6] bg-gray-50"
+                      ? "border-[#3B82F6] bg-gray-50"
                       : "border-gray-200 bg-white hover:border-gray-300"
                   }`}
                 >
@@ -373,7 +373,7 @@ export function OnboardingFlow() {
 
             <button
               onClick={completeOnboarding}
-              className="mt-8 inline-flex items-center gap-2 rounded-xl bg-[#8B5CF6] px-8 py-4 text-sm font-semibold text-white shadow-lg transition-all duration-200-all duration-200 hover:bg-[#7C3AED] hover:shadow-xl cursor-pointer"
+              className="mt-8 inline-flex items-center gap-2 rounded-xl bg-[#3B82F6] px-8 py-4 text-sm font-semibold text-white shadow-lg transition-all duration-200-all duration-200 hover:bg-[#2563EB] hover:shadow-xl cursor-pointer"
             >
               Start Learning
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

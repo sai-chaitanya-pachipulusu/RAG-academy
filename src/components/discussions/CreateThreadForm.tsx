@@ -140,7 +140,7 @@ export function CreateThreadForm({ challengeSlug, onSubmit, onCancel }: CreateTh
             onChange={(e) => setTitle(e.target.value)}
             placeholder="What's your discussion about?"
             maxLength={200}
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-[#7C3AED] dark:text-white dark:placeholder-zinc-500"
+            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-[#2563EB] dark:text-white dark:placeholder-zinc-500"
           />
           <div className="mt-1 flex justify-end">
             <span className={`text-xs ${title.length > 180 ? "text-amber-500" : "text-gray-400"}`}>
@@ -159,7 +159,7 @@ export function CreateThreadForm({ challengeSlug, onSubmit, onCancel }: CreateTh
             onChange={(e) => setContent(e.target.value)}
             placeholder="Describe your question, solution, or idea in detail..."
             rows={6}
-            className="w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-[#7C3AED] dark:text-white dark:placeholder-zinc-500"
+            className="w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-[#2563EB] dark:text-white dark:placeholder-zinc-500"
           />
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             Markdown formatting is supported
@@ -213,7 +213,7 @@ export function CreateThreadForm({ challengeSlug, onSubmit, onCancel }: CreateTh
             type="button"
             onClick={onCancel}
             disabled={isSubmitting}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-50 dark:text-gray-400 dark:hover:bg-[#7C3AED] cursor-pointer"
+            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-50 dark:text-gray-400 dark:hover:bg-[#2563EB] cursor-pointer"
           >
             Cancel
           </button>

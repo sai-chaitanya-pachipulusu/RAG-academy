@@ -43,10 +43,10 @@ function SRSSkeleton() {
     <div className="space-y-4">
       <div className="grid grid-cols-4 gap-2">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-16 animate-pulse rounded-lg bg-gray-200 dark:bg-[#7C3AED]" />
+          <div key={i} className="h-16 animate-pulse rounded-lg bg-gray-200 dark:bg-[#2563EB]" />
         ))}
       </div>
-      <div className="h-64 animate-pulse rounded-xl bg-gray-200 dark:bg-[#7C3AED]" />
+      <div className="h-64 animate-pulse rounded-xl bg-gray-200 dark:bg-[#2563EB]" />
     </div>
   );
 }
@@ -193,7 +193,7 @@ export function SRSReviewWidget({ userId }: SRSReviewWidgetProps) {
               </p>
               <button
                 onClick={() => setShowAnswer(true)}
-                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#8B5CF6] px-6 py-2.5 text-sm font-medium text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] dark:bg-[#8B5CF6] dark:text-white dark:hover:bg-[#7C3AED] cursor-pointer"
+                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#3B82F6] px-6 py-2.5 text-sm font-medium text-white transition-all duration-200-all duration-200 hover:bg-[#2563EB] dark:bg-[#3B82F6] dark:text-white dark:hover:bg-[#2563EB] cursor-pointer"
               >
                 <CheckCircle className="h-4 w-4" />
                 Show Answer
@@ -379,7 +379,7 @@ function SRSComplete({
 
       <button
         onClick={onRefresh}
-        className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[#8B5CF6] px-4 py-2 text-sm font-medium text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] dark:bg-[#8B5CF6] dark:text-white dark:hover:bg-[#7C3AED] cursor-pointer"
+        className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[#3B82F6] px-4 py-2 text-sm font-medium text-white transition-all duration-200-all duration-200 hover:bg-[#2563EB] dark:bg-[#3B82F6] dark:text-white dark:hover:bg-[#2563EB] cursor-pointer"
       >
         <RotateCcw className="h-4 w-4" />
         Check for New Reviews

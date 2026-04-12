@@ -229,7 +229,7 @@ function OptionRow<T extends string>({
               className={[
                 "rounded-2xl border px-4 py-3 text-left text-sm transition-colors",
                 selected
-                  ? "border-gray-950 bg-[#7C3AED] text-white dark:border-white/25 dark:bg-white/10"
+                  ? "border-gray-950 bg-[#2563EB] text-white dark:border-white/25 dark:bg-white/10"
                   : "border-gray-200 bg-white/60 text-gray-900 hover:bg-white dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-100 dark:hover:bg-white/[0.06]",
               ].join(" ")}
             >

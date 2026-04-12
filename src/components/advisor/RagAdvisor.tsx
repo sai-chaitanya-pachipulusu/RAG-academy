@@ -107,7 +107,7 @@ export function RagAdvisor() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Describe your RAG problem... e.g., 'My retrieval quality is poor' or 'How do I reduce hallucinations?'"
-            className="w-full min-h-[120px] rounded-xl border border-gray-200 bg-white p-4 text-sm outline-none transition-all duration-200-all duration-200 focus:border-[#8B5CF6]400 focus:ring-2 focus:ring-[#8B5CF6]100 resize-none cursor-pointer"
+            className="w-full min-h-[120px] rounded-xl border border-gray-200 bg-white p-4 text-sm outline-none transition-all duration-200-all duration-200 focus:border-[#3B82F6]400 focus:ring-2 focus:ring-[#3B82F6]100 resize-none cursor-pointer"
           />
           {input && (
             <button
@@ -127,7 +127,7 @@ export function RagAdvisor() {
         <button
           type="submit"
           disabled={!input.trim() || isAnalyzing}
-          className="w-full rounded-xl bg-[#8B5CF6] px-4 py-3 font-semibold text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] disabled:opacity-50 cursor-pointer"
+          className="w-full rounded-xl bg-[#3B82F6] px-4 py-3 font-semibold text-white transition-all duration-200-all duration-200 hover:bg-[#2563EB] disabled:opacity-50 cursor-pointer"
         >
           {isAnalyzing ? "Analyzing..." : "Get Recommendations"}
         </button>
@@ -157,7 +157,7 @@ export function RagAdvisor() {
       {recommendation && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
           {/* Diagnosis Card */}
-          <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-[#8B5CF6]-50 to-white p-5">
+          <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-[#3B82F6]-50 to-white p-5">
             <div className="flex items-center gap-2 mb-2">
               <span className="rounded-md bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-600">
                 {category ? CATEGORY_LABELS[category] : "General"}

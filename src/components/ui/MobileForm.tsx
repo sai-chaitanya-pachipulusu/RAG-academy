@@ -41,14 +41,14 @@ export function MobileInput({
           className={cn(
             "w-full rounded-xl border bg-white transition-all duration-200-all duration-200",
             "text-base text-gray-900 placeholder:text-gray-400",
-            "focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]900/10",
+            "focus:outline-none focus:ring-2 focus:ring-[#3B82F6]900/10",
             "min-h-[52px] px-4 py-3.5",
             "sm:min-h-[48px] sm:py-3 sm:text-sm",
             icon && "pl-12",
             error
               ? "border-red-500 focus:border-red-500 focus:ring-red-500/10"
               : isFocused
-              ? "border-[#8B5CF6]"
+              ? "border-[#3B82F6]"
               : "border-gray-200",
             className
           )}
@@ -125,13 +125,13 @@ export function MobileTextarea({
         className={cn(
           "w-full resize-none rounded-xl border bg-white transition-all duration-200-all duration-200",
           "text-base text-gray-900 placeholder:text-gray-400",
-          "focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]900/10",
+          "focus:outline-none focus:ring-2 focus:ring-[#3B82F6]900/10",
           "min-h-[120px] px-4 py-3.5",
           "sm:min-h-[100px] sm:py-3 sm:text-sm",
           error
             ? "border-red-500 focus:border-red-500 focus:ring-red-500/10"
             : isFocused
-            ? "border-[#8B5CF6]"
+            ? "border-[#3B82F6]"
             : "border-gray-200",
           className
         )}
@@ -188,13 +188,13 @@ export function MobileSelect({
           className={cn(
             "w-full appearance-none rounded-xl border bg-white transition-all duration-200-all duration-200",
             "text-base text-gray-900",
-            "focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]900/10",
+            "focus:outline-none focus:ring-2 focus:ring-[#3B82F6]900/10",
             "min-h-[52px] px-4 py-3.5 pr-12",
             "sm:min-h-[48px] sm:py-3 sm:text-sm",
             error
               ? "border-red-500 focus:border-red-500 focus:ring-red-500/10"
               : isFocused
-              ? "border-[#8B5CF6]"
+              ? "border-[#3B82F6]"
               : "border-gray-200",
             className
           )}
@@ -263,8 +263,8 @@ export function MobileCheckbox({
           className={cn(
             "h-7 w-7 rounded-lg border-2 transition-all duration-200-all duration-200",
             "border-gray-300 bg-white",
-            "peer-checked:border-[#8B5CF6] peer-checked:bg-gray-900",
-            "peer-focus:ring-2 peer-focus:ring-[#8B5CF6]900/20"
+            "peer-checked:border-[#3B82F6] peer-checked:bg-gray-900",
+            "peer-focus:ring-2 peer-focus:ring-[#3B82F6]900/20"
           )}
         >
           <svg
@@ -316,8 +316,8 @@ export function MobileRadio({
           className={cn(
             "h-7 w-7 rounded-full border-2 transition-all duration-200-all duration-200",
             "border-gray-300 bg-white",
-            "peer-checked:border-[#8B5CF6] peer-checked:bg-gray-900",
-            "peer-focus:ring-2 peer-focus:ring-[#8B5CF6]900/20"
+            "peer-checked:border-[#3B82F6] peer-checked:bg-gray-900",
+            "peer-focus:ring-2 peer-focus:ring-[#3B82F6]900/20"
           )}
         >
           <div className="h-full w-full scale-0 rounded-full bg-white transition-all duration-200-transform duration-200 peer-checked:scale-50 cursor-pointer" />

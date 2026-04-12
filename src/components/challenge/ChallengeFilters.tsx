@@ -111,7 +111,7 @@ export function ChallengeFilters({ progress }: Props) {
             placeholder="Search challenges... (e.g., BM25, rerank, HNSW)"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-10 w-full rounded-xl border border-gray-100 bg-gray-50/50 pl-10 pr-16 text-sm outline-none transition-all duration-200-all duration-200 focus:border-[#8B5CF6]300 focus:bg-white cursor-pointer"
+            className="h-10 w-full rounded-xl border border-gray-100 bg-gray-50/50 pl-10 pr-16 text-sm outline-none transition-all duration-200-all duration-200 focus:border-[#3B82F6]300 focus:bg-white cursor-pointer"
           />
           {search && (
             <button
@@ -166,7 +166,7 @@ export function ChallengeFilters({ progress }: Props) {
             onClick={() => setSelectedModule("all")}
             className={`shrink-0 rounded-lg px-3 py-1.5 text-[10px] font-bold transition-all duration-200-all duration-200 ${
               selectedModule === "all"
-                ? "bg-[#8B5CF6] text-white shadow-lg"
+                ? "bg-[#3B82F6] text-white shadow-lg"
                 : "bg-gray-50 text-gray-500 hover:bg-gray-100"
             }`}
           >
@@ -178,7 +178,7 @@ export function ChallengeFilters({ progress }: Props) {
               onClick={() => setSelectedModule(mod.id)}
               className={`shrink-0 rounded-full px-4 py-2 text-xs font-semibold transition-all duration-200-all duration-200 ${
                 selectedModule === mod.id
-                  ? "bg-[#8B5CF6] text-white shadow-lg"
+                  ? "bg-[#3B82F6] text-white shadow-lg"
                   : "bg-gray-50 text-gray-500 hover:bg-gray-100"
               }`}
             >

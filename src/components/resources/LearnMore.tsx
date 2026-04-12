@@ -129,7 +129,7 @@ export function ResourcesGrid({
             href={resource.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 transition-all duration-200-all duration-200 hover:border-indigo-300 hover:shadow-md dark:border-gray-800 dark:bg-[#7C3AED] dark:hover:border-indigo-800 cursor-pointer"
+            className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 transition-all duration-200-all duration-200 hover:border-indigo-300 hover:shadow-md dark:border-gray-800 dark:bg-[#2563EB] dark:hover:border-indigo-800 cursor-pointer"
           >
             {resource.featured && (
               <span className="absolute right-2 top-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
@@ -158,7 +158,7 @@ export function ResourcesGrid({
               {resource.topics.slice(0, 3).map((topic) => (
                 <span
                   key={topic}
-                  className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600 dark:bg-[#7C3AED] dark:text-gray-400"
+                  className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600 dark:bg-[#2563EB] dark:text-gray-400"
                 >
                   {topic}
                 </span>
@@ -188,7 +188,7 @@ export function ResourceLink({ resourceId }: { resourceId: string }) {
       href={resource.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-0.5 text-xs font-medium text-gray-700 transition-all duration-200-all duration-200 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-gray-800 dark:bg-[#7C3AED] dark:text-gray-300 dark:hover:border-indigo-800 cursor-pointer"
+      className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-0.5 text-xs font-medium text-gray-700 transition-all duration-200-all duration-200 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-gray-800 dark:bg-[#2563EB] dark:text-gray-300 dark:hover:border-indigo-800 cursor-pointer"
     >
       {TYPE_ICONS[resource.type]} {resource.source}
     </a>

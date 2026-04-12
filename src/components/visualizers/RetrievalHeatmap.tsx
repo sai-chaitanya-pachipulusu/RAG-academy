@@ -226,8 +226,8 @@ export function RetrievalHeatmap({
                     <td key={doc.id} className="p-1">
                       <div
                         className={`flex h-10 w-10 items-center justify-center rounded text-[10px] font-medium transition-all ${
-                          shouldShow ? getScoreColor(data.score, data.relevant) : "bg-gray-100 dark:bg-[#7C3AED]"
-                        } ${aboveThreshold ? "ring-2 ring-[#8B5CF6]900 dark:ring-white" : ""}`}
+                          shouldShow ? getScoreColor(data.score, data.relevant) : "bg-gray-100 dark:bg-[#2563EB]"
+                        } ${aboveThreshold ? "ring-2 ring-[#3B82F6]900 dark:ring-white" : ""}`}
                         title={`${query.text} → ${doc.title}: ${data.score.toFixed(2)} (${data.relevant ? "relevant" : "not relevant"})`}
                       >
                         {shouldShow ? data.score.toFixed(2) : ""}
@@ -256,7 +256,7 @@ export function RetrievalHeatmap({
           <span className="text-gray-600 dark:text-gray-400">Not relevant (high score) ⚠️</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="h-3 w-3 rounded bg-gray-200 ring-2 ring-[#8B5CF6]900" />
+          <div className="h-3 w-3 rounded bg-gray-200 ring-2 ring-[#3B82F6]900" />
           <span className="text-gray-600 dark:text-gray-400">Above threshold</span>
         </div>
       </div>

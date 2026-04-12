@@ -57,7 +57,7 @@ export function CurriculumView() {
                Weekly schedule to stay on track.
             </p>
           </div>
-          <div className="flex rounded-lg bg-gray-100 p-1 dark:bg-[#7C3AED]">
+          <div className="flex rounded-lg bg-gray-100 p-1 dark:bg-[#2563EB]">
             <button
               onClick={() => setTrack("deep")}
               className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${

@@ -71,7 +71,7 @@ export function ChallengePaywall({ challenge, isLoggedIn }: Props) {
           )}
           <Link
             href="/pricing"
-            className="inline-flex items-center justify-center rounded-xl bg-[#8B5CF6] px-6 py-3 text-sm font-semibold text-white transition-all duration-200-all duration-200 hover:bg-[#7C3AED] cursor-pointer"
+            className="inline-flex items-center justify-center rounded-xl bg-[#3B82F6] px-6 py-3 text-sm font-semibold text-white transition-all duration-200-all duration-200 hover:bg-[#2563EB] cursor-pointer"
           >
             Unlock All for {lifetimePrice}
           </Link>

@@ -112,7 +112,7 @@ export default function ChallengeSubmissionsPage() {
   if (!challenge) {
     return (
       <div className="mx-auto max-w-4xl py-12">
-        <div className="h-32 animate-pulse rounded-xl bg-gray-100 dark:bg-[#7C3AED]" />
+        <div className="h-32 animate-pulse rounded-xl bg-gray-100 dark:bg-[#2563EB]" />
       </div>
     );
   }
@@ -145,12 +145,12 @@ export default function ChallengeSubmissionsPage() {
     return (
       <div className="mx-auto max-w-4xl py-12">
         <div className="mb-8">
-          <div className="h-4 w-32 animate-pulse rounded bg-gray-200 dark:bg-[#7C3AED]" />
-          <div className="mt-4 h-8 w-64 animate-pulse rounded bg-gray-200 dark:bg-[#7C3AED]" />
+          <div className="h-4 w-32 animate-pulse rounded bg-gray-200 dark:bg-[#2563EB]" />
+          <div className="mt-4 h-8 w-64 animate-pulse rounded bg-gray-200 dark:bg-[#2563EB]" />
         </div>
         <div className="space-y-4">
-          <div className="h-48 animate-pulse rounded-xl bg-gray-100 dark:bg-[#7C3AED]" />
-          <div className="h-64 animate-pulse rounded-xl bg-gray-100 dark:bg-[#7C3AED]" />
+          <div className="h-48 animate-pulse rounded-xl bg-gray-100 dark:bg-[#2563EB]" />
+          <div className="h-64 animate-pulse rounded-xl bg-gray-100 dark:bg-[#2563EB]" />
         </div>
       </div>
     );

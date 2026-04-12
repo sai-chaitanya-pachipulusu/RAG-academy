@@ -22,7 +22,7 @@ export default function NotFound() {
         <div className="space-y-3">
           <Link
             href="/"
-            className="block w-full px-4 py-2 bg-[#8B5CF6] text-white rounded-md hover:bg-[#7C3AED] transition-all duration-200-all duration-200 cursor-pointer"
+            className="block w-full px-4 py-2 bg-[#3B82F6] text-white rounded-md hover:bg-[#2563EB] transition-all duration-200-all duration-200 cursor-pointer"
           >
             Go to homepage
           </Link>
