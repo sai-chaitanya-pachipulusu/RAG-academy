@@ -106,7 +106,7 @@ return (
         </div>
 
         <p className="text-sm text-white/40 font-light">
-          © 2025 RAG Academy. Built for engineers.
+          © 2026 RAG Academy. All rights reserved.
         </p>
       </div>
 
