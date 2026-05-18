@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { MCP_DOCS_PATH } from "@/lib/mcp/branding";
+
 export function Footer() {
   const currentYear = new Date().getFullYear();
 
@@ -42,6 +44,12 @@ export function Footer() {
               className="text-gray-600 hover:text-gray-900 cursor-pointer"
             >
               Papers
+            </Link>
+            <Link
+              href={MCP_DOCS_PATH}
+              className="text-gray-600 hover:text-gray-900 cursor-pointer"
+            >
+              Curriculum Compass
             </Link>
             <span className="hidden sm:inline text-gray-300">|</span>
             <Link

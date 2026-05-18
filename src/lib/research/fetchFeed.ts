@@ -7,7 +7,9 @@ type CacheEntry = {
   items: FeedItem[];
 };
 
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1h
+/** Parsed feed payload cache TTL (client-side; see MCP meta `feedCacheTtlMs`). */
+export const CACHE_TTL_MS = 60 * 60 * 1000; // 1h
+const FETCH_TIMEOUT_MS = 15_000;
 const MAX_ITEMS_PER_SOURCE = 20;
 
 declare global {
@@ -53,17 +55,23 @@ export async function fetchSource(source: FeedSource): Promise<FeedItem[]> {
     return cached.items;
   }
 
-  const res = await fetch(source.url, {
-    headers: {
-      // Some feeds (e.g. Reddit) behave better with a UA.
-      "user-agent": "RAGacademy/0.1 (research feed)",
-      accept: "application/atom+xml, application/rss+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.1",
-    },
-    // IMPORTANT: do NOT use Next.js fetch cache for RSS/Atom because some feeds
-    // are very large (>2MB) and Next will throw when trying to cache them.
-    // We cache parsed items ourselves (see CACHE_TTL_MS).
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(source.url, {
+      headers: {
+        // Some feeds (e.g. Reddit) behave better with a UA.
+        "user-agent": "RAGacademy/0.1 (research feed)",
+        accept: "application/atom+xml, application/rss+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.1",
+      },
+      // IMPORTANT: do NOT use Next.js fetch cache for RSS/Atom because some feeds
+      // are very large (>2MB) and Next will throw when trying to cache them.
+      // We cache parsed items ourselves (see CACHE_TTL_MS).
+      cache: "no-store",
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+  } catch {
+    return [];
+  }
 
   if (!res.ok) {
     return [];

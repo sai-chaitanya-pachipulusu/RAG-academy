@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { Reveal } from "@/components/ui/Reveal";
 import { RAGScrollStory } from "@/components/landing/RAGScrollStory";
+import { CurriculumCompassDocs } from "@/components/mcp/CurriculumCompassDocs";
+import { MCP_DOCS_PATH } from "@/lib/mcp/branding";
 import { useSupabaseAuth } from "@/components/providers/SupabaseAuthProvider";
 import { getPlatformStats, CHALLENGES } from "@/lib/challenges/catalog";
 import { PricingBanner } from "@/components/pricing/PricingBanner";
@@ -61,8 +63,8 @@ const ADVANCED_2026 = [
 ];
 
 const WHATS_NEW = [
+  { title: "Curriculum Compass", desc: "Official MCP server for AI assistants", phase: "Developers", href: MCP_DOCS_PATH },
   { title: "Voice RAG", desc: "Audio-based retrieval and generation", phase: "Phase 7" },
-  { title: "MCP Integration", desc: "Model Context Protocol support", phase: "Phase 5" },
   { title: "Project Certificates", desc: "Earn certificates for completed tracks", phase: "Projects" },
   { title: "Peer Reviews", desc: "Community feedback on submissions", phase: "Projects" },
 ];
@@ -312,18 +314,44 @@ export default function Home() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {WHATS_NEW.map((item, i) => (
-              <Reveal key={item.title} delayMs={i * 40}>
-                <div className="rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200-all duration-200 hover:shadow-sm cursor-pointer">
+            {WHATS_NEW.map((item, i) => {
+              const card = (
+                <>
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-semibold">{item.title}</h3>
                     <span className="text-[10px] font-medium text-gray-400 uppercase">{item.phase}</span>
                   </div>
                   <p className="text-xs text-gray-500">{item.desc}</p>
-                </div>
-              </Reveal>
-            ))}
+                </>
+              );
+
+              return (
+                <Reveal key={item.title} delayMs={i * 40}>
+                  {"href" in item && item.href ? (
+                    <Link
+                      href={item.href}
+                      className="block rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200 hover:border-indigo-200 hover:shadow-sm cursor-pointer"
+                    >
+                      {card}
+                    </Link>
+                  ) : (
+                    <div className="rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200 hover:shadow-sm cursor-pointer">
+                      {card}
+                    </div>
+                  )}
+                </Reveal>
+              );
+            })}
           </div>
+        </div>
+      </section>
+
+      {/* Curriculum Compass MCP */}
+      <section className="border-b border-gray-100">
+        <div className="mx-auto max-w-[1200px] px-6 py-8 lg:px-8">
+          <Reveal>
+            <CurriculumCompassDocs variant="compact" />
+          </Reveal>
         </div>
       </section>
 
@@ -446,7 +474,7 @@ export default function Home() {
       {/* Resources */}
       <section className="border-b border-gray-100 bg-gray-50/50">
         <div className="mx-auto max-w-[1200px] px-6 py-8 lg:px-8">
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
             <Link
               href="/playbooks"
               className="group rounded-lg border border-gray-200 bg-white p-5 transition-all duration-200-all duration-200 hover:border-gray-300 hover:shadow-sm cursor-pointer"
@@ -484,6 +512,19 @@ export default function Home() {
               </div>
               <h3 className="font-semibold text-sm mb-1">Structured Curriculum</h3>
               <p className="text-xs text-gray-500">13 stages from foundations to advanced production patterns</p>
+            </Link>
+
+            <Link
+              href={MCP_DOCS_PATH}
+              className="group rounded-lg border border-gray-200 bg-white p-5 transition-all duration-200-all duration-200 hover:border-indigo-200 hover:shadow-sm cursor-pointer"
+            >
+              <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-md bg-indigo-50 text-indigo-600">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+                </svg>
+              </div>
+              <h3 className="font-semibold text-sm mb-1">Curriculum Compass</h3>
+              <p className="text-xs text-gray-500">Connect Cursor and Claude to lessons, challenges, and pricing via MCP</p>
             </Link>
           </div>
         </div>
@@ -567,6 +608,7 @@ export default function Home() {
                 <li><Link href="/papers" className="hover:text-gray-900 transition-all duration-200-all duration-200 cursor-pointer">Research Papers</Link></li>
                 <li><Link href="/analytics" className="hover:text-gray-900 transition-all duration-200-all duration-200 cursor-pointer">Your Progress</Link></li>
                 <li><Link href="/leaderboard" className="hover:text-gray-900 transition-all duration-200-all duration-200 cursor-pointer">Leaderboard</Link></li>
+                <li><Link href={MCP_DOCS_PATH} className="hover:text-gray-900 transition-all duration-200-all duration-200 cursor-pointer">Curriculum Compass (MCP)</Link></li>
               </ul>
             </div>
           </div>

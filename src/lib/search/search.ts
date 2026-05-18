@@ -66,6 +66,7 @@ export async function searchContent(
     if (score <= 0) continue;
     results.push({
       type: "challenge",
+      contentId: `challenge:${c.slug}`,
       title: c.title,
       url: `/challenges/${c.slug}`,
       snippet: c.description,
@@ -80,6 +81,7 @@ export async function searchContent(
     if (score <= 0) continue;
     results.push({
       type: d.type,
+      contentId: d.id,
       title: d.title,
       url: d.url,
       snippet: d.description || d.excerpt.slice(0, 180),

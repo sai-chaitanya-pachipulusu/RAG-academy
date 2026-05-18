@@ -12,11 +12,15 @@
     "build": "npm run validate:next-env && npm run validate:content && npm run validate:challenges && npm run build:search-index && next build",
     "start": "next start",
     "lint": "eslint",
+    "mcp:dev": "tsx mcp/server.ts",
+    "mcp:build": "tsc -p tsconfig.mcp.json --noEmit",
+    "mcp:inspect": "npx @modelcontextprotocol/inspector --transport stdio npm run mcp:dev",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
     "@monaco-editor/react": "^4.7.0",
     "@polar-sh/sdk": "^0.45.0",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -54,6 +58,7 @@
     "eslint-config-next": "16.0.10",
     "jsdom": "^29.0.1",
     "tailwindcss": "^4",
+    "tsx": "4.22.0",
     "typescript": "^5",
     "vitest": "^4.1.2"
   }
