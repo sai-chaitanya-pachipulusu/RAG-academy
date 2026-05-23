@@ -17,6 +17,7 @@ function LoginContent() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
+  const [userCount, setUserCount] = useState<number | null>(null);
   
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -27,6 +28,13 @@ function LoginContent() {
       router.push(redirectTo);
     }
   }, [user, authLoading, redirectTo, router]);
+
+  useEffect(() => {
+    fetch("/api/stats")
+      .then((res) => res.json())
+      .then((data) => setUserCount(data.userCount ?? 33))
+      .catch(() => setUserCount(33));
+  }, []);
 
 if (authLoading || (user && !authLoading)) {
     return (
@@ -60,7 +68,11 @@ if (authLoading || (user && !authLoading)) {
         }
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(
+        e instanceof Error && e.message.includes("NetworkError")
+          ? "Unable to connect to the server. Please check your internet connection and try again."
+          : e instanceof Error ? e.message : String(e)
+      );
     } finally {
       setLoading(false);
     }
@@ -95,7 +107,7 @@ return (
             {[
               { value: `${platformStats.totalLessons}`, label: "Lessons" },
               { value: `${platformStats.totalChallenges}+`, label: "Challenges" },
-              { value: "Free", label: "To Start" },
+              { value: userCount !== null ? `${userCount}` : "-", label: "Learners" },
             ].map((stat) => (
               <div key={stat.label}>
                 <p className="text-5xl font-bold">{stat.value}</p>

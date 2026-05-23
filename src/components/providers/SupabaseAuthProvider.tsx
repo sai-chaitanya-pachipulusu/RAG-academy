@@ -65,7 +65,10 @@ export function SupabaseAuthProvider({
   useEffect(() => {
     let mounted = true;
 
-    if (!client) return;
+    if (!client) {
+      setLoading(false);
+      return;
+    }
 
     client.auth
       .getSession()
@@ -113,7 +116,12 @@ export function SupabaseAuthProvider({
       hasPaidAccess: subscription ? hasPaidAccess(subscription) : false,
       refreshSubscription,
       async signUp(email: string, password: string, name?: string) {
-        const client = requireSupabase();
+        let client;
+        try {
+          client = requireSupabase();
+        } catch {
+          return { error: "Unable to connect. Please check your network connection." };
+        }
         const { data, error } = await client.auth.signUp({
           email,
           password,
@@ -141,7 +149,12 @@ export function SupabaseAuthProvider({
         return {};
       },
       async signIn(email: string, password: string) {
-        const client = requireSupabase();
+        let client;
+        try {
+          client = requireSupabase();
+        } catch {
+          return { error: "Unable to connect. Please check your network connection." };
+        }
         const { error } = await client.auth.signInWithPassword({
           email,
           password,

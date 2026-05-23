@@ -11,12 +11,18 @@ export const MCP_DOCS_PATH = "/developers/curriculum-compass";
 
 export const MCP_LESSON_PATH = "/learn/phase-5/mcp-integration";
 
+/** Production site origin (used in docs examples and recommended MCP env). */
+export const MCP_PUBLIC_SITE_URL = "https://ragacademy.space";
+
+/** Placeholder repo path shown in client config snippets — replace after cloning. */
+export const MCP_REPO_CWD_PLACEHOLDER = "/path/to/rag-academy";
+
 /** Example env vars documented on the setup page. */
 export const MCP_ENV_VARS = [
   {
     name: "RAG_ACADEMY_SITE_URL",
     required: false,
-    description: "Absolute site origin for links in tool responses (e.g. https://ragacademy.com).",
+    description: `Absolute site origin for links in tool responses (e.g. ${MCP_PUBLIC_SITE_URL}).`,
   },
   {
     name: "NEXT_PUBLIC_APP_URL",

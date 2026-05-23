@@ -6,6 +6,8 @@ import {
   MCP_ENV_VARS,
   MCP_FEATURED_TOOLS,
   MCP_LESSON_PATH,
+  MCP_PUBLIC_SITE_URL,
+  MCP_REPO_CWD_PLACEHOLDER,
   MCP_RESOURCES,
   MCP_SERVER_ID,
   MCP_TAGLINE,
@@ -27,11 +29,11 @@ function CodeBlock({ children }: { children: string }) {
 const CURSOR_CONFIG = `{
   "mcpServers": {
     "${MCP_SERVER_ID}": {
-      "command": "npm",
-      "args": ["run", "mcp:dev"],
-      "cwd": "/path/to/rag-academy",
+      "command": "node",
+      "args": ["scripts/mcp-stdio.mjs"],
+      "cwd": "${MCP_REPO_CWD_PLACEHOLDER}",
       "env": {
-        "RAG_ACADEMY_SITE_URL": "https://ragacademy.com"
+        "RAG_ACADEMY_SITE_URL": "${MCP_PUBLIC_SITE_URL}"
       }
     }
   }
@@ -40,9 +42,12 @@ const CURSOR_CONFIG = `{
 const CLAUDE_DESKTOP_CONFIG = `{
   "mcpServers": {
     "${MCP_SERVER_ID}": {
-      "command": "npm",
-      "args": ["run", "mcp:dev"],
-      "cwd": "/path/to/rag-academy"
+      "command": "node",
+      "args": ["scripts/mcp-stdio.mjs"],
+      "cwd": "${MCP_REPO_CWD_PLACEHOLDER}",
+      "env": {
+        "RAG_ACADEMY_SITE_URL": "${MCP_PUBLIC_SITE_URL}"
+      }
     }
   }
 }`;
@@ -152,6 +157,21 @@ export function CurriculumCompassDocs({ variant = "full" }: CurriculumCompassDoc
           </li>
           <li>Add the server to your MCP client using the config below (replace the cwd path).</li>
         </ol>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold text-gray-900">MCP Inspector</h2>
+        <p className="text-sm text-gray-500 leading-relaxed">
+          Use <strong>node</strong>, not <strong>npm run</strong>. npm prints lines like{" "}
+          <code className="text-xs">{"> rag-academy@0.1.0 mcp:dev"}</code> to stdout, which breaks MCP stdio
+          (only JSON-RPC is allowed on stdout).
+        </p>
+        <CodeBlock>{`Command: node
+Arguments: scripts/mcp-stdio.mjs
+(Or run from repo root: npm run mcp:inspect)`}</CodeBlock>
+        <p className="text-sm text-gray-500">
+          Skip <strong>Authentication</strong>. Click <strong>Connect</strong>, then open <strong>Tools</strong>.
+        </p>
       </section>
 
       <section className="space-y-4">
