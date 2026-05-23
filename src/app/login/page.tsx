@@ -32,8 +32,10 @@ function LoginContent() {
   useEffect(() => {
     fetch("/api/stats")
       .then((res) => res.json())
-      .then((data) => setUserCount(data.userCount ?? 33))
-      .catch(() => setUserCount(33));
+      .then((data) => {
+        if (data.userCount !== undefined) setUserCount(data.userCount);
+      })
+      .catch(() => {});
   }, []);
 
 if (authLoading || (user && !authLoading)) {

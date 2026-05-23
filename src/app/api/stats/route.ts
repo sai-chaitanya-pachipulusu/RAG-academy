@@ -5,29 +5,32 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key) {
+      return NextResponse.json(
+        { error: "Supabase not configured" },
+        { status: 503 }
+      );
+    }
+
+    const supabase = createClient(url, key);
     const { count, error } = await supabase
       .from("profiles")
       .select("id", { count: "exact", head: true });
 
     if (error) {
       return NextResponse.json(
-        { userCount: 33, note: "using fallback count" },
-        { status: 200 }
+        { error: error.message },
+        { status: 502 }
       );
     }
 
+    return NextResponse.json({ userCount: count ?? 0 });
+  } catch (err) {
     return NextResponse.json(
-      { userCount: count ?? 33 },
-      { status: 200 }
-    );
-  } catch {
-    return NextResponse.json(
-      { userCount: 33, note: "using fallback count" },
-      { status: 200 }
+      { error: err instanceof Error ? err.message : "Connection failed" },
+      { status: 502 }
     );
   }
 }

@@ -13,6 +13,7 @@ const PUBLIC_API_ROUTES = [
   "/api/webhooks/",      // Payment provider webhooks
   "/api/email/webhook",  // Email provider webhooks
   "/api/health",         // Health check endpoint
+  "/api/stats",          // Public stats endpoint
 ];
 
 export async function middleware(request: NextRequest) {
@@ -70,9 +71,13 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const result = await supabase.auth.getUser();
+    user = result.data.user;
+  } catch {
+    // Supabase unreachable — treat as unauthenticated
+  }
 
   // Redirect to login if not authenticated
   if (!user) {
