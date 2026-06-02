@@ -49,9 +49,9 @@ export const MCP_ENV_VARS = [
 export const MCP_FEATURED_TOOLS = [
   { name: "rag_academy_search_content", description: "Search lessons, playbooks, and challenges." },
   { name: "rag_academy_get_content", description: "Read lesson, playbook, or challenge MDX (paginated)." },
+  { name: "rag_academy_answer", description: "Grounded Q&A — ask any RAG engineering question." },
   { name: "rag_academy_list_challenges", description: "Filter challenges by stage, difficulty, and XP." },
   { name: "rag_academy_get_pricing", description: "Public tier ranges and phase countdown (tool-first for agents)." },
-  { name: "rag_academy_server_info", description: "Discovery: tools, resources, prompts, and pricing URIs." },
 ] as const;
 
 export const MCP_RESOURCES = [

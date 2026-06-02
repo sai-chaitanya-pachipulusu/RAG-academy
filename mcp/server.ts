@@ -19,6 +19,7 @@ import {
   listChallengeSummaries,
   searchAcademyContent,
 } from "@/lib/mcp/ragAcademyTools";
+import { answerMcpQuestion, analyzeArchitectureMcp } from "@/lib/mcp/ragQa";
 
 /** Zod: allow any JSON-shaped tool result for structuredContent. */
 const JsonObjectOutput = z.record(z.string(), z.unknown());
@@ -38,7 +39,7 @@ const server = new McpServer(
   { name: MCP_SERVER_ID, version: MCP_SERVER_VERSION },
   {
     instructions: [
-      `${MCP_DISPLAY_NAME} (${MCP_SERVER_ID}): RAG Academy MCP — curriculum search, challenges, paginated lesson MDX bodies, public pricing, research RSS/arXiv feeds, and optional authenticated progress/recommendations.`,
+      `${MCP_DISPLAY_NAME} (${MCP_SERVER_ID}): RAG Academy MCP — curriculum search, challenges, paginated lesson MDX bodies, public pricing, research RSS/arXiv feeds, grounded RAG Q&A, architecture analysis, and optional authenticated progress/recommendations.`,
       "Set RAG_ACADEMY_SITE_URL, NEXT_PUBLIC_APP_URL, or NEXT_PUBLIC_SITE_URL for absolute HTTPS links in responses.",
       "Search uses keyword overlap over a build-time index, not embeddings. Results include contentId where applicable (lesson/playbook ids, challenge:<slug>).",
       "Research feeds: 15s HTTP timeout per source; in-process cache TTL 1h per feed (see meta.feedCacheTtlMs).",
@@ -431,6 +432,46 @@ server.registerTool(
         goal: input.goal,
       })
     )
+);
+
+server.registerTool(
+  "rag_academy_answer",
+  {
+    title: "Answer a RAG question",
+    description:
+      "Grounded Q&A using RAG Academy's curriculum content. Ask anything about RAG engineering — chunking, retrieval, reranking, evaluation, production. Returns answer with citations and evidence.",
+    inputSchema: z.object({
+      question: z.string().min(1).max(4000).describe("The RAG engineering question to answer."),
+    }),
+    outputSchema: JsonObjectOutput,
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  async ({ question }) => toolResult(await answerMcpQuestion({ question }))
+);
+
+server.registerTool(
+  "rag_academy_analyze_arch",
+  {
+    title: "Analyze a RAG architecture (Pro)",
+    description:
+      "Submit a RAG architecture description for expert analysis against curriculum best practices. Returns strengths, risks, and ordered recommendations. Requires a Pro subscription (set RAG_ACADEMY_SUPABASE_ACCESS_TOKEN).",
+    inputSchema: z.object({
+      description: z.string().min(20).max(10000).describe("Detailed description of the user's RAG architecture, pipeline, or problem."),
+    }),
+    outputSchema: JsonObjectOutput,
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  async ({ description }) => toolResult(await analyzeArchitectureMcp({ description }))
 );
 
 async function main() {

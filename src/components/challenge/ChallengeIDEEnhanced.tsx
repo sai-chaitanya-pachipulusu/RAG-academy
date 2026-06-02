@@ -259,7 +259,13 @@ export function ChallengeIDEEnhanced({ challenge, children, prev, next }: Props)
           errorMessage: errorInfo || undefined,
           errorType: parsedError?.type || undefined,
           metrics: result.metrics || undefined,
-        }).catch(e => console.warn("Failed to save submission history:", e));
+        })
+          .then((saveResult) => {
+            if (saveResult?.paywall) {
+              addToast("Upgrade to Pro to save submissions for paid challenges.", "warning");
+            }
+          })
+          .catch(e => console.warn("Failed to save submission history:", e));
       }
 
       if (result.ok) {

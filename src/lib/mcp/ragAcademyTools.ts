@@ -273,6 +273,8 @@ export function getAcademyServerInfo() {
       "rag_academy_server_info",
       "rag_academy_get_my_progress",
       "rag_academy_get_my_recommendations",
+      "rag_academy_answer",
+      "rag_academy_analyze_arch",
     ],
     resources: [
       {

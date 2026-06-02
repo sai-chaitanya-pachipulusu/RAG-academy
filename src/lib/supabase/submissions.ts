@@ -1,17 +1,17 @@
 /**
  * Submission History
- * 
+ *
  * Track all code submission attempts for challenges (like LeetCode/HackerRank).
  * Stores: code, result, execution time, errors, and more.
  */
 
 import { requireSupabase, getSupabase } from "./client";
 
-export type SubmissionStatus = 
-  | "accepted" 
-  | "wrong_answer" 
-  | "runtime_error" 
-  | "time_limit" 
+export type SubmissionStatus =
+  | "accepted"
+  | "wrong_answer"
+  | "runtime_error"
+  | "time_limit"
   | "compilation_error";
 
 export interface Submission {
@@ -40,8 +40,16 @@ export interface SubmissionStats {
   acceptanceRate: number;
 }
 
+export interface SaveSubmissionResult {
+  id: string;
+  xpAwarded?: number;
+  paywall?: boolean;
+  reason?: string;
+}
+
 /**
- * Save a new submission to history
+ * Save a new submission to history.
+ * Routes through /api/submissions for server-side paywall + rate limiting.
  */
 export async function saveSubmission(
   userId: string,
@@ -58,50 +66,48 @@ export async function saveSubmission(
     errorType?: string;
     metrics?: Record<string, unknown>;
   }
-): Promise<{ id: string } | null> {
+): Promise<SaveSubmissionResult | null> {
+  // Get access token from current Supabase session
   const supabase = getSupabase();
-  if (!supabase) return null;
+  const session = supabase ? (await supabase.auth.getSession()).data.session : null;
+  const token = session?.access_token;
+  if (!token) return null;
 
-  // Determine status based on results
-  let status: SubmissionStatus = "accepted";
-  if (!submission.passed) {
-    if (submission.errorType?.includes("Timeout")) {
-      status = "time_limit";
-    } else if (submission.errorType?.includes("SyntaxError")) {
-      status = "compilation_error";
-    } else if (submission.errorType) {
-      status = "runtime_error";
-    } else {
-      status = "wrong_answer";
-    }
-  }
-
-  const { data, error } = await supabase
-    .from("submission_history")
-    .insert({
-      user_id: userId,
-      challenge_slug: challengeSlug,
+  // Hit the server-side endpoint (handles paywall + rate limit + XP rules)
+  const res = await fetch("/api/submissions", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-supabase-access-token": token,
+    },
+    body: JSON.stringify({
+      challengeSlug,
       code: submission.code,
       language: submission.language || "python",
-      status,
       passed: submission.passed,
-      execution_time_ms: submission.executionTimeMs || null,
-      score: submission.score || null,
-      tests_passed: submission.testsPassed || 0,
-      tests_total: submission.testsTotal || 0,
-      error_message: submission.errorMessage || null,
-      error_type: submission.errorType || null,
-      metrics: submission.metrics || {},
-    })
-    .select("id")
-    .single();
+      executionTimeMs: submission.executionTimeMs ?? null,
+      score: submission.score ?? null,
+      testsPassed: submission.testsPassed ?? 0,
+      testsTotal: submission.testsTotal ?? 0,
+      errorMessage: submission.errorMessage ?? null,
+      errorType: submission.errorType ?? null,
+      metrics: submission.metrics ?? {},
+    }),
+  });
 
-  if (error) {
-    console.warn("Failed to save submission:", error);
+  if (res.status === 402) {
+    // Paywall — paid challenge, no subscription
+    const body = await res.json().catch(() => ({}));
+    return { id: "", paywall: true, reason: body.reason };
+  }
+
+  if (!res.ok) {
+    console.warn("Failed to save submission:", res.status);
     return null;
   }
 
-  return { id: data.id };
+  const json = (await res.json()) as { id: string; xpAwarded?: number };
+  return { id: json.id, xpAwarded: json.xpAwarded };
 }
 
 /**

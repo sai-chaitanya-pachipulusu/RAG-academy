@@ -14,6 +14,8 @@ const PUBLIC_API_ROUTES = [
   "/api/email/webhook",  // Email provider webhooks
   "/api/health",         // Health check endpoint
   "/api/stats",          // Public stats endpoint
+  "/api/rag/",           // RAG Co-pilot API (self-auth)
+  "/api/submissions",    // Submission endpoint (self-auth via x-supabase-access-token)
 ];
 
 export async function middleware(request: NextRequest) {
