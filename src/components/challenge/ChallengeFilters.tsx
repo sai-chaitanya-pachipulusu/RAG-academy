@@ -10,6 +10,7 @@ import { useSupabaseAuth } from "@/components/providers/SupabaseAuthProvider";
 
 type FilterDifficulty = "all" | "easy" | "medium" | "hard";
 type FilterStatus = "all" | "completed" | "in_progress" | "not_started";
+type FilterAccess = "all" | "free" | "paid";
 type SortBy = "default" | "difficulty" | "xp";
 
 const MODULES = [
@@ -46,9 +47,10 @@ export function ChallengeFilters({ progress }: Props) {
   const [search, setSearch] = useState("");
   const [difficulty, setDifficulty] = useState<FilterDifficulty>("all");
   const [status, setStatus] = useState<FilterStatus>("all");
+  const [access, setAccess] = useState<FilterAccess>("all");
   const [sortBy, setSortBy] = useState<SortBy>("default");
   const [selectedModule, setSelectedModule] = useState<string>("all");
-  
+
   // User has full access if they have a paid subscription
   const hasFullAccess = hasPaidAccess;
 
@@ -81,6 +83,12 @@ export function ChallengeFilters({ progress }: Props) {
       });
     }
 
+    if (access === "free") {
+      result = result.filter((c) => isChallengeFree(c));
+    } else if (access === "paid") {
+      result = result.filter((c) => !isChallengeFree(c));
+    }
+
     if (sortBy === "difficulty") {
       const order = { easy: 0, medium: 1, hard: 2 };
       result.sort((a, b) => order[a.difficulty] - order[b.difficulty]);
@@ -89,12 +97,18 @@ export function ChallengeFilters({ progress }: Props) {
     }
 
     return result;
-  }, [search, difficulty, status, sortBy, selectedModule, progress]);
+  }, [search, difficulty, status, access, sortBy, selectedModule, progress]);
 
   const stats = useMemo(() => {
     const total = CHALLENGES.length;
     const completed = Object.values(progress).filter((p) => p.status === "completed").length;
-    return { total, completed, percentage: Math.round((completed / total) * 100) };
+    const free = countFreeChallenges(CHALLENGES);
+    return {
+      total,
+      completed,
+      free,
+      percentage: Math.round((completed / total) * 100),
+    };
   }, [progress]);
 
   return (
@@ -134,6 +148,16 @@ export function ChallengeFilters({ progress }: Props) {
             <option value="easy">Easy</option>
             <option value="medium">Medium</option>
             <option value="hard">Hard</option>
+          </select>
+
+          <select
+            value={access}
+            onChange={(e) => setAccess(e.target.value as FilterAccess)}
+            className="h-9 rounded-lg border border-gray-100 bg-white px-3 text-xs font-medium text-gray-600 outline-none hover:border-gray-200 cursor-pointer"
+          >
+            <option value="all">Free + Pro</option>
+            <option value="free">Free Only</option>
+            <option value="paid">Pro Only</option>
           </select>
 
           <select
@@ -189,9 +213,12 @@ export function ChallengeFilters({ progress }: Props) {
       </div>
 
       {/* Results Count */}
-      <div className="flex items-center justify-between text-xs">
+      <div className="flex items-center justify-between text-xs flex-wrap gap-2">
         <p className="text-gray-500">
           <span className="font-bold text-gray-900">{filteredChallenges.length}</span> challenges
+          <span className="ml-3 text-[#3B82F6] font-medium">
+            {stats.free} free — start anywhere
+          </span>
         </p>
         <p className="text-gray-500">
           <span className="font-bold text-emerald-600">{stats.completed}</span> done ({stats.percentage}%)

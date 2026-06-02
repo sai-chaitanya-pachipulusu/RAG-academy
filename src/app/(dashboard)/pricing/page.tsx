@@ -17,6 +17,7 @@ export default function PricingPage() {
   const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
   const [nextPhaseInfo, setNextPhaseInfo] = useState(getNextPhaseInfo());
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("annual");
+  const [userCount, setUserCount] = useState<number | null>(null);
 
   useEffect(() => {
     const updatePricingInfo = () => {
@@ -29,6 +30,15 @@ export default function PricingPage() {
     updatePricingInfo();
     const interval = setInterval(updatePricingInfo, 1000 * 60 * 60);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/stats")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.userCount !== undefined) setUserCount(data.userCount);
+      })
+      .catch(() => {});
   }, []);
 
   const tiers = [
@@ -95,6 +105,13 @@ export default function PricingPage() {
       </div>
 
       {/* Comparison */}
+      <div className="text-center">
+        <p className="text-xs text-gray-500">
+          {userCount !== null
+            ? `Join ${userCount}+ engineers building production RAG systems.`
+            : "Join engineers building production RAG systems."}
+        </p>
+      </div>
       <div className="rounded-lg border border-gray-200 overflow-hidden">
         <table className="w-full text-xs">
           <thead className="bg-gray-50">
@@ -108,8 +125,8 @@ export default function PricingPage() {
           <tbody className="divide-y divide-zinc-200">
             <tr className="bg-emerald-50">
               <td className="py-2 px-3 font-medium text-emerald-700">RAG Academy</td>
-              <td className="py-2 px-2 text-center text-emerald-700">$29</td>
-              <td className="py-2 px-2 text-center text-emerald-700">$199</td>
+              <td className="py-2 px-2 text-center text-emerald-700">{currentPhase.tiers.paid.price.displayMonthly}/mo</td>
+              <td className="py-2 px-2 text-center text-emerald-700">{currentPhase.tiers.paid.price.displayAnnual}/yr</td>
               <td className="py-2 px-2 text-center"><span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">RAG Only</span></td>
             </tr>
             <tr>

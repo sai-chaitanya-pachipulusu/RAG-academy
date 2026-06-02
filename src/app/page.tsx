@@ -93,6 +93,7 @@ const LEARNING_PATH = [
 
 const platformStats = getPlatformStats();
 const STATS = [
+  { value: `${platformStats.freeChallengeCount}+`, label: "Free Challenges" },
   { value: `${platformStats.totalLessons}`, label: "Lessons" },
   { value: `${platformStats.totalChallenges}+`, label: "Challenges" },
   { value: `${platformStats.totalModules}`, label: "Modules" },
@@ -111,6 +112,13 @@ export default function Home() {
         <div className="mx-auto max-w-[1200px] px-6 py-16 lg:px-8 lg:py-24">
           <div className="grid gap-12 lg:grid-cols-[1fr_380px] lg:items-center">
             <div className="space-y-6">
+              <Reveal>
+                <span className="inline-flex items-center gap-2 rounded-full border border-[#3B82F6]/20 bg-[#3B82F6]/5 px-3 py-1 text-xs font-medium text-[#3B82F6]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#3B82F6]" />
+                  {platformStats.freeChallengeCount}+ free challenges — no signup required
+                </span>
+              </Reveal>
+
               <Reveal>
                 <h1 className="text-4xl font-medium tracking-tight lg:text-5xl text-gray-900 font-heading">
                   Master RAG engineering
@@ -539,7 +547,7 @@ export default function Home() {
                 Build production RAG systems
               </h2>
               <p className="mx-auto mt-3 max-w-xl text-sm text-gray-500">
-                Master retrieval, grounding, agents, and evaluation through 260+ interactive challenges. Earn certificates. Ship with confidence.
+                Master retrieval, grounding, agents, and evaluation. Try {platformStats.freeChallengeCount}+ free challenges today — no signup required.
               </p>
               <div className="mt-6 flex items-center justify-center gap-3 flex-wrap">
                 <Link

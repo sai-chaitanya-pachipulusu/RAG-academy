@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { ChallengeIDE } from "@/components/challenge/ChallengeIDE";
+import { ChallengeIDEEnhanced } from "@/components/challenge/ChallengeIDEEnhanced";
 import { MDXRenderer } from "@/components/learn/MDXRenderer";
 import { getChallengeBySlug, getChallengeNeighbors } from "@/lib/challenges/catalog";
 import { getChallengePrompt } from "@/lib/challenges/fs";
@@ -20,9 +20,9 @@ export default async function ChallengePage({ params }: Props) {
   const prompt = await getChallengePrompt(slug);
 
   return (
-    <ChallengeIDE challenge={challenge} prev={prev} next={next}>
+    <ChallengeIDEEnhanced challenge={challenge} prev={prev} next={next}>
       {prompt ? <MDXRenderer source={prompt} /> : null}
-    </ChallengeIDE>
+    </ChallengeIDEEnhanced>
   );
 }
 

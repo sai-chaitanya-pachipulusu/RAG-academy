@@ -1,0 +1,52 @@
+---
+title: "CRAG Pipeline (Corrective RAG)"
+description: "Evaluate retrieval confidence and take corrective action — web search fallback, knowledge refinement, or direct answer"
+difficulty: "hard"
+xpReward: 275
+topics: ["agentic-rag", "self-correction", "retrieval-evaluation", "fallback"]
+prerequisites: ["reranker-score-function"]
+---
+
+# CRAG: Corrective Retrieval Augmented Generation
+
+## Overview
+
+CRAG adds a **retrieval evaluator** between the retriever and the generator. The evaluator scores the relevance of retrieved documents and triggers one of three actions: direct answer, use retrieved context, or trigger a web search fallback. This self-correcting behavior catches the silent failure mode where standard RAG uses irrelevant context and hallucinates confidently.
+
+## Why This Matters
+
+- **Silent failures**: Standard RAG often retrieves tangentially related documents and confidently uses them — the answer sounds right but is wrong
+- **Production reliability**: Every retrieval needs a confidence score, and low-confidence retrievals need a fallback
+- **Web fallback**: When your knowledge base is insufficient, escalate to a web search rather than guessing
+- **Cost efficiency**: Skip the LLM entirely when the question doesn't need retrieval (the "Correct" branch)
+
+## The Three Actions
+
+1. **Correct** (high confidence): Use the retrieved documents directly
+2. **Incorrect** (low confidence): Trigger a web search, refine the result, use that
+3. **Ambiguous** (medium confidence): Combine retrieved docs with web search results
+
+## Architecture
+
+```
+Query → Retriever → Evaluator (LLM-as-judge or classifier)
+                          ↓
+        ┌─────────────────┼─────────────────┐
+    Correct            Ambiguous         Incorrect
+        ↓                 ↓                  ↓
+   Use retrieved    Combine both      Web search +
+   documents        sources           refine
+        ↓                 ↓                  ↓
+                    Generator
+```
+
+## Real-World Applications
+
+Used in production at scale by **Meta's CRAG paper** and adapted by teams building customer support RAG, legal RAG, and any system where retrieval failures would be costly. Web-search fallback is increasingly common with LLM agents that can call tools.
+
+## Implementation Notes
+
+- Use a lightweight evaluator (small LLM or fine-tuned classifier) to score relevance
+- Threshold tuning is critical — too low and you fall back too often, too high and you propagate bad context
+- Cache web search results to avoid redundant calls
+- Log every action taken for observability

@@ -3,6 +3,7 @@ export type { Challenge, ChallengeDifficulty } from "@/lib/challenges/types";
 
 import { RAW_CHALLENGES } from "@/lib/challenges/defs/all";
 import { CHALLENGE_STAGE_BY_SLUG } from "@/lib/challenges/defs/stageBySlug";
+import { isChallengeFree } from "@/lib/challenges/access";
 
 /**
  * Total lessons count — computed from search index at build time
@@ -91,6 +92,7 @@ export function getPlatformStats() {
     challengesWithSolutions: challenges.filter(c => c.solution).length,
     portfolioProjects: Math.min(portfolioProjects, challenges.filter(c => c.difficulty === "hard" && c.realWorld).length),
     freeChallenges: challenges.filter(c => c.xpReward > 0).length,
+    freeChallengeCount: challenges.filter(c => isChallengeFree(c)).length,
   };
 }
 

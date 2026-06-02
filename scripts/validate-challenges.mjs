@@ -48,12 +48,24 @@ function fail(errors) {
 
 const errors = [];
 
-// 1) Collect challenge slugs from defs/*.ts
-const entries = await fs.readdir(DEFS_DIR, { withFileTypes: true });
-const defFiles = entries
-  .filter((e) => e.isFile() && e.name.endsWith(".ts"))
-  .map((e) => e.name)
-  .filter((name) => name !== "all.ts" && name !== "stageBySlug.ts")
+// 1) Collect challenge slugs from defs/**/*.ts (recursive)
+async function walk(dir) {
+  const out = [];
+  for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      out.push(...(await walk(full)));
+    } else if (entry.isFile() && entry.name.endsWith(".ts")) {
+      out.push(full);
+    }
+  }
+  return out;
+}
+
+const allDefFiles = await walk(DEFS_DIR);
+const defFiles = allDefFiles
+  .map((p) => path.relative(DEFS_DIR, p))
+  .filter((rel) => rel !== "all.ts" && rel !== "stageBySlug.ts" && rel !== "vinijaInspired.ts")
   .sort();
 
 const slugToFile = new Map();

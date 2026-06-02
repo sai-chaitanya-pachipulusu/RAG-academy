@@ -1,0 +1,44 @@
+---
+title: "Late Chunking Implementation"
+description: "Embed documents first, then chunk — preserve cross-chunk context for RAG"
+difficulty: "medium"
+xpReward: 175
+topics: ["chunking", "embeddings", "context-preservation"]
+prerequisites: ["semantic-chunking-pipeline"]
+---
+
+# Late Chunking Implementation
+
+## Overview
+
+Late chunking flips the traditional pipeline: embed the full document first, then slice the token embeddings back into chunks. The result is that each chunk's embedding has full document context, preserving pronoun references and cross-sentence relationships that naive chunking destroys.
+
+## Why This Matters
+
+- **Coreference resolution**: Pronouns ("it", "they", "this method") point back to entities introduced earlier — naive chunking breaks this
+- **Narrative documents**: Transcripts, articles, stories lose coherence when chunked naively
+- **Long-context retrieval**: Embeddings reflect global context, not just local sentence meaning
+- **Production impact**: Critical for RAG over support tickets, customer emails, medical notes, and any document with cross-sentence dependencies
+
+## How It Works
+
+1. Tokenize the entire document with offset mappings
+2. Run the embedding model on the full token sequence (one forward pass)
+3. Slice the resulting token-level embeddings back into chunks based on character/token ranges
+4. Pool (mean) the token embeddings within each chunk to get the chunk vector
+
+## Key Trade-offs
+
+- **Cost**: One long forward pass is more expensive than many short ones — but only slightly, because you avoid the per-chunk overhead
+- **Context window**: Limited by the embedding model's max tokens (512 for many models, 8192+ for modern ones)
+- **Storage**: Token-level embeddings are much larger than chunk-level — keep the chunks, not the tokens
+
+## Real-World Applications
+
+Used in production by **Jina AI**'s late-chunking research, and by teams building RAG over long PDFs, customer conversations, and technical documentation.
+
+## Implementation Notes
+
+- Use a model that returns token-level embeddings (e.g., `jina-embeddings-v2-base-en` with `return_tensors=True`)
+- Maintain stable `char_range` and `token_range` for traceability
+- Mean-pool token embeddings within each chunk

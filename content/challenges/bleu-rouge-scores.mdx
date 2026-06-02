@@ -1,0 +1,55 @@
+---
+title: "BLEU and ROUGE Score Implementation"
+description: "Classic n-gram overlap metrics for evaluating generated text against reference answers"
+difficulty: "medium"
+xpReward: 200
+topics: ["evaluation", "nlg-metrics", "bleu", "rouge"]
+prerequisites: ["faithfulness-calculator"]
+---
+
+# BLEU and ROUGE Score Implementation
+
+## Overview
+
+BLEU and ROUGE are the two classic n-gram overlap metrics for evaluating generated text against reference answers. **BLEU** measures precision (how much of the generated text appears in references — used in machine translation). **ROUGE** measures recall (how much of the reference appears in generated text — used in summarization).
+
+## Why This Matters
+
+- **Reference-based evaluation**: When you have ground-truth answers (summarization datasets, Q&A benchmarks), these are the standard metrics
+- **Fast and deterministic**: Unlike LLM-as-judge, BLEU/ROUGE are pure code — no API calls, no GPU, fully reproducible
+- **Complementary to LLM judges**: Use BLEU/ROUGE for bulk regression testing, LLM-as-judge for nuanced quality
+- **Limitations**: They don't capture semantic similarity — "the cat sat" vs "a feline was seated" scores 0 despite meaning the same
+
+## How They Work
+
+### BLEU (Bilingual Evaluation Understudy)
+- Count overlapping n-grams (1-4) between candidate and reference
+- **Precision** = overlapping / total candidate n-grams
+- Apply **brevity penalty** to penalize short candidates
+- Aggregate: geometric mean of n-gram precisions × brevity penalty
+
+### ROUGE (Recall-Oriented Understudy for Gisting Evaluation)
+- Count overlapping n-grams between candidate and reference
+- **Recall** = overlapping / total reference n-grams
+- Common variants: ROUGE-1 (unigrams), ROUGE-2 (bigrams), ROUGE-L (longest common subsequence)
+
+## When to Use Each
+
+| Metric | Use For | Measures |
+|--------|---------|----------|
+| **BLEU** | Translation, paraphrasing | Precision — is the candidate precise? |
+| **ROUGE-1/2** | Summarization | Recall — is the candidate complete? |
+| **ROUGE-L** | Long-form generation | Sequence similarity (LCS) |
+
+## Real-World Applications
+
+- **MT systems** (Google Translate, DeepL): BLEU is the industry standard
+- **Summarization** (news, medical): ROUGE is the standard
+- **RAG evaluation** (your use case): useful for regression testing against gold datasets
+- **Fine-tuning eval**: cheap to run on every checkpoint
+
+## Implementation Notes
+
+- Always apply a smoothing function for short texts (n-gram precision = 0 is brutal)
+- Tokenize consistently — punctuation handling matters
+- ROUGE-L uses longest common subsequence, which is O(n×m) dynamic programming

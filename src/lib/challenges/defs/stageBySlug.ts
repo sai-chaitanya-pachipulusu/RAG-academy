@@ -303,13 +303,6 @@ export const CHALLENGE_STAGE_BY_SLUG: Record<string, CurriculumStage> = {
   "ts-answer-confidence": "evaluation-ops",
   "ts-rate-limiter": "production-ops",
 
-  // Vinija-inspired challenges
-  "late-chunking-implementation": "pre-retrieval",
-  "crag-pipeline": "agentic-rag",
-  "faithfulness-calculator": "evaluation-ops",
-  "bleu-rouge-scores": "evaluation-ops",
-  "multimodal-embedding-fusion": "multimodal",
-
   // NEW: Advanced Chunking Techniques (Granularity & Domain-Specific)
   "page-level-chunking": "pre-retrieval",
   "document-level-chunking": "pre-retrieval",
@@ -347,4 +340,11 @@ export const CHALLENGE_STAGE_BY_SLUG: Record<string, CurriculumStage> = {
   "rag-failure-diagnosis": "evaluation-ops",
   // Phase 0 — Foundations
   "bert-vs-sentence-transformers": "foundations",
+
+  // Vinija-inspired challenges (imported via vinijaInspired.ts)
+  "late-chunking-implementation": "pre-retrieval",
+  "crag-pipeline": "agentic-rag",
+  "faithfulness-calculator": "evaluation-ops",
+  "bleu-rouge-scores": "evaluation-ops",
+  "multimodal-embedding-fusion": "multimodal",
 };

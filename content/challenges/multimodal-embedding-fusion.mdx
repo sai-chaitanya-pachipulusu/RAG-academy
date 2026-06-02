@@ -1,0 +1,61 @@
+---
+title: "Multimodal Embedding Fusion"
+description: "Combine text and image embeddings into a unified vector space for cross-modal retrieval"
+difficulty: "hard"
+xpReward: 275
+topics: ["multimodal", "clip", "embeddings", "fusion", "visual-search"]
+prerequisites: ["cosine-similarity"]
+---
+
+# Multimodal Embedding Fusion
+
+## Overview
+
+Multimodal embedding fusion creates a **shared vector space** where text and images can be directly compared. Query with text, retrieve images; query with an image, retrieve text. The foundation is contrastive learning (CLIP-style) that aligns the two modalities in the same embedding space.
+
+## Why This Matters
+
+- **E-commerce visual search**: "Show me dresses like this one" or "find products matching this description"
+- **Medical imaging + notes**: Retrieve relevant X-rays from radiology reports and vice versa
+- **Content moderation**: Match user-generated text to known-bad image content
+- **Document RAG**: PDFs contain text + images + tables — search all three together
+- **Recommendation systems**: Find similar products by image or by description
+
+## How Fusion Works
+
+1. **Train with contrastive loss**: For (text, image) pairs, pull matched pairs together and push mismatched pairs apart in the shared space
+2. **Separate encoders**: A text encoder (e.g., BERT) and an image encoder (e.g., ViT) produce embeddings in the same dimensionality
+3. **Optional projection**: A learned linear projection maps each modality to the shared space
+4. **Unified index**: Store all embeddings in one vector database, search across both
+
+## Fusion Strategies
+
+- **Early fusion**: Concatenate raw features before encoding (rare, hard to train)
+- **Late fusion**: Encode separately, then merge embeddings (most common, what CLIP does)
+- **Cross-attention fusion**: Image and text attend to each other during encoding (more powerful, more expensive)
+- **Score fusion**: Run text-only and image-only retrievers, merge results with RRF (simplest, no retraining)
+
+## Architecture
+
+```
+Text → [Text Encoder]  →  e_text  →  [Project]  →  v_text
+                                                       ↘
+                                                  [Shared Space]
+                                                       ↗
+Image → [Image Encoder] →  e_image →  [Project]  →  v_image
+```
+
+## Real-World Applications
+
+- **OpenAI CLIP**: Powers image search in many products
+- **Google Multilingual Embeddings**: Text-image alignment at scale
+- **Pinterest visual search**: Image-to-image and text-to-image retrieval
+- **Etsy, Wayfair, IKEA**: Product search with both modalities
+- **Docling, Unstructured**: Extract text + images from PDFs for multimodal RAG
+
+## Implementation Notes
+
+- Start with a pre-trained CLIP model, don't train from scratch
+- Use temperature-scaled cosine similarity for the contrastive loss
+- Normalize embeddings before storing in the vector DB (cosine vs dot product)
+- For domain-specific data (medical, industrial), fine-tune the projection layer

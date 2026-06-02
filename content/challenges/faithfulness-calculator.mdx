@@ -1,0 +1,50 @@
+---
+title: "Faithfulness Score Calculator"
+description: "Measure how grounded an answer is in its source context — the core anti-hallucination metric"
+difficulty: "medium"
+xpReward: 175
+topics: ["evaluation", "hallucination", "groundedness", "rag-quality"]
+prerequisites: ["answer-relevancy-evaluator"]
+---
+
+# Faithfulness Score Calculator
+
+## Overview
+
+Faithfulness measures whether the claims in a generated answer can be **inferred from the source context**. A high faithfulness score means the answer is grounded in retrieved documents; a low score indicates the LLM is hallucinating or extrapolating beyond the evidence.
+
+## Why This Matters
+
+- **Hallucination detection**: The primary defense against LLMs making unsupported claims
+- **RAG quality**: A faithful answer that misses the point (low relevance) is bad but recoverable; an unfaithful answer is dangerous
+- **Trust calibration**: Show users a faithfulness score so they know when to verify
+- **Compliance**: Regulated industries (legal, medical, financial) need to prove answers don't invent facts
+
+## How It's Calculated
+
+1. **Extract claims** from the answer (split into atomic statements)
+2. **For each claim**, check: can it be inferred from the context?
+3. **Score** = (supported claims) / (total claims)
+4. Return 0.0 (fabrication) to 1.0 (perfectly grounded)
+
+## Faithfulness vs. Other Metrics
+
+- **Faithfulness** = answer is supported by context (anti-hallucination)
+- **Answer Relevancy** = answer addresses the question (anti-evasion)
+- **Context Precision** = retrieved docs are useful (retrieval quality)
+- **Context Recall** = retrieved docs cover the answer's needed info (coverage)
+
+A good RAG system needs all four, but faithfulness is the most critical for production safety.
+
+## Real-World Applications
+
+- **RAGAS framework** popularized this metric — now used across the industry
+- **OpenAI Evals** and **Anthropic's Constitutional AI** use similar grounding checks
+- Customer support RAG: high faithfulness prevents legal liability
+- Medical RAG: low faithfulness can be life-threatening
+
+## Implementation Notes
+
+- Use an LLM-as-judge to extract and verify claims (small model is fine)
+- Be precise about "inferred from" vs. "stated in" — some inference is allowed
+- Track per-claim verdicts for debugging, not just the aggregate score
