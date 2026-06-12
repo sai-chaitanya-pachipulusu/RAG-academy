@@ -16,6 +16,8 @@
     "mcp:build": "tsc -p tsconfig.mcp.json --noEmit",
     "mcp:inspect": "npx @modelcontextprotocol/inspector --transport stdio node scripts/mcp-stdio.mjs",
     "mcp:smoke": "tsx scripts/mcp-smoke.ts",
+    "mcp:wire": "node scripts/mcp-wire-check.mjs",
+    "mcp:http": "node scripts/mcp-http-check.mjs",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage"

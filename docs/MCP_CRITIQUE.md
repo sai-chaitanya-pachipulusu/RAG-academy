@@ -4,6 +4,52 @@ Honest assessment of the MCP architecture as of the RAG Co-pilot rollout. Mixed
 verdict: the foundation is solid, but several load-bearing assumptions are
 questionable and at least one is a real security/cost issue.
 
+> **Status update (2026-06-11, v0.6.0):** The server is now hosted. A
+> Streamable HTTP endpoint at `/api/mcp` (stateless JSON mode, serverless-safe)
+> means anyone can connect with one command — no clone, no install:
+> `claude mcp add --transport http curriculum-compass https://ragacademy.space/api/mcp`.
+> Server construction lives in `src/lib/mcp/createServer.ts`, shared between
+> the stdio entry (`mcp/server.ts`) and the route. Authenticated tools read
+> `Authorization: Bearer <Supabase access token>` and route through the same
+> `/api/rag/*` enforcement as the web app — quotas and the Pro paywall hold;
+> platform LLM keys are never used for anonymous MCP callers. Issue 2's
+> distributed-rate-limit caveat now formally applies to HTTP (each serverless
+> instance counts separately) — acceptable at current scale, revisit with
+> Redis when traffic justifies it. Issue 8 is half-closed: the distribution
+> mechanism exists and `/developers/curriculum-compass` documents it; homepage
+> marketing copy is still pending. Verified end-to-end by `npm run mcp:http`
+> against a live server plus route-handler tests.
+>
+> **Status update (2026-06-11, v0.5.0):** The server now has a SOTA protocol
+> surface, all verified over real JSON-RPC by `npm run mcp:wire`:
+> - **MCP sampling** — `rag_academy_answer` answers via the *client's* own LLM
+>   when the host supports the sampling capability: zero keys, zero platform
+>   cost, zero quota. Fallback order: client-sampling → platform-api → local-llm.
+> - **Multi-query + RRF search** (issue 4, partial) — queries expand into
+>   comparison splits and RAG-domain synonym variants, fused with Reciprocal
+>   Rank Fusion (k=60) — the same RRF taught in /challenges/rrf-fusion.
+>   "semantic chunking vs proposition chunking" now retrieves both sides.
+> - **Resource templates with autocompletion** — ragacademy://lesson/{phase}/{slug},
+>   ragacademy://playbook/{slug}, ragacademy://challenge/{slug}; prompt args
+>   (currentStage, sitePathHint) also autocomplete via completion/complete.
+> - **New tool `rag_academy_get_learning_path`** — deterministic goal → ordered
+>   study path (RRF retrieval selects, official stage order sequences, with
+>   hour/week estimates). No LLM, reproducible, free.
+> - **Typed output schemas** on search/list_challenges/learning_path so clients
+>   get real JSON Schemas instead of `additionalProperties: true` blobs.
+>
+> **Status update (2026-06-10):** Issues 1, 3, 5, and 10 below are fixed.
+> `rag_academy_answer` and `rag_academy_analyze_arch` now route through the
+> deployed `/api/rag/*` endpoints (JWT + subscription tier + per-user quota
+> verified server-side); evidence parsing is tolerant and testable
+> (`parseGroundedAnswer`); `ragQa.test.ts` covers the LLM tools.
+> A worse bug was also found and fixed: every `tools/call` crashed over the
+> real wire protocol because `outputSchema` was a `z.record(...)` — the SDK
+> only normalizes object schemas, so output validation dereferenced
+> `undefined`. Fixed with `z.looseObject({})`; `npm run mcp:wire` now
+> exercises the actual JSON-RPC stdio protocol (initialize, tools/list,
+> tools/call) so a regression like this cannot ship silently again.
+
 ## What's genuinely good
 
 ### 1. Read-only by default, with proper annotations
@@ -171,18 +217,18 @@ actually spend money — are completely uncovered.
 
 If I were triaging this, in order:
 
-| # | Issue | Severity | Effort |
-|---|-------|----------|--------|
-| 1 | `analyze_arch` Pro bypass | **High** (cost leak + paywall breach) | Low (50 LoC) |
-| 3 | No per-user quota on MCP tools | **High** (cost leak) | Low (10 LoC) |
-| 4 | Keyword search → answer quality | **High** (core product) | Medium |
-| 8 | MCP story not in marketing | **High** (strategic) | Medium |
-| 5 | Evidence regex fragility | Medium | Low |
-| 2 | In-process rate limit | Medium (fine for now) | Defer |
-| 6 | No streaming | Low (UX) | Medium |
-| 7 | No incremental index | Low (fine for now) | Defer |
-| 9 | Brand prefix inconsistency | Low | Low |
-| 10 | No AI tool tests | Low–Medium | Low |
+| # | Issue | Severity | Effort | Status |
+|---|-------|----------|--------|--------|
+| 1 | `analyze_arch` Pro bypass | **High** (cost leak + paywall breach) | Low (50 LoC) | **Fixed** — routes via `/api/rag/analyze` |
+| 3 | No per-user quota on MCP tools | **High** (cost leak) | Low (10 LoC) | **Fixed** — routes via `/api/rag/ask` |
+| 4 | Keyword search → answer quality | **High** (core product) | Medium | **Improved** — multi-query + RRF fusion (embeddings still future work) |
+| 8 | MCP story not in marketing | **High** (strategic) | Medium | Open |
+| 5 | Evidence regex fragility | Medium | Low | **Fixed** — `parseGroundedAnswer` + formatNote |
+| 2 | In-process rate limit | Medium (fine for now) | Defer | Open |
+| 6 | No streaming | Low (UX) | Medium | Open |
+| 7 | No incremental index | Low (fine for now) | Defer | Open |
+| 9 | Brand prefix inconsistency | Low | Low | Open |
+| 10 | No AI tool tests | Low–Medium | Low | **Fixed** — `ragQa.test.ts` |
 
 ## Bottom line
 

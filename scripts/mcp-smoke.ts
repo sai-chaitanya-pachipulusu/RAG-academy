@@ -11,6 +11,7 @@ import {
   listChallengeSummaries,
   searchAcademyContent,
 } from "@/lib/mcp/ragAcademyTools";
+import { buildLearningPath } from "@/lib/mcp/learningPath";
 import { MCP_PUBLIC_SITE_URL } from "@/lib/mcp/branding";
 import { getPublicPricingSnapshot } from "@/lib/mcp/pricingPublic";
 import { buildCurriculumOutlineJson } from "@/lib/mcp/curriculumOutline";
@@ -45,6 +46,23 @@ async function main() {
       fail("search absolute URL", new Error(`expected ${MCP_PUBLIC_SITE_URL} prefix, got ${firstUrl}`));
     }
     ok("rag_academy_search_content", `${search.count} hits, first=${search.results[0]?.path}`);
+
+    const fused = await searchAcademyContent({
+      query: "semantic chunking vs proposition chunking",
+      limit: 4,
+    });
+    if (fused.fusion !== "rrf") fail("fused search", new Error(`expected rrf, got ${fused.fusion}`));
+    ok("rag_academy_search_content (RRF)", `${fused.queriesUsed.length} sub-queries fused`);
+
+    const path = await buildLearningPath({
+      goal: "ship hybrid retrieval with reranking to production",
+      hoursPerWeek: 5,
+    });
+    if (!path.steps.length) fail("learning path returned no steps");
+    ok(
+      "rag_academy_get_learning_path",
+      `${path.steps.length} stages, ~${path.estimate.estimatedHours}h, ${path.estimate.estimatedWeeks} weeks`
+    );
 
     const content = await getAcademyContentDocument({
       sitePath: "/learn/phase-0/chunking-101",

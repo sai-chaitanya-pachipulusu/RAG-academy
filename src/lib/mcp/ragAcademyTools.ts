@@ -6,7 +6,12 @@ import {
 import type { Challenge, ChallengeDifficulty } from "@/lib/challenges/types";
 import type { CurriculumStage } from "@/lib/curriculum/stages";
 import { readAcademyDocument } from "@/lib/mcp/contentDocument";
-import { MCP_DISPLAY_NAME, MCP_DOCS_PATH, MCP_SERVER_ID } from "@/lib/mcp/branding";
+import {
+  MCP_DISPLAY_NAME,
+  MCP_DOCS_PATH,
+  MCP_HTTP_ENDPOINT_PATH,
+  MCP_SERVER_ID,
+} from "@/lib/mcp/branding";
 import { buildMcpMeta } from "@/lib/mcp/mcpMeta";
 import { MCP_RATE_LIMITS, takeMcpRateSlot } from "@/lib/mcp/mcpRateLimit";
 import { getPublicPricingSnapshot, PRICING_PAGE_PATH } from "@/lib/mcp/pricingPublic";
@@ -14,9 +19,10 @@ import { toAbsoluteSiteUrl, getPublicSiteOrigin } from "@/lib/mcp/siteUrl";
 import {
   fetchMyProgress,
   fetchMyRecommendations,
+  type ApiConfig,
   type RecommendationType,
 } from "@/lib/mcp/authApi";
-import { searchContent } from "@/lib/search/search";
+import { searchContentFused } from "@/lib/search/multiSearch";
 import type { SearchResult } from "@/lib/search/types";
 import { fetchFeed } from "@/lib/research/fetchFeed";
 import { DEFAULT_FEED_SOURCES } from "@/lib/research/sources";
@@ -163,11 +169,15 @@ export async function searchAcademyContent({ query, limit }: SearchAcademyConten
   const origin = getPublicSiteOrigin();
   const normalizedQuery = query.trim();
   const normalizedLimit = clampLimit(limit, DEFAULT_LIMIT, MAX_SEARCH_LIMIT);
-  const results = await searchContent(normalizedQuery, { limit: normalizedLimit });
+  const { results, queriesUsed, fusion } = await searchContentFused(normalizedQuery, {
+    limit: normalizedLimit,
+  });
 
   return {
     meta: buildMcpMeta(),
     query: normalizedQuery,
+    queriesUsed,
+    fusion,
     limit: normalizedLimit,
     count: results.length,
     results: withAbsoluteSearchResults(results, origin),
@@ -241,6 +251,10 @@ export function getAcademyServerInfo() {
     displayName: MCP_DISPLAY_NAME,
     serverId: MCP_SERVER_ID,
     docsPath: MCP_DOCS_PATH,
+    transports: {
+      stdio: "npm run mcp:dev (from a cloned repo); supports MCP client sampling and local LLM keys.",
+      http: `${MCP_HTTP_ENDPOINT_PATH} — hosted Streamable HTTP (stateless). Authenticated tools accept 'Authorization: Bearer <Supabase access token>'.`,
+    },
     pricing: {
       tool: "rag_academy_get_pricing",
       resourceUri: "ragacademy://pricing/public",
@@ -270,6 +284,7 @@ export function getAcademyServerInfo() {
       "rag_academy_get_research_feed",
       "rag_academy_get_pricing",
       "rag_academy_get_content",
+      "rag_academy_get_learning_path",
       "rag_academy_server_info",
       "rag_academy_get_my_progress",
       "rag_academy_get_my_recommendations",
@@ -286,6 +301,28 @@ export function getAcademyServerInfo() {
         description: "Public pricing phases and tiers (JSON, same data as rag_academy_get_pricing minus MCP meta wrapper).",
       },
     ],
+    resourceTemplates: [
+      {
+        uriTemplate: "ragacademy://lesson/{phase}/{slug}",
+        description: "Lesson MDX body (text/markdown); phase and slug autocomplete.",
+      },
+      {
+        uriTemplate: "ragacademy://playbook/{slug}",
+        description: "Playbook MDX body (text/markdown); slug autocompletes.",
+      },
+      {
+        uriTemplate: "ragacademy://challenge/{slug}",
+        description: "Challenge detail JSON (no solutions); slug autocompletes.",
+      },
+    ],
+    search: {
+      pipeline: "keyword_overlap_rrf",
+      note: "Multi-query expansion (comparisons, domain synonyms) fused with Reciprocal Rank Fusion — the same RRF taught in /challenges/rrf-fusion.",
+    },
+    sampling: {
+      usedBy: ["rag_academy_answer"],
+      note: "When the MCP client advertises the sampling capability, rag_academy_answer answers via the client's own LLM — no API keys or platform quota needed. Fallback order: client-sampling, platform-api, local-llm.",
+    },
     rateLimitDisableEnv: "RAG_ACADEMY_MCP_DISABLE_RATE_LIMIT",
   };
 }
@@ -355,28 +392,34 @@ export async function getAcademyResearchFeed(
   };
 }
 
-export async function getAuthenticatedProgress() {
+export async function getAuthenticatedProgress(config?: ApiConfig) {
   takeMcpRateSlot("rag_academy_get_my_progress", MCP_RATE_LIMITS.authenticated);
-  const json = await fetchMyProgress();
+  const json = await fetchMyProgress(config);
   return {
     meta: buildMcpMeta(),
     progress: json,
   };
 }
 
-export async function getAuthenticatedRecommendations(input: {
-  type?: RecommendationType;
-  limit?: number;
-  goal?: string;
-}) {
+export async function getAuthenticatedRecommendations(
+  input: {
+    type?: RecommendationType;
+    limit?: number;
+    goal?: string;
+  },
+  config?: ApiConfig
+) {
   const type = input.type ?? "personalized";
   takeMcpRateSlot("rag_academy_get_my_recommendations", MCP_RATE_LIMITS.authenticated);
   const limit = clampLimit(input.limit, 5, 20);
-  const json = await fetchMyRecommendations({
-    type,
-    limit,
-    goal: input.goal,
-  });
+  const json = await fetchMyRecommendations(
+    {
+      type,
+      limit,
+      goal: input.goal,
+    },
+    config
+  );
   return {
     meta: buildMcpMeta(),
     recommendationType: type,

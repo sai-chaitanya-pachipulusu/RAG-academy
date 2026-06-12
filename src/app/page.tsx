@@ -1,17 +1,60 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Reveal } from "@/components/ui/Reveal";
 import { RAGScrollStory } from "@/components/landing/RAGScrollStory";
-import { CurriculumCompassDocs } from "@/components/mcp/CurriculumCompassDocs";
-import { MCP_DOCS_PATH } from "@/lib/mcp/branding";
+import {
+  MCP_DISPLAY_NAME,
+  MCP_DOCS_PATH,
+  MCP_HTTP_CONNECT_COMMAND,
+  MCP_LESSON_PATH,
+} from "@/lib/mcp/branding";
 import { useSupabaseAuth } from "@/components/providers/SupabaseAuthProvider";
 import { getPlatformStats, CHALLENGES } from "@/lib/challenges/catalog";
+import { CURRICULUM_STAGE_IDS, CURRICULUM_STAGE_LABELS } from "@/lib/curriculum/stages";
 import { PricingBanner } from "@/components/pricing/PricingBanner";
+
+/** Single source of truth for all platform numbers shown on this page. */
+const platformStats = getPlatformStats();
+
+/** Copyable one-line connect command for the hosted MCP endpoint. */
+function CopyCommand({ command }: { command: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/40 p-3">
+      <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap font-mono text-xs text-gray-200">
+        <span className="select-none text-gray-500">$ </span>
+        {command}
+      </code>
+      <button
+        type="button"
+        onClick={() => {
+          if (!navigator.clipboard) return;
+          navigator.clipboard.writeText(command).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          });
+        }}
+        className="shrink-0 rounded-md bg-white/10 px-2.5 py-1.5 text-[11px] font-medium text-white transition-colors hover:bg-white/20 cursor-pointer"
+        aria-label="Copy connect command"
+      >
+        {copied ? "Copied" : "Copy"}
+      </button>
+    </div>
+  );
+}
+
+const MCP_CAPABILITIES = [
+  "Grounded Q&A with citations",
+  "RRF-fused curriculum search",
+  "Goal-driven learning paths",
+  `${platformStats.totalChallenges}+ challenges & playbooks`,
+];
 
 const FEATURES = [
   {
-    title: "13-Phase Curriculum",
+    title: `${platformStats.totalStages}-Phase Curriculum`,
     description: "From vector math to production ops.",
     icon: (
       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -75,23 +118,25 @@ const stageCounts = CHALLENGES.reduce((acc, challenge) => {
   return acc;
 }, {} as Record<string, number>);
 
-const LEARNING_PATH = [
-  { name: "Foundations", count: stageCounts["foundations"] || 0, color: "bg-gray-900" },
-  { name: "Pre-Retrieval", count: stageCounts["pre-retrieval"] || 0, color: "bg-[#2563EB]" },
-  { name: "Retrieval", count: stageCounts["retrieval"] || 0, color: "bg-gray-700" },
-  { name: "Query Transforms", count: stageCounts["query-transforms"] || 0, color: "bg-gray-600" },
-  { name: "Advanced Retrieval", count: stageCounts["advanced-retrieval"] || 0, color: "bg-gray-500" },
-  { name: "Post-Retrieval", count: stageCounts["post-retrieval"] || 0, color: "bg-gray-400" },
-  { name: "Grounding & Safety", count: stageCounts["grounding-safety"] || 0, color: "bg-gray-500" },
-  { name: "Agentic RAG", count: stageCounts["agentic-rag"] || 0, color: "bg-gray-600" },
-  { name: "Graph RAG", count: stageCounts["graph-rag"] || 0, color: "bg-gray-700" },
-  { name: "Multimodal", count: stageCounts["multimodal"] || 0, color: "bg-gray-600" },
-  { name: "Fine-tuning", count: stageCounts["fine-tuning"] || 0, color: "bg-gray-500" },
-  { name: "Production Ops", count: stageCounts["production-ops"] || 0, color: "bg-gray-400" },
-  { name: "Evaluation Ops", count: stageCounts["evaluation-ops"] || 0, color: "bg-gray-300" },
+const STAGE_COLORS = [
+  "bg-gray-900",
+  "bg-[#2563EB]",
+  "bg-gray-700",
+  "bg-gray-600",
+  "bg-gray-500",
+  "bg-gray-400",
 ];
 
-const platformStats = getPlatformStats();
+/**
+ * Derived from the real curriculum: every stage that has at least one
+ * challenge, in official order. Count matches platformStats.totalStages,
+ * so the journey visual can never drift from the headline number again.
+ */
+const LEARNING_PATH = CURRICULUM_STAGE_IDS
+  .map((id) => ({ name: CURRICULUM_STAGE_LABELS[id], count: stageCounts[id] || 0 }))
+  .filter((stage) => stage.count > 0)
+  .map((stage, i) => ({ ...stage, color: STAGE_COLORS[i % STAGE_COLORS.length] }));
+
 const STATS = [
   { value: `${platformStats.freeChallengeCount}+`, label: "Free Challenges" },
   { value: `${platformStats.totalLessons}`, label: "Lessons" },
@@ -109,9 +154,9 @@ export default function Home() {
 
       {/* Hero */}
       <section className="relative">
-        <div className="mx-auto max-w-[1200px] px-6 py-16 lg:px-8 lg:py-24">
+        <div className="mx-auto max-w-[1200px] px-6 py-12 lg:px-8 lg:py-16">
           <div className="grid gap-12 lg:grid-cols-[1fr_380px] lg:items-center">
-            <div className="space-y-6">
+            <div className="space-y-5">
               <Reveal>
                 <span className="inline-flex items-center gap-2 rounded-full border border-[#3B82F6]/20 bg-[#3B82F6]/5 px-3 py-1 text-xs font-medium text-[#3B82F6]">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#3B82F6]" />
@@ -185,9 +230,9 @@ export default function Home() {
                     
                     <div className="space-y-2">
                       {[
-                        { label: "Lessons", value: "68" },
-                        { label: "Challenges", value: "263+" },
-                        { label: "Phases", value: "13" },
+                        { label: "Lessons", value: `${platformStats.totalLessons}` },
+                        { label: "Challenges", value: `${platformStats.totalChallenges}+` },
+                        { label: "Phases", value: `${platformStats.totalStages}` },
                       ].map((item, i) => (
                         <div key={i} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                           <span className="text-sm text-gray-500">{item.label}</span>
@@ -204,7 +249,7 @@ export default function Home() {
       </section>
 
       {/* Features */}
-      <section className="py-12 bg-gray-50">
+      <section className="py-10 bg-gray-50">
         <div className="mx-auto max-w-[1200px] px-6 lg:px-8">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {FEATURES.map((feature, i) => (
@@ -223,7 +268,7 @@ export default function Home() {
       </section>
 
       {/* Popular Challenges */}
-      <section className="py-12">
+      <section className="py-10">
         <div className="mx-auto max-w-[1200px] px-6 lg:px-8">
           <div className="flex items-end justify-between mb-6">
             <div>
@@ -243,7 +288,7 @@ export default function Home() {
               <Reveal key={challenge.slug} delayMs={i * 40}>
                 <Link
                   href={`/challenges/${challenge.slug}`}
-                  className="group block rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200-all duration-200 hover:border-[#3B82F6]/30 hover:shadow-md cursor-pointer"
+                  className="group block rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200 hover:border-[#3B82F6]/30 hover:shadow-md cursor-pointer"
                 >
                   <div className="mb-3">
                     <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide ${
@@ -254,7 +299,7 @@ export default function Home() {
                       {challenge.difficulty}
                     </span>
                   </div>
-                  <h3 className="text-sm font-semibold mb-0.5 group-hover:text-[#3B82F6] transition-all duration-200-all duration-200 font-heading cursor-pointer">
+                  <h3 className="text-sm font-semibold mb-0.5 group-hover:text-[#3B82F6] transition-all duration-200 font-heading cursor-pointer">
                     {challenge.title}
                   </h3>
                   <p className="text-xs text-gray-400">{challenge.category}</p>
@@ -284,7 +329,7 @@ export default function Home() {
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {ADVANCED_2026.map((tech, i) => (
                 <Reveal key={tech.title} delayMs={i * 40}>
-                  <div className="rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200-all duration-200 hover:border-[#3B82F6]/30 hover:shadow-md cursor-pointer">
+                  <div className="rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200 hover:border-[#3B82F6]/30 hover:shadow-md cursor-pointer">
                     <h3 className="text-sm font-semibold mb-0.5 font-heading">{tech.title}</h3>
                     <p className="text-[11px] text-gray-400 mb-1.5">{tech.subtitle}</p>
                     <p className="text-xs text-gray-500 leading-snug">{tech.description}</p>
@@ -296,7 +341,7 @@ export default function Home() {
             <div className="mt-6 flex items-center gap-3 flex-wrap">
               <Link
                 href="/challenges?search=rag"
-                className="inline-flex h-8 items-center justify-center rounded-full bg-[#3B82F6] px-5 text-sm font-medium text-white transition-all duration-200-all duration-200 hover:bg-[#2563EB] cursor-pointer"
+                className="inline-flex h-8 items-center justify-center rounded-full bg-[#3B82F6] px-5 text-sm font-medium text-white transition-all duration-200 hover:bg-[#2563EB] cursor-pointer"
               >
                 Explore Advanced Challenges
               </Link>
@@ -316,7 +361,7 @@ export default function Home() {
         <div className="mx-auto max-w-[1200px] px-6 py-8 lg:px-8">
           <div className="flex items-end justify-between mb-6">
             <div>
-              <h2 className="text-xl font-semibold tracking-tight font-heading">What's New</h2>
+              <h2 className="text-xl font-semibold tracking-tight font-heading">What&apos;s New</h2>
               <p className="mt-1 text-sm text-gray-500">Recent additions to the platform</p>
             </div>
           </div>
@@ -356,9 +401,66 @@ export default function Home() {
 
       {/* Curriculum Compass MCP */}
       <section className="border-b border-gray-100">
-        <div className="mx-auto max-w-[1200px] px-6 py-8 lg:px-8">
+        <div className="mx-auto max-w-[1200px] px-6 py-10 lg:px-8">
           <Reveal>
-            <CurriculumCompassDocs variant="compact" />
+            <div className="overflow-hidden rounded-2xl bg-gray-900 text-white">
+              <div className="grid gap-8 p-8 lg:grid-cols-[1.05fr_1fr] lg:items-center lg:p-10">
+                <div className="min-w-0 space-y-5">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-indigo-300">
+                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
+                    Model Context Protocol
+                  </span>
+
+                  <h2 className="text-2xl font-medium tracking-tight font-heading lg:text-3xl">
+                    Use RAG Academy inside Claude &amp; Cursor
+                  </h2>
+
+                  <p className="text-sm leading-relaxed text-gray-300 lg:text-base">
+                    {MCP_DISPLAY_NAME} is our official MCP server. Connect your AI editor and it can
+                    search the curriculum, answer RAG questions grounded in real lessons (with
+                    citations), build study paths, and pull challenges — without you ever leaving
+                    your editor.
+                  </p>
+
+                  <ul className="grid gap-2 sm:grid-cols-2">
+                    {MCP_CAPABILITIES.map((cap) => (
+                      <li key={cap} className="flex items-center gap-2 text-sm text-gray-200">
+                        <svg className="h-4 w-4 shrink-0 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                        {cap}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="flex flex-wrap items-center gap-3 pt-1">
+                    <Link
+                      href={MCP_DOCS_PATH}
+                      className="inline-flex h-10 items-center justify-center rounded-lg bg-white px-5 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-100 cursor-pointer"
+                    >
+                      Setup guide
+                    </Link>
+                    <Link
+                      href={MCP_LESSON_PATH}
+                      className="inline-flex h-10 items-center justify-center rounded-lg border border-white/20 px-5 text-sm font-medium text-gray-200 transition-colors hover:bg-white/10 cursor-pointer"
+                    >
+                      How MCP works
+                    </Link>
+                  </div>
+                </div>
+
+                <div className="min-w-0 space-y-3 lg:pl-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                    Connect in one command — no install
+                  </p>
+                  <CopyCommand command={MCP_HTTP_CONNECT_COMMAND} />
+                  <p className="text-xs leading-relaxed text-gray-400">
+                    Works with Claude Code, Claude Desktop, and Cursor. Sign in with your access
+                    token to unlock grounded Q&amp;A on your daily quota and Pro architecture review.
+                  </p>
+                </div>
+              </div>
+            </div>
           </Reveal>
         </div>
       </section>
@@ -368,7 +470,7 @@ export default function Home() {
         <div className="mx-auto max-w-[1200px] px-6 py-8 lg:px-8">
           <div className="text-center mb-6">
             <h2 className="text-xl font-semibold tracking-tight">Your Learning Journey</h2>
-            <p className="mt-1 text-sm text-gray-500">13 phases from fundamentals to production</p>
+            <p className="mt-1 text-sm text-gray-500">{platformStats.totalStages} phases from fundamentals to production</p>
           </div>
 
           <Reveal delayMs={60}>
@@ -376,7 +478,7 @@ export default function Home() {
               <div className="flex items-center gap-1.5 min-w-max justify-center">
                 {LEARNING_PATH.map((stage, i) => (
                   <div key={stage.name} className="flex items-center">
-                    <div className="rounded-full border border-gray-200 bg-white px-3 py-1.5 transition-all duration-200-all duration-200 hover:shadow-sm cursor-pointer">
+                    <div className="rounded-full border border-gray-200 bg-white px-3 py-1.5 transition-all duration-200 hover:shadow-sm cursor-pointer">
                       <div className="flex items-center gap-1.5">
                         <div className={`h-1.5 w-1.5 rounded-full ${stage.color}`} />
                         <div>
@@ -416,7 +518,7 @@ export default function Home() {
             </div>
             <Link
               href="/projects"
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-1.5 text-sm font-medium text-gray-700 transition-all duration-200-all duration-200 hover:bg-gray-50 cursor-pointer"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-1.5 text-sm font-medium text-gray-700 transition-all duration-200 hover:bg-gray-50 cursor-pointer"
             >
               View all
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -434,10 +536,10 @@ export default function Home() {
               <Reveal key={project.title} delayMs={i * 40}>
                 <Link
                   href="/projects"
-                  className="group block rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200-all duration-200 hover:border-gray-300 hover:shadow-sm cursor-pointer"
+                  className="group block rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200 hover:border-gray-300 hover:shadow-sm cursor-pointer"
                 >
                   <div className="flex items-start justify-between mb-3">
-                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-md bg-gray-50 text-[10px] font-bold text-gray-400 group-hover:bg-gray-900 group-hover:text-white transition-all duration-200-all duration-200 cursor-pointer">
+                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-md bg-gray-50 text-[10px] font-bold text-gray-400 group-hover:bg-gray-900 group-hover:text-white transition-all duration-200 cursor-pointer">
                       {project.icon}
                     </span>
                     <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
@@ -450,7 +552,7 @@ export default function Home() {
                       {project.difficulty}
                     </span>
                   </div>
-                  <h3 className="text-sm font-semibold mb-0.5 group-hover:text-blue-600 transition-all duration-200-all duration-200 cursor-pointer">
+                  <h3 className="text-sm font-semibold mb-0.5 group-hover:text-blue-600 transition-all duration-200 cursor-pointer">
                     {project.title}
                   </h3>
                   <p className="text-xs text-gray-500 mb-2">{project.desc}</p>
@@ -463,7 +565,7 @@ export default function Home() {
       </section>
 
       {/* RAG Pipeline */}
-      <section className="border-b border-gray-100">
+      <section className="overflow-x-clip border-b border-gray-100">
         <div className="mx-auto max-w-[1200px] px-6 py-8 lg:px-8">
           <Reveal>
             <div className="mb-6 max-w-lg">
@@ -485,7 +587,7 @@ export default function Home() {
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
             <Link
               href="/playbooks"
-              className="group rounded-lg border border-gray-200 bg-white p-5 transition-all duration-200-all duration-200 hover:border-gray-300 hover:shadow-sm cursor-pointer"
+              className="group rounded-lg border border-gray-200 bg-white p-5 transition-all duration-200 hover:border-gray-300 hover:shadow-sm cursor-pointer"
             >
               <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-md bg-blue-50 text-blue-600">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -498,7 +600,7 @@ export default function Home() {
 
             <Link
               href="/compare/vector-dbs"
-              className="group rounded-lg border border-gray-200 bg-white p-5 transition-all duration-200-all duration-200 hover:border-gray-300 hover:shadow-sm cursor-pointer"
+              className="group rounded-lg border border-gray-200 bg-white p-5 transition-all duration-200 hover:border-gray-300 hover:shadow-sm cursor-pointer"
             >
               <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-md bg-purple-50 text-purple-600">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -511,7 +613,7 @@ export default function Home() {
 
             <Link
               href="/learn"
-              className="group rounded-lg border border-gray-200 bg-white p-5 transition-all duration-200-all duration-200 hover:border-gray-300 hover:shadow-sm cursor-pointer"
+              className="group rounded-lg border border-gray-200 bg-white p-5 transition-all duration-200 hover:border-gray-300 hover:shadow-sm cursor-pointer"
             >
               <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-md bg-emerald-50 text-emerald-600">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -519,12 +621,12 @@ export default function Home() {
                 </svg>
               </div>
               <h3 className="font-semibold text-sm mb-1">Structured Curriculum</h3>
-              <p className="text-xs text-gray-500">13 stages from foundations to advanced production patterns</p>
+              <p className="text-xs text-gray-500">{platformStats.totalStages} stages from foundations to advanced production patterns</p>
             </Link>
 
             <Link
               href={MCP_DOCS_PATH}
-              className="group rounded-lg border border-gray-200 bg-white p-5 transition-all duration-200-all duration-200 hover:border-indigo-200 hover:shadow-sm cursor-pointer"
+              className="group rounded-lg border border-gray-200 bg-white p-5 transition-all duration-200 hover:border-indigo-200 hover:shadow-sm cursor-pointer"
             >
               <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-md bg-indigo-50 text-indigo-600">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -552,16 +654,16 @@ export default function Home() {
               <div className="mt-6 flex items-center justify-center gap-3 flex-wrap">
                 <Link
                   href={user ? "/learn" : "/login"}
-                  className="group inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#3B82F6] px-6 text-sm font-medium text-white transition-all duration-200-all duration-200 hover:bg-[#2563EB] cursor-pointer"
+                  className="group inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#3B82F6] px-6 text-sm font-medium text-white transition-all duration-200 hover:bg-[#2563EB] cursor-pointer"
                 >
                   Start Learning Free
-                  <svg className="h-3.5 w-3.5 transition-all duration-200-transform group-hover:translate-x-0.5 cursor-pointer" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5 cursor-pointer" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                   </svg>
                 </Link>
                 <Link
                   href="/projects"
-                  className="inline-flex h-10 items-center justify-center rounded-full border border-gray-200 px-6 text-sm font-medium text-gray-700 transition-all duration-200-all duration-200 hover:bg-gray-50 cursor-pointer"
+                  className="inline-flex h-10 items-center justify-center rounded-full border border-gray-200 px-6 text-sm font-medium text-gray-700 transition-all duration-200 hover:bg-gray-50 cursor-pointer"
                 >
                   View Projects
                 </Link>
@@ -594,29 +696,29 @@ export default function Home() {
             <div>
               <h4 className="font-semibold text-sm mb-3">Learn</h4>
               <ul className="space-y-2 text-xs text-gray-500">
-                <li><Link href="/learn" className="hover:text-gray-900 transition-all duration-200-all duration-200 cursor-pointer">Curriculum</Link></li>
-                <li><Link href="/challenges" className="hover:text-gray-900 transition-all duration-200-all duration-200 cursor-pointer">Challenges</Link></li>
-                <li><Link href="/projects" className="hover:text-gray-900 transition-all duration-200-all duration-200 cursor-pointer">Projects</Link></li>
-                <li><Link href="/playbooks" className="hover:text-gray-900 transition-all duration-200-all duration-200 cursor-pointer">Playbooks</Link></li>
+                <li><Link href="/learn" className="hover:text-gray-900 transition-all duration-200 cursor-pointer">Curriculum</Link></li>
+                <li><Link href="/challenges" className="hover:text-gray-900 transition-all duration-200 cursor-pointer">Challenges</Link></li>
+                <li><Link href="/projects" className="hover:text-gray-900 transition-all duration-200 cursor-pointer">Projects</Link></li>
+                <li><Link href="/playbooks" className="hover:text-gray-900 transition-all duration-200 cursor-pointer">Playbooks</Link></li>
               </ul>
             </div>
 
             <div>
               <h4 className="font-semibold text-sm mb-3">Compare</h4>
               <ul className="space-y-2 text-xs text-gray-500">
-                <li><Link href="/compare/vector-dbs" className="hover:text-gray-900 transition-all duration-200-all duration-200 cursor-pointer">Vector DBs</Link></li>
-                <li><Link href="/compare/embeddings" className="hover:text-gray-900 transition-all duration-200-all duration-200 cursor-pointer">Embeddings</Link></li>
-                <li><Link href="/compare/frameworks" className="hover:text-gray-900 transition-all duration-200-all duration-200 cursor-pointer">Frameworks</Link></li>
+                <li><Link href="/compare/vector-dbs" className="hover:text-gray-900 transition-all duration-200 cursor-pointer">Vector DBs</Link></li>
+                <li><Link href="/compare/embeddings" className="hover:text-gray-900 transition-all duration-200 cursor-pointer">Embeddings</Link></li>
+                <li><Link href="/compare/frameworks" className="hover:text-gray-900 transition-all duration-200 cursor-pointer">Frameworks</Link></li>
               </ul>
             </div>
 
             <div>
               <h4 className="font-semibold text-sm mb-3">Resources</h4>
               <ul className="space-y-2 text-xs text-gray-500">
-                <li><Link href="/papers" className="hover:text-gray-900 transition-all duration-200-all duration-200 cursor-pointer">Research Papers</Link></li>
-                <li><Link href="/analytics" className="hover:text-gray-900 transition-all duration-200-all duration-200 cursor-pointer">Your Progress</Link></li>
-                <li><Link href="/leaderboard" className="hover:text-gray-900 transition-all duration-200-all duration-200 cursor-pointer">Leaderboard</Link></li>
-                <li><Link href={MCP_DOCS_PATH} className="hover:text-gray-900 transition-all duration-200-all duration-200 cursor-pointer">Curriculum Compass (MCP)</Link></li>
+                <li><Link href="/papers" className="hover:text-gray-900 transition-all duration-200 cursor-pointer">Research Papers</Link></li>
+                <li><Link href="/analytics" className="hover:text-gray-900 transition-all duration-200 cursor-pointer">Your Progress</Link></li>
+                <li><Link href="/leaderboard" className="hover:text-gray-900 transition-all duration-200 cursor-pointer">Leaderboard</Link></li>
+                <li><Link href={MCP_DOCS_PATH} className="hover:text-gray-900 transition-all duration-200 cursor-pointer">Curriculum Compass (MCP)</Link></li>
               </ul>
             </div>
           </div>

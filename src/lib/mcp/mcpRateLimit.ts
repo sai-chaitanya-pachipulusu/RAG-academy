@@ -29,4 +29,8 @@ export const MCP_RATE_LIMITS = {
   researchFeed: 24,
   /** Authenticated calls hit your deploy. */
   authenticated: 30,
+  /** LLM-backed Q&A; per-user daily quota also applies via the platform API. */
+  answer: 30,
+  /** LLM-backed architecture analysis; Pro tier verified server-side. */
+  analyzeArch: 10,
 } as const;

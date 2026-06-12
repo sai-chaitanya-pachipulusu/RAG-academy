@@ -7,8 +7,12 @@
  */
 
 const DEFAULT_HTTP_TIMEOUT_MS = 20_000;
+/** LLM-backed routes (/api/rag/*) can take 15-30s server-side. */
+const LLM_HTTP_TIMEOUT_MS = 60_000;
 
-export function getApiConfig(): { baseUrl: string; token: string } | null {
+export type ApiConfig = { baseUrl: string; token: string };
+
+export function getApiConfig(): ApiConfig | null {
   const base =
     process.env.RAG_ACADEMY_API_BASE_URL?.trim() ||
     process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
@@ -36,8 +40,57 @@ export function getJwtSub(jwt: string): string | null {
   }
 }
 
-export async function fetchMyProgress(): Promise<unknown> {
-  const cfg = getApiConfig();
+export type RagApiCallResult =
+  | { ok: true; status: number; json: Record<string, unknown> }
+  | { ok: false; status: number; error: string };
+
+/**
+ * POST to a deployed /api/rag/* route with the user's Supabase JWT.
+ * The server verifies the JWT, subscription tier, and per-user quota —
+ * the MCP process never decides paywall outcomes itself.
+ */
+export async function postRagApi(
+  path: "/api/rag/ask" | "/api/rag/analyze",
+  body: Record<string, unknown>,
+  config?: ApiConfig
+): Promise<RagApiCallResult> {
+  const cfg = config ?? getApiConfig();
+  if (!cfg) {
+    throw new Error(
+      "Configure RAG_ACADEMY_API_BASE_URL (or NEXT_PUBLIC_APP_URL / NEXT_PUBLIC_SITE_URL) and RAG_ACADEMY_SUPABASE_ACCESS_TOKEN."
+    );
+  }
+
+  const res = await fetch(`${cfg.baseUrl}${path}`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-supabase-access-token": cfg.token,
+      accept: "application/json",
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(LLM_HTTP_TIMEOUT_MS),
+  });
+
+  const text = await res.text();
+  let json: Record<string, unknown>;
+  try {
+    json = JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    json = { raw: text.slice(0, 500) };
+  }
+
+  if (!res.ok) {
+    const error =
+      typeof json.error === "string" ? json.error : `RAG API failed (${res.status}): ${text.slice(0, 400)}`;
+    return { ok: false, status: res.status, error };
+  }
+
+  return { ok: true, status: res.status, json };
+}
+
+export async function fetchMyProgress(config?: ApiConfig): Promise<unknown> {
+  const cfg = config ?? getApiConfig();
   if (!cfg) {
     throw new Error(
       "Configure RAG_ACADEMY_API_BASE_URL (or NEXT_PUBLIC_APP_URL / NEXT_PUBLIC_SITE_URL) and RAG_ACADEMY_SUPABASE_ACCESS_TOKEN to pull progress."
@@ -70,12 +123,15 @@ export async function fetchMyProgress(): Promise<unknown> {
 
 export type RecommendationType = "personalized" | "continue" | "review" | "goal";
 
-export async function fetchMyRecommendations(options: {
-  type: RecommendationType;
-  limit: number;
-  goal?: string;
-}): Promise<unknown> {
-  const cfg = getApiConfig();
+export async function fetchMyRecommendations(
+  options: {
+    type: RecommendationType;
+    limit: number;
+    goal?: string;
+  },
+  config?: ApiConfig
+): Promise<unknown> {
+  const cfg = config ?? getApiConfig();
   if (!cfg) {
     throw new Error(
       "Configure RAG_ACADEMY_API_BASE_URL (or NEXT_PUBLIC_APP_URL / NEXT_PUBLIC_SITE_URL) and RAG_ACADEMY_SUPABASE_ACCESS_TOKEN."

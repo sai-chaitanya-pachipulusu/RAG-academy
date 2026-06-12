@@ -5,6 +5,8 @@ import {
   MCP_DOCS_PATH,
   MCP_ENV_VARS,
   MCP_FEATURED_TOOLS,
+  MCP_HTTP_CONNECT_COMMAND,
+  MCP_HTTP_ENDPOINT_URL,
   MCP_LESSON_PATH,
   MCP_PUBLIC_SITE_URL,
   MCP_REPO_CWD_PLACEHOLDER,
@@ -65,6 +67,9 @@ export function CurriculumCompassDocs({ variant = "full" }: CurriculumCompassDoc
               {MCP_DISPLAY_NAME}
             </h2>
             <p className="text-sm text-gray-500 leading-relaxed">{MCP_TAGLINE}</p>
+            <pre className="overflow-x-auto rounded-lg border border-gray-200 bg-gray-950 px-3 py-2 text-[11px] leading-relaxed text-gray-100">
+              <code>{MCP_HTTP_CONNECT_COMMAND}</code>
+            </pre>
             <ul className="space-y-1.5 text-sm text-gray-600">
               {MCP_FEATURED_TOOLS.slice(0, 3).map((tool) => (
                 <li key={tool.name} className="flex items-start gap-2">
@@ -147,8 +152,29 @@ export function CurriculumCompassDocs({ variant = "full" }: CurriculumCompassDoc
         </div>
       </section>
 
+      <section className="space-y-4 rounded-lg border border-indigo-100 bg-indigo-50/50 p-5">
+        <h2 className="text-lg font-semibold text-gray-900">Connect instantly — hosted endpoint</h2>
+        <p className="text-sm text-gray-600 leading-relaxed">
+          No clone, no install. The server is hosted at{" "}
+          <code className="text-xs">{MCP_HTTP_ENDPOINT_URL}</code> (Streamable HTTP). One command in
+          Claude Code:
+        </p>
+        <CodeBlock>{MCP_HTTP_CONNECT_COMMAND}</CodeBlock>
+        <p className="text-sm text-gray-600 leading-relaxed">
+          For signed-in features (grounded Q&A with your daily quota, Pro architecture analysis,
+          progress, recommendations), send your Supabase access token as{" "}
+          <code className="text-xs">Authorization: Bearer &lt;token&gt;</code>. Anonymous callers get
+          the full curriculum toolset: search, learning paths, challenges, content, pricing, and feeds.
+          Sampling-powered Q&A (your editor&apos;s own LLM) is available on the stdio setup below.
+        </p>
+      </section>
+
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold text-gray-900">Quick start</h2>
+        <h2 className="text-lg font-semibold text-gray-900">Run locally (stdio)</h2>
+        <p className="text-sm text-gray-500">
+          The stdio server unlocks MCP sampling (zero-key Q&A via your editor&apos;s LLM) and local
+          API keys.
+        </p>
         <ol className="list-decimal space-y-2 pl-5 text-sm text-gray-600">
           <li>Clone the RAG Academy repo and run <code className="text-xs">npm install</code>.</li>
           <li>From the repo root, verify the server: <code className="text-xs">npm run mcp:dev</code>.</li>

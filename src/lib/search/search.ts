@@ -1,8 +1,9 @@
 import { getAllChallenges } from "@/lib/challenges/catalog";
+import type { CurriculumStage } from "@/lib/curriculum/stages";
 import type { SearchResult } from "@/lib/search/types";
 import contentIndexJson from "./contentIndex.generated.json";
 
-type IndexedDoc = {
+export type IndexedDoc = {
   id: string;
   type: "lesson" | "playbook";
   title: string;
@@ -11,9 +12,17 @@ type IndexedDoc = {
   tags: string[];
   searchText: string;
   excerpt: string;
+  /** Present on lessons; playbooks are cross-cutting. */
+  stage?: CurriculumStage;
+  outcomes?: string[];
 };
 
 const CONTENT_INDEX = contentIndexJson as IndexedDoc[];
+
+/** Read-only view of the build-time content index (lessons + playbooks). */
+export function getContentIndex(): readonly IndexedDoc[] {
+  return CONTENT_INDEX;
+}
 
 function tokenize(q: string) {
   return q
